@@ -10,6 +10,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { TextField } from "@/components/ui/TextField";
 
 const loginSchema = z.object({
   email: z.string().email("Please enter a valid email"),
@@ -74,16 +75,14 @@ export default function InventoryLogin() {
                     <FormItem>
                       <FormLabel>Email</FormLabel>
                       <FormControl>
-                        <div className="relative">
-                          <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                          <Input
-                            type="email"
-                            placeholder="inventory@moha.com"
-                            className="pl-10"
-                            data-testid="input-email"
-                            {...field}
-                          />
-                        </div>
+                        
+                         <TextField
+                          type="email"
+                          placeholder="inventory@moha.com"
+                          startAdornment={<Mail className="h-4 w-4 text-muted-foreground" />}
+                          data-testid="input-email"
+                          {...field}
+                        />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -97,29 +96,27 @@ export default function InventoryLogin() {
                     <FormItem>
                       <FormLabel>Password</FormLabel>
                       <FormControl>
-                        <div className="relative">
-                          <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                          <Input
+                       <TextField
                             type={showPassword ? "text" : "password"}
-                            placeholder="Enter your password"
-                            className="pl-10 pr-10"
-                            data-testid="input-password"
-                            {...field}
-                          />
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="icon"
-                            className="absolute right-0 top-0 h-full px-3 hover:bg-transparent"
-                            onClick={() => setShowPassword(!showPassword)}
-                          >
-                            {showPassword ? (
-                              <EyeOff className="h-4 w-4 text-muted-foreground" />
+                          placeholder="Password"
+                          startAdornment={
+                            <Lock className="h-4 w-4 text-gray-500" />
+                          }
+                          endAdornment={
+                            showPassword ? (
+                              <EyeOff
+                                className="h-4 w-4 text-gray-500 cursor-pointer"
+                                onClick={() => setShowPassword(false)}
+                              />
                             ) : (
-                              <Eye className="h-4 w-4 text-muted-foreground" />
-                            )}
-                          </Button>
-                        </div>
+                              <Eye
+                                className="h-4 w-4 text-gray-500 cursor-pointer"
+                                onClick={() => setShowPassword(true)}
+                              />
+                            )
+                          }
+                          {...field}
+                        />
                       </FormControl>
                       <FormMessage />
                     </FormItem>

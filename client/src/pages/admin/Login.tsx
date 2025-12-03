@@ -3,13 +3,28 @@ import { Link, useNavigate } from "react-router-dom";
 import { Eye, EyeOff, Mail, Lock, Shield } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { useAuth } from "@/lib/auth";
 import { useToast } from "@/hooks/use-toast";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form";
+import { TextField } from "@/components/ui/TextField";
 
 const loginSchema = z.object({
   email: z.string().email("Please enter a valid email"),
@@ -38,10 +53,17 @@ export default function AdminLogin() {
     try {
       const result = await login(values.email, values.password, "admin");
       if (result.success) {
-        toast({ title: "Welcome!", description: "You have successfully logged in." });
+        toast({
+          title: "Welcome!",
+          description: "You have successfully logged in.",
+        });
         navigate("/admin/dashboard");
       } else {
-        toast({ title: "Login failed", description: result.error, variant: "destructive" });
+        toast({
+          title: "Login failed",
+          description: result.error,
+          variant: "destructive",
+        });
       }
     } finally {
       setIsLoading(false);
@@ -62,11 +84,16 @@ export default function AdminLogin() {
         <Card>
           <CardHeader>
             <CardTitle data-testid="text-page-title">Admin Login</CardTitle>
-            <CardDescription>Enter your admin credentials to continue</CardDescription>
+            <CardDescription>
+              Enter your admin credentials to continue
+            </CardDescription>
           </CardHeader>
           <CardContent>
             <Form {...form}>
-              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+              <form
+                onSubmit={form.handleSubmit(onSubmit)}
+                className="space-y-4"
+              >
                 <FormField
                   control={form.control}
                   name="email"
@@ -74,16 +101,15 @@ export default function AdminLogin() {
                     <FormItem>
                       <FormLabel>Email</FormLabel>
                       <FormControl>
-                        <div className="relative">
-                          <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                          <Input
-                            type="email"
-                            placeholder="admin@moha.com"
-                            className="pl-10"
-                            data-testid="input-email"
-                            {...field}
-                          />
-                        </div>
+                        <TextField
+                          type="email"
+                          placeholder="admin@moha.com"
+                          startAdornment={
+                            <Mail className="h-4 w-4 text-muted-foreground" />
+                          }
+                          data-testid="input-email"
+                          {...field}
+                        />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -97,43 +123,50 @@ export default function AdminLogin() {
                     <FormItem>
                       <FormLabel>Password</FormLabel>
                       <FormControl>
-                        <div className="relative">
-                          <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                          <Input
+                         <TextField
                             type={showPassword ? "text" : "password"}
-                            placeholder="Enter your password"
-                            className="pl-10 pr-10"
-                            data-testid="input-password"
-                            {...field}
-                          />
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="icon"
-                            className="absolute right-0 top-0 h-full px-3 hover:bg-transparent"
-                            onClick={() => setShowPassword(!showPassword)}
-                          >
-                            {showPassword ? (
-                              <EyeOff className="h-4 w-4 text-muted-foreground" />
+                          placeholder="Password"
+                          startAdornment={
+                            <Lock className="h-4 w-4 text-gray-500" />
+                          }
+                          endAdornment={
+                            showPassword ? (
+                              <EyeOff
+                                className="h-4 w-4 text-gray-500 cursor-pointer"
+                                onClick={() => setShowPassword(false)}
+                              />
                             ) : (
-                              <Eye className="h-4 w-4 text-muted-foreground" />
-                            )}
-                          </Button>
-                        </div>
+                              <Eye
+                                className="h-4 w-4 text-gray-500 cursor-pointer"
+                                onClick={() => setShowPassword(true)}
+                              />
+                            )
+                          }
+                                                    {...field}
+
+                        />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
                   )}
                 />
 
-                <Button type="submit" className="w-full" disabled={isLoading} data-testid="button-submit">
+                <Button
+                  type="submit"
+                  className="w-full"
+                  disabled={isLoading}
+                  data-testid="button-submit"
+                >
                   {isLoading ? "Signing in..." : "Sign In"}
                 </Button>
               </form>
             </Form>
           </CardContent>
           <CardFooter className="justify-center">
-            <Link to="/" className="text-sm text-muted-foreground hover:text-primary">
+            <Link
+              to="/"
+              className="text-sm text-muted-foreground hover:text-primary"
+            >
               Back to Store
             </Link>
           </CardFooter>
