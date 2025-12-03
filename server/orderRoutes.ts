@@ -5,10 +5,8 @@ import jwt from "jsonwebtoken";
 import crypto from "crypto";
 import { createAuthMiddleware } from "./authMiddleware";
 
-
-
 export const orderRoutes = (app: Express) => {
-const authUser = createAuthMiddleware(["user"]);
+  const authUser = createAuthMiddleware(["user"]);
 
   // Orders
   app.get("/api/user/orders", authUser, async (req, res) => {
@@ -43,7 +41,10 @@ const authUser = createAuthMiddleware(["user"]);
       }
 
       const totalAmount = cartItems.reduce((sum, item) => {
-        const price = typeof item.saree.price === "string" ? parseFloat(item.saree.price) : item.saree.price;
+        const price =
+          typeof item.saree.price === "string"
+            ? parseFloat(item.saree.price)
+            : item.saree.price;
         return sum + price * item.quantity;
       }, 0);
 
@@ -57,7 +58,10 @@ const authUser = createAuthMiddleware(["user"]);
           if (coupon.type === "percentage") {
             discountAmount = (totalAmount * parseFloat(coupon.value)) / 100;
             if (coupon.maxDiscount) {
-              discountAmount = Math.min(discountAmount, parseFloat(coupon.maxDiscount));
+              discountAmount = Math.min(
+                discountAmount,
+                parseFloat(coupon.maxDiscount)
+              );
             }
           } else {
             discountAmount = parseFloat(coupon.value);
@@ -90,7 +94,12 @@ const authUser = createAuthMiddleware(["user"]);
 
       // Record coupon usage after order is created
       if (validCoupon && discountAmount > 0) {
-        await storage.applyCoupon(validCoupon.id, userId, order.id, discountAmount.toString());
+        await storage.applyCoupon(
+          validCoupon.id,
+          userId,
+          order.id,
+          discountAmount.toString()
+        );
       }
 
       res.json({ orderId: order.id });
@@ -99,4 +108,4 @@ const authUser = createAuthMiddleware(["user"]);
       res.status(500).json({ message: "Failed to place order" });
     }
   });
-}
+};
