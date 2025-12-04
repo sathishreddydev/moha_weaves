@@ -79,12 +79,12 @@ export default function InventoryDashboard() {
   });
 
   const { data: pendingRequests } = useQuery<StockRequestWithDetails[]>({
-    queryKey: ["/api/inventory/requests", { status: "pending" }],
+    queryKey: ["/api/inventory/requests?status=pending"],
     enabled: !!user && user.role === "inventory",
   });
 
   const { data: pendingOrders } = useQuery<Order[]>({
-    queryKey: ["/api/inventory/orders", { status: "confirmed" }],
+    queryKey: ["/api/inventory/orders?status=pending"],
     enabled: !!user && user.role === "inventory",
   });
 

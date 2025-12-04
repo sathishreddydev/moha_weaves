@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import {
@@ -83,6 +82,10 @@ export default function InventoryAnalytics() {
     enabled: !!user && user.role === "inventory",
   });
 
+  const { data: storeSales = [] } = useQuery({
+    queryKey: ['/api/inventory/store-sales'],
+  });
+
   const handleLogout = async () => {
     await logout();
     navigate("/inventory/login");
@@ -139,7 +142,7 @@ export default function InventoryAnalytics() {
   // Aggregate top products by quantity cleared
   const getTopProducts = (movements: any[], limit = 10) => {
     const productMap = new Map<string, { name: string; quantity: number }>();
-    
+
     movements.forEach((movement) => {
       const existing = productMap.get(movement.sareeId);
       if (existing) {
@@ -161,7 +164,7 @@ export default function InventoryAnalytics() {
   // Aggregate movements by store
   const getStoreStats = (movements: any[]) => {
     const storeMap = new Map<string, { name: string; quantity: number }>();
-    
+
     movements.forEach((movement) => {
       if (movement.storeName) {
         const existing = storeMap.get(movement.storeId);
@@ -343,7 +346,7 @@ export default function InventoryAnalytics() {
                           Store
                         </TabsTrigger>
                       </TabsList>
-                      
+
                       <TabsContent value="online">
                         {topOnlineProducts.length > 0 ? (
                           <div className="h-64">
@@ -366,7 +369,7 @@ export default function InventoryAnalytics() {
                           <p className="text-sm text-muted-foreground text-center py-8">No online sales data</p>
                         )}
                       </TabsContent>
-                      
+
                       <TabsContent value="store">
                         {topStoreProducts.length > 0 ? (
                           <div className="h-64">

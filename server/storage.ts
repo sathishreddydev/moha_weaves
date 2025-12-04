@@ -163,6 +163,7 @@ export interface IStorage {
     totalInventory: number;
     pendingRequests: number;
   }>;
+  getAllStoreSales(): Promise<StoreSaleWithItems[]>;
 
   // User Addresses
   getUserAddresses(userId: string): Promise<UserAddress[]>;
@@ -1225,6 +1226,43 @@ export class DatabaseStorage implements IStorage {
     }
 
     const salesList = await query;
+    const result: StoreSaleWithItems[] = [];
+
+    for (const row of salesList) {
+      const items = await db
+        .select()
+        .from(storeSaleItems)
+        .innerJoin(sarees, eq(storeSaleItems.sareeId, sarees.id))
+        .leftJoin(categories, eq(sarees.categoryId, categories.id))
+        .leftJoin(colors, eq(sarees.colorId, colors.id))
+        .leftJoin(fabrics, eq(sarees.fabricId, fabrics.id))
+        .where(eq(storeSaleItems.saleId, row.store_sales.id));
+
+      result.push({
+        ...row.store_sales,
+        store: row.stores,
+        items: items.map((itemRow) => ({
+          ...itemRow.store_sale_items,
+          saree: {
+            ...itemRow.sarees,
+            category: itemRow.categories,
+            color: itemRow.colors,
+            fabric: itemRow.fabrics,
+          },
+        })),
+      });
+    }
+
+    return result;
+  }
+
+  async getAllStoreSales(): Promise<StoreSaleWithItems[]> {
+    const salesList = await db
+      .select()
+      .from(storeSales)
+      .innerJoin(stores, eq(storeSales.storeId, stores.id))
+      .orderBy(desc(storeSales.createdAt));
+
     const result: StoreSaleWithItems[] = [];
 
     for (const row of salesList) {

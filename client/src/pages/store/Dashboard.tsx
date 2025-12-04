@@ -82,7 +82,7 @@ export default function StoreDashboard() {
   });
 
   const { data: recentSales } = useQuery<StoreSaleWithItems[]>({
-    queryKey: ["/api/store/sales", { limit: 5 }],
+    queryKey: ['/api/store/sales?limit=5'],
     enabled: !!user && user.role === "store",
   });
 
@@ -127,7 +127,7 @@ export default function StoreDashboard() {
           Moha Store
         </Link>
       </div>
-      <nav className="flex-1 p-4 space-y-1">
+      <nav className="flex-1 p-4 space-1">
         {navItems.map((item) => (
           <Link key={item.href} to={item.href}>
             <Button
