@@ -1,28 +1,38 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import path from "path";
+import { fileURLToPath } from "url";
+
+// Fix dirname for Vite ESM
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 export default defineConfig({
   plugins: [
     react(),
-    ...(process.env.NODE_ENV !== "production" ? []:[]),
   ],
+
+  root: path.resolve(__dirname, "client"),
+
+  // IMPORTANT: Makes frontend work on backend hosting
+  base: "/",
+
   resolve: {
     alias: {
-      "@": path.resolve(import.meta.dirname, "client", "src"),
-      "@shared": path.resolve(import.meta.dirname, "shared"),
-      "@assets": path.resolve(import.meta.dirname, "attached_assets"),
+      "@": path.resolve(__dirname, "client", "src"),
+      "@shared": path.resolve(__dirname, "shared"),
+      "@assets": path.resolve(__dirname, "attached_assets"),
     },
   },
-  root: path.resolve(import.meta.dirname, "client"),
+
   build: {
-    outDir: path.resolve(import.meta.dirname, "dist/public"),
+    // Backend expects frontend here
+    outDir: path.resolve(__dirname, "dist/public"),
     emptyOutDir: true,
   },
+
   server: {
     fs: {
-      strict: true,
-      deny: ["**/.*"],
+      strict: false, // IMPORTANT: allow importing outside /client
     },
   },
 });
