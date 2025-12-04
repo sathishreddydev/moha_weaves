@@ -26,10 +26,6 @@ export default function InventoryLogin() {
   const [showPassword, setShowPassword] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  if (!authLoading && user?.role === "inventory") {
-    return <Navigate to="/inventory/dashboard" replace />;
-  }
-
   const form = useForm<LoginFormValues>({
     resolver: zodResolver(loginSchema),
     defaultValues: {
@@ -37,6 +33,10 @@ export default function InventoryLogin() {
       password: "",
     },
   });
+
+  if (!authLoading && user?.role === "inventory") {
+    return <Navigate to="/inventory/dashboard" replace />;
+  }
 
   const onSubmit = async (values: LoginFormValues) => {
     setIsSubmitting(true);

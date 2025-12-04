@@ -41,10 +41,6 @@ export default function UserLogin() {
   const [showPassword, setShowPassword] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  if (!authLoading && user?.role === "user") {
-    return <Navigate to="/" replace />;
-  }
-
   const form = useForm<LoginFormValues>({
     resolver: zodResolver(loginSchema),
     defaultValues: {
@@ -52,6 +48,10 @@ export default function UserLogin() {
       password: "",
     },
   });
+
+  if (!authLoading && user?.role === "user") {
+    return <Navigate to="/" replace />;
+  }
 
   const onSubmit = async (values: LoginFormValues) => {
     setIsSubmitting(true);
