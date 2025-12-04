@@ -1,3 +1,4 @@
+import { lazy, Suspense } from "react";
 import { Routes, Route, useLocation } from "react-router-dom";
 import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
@@ -7,51 +8,61 @@ import { AuthProvider, useAuth } from "@/lib/auth";
 import { Header } from "@/components/layout/Header";
 import { Footer } from "@/components/layout/Footer";
 
-import NotFound from "@/pages/not-found";
-import Home from "@/pages/user/Home";
-import Sarees from "@/pages/user/Sarees";
-import SareeDetail from "@/pages/user/SareeDetail";
-import Categories from "@/pages/user/Categories";
-import Cart from "@/pages/user/Cart";
-import Wishlist from "@/pages/user/Wishlist";
-import Orders from "@/pages/user/Orders";
-import OrderDetail from "@/pages/user/OrderDetail";
-import Returns from "@/pages/user/Returns";
-import Checkout from "@/pages/user/Checkout";
-import UserLogin from "@/pages/user/Login";
-import UserRegister from "@/pages/user/Register";
-import Addresses from "@/pages/user/Addresses";
+const NotFound = lazy(() => import("@/pages/not-found"));
+const Home = lazy(() => import("@/pages/user/Home"));
+const Sarees = lazy(() => import("@/pages/user/Sarees"));
+const SareeDetail = lazy(() => import("@/pages/user/SareeDetail"));
+const Categories = lazy(() => import("@/pages/user/Categories"));
+const Cart = lazy(() => import("@/pages/user/Cart"));
+const Wishlist = lazy(() => import("@/pages/user/Wishlist"));
+const Orders = lazy(() => import("@/pages/user/Orders"));
+const OrderDetail = lazy(() => import("@/pages/user/OrderDetail"));
+const Returns = lazy(() => import("@/pages/user/Returns"));
+const Checkout = lazy(() => import("@/pages/user/Checkout"));
+const UserLogin = lazy(() => import("@/pages/user/Login"));
+const UserRegister = lazy(() => import("@/pages/user/Register"));
+const Addresses = lazy(() => import("@/pages/user/Addresses"));
 
-import AdminLogin from "@/pages/admin/Login";
-import AdminDashboard from "@/pages/admin/Dashboard";
-import AdminSarees from "@/pages/admin/Sarees";
-import AdminCategories from "@/pages/admin/Categories";
-import AdminColors from "@/pages/admin/Colors";
-import AdminFabrics from "@/pages/admin/Fabrics";
-import AdminUsers from "@/pages/admin/Users";
-import AdminStaff from "@/pages/admin/Staff";
-import AdminStores from "@/pages/admin/Stores";
-import AdminOrders from "@/pages/admin/Orders";
-import AdminCoupons from "@/pages/admin/Coupons";
-import AdminReviews from "@/pages/admin/Reviews";
-import AdminSettings from "@/pages/admin/Settings";
+const AdminLogin = lazy(() => import("@/pages/admin/Login"));
+const AdminDashboard = lazy(() => import("@/pages/admin/Dashboard"));
+const AdminSarees = lazy(() => import("@/pages/admin/Sarees"));
+const AdminCategories = lazy(() => import("@/pages/admin/Categories"));
+const AdminColors = lazy(() => import("@/pages/admin/Colors"));
+const AdminFabrics = lazy(() => import("@/pages/admin/Fabrics"));
+const AdminUsers = lazy(() => import("@/pages/admin/Users"));
+const AdminStaff = lazy(() => import("@/pages/admin/Staff"));
+const AdminStores = lazy(() => import("@/pages/admin/Stores"));
+const AdminOrders = lazy(() => import("@/pages/admin/Orders"));
+const AdminCoupons = lazy(() => import("@/pages/admin/Coupons"));
+const AdminReviews = lazy(() => import("@/pages/admin/Reviews"));
+const AdminSettings = lazy(() => import("@/pages/admin/Settings"));
 
-import InventoryLogin from "@/pages/inventory/Login";
-import InventoryDashboard from "@/pages/inventory/Dashboard";
-import InventorySarees from "@/pages/inventory/Sarees";
-import InventoryStock from "@/pages/inventory/Stock";
-import InventoryStockDistribution from "@/pages/inventory/StockDistribution";
-import InventoryAnalytics from "@/pages/inventory/Analytics";
-import InventoryRequests from "@/pages/inventory/Requests";
-import InventoryOrders from "@/pages/inventory/Orders";
-import InventoryReturns from "@/pages/inventory/Returns";
+const InventoryLogin = lazy(() => import("@/pages/inventory/Login"));
+const InventoryDashboard = lazy(() => import("@/pages/inventory/Dashboard"));
+const InventorySarees = lazy(() => import("@/pages/inventory/Sarees"));
+const InventoryStock = lazy(() => import("@/pages/inventory/Stock"));
+const InventoryStockDistribution = lazy(() => import("@/pages/inventory/StockDistribution"));
+const InventoryAnalytics = lazy(() => import("@/pages/inventory/Analytics"));
+const InventoryRequests = lazy(() => import("@/pages/inventory/Requests"));
+const InventoryOrders = lazy(() => import("@/pages/inventory/Orders"));
+const InventoryReturns = lazy(() => import("@/pages/inventory/Returns"));
 
-import StoreLogin from "@/pages/store/Login";
-import StoreDashboard from "@/pages/store/Dashboard";
-import StoreSale from "@/pages/store/Sale";
-import StoreInventoryPage from "@/pages/store/Inventory";
-import StoreRequests from "@/pages/store/Requests";
-import StoreHistory from "@/pages/store/History";
+const StoreLogin = lazy(() => import("@/pages/store/Login"));
+const StoreDashboard = lazy(() => import("@/pages/store/Dashboard"));
+const StoreSale = lazy(() => import("@/pages/store/Sale"));
+const StoreInventoryPage = lazy(() => import("@/pages/store/Inventory"));
+const StoreRequests = lazy(() => import("@/pages/store/Requests"));
+const StoreHistory = lazy(() => import("@/pages/store/History"));
+
+function LoadingFallback() {
+  return (
+    <div className="min-h-screen flex items-center justify-center">
+      <div className="animate-pulse">
+        <div className="font-serif text-3xl font-semibold text-primary">Moha</div>
+      </div>
+    </div>
+  );
+}
 
 function UserLayout({ children }: { children: React.ReactNode }) {
   return (
@@ -82,86 +93,76 @@ function Router() {
   ].some((path) => location.pathname.startsWith(path.replace("/dashboard", "")));
 
   if (isLoading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-pulse">
-          <div className="font-serif text-3xl font-semibold text-primary">Moha</div>
-        </div>
-      </div>
-    );
+    return <LoadingFallback />;
   }
 
   if (isAuthPage || isDashboardPage) {
     return (
-      <Routes>
-        {/* User auth */}
-        <Route path="/user/login" element={<UserLogin />} />
-        <Route path="/user/register" element={<UserRegister />} />
-        
-        {/* Admin module */}
-        <Route path="/admin/login" element={<AdminLogin />} />
-        <Route path="/admin/dashboard" element={<AdminDashboard />} />
-        <Route path="/admin/sarees" element={<AdminSarees />} />
-        <Route path="/admin/categories" element={<AdminCategories />} />
-        <Route path="/admin/colors" element={<AdminColors />} />
-        <Route path="/admin/fabrics" element={<AdminFabrics />} />
-        <Route path="/admin/users" element={<AdminUsers />} />
-        <Route path="/admin/staff" element={<AdminStaff />} />
-        <Route path="/admin/stores" element={<AdminStores />} />
-        <Route path="/admin/orders" element={<AdminOrders />} />
-        <Route path="/admin/coupons" element={<AdminCoupons />} />
-        <Route path="/admin/reviews" element={<AdminReviews />} />
-        <Route path="/admin/settings" element={<AdminSettings />} />
-        
-        {/* Inventory module */}
-        <Route path="/inventory/login" element={<InventoryLogin />} />
-        <Route path="/inventory/dashboard" element={<InventoryDashboard />} />
-        <Route path="/inventory/sarees" element={<InventorySarees />} />
-        <Route path="/inventory/stock" element={<InventoryStock />} />
-        <Route path="/inventory/distribution" element={<InventoryStockDistribution />} />
-        <Route path="/inventory/analytics" element={<InventoryAnalytics />} />
-        <Route path="/inventory/requests" element={<InventoryRequests />} />
-        <Route path="/inventory/orders" element={<InventoryOrders />} />
-        <Route path="/inventory/returns" element={<InventoryReturns />} />
-        
-        {/* Store module */}
-        <Route path="/store/login" element={<StoreLogin />} />
-        <Route path="/store/dashboard" element={<StoreDashboard />} />
-        <Route path="/store/sale" element={<StoreSale />} />
-        <Route path="/store/inventory" element={<StoreInventoryPage />} />
-        <Route path="/store/requests" element={<StoreRequests />} />
-        <Route path="/store/history" element={<StoreHistory />} />
-        
-        <Route path="*" element={<NotFound />} />
-      </Routes>
+      <Suspense fallback={<LoadingFallback />}>
+        <Routes>
+          <Route path="/user/login" element={<UserLogin />} />
+          <Route path="/user/register" element={<UserRegister />} />
+          
+          <Route path="/admin/login" element={<AdminLogin />} />
+          <Route path="/admin/dashboard" element={<AdminDashboard />} />
+          <Route path="/admin/sarees" element={<AdminSarees />} />
+          <Route path="/admin/categories" element={<AdminCategories />} />
+          <Route path="/admin/colors" element={<AdminColors />} />
+          <Route path="/admin/fabrics" element={<AdminFabrics />} />
+          <Route path="/admin/users" element={<AdminUsers />} />
+          <Route path="/admin/staff" element={<AdminStaff />} />
+          <Route path="/admin/stores" element={<AdminStores />} />
+          <Route path="/admin/orders" element={<AdminOrders />} />
+          <Route path="/admin/coupons" element={<AdminCoupons />} />
+          <Route path="/admin/reviews" element={<AdminReviews />} />
+          <Route path="/admin/settings" element={<AdminSettings />} />
+          
+          <Route path="/inventory/login" element={<InventoryLogin />} />
+          <Route path="/inventory/dashboard" element={<InventoryDashboard />} />
+          <Route path="/inventory/sarees" element={<InventorySarees />} />
+          <Route path="/inventory/stock" element={<InventoryStock />} />
+          <Route path="/inventory/distribution" element={<InventoryStockDistribution />} />
+          <Route path="/inventory/analytics" element={<InventoryAnalytics />} />
+          <Route path="/inventory/requests" element={<InventoryRequests />} />
+          <Route path="/inventory/orders" element={<InventoryOrders />} />
+          <Route path="/inventory/returns" element={<InventoryReturns />} />
+          
+          <Route path="/store/login" element={<StoreLogin />} />
+          <Route path="/store/dashboard" element={<StoreDashboard />} />
+          <Route path="/store/sale" element={<StoreSale />} />
+          <Route path="/store/inventory" element={<StoreInventoryPage />} />
+          <Route path="/store/requests" element={<StoreRequests />} />
+          <Route path="/store/history" element={<StoreHistory />} />
+          
+          <Route path="*" element={<NotFound />} />
+        </Routes>
+      </Suspense>
     );
   }
 
   return (
     <UserLayout>
-      <Routes>
-        {/* User public pages */}
-        <Route path="/" element={<Home />} />
-        <Route path="/sarees" element={<Sarees />} />
-        <Route path="/sarees/:id" element={<SareeDetail />} />
-        <Route path="/categories" element={<Categories />} />
-        
-        {/* User auth pages */}
-        <Route path="/user/login" element={<UserLogin />} />
-        <Route path="/user/register" element={<UserRegister />} />
-        
-        {/* User protected pages */}
-        <Route path="/user/cart" element={<Cart />} />
-        <Route path="/user/wishlist" element={<Wishlist />} />
-        <Route path="/user/orders" element={<Orders />} />
-        <Route path="/user/orders/:id" element={<OrderDetail />} />
-        <Route path="/user/returns" element={<Returns />} />
-        <Route path="/user/checkout" element={<Checkout />} />
-        <Route path="/user/addresses" element={<Addresses />} />
-        
-        {/* Fallback */}
-        <Route path="*" element={<NotFound />} />
-      </Routes>
+      <Suspense fallback={<LoadingFallback />}>
+        <Routes>
+          <Route path="/" element={<Home />} />
+          <Route path="/sarees" element={<Sarees />} />
+          <Route path="/sarees/:id" element={<SareeDetail />} />
+          <Route path="/categories" element={<Categories />} />
+          
+          <Route path="/user/login" element={<UserLogin />} />
+          <Route path="/user/register" element={<UserRegister />} />
+          
+          <Route path="/user/cart" element={<Cart />} />
+          <Route path="/user/wishlist" element={<Wishlist />} />
+          <Route path="/user/orders" element={<Orders />} />
+          <Route path="/user/orders/:id" element={<OrderDetail />} />
+          <Route path="/user/returns" element={<Returns />} />
+          <Route path="/user/checkout" element={<Checkout />} />
+          <Route path="/user/addresses" element={<Addresses />} />
+          
+          <Route path="*" element={<NotFound />} />
+        </Routes>
+      </Suspense>
     </UserLayout>
   );
 }
