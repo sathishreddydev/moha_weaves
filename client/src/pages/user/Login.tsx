@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, Navigate } from "react-router-dom";
 import { Eye, EyeOff, Mail, Lock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -36,10 +36,14 @@ type LoginFormValues = z.infer<typeof loginSchema>;
 
 export default function UserLogin() {
   const navigate = useNavigate();
-  const { login } = useAuth();
+  const { login, user, isLoading: authLoading } = useAuth();
   const { toast } = useToast();
   const [showPassword, setShowPassword] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  if (!authLoading && user?.role === "user") {
+    return <Navigate to="/" replace />;
+  }
 
   const form = useForm<LoginFormValues>({
     resolver: zodResolver(loginSchema),
@@ -50,7 +54,7 @@ export default function UserLogin() {
   });
 
   const onSubmit = async (values: LoginFormValues) => {
-    setIsLoading(true);
+    setIsSubmitting(true);
     try {
       const result = await login(values.email, values.password, "user");
       if (result.success) {
@@ -67,7 +71,7 @@ export default function UserLogin() {
         });
       }
     } finally {
-      setIsLoading(false);
+      setIsSubmitting(false);
     }
   };
 
@@ -159,10 +163,10 @@ export default function UserLogin() {
                 <Button
                   type="submit"
                   className="w-full"
-                  disabled={isLoading}
+                  disabled={isSubmitting}
                   data-testid="button-submit"
                 >
-                  {isLoading ? "Signing in..." : "Sign In"}
+                  {isSubmitting ? "Signing in..." : "Sign In"}
                 </Button>
               </form>
             </Form>

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, Navigate } from "react-router-dom";
 import { Eye, EyeOff, Mail, Lock, Warehouse } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -21,10 +21,14 @@ type LoginFormValues = z.infer<typeof loginSchema>;
 
 export default function InventoryLogin() {
   const navigate = useNavigate();
-  const { login } = useAuth();
+  const { login, user, isLoading: authLoading } = useAuth();
   const { toast } = useToast();
   const [showPassword, setShowPassword] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  if (!authLoading && user?.role === "inventory") {
+    return <Navigate to="/inventory/dashboard" replace />;
+  }
 
   const form = useForm<LoginFormValues>({
     resolver: zodResolver(loginSchema),
@@ -35,7 +39,7 @@ export default function InventoryLogin() {
   });
 
   const onSubmit = async (values: LoginFormValues) => {
-    setIsLoading(true);
+    setIsSubmitting(true);
     try {
       const result = await login(values.email, values.password, "inventory");
       if (result.success) {
@@ -45,7 +49,7 @@ export default function InventoryLogin() {
         toast({ title: "Login failed", description: result.error, variant: "destructive" });
       }
     } finally {
-      setIsLoading(false);
+      setIsSubmitting(false);
     }
   };
 
@@ -123,8 +127,8 @@ export default function InventoryLogin() {
                   )}
                 />
 
-                <Button type="submit" className="w-full" disabled={isLoading} data-testid="button-submit">
-                  {isLoading ? "Signing in..." : "Sign In"}
+                <Button type="submit" className="w-full" disabled={isSubmitting} data-testid="button-submit">
+                  {isSubmitting ? "Signing in..." : "Sign In"}
                 </Button>
               </form>
             </Form>
