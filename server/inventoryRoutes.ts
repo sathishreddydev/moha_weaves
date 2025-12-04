@@ -358,7 +358,7 @@ const authInventory = createAuthMiddleware(["inventory"]);
                     finalAmount: returnRequest.refundAmount || "0",
                     status: "confirmed",
                     paymentStatus: "paid",
-                    paymentMethod: "exchange",
+                    paymentMethod: "online", // Exchange orders are treated as pre-paid
                     shippingAddress: originalOrder.shippingAddress,
                     phone: originalOrder.phone,
                     notes: `Exchange order for original order #${returnRequest.orderId.slice(0, 8)}`,

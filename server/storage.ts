@@ -232,14 +232,14 @@ export interface IStorage {
   getAllSettings(): Promise<{ key: string; value: string; description: string | null; updatedAt: Date }[]>;
 
   // Stock Movement Stats
-  async getStockMovementStats(): Promise<{
+  getStockMovementStats(): Promise<{
     totalOnlineCleared: number;
     totalStoreCleared: number;
     onlineMovements: { sareeId: string; sareeName: string; quantity: number; orderRefId: string; createdAt: Date }[];
     storeMovements: { sareeId: string; sareeName: string; quantity: number; orderRefId: string; storeId: string | null; storeName: string | null; createdAt: Date }[];
   }>;
 
-  async getInventoryOverview(): Promise<{
+  getInventoryOverview(): Promise<{
     totalStock: number;
     onlineStock: number;
     storeStock: number;
@@ -869,8 +869,7 @@ export class DatabaseStorage implements IStorage {
         .update(sarees)
         .set({ 
           onlineStock: sql`${sarees.onlineStock} - ${item.quantity}`,
-          totalStock: sql`${sarees.totalStock} - ${item.quantity}`,
-          updatedAt: new Date()
+          totalStock: sql`${sarees.totalStock} - ${item.quantity}`
         })
         .where(eq(sarees.id, item.sareeId));
 
@@ -976,8 +975,7 @@ export class DatabaseStorage implements IStorage {
       .update(sarees)
       .set({ 
         onlineStock: newOnlineStock,
-        totalStock: newTotalStock,
-        updatedAt: new Date()
+        totalStock: newTotalStock
       })
       .where(eq(sarees.id, sareeId));
 
@@ -987,6 +985,7 @@ export class DatabaseStorage implements IStorage {
       quantity: -quantity,
       movementType: "sale",
       source: "online",
+      orderRefId: sareeId, // Use sareeId as reference when no specific order
       notes: "Online order stock deduction",
     });
   }
@@ -1265,13 +1264,13 @@ export class DatabaseStorage implements IStorage {
       // Deduct from store inventory
       await db
         .update(storeInventory)
-        .set({ quantity: sql`${storeInventory.quantity} - ${item.quantity}`, updatedAt: new Date() })
+        .set({ quantity: sql`${storeInventory.quantity} - ${item.quantity}` })
         .where(and(eq(storeInventory.storeId, sale.storeId), eq(storeInventory.sareeId, item.sareeId)));
 
       // Deduct from total stock
       await db
         .update(sarees)
-        .set({ totalStock: sql`${sarees.totalStock} - ${item.quantity}`, updatedAt: new Date() })
+        .set({ totalStock: sql`${sarees.totalStock} - ${item.quantity}` })
         .where(eq(sarees.id, item.sareeId));
 
       // Record stock movement (negative for deduction)
