@@ -1026,77 +1026,77 @@ export class DatabaseStorage implements IStorage {
     return result || undefined;
   }
 
-  async createStoreSale(data: {
-    storeId: string;
-    userId: string;
-    customerName?: string;
-    customerPhone?: string;
-    saleType: "walk_in" | "reserved";
-    items: { sareeId: string; quantity: number; price: string }[];
-  }): Promise<any> {
-    return await db.transaction(async (tx) => {
-      // Calculate total
-      const totalAmount = data.items.reduce((sum, item) => {
-        const price = typeof item.price === "string" ? parseFloat(item.price) : item.price;
-        return sum + price * item.quantity;
-      }, 0);
+  // async createStoreSale(data: {
+  //   storeId: string;
+  //   userId: string;
+  //   customerName?: string;
+  //   customerPhone?: string;
+  //   saleType: "walk_in" | "reserved";
+  //   items: { sareeId: string; quantity: number; price: string }[];
+  // }): Promise<any> {
+  //   return await db.transaction(async (tx) => {
+  //     // Calculate total
+  //     const totalAmount = data.items.reduce((sum, item) => {
+  //       const price = typeof item.price === "string" ? parseFloat(item.price) : item.price;
+  //       return sum + price * item.quantity;
+  //     }, 0);
 
-      // Create sale record (you'll need to add storeSales table to schema)
-      // For now, deduct stock from store inventory
-      for (const item of data.items) {
-        const [inventory] = await tx
-          .select()
-          .from(storeInventory)
-          .where(
-            and(
-              eq(storeInventory.storeId, data.storeId),
-              eq(storeInventory.sareeId, item.sareeId)
-            )
-          );
+  //     // Create sale record (you'll need to add storeSales table to schema)
+  //     // For now, deduct stock from store inventory
+  //     for (const item of data.items) {
+  //       const [inventory] = await tx
+  //         .select()
+  //         .from(storeInventory)
+  //         .where(
+  //           and(
+  //             eq(storeInventory.storeId, data.storeId),
+  //             eq(storeInventory.sareeId, item.sareeId)
+  //           )
+  //         );
 
-        if (!inventory || inventory.quantity < item.quantity) {
-          throw new Error(`Insufficient stock for ${item.sareeId}`);
-        }
+  //       if (!inventory || inventory.quantity < item.quantity) {
+  //         throw new Error(`Insufficient stock for ${item.sareeId}`);
+  //       }
 
-        // Deduct from store inventory
-        await tx
-          .update(storeInventory)
-          .set({ 
-            quantity: inventory.quantity - item.quantity,
-            updatedAt: new Date()
-          })
-          .where(eq(storeInventory.id, inventory.id));
+  //       // Deduct from store inventory
+  //       await tx
+  //         .update(storeInventory)
+  //         .set({ 
+  //           quantity: inventory.quantity - item.quantity,
+  //           updatedAt: new Date()
+  //         })
+  //         .where(eq(storeInventory.id, inventory.id));
 
-        // Deduct from total stock
-        const [saree] = await tx.select().from(sarees).where(eq(sarees.id, item.sareeId));
-        if (saree) {
-          await tx
-            .update(sarees)
-            .set({ 
-              totalStock: saree.totalStock - item.quantity,
-              updatedAt: new Date()
-            })
-            .where(eq(sarees.id, item.sareeId));
-        }
+  //       // Deduct from total stock
+  //       const [saree] = await tx.select().from(sarees).where(eq(sarees.id, item.sareeId));
+  //       if (saree) {
+  //         await tx
+  //           .update(sarees)
+  //           .set({ 
+  //             totalStock: saree.totalStock - item.quantity,
+  //             updatedAt: new Date()
+  //           })
+  //           .where(eq(sarees.id, item.sareeId));
+  //       }
 
-        // Record stock movement
-        await tx.insert(stockMovements).values({
-          sareeId: item.sareeId,
-          quantity: -item.quantity,
-          movementType: "sale",
-          source: "store",
-          sourceId: data.storeId,
-          notes: `Store sale - ${data.saleType}`,
-        });
-      }
+  //       // Record stock movement
+  //       await tx.insert(stockMovements).values({
+  //         sareeId: item.sareeId,
+  //         quantity: -item.quantity,
+  //         movementType: "sale",
+  //         source: "store",
+  //         sourceId: data.storeId,
+  //         notes: `Store sale - ${data.saleType}`,
+  //       });
+  //     }
 
-      return {
-        success: true,
-        totalAmount: totalAmount.toString(),
-        itemCount: data.items.length,
-      };
-    });
-  }
+  //     return {
+  //       success: true,
+  //       totalAmount: totalAmount.toString(),
+  //       itemCount: data.items.length,
+  //     };
+  //   });
+  // }
 
   async getShopAvailableProducts(storeId: string): Promise<{ saree: SareeWithDetails; storeStock: number }[]> {
     const result = await db
