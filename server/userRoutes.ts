@@ -106,9 +106,9 @@ export const userRoutes = (app: Express) => {
           orderId,
           userId: user.id,
           reason,
-          description,
-          resolutionType: resolutionType || "refund",
-          returnAmount: returnAmount.toString(),
+          reasonDetails: description,
+          resolution: resolutionType || "refund",
+          refundAmount: returnAmount.toString(),
         },
         items.map((item: any) => ({
           orderItemId: item.orderItemId,

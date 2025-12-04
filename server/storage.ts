@@ -3,7 +3,7 @@ import {
   wishlist, cart, orders, orderItems, storeSales, storeSaleItems, stockRequests,
   userAddresses, serviceablePincodes, refreshTokens,
   returnRequests, returnItems, refunds, productReviews, coupons, couponUsage,
-  notifications, orderStatusHistory, appSettings,
+  notifications, orderStatusHistory, appSettings, stockMovements,
   type User, type InsertUser, type Category, type InsertCategory,
   type Color, type InsertColor, type Fabric, type InsertFabric,
   type Store, type InsertStore, type Saree, type InsertSaree,
@@ -21,6 +21,7 @@ import {
   type Coupon, type InsertCoupon, type CouponUsage, type InsertCouponUsage,
   type Notification, type InsertNotification,
   type OrderStatusHistory, type InsertOrderStatusHistory,
+  type StockMovement, type InsertStockMovement,
   type SareeWithDetails, type CartItemWithSaree, type WishlistItemWithSaree,
   type OrderWithItems, type StockRequestWithDetails, type StoreSaleWithItems,
   type ReturnRequestWithDetails, type SareeWithReviews, type CouponWithUsage,
@@ -109,14 +110,14 @@ export interface IStorage {
   getOrders(userId: string): Promise<OrderWithItems[]>;
   getOrder(id: string): Promise<OrderWithItems | undefined>;
   getAllOrders(filters?: { status?: string; limit?: number }): Promise<OrderWithItems[]>;
-  createOrder(order: InsertOrder, items: InsertOrderItem[]): Promise<Order>;
+  createOrder(order: InsertOrder, items: Omit<InsertOrderItem, 'orderId'>[]): Promise<Order>;
   updateOrderStatus(id: string, status: string): Promise<Order | undefined>;
 
   // Store Inventory
   getStoreInventory(storeId: string): Promise<(StoreInventory & { saree: SareeWithDetails })[]>;
   getShopAvailableProducts(storeId: string): Promise<{ saree: SareeWithDetails; storeStock: number }[]>;
   updateStoreInventory(storeId: string, sareeId: string, quantity: number): Promise<StoreInventory>;
-  
+
   // Saree with Store Allocations
   createSareeWithAllocations(
     saree: InsertSaree,
@@ -128,7 +129,7 @@ export interface IStorage {
     storeAllocations: { storeId: string; quantity: number }[]
   ): Promise<Saree | undefined>;
   getSareeAllocations(sareeId: string): Promise<{ storeId: string; storeName: string; quantity: number }[]>;
-  
+
   // Stock Distribution (centralized view)
   getStockDistribution(): Promise<{
     saree: SareeWithDetails;
@@ -194,14 +195,14 @@ export interface IStorage {
   getRefundByReturnRequest(returnRequestId: string): Promise<Refund | undefined>;
 
   // Product Reviews
-  getProductReviews(sareeId: string, filters?: { status?: string }): Promise<ProductReview[]>;
+  getProductReviews(sareeId: string, filters?: { approved?: boolean }): Promise<ProductReview[]>;
   getReview(id: string): Promise<ProductReview | undefined>;
   createReview(review: InsertProductReview): Promise<ProductReview>;
-  updateReviewStatus(id: string, status: string): Promise<ProductReview | undefined>;
+  updateReviewApproval(id: string, isApproved: boolean): Promise<ProductReview | undefined>;
   getUserReviews(userId: string): Promise<ProductReview[]>;
   getSareeWithReviews(sareeId: string): Promise<SareeWithReviews | undefined>;
   canUserReviewProduct(userId: string, sareeId: string): Promise<boolean>;
-  getAllReviews(filters?: { status?: string; limit?: number }): Promise<(ProductReview & { saree: SareeWithDetails })[]>;
+  getAllReviews(filters?: { approved?: boolean; limit?: number }): Promise<(ProductReview & { saree: SareeWithDetails })[]>;
 
   // Coupons
   getCoupons(filters?: { isActive?: boolean }): Promise<CouponWithUsage[]>;
@@ -229,6 +230,26 @@ export interface IStorage {
   getSetting(key: string): Promise<string | null>;
   setSetting(key: string, value: string, description?: string, updatedBy?: string): Promise<void>;
   getAllSettings(): Promise<{ key: string; value: string; description: string | null; updatedAt: Date }[]>;
+
+  // Stock Movement Stats
+  async getStockMovementStats(): Promise<{
+    totalOnlineCleared: number;
+    totalStoreCleared: number;
+    onlineMovements: { sareeId: string; sareeName: string; quantity: number; orderRefId: string; createdAt: Date }[];
+    storeMovements: { sareeId: string; sareeName: string; quantity: number; orderRefId: string; storeId: string | null; storeName: string | null; createdAt: Date }[];
+  }>;
+
+  async getInventoryOverview(): Promise<{
+    totalStock: number;
+    onlineStock: number;
+    storeStock: number;
+    totalOnlineCleared: number;
+    totalStoreCleared: number;
+    products: { id: string; name: string; totalStock: number; onlineStock: number; storeStock: number }[];
+  }>;
+
+  // Stock restoration from returns
+  restoreStockFromReturn(sareeId: string, quantity: number, orderRefId: string): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -528,14 +549,14 @@ export class DatabaseStorage implements IStorage {
       const dateStr = now.toISOString().slice(0, 10).replace(/-/g, "");
       const randomSuffix = Math.random().toString(36).substring(2, 7).toUpperCase();
       const generatedSku = `MH-${dateStr}-${randomSuffix}`;
-      
+
       const sareeWithSku = {
         ...saree,
         sku: generatedSku,
       };
-      
+
       const [createdSaree] = await tx.insert(sarees).values(sareeWithSku).returning();
-      
+
       const nonZeroAllocations = allocations.filter(a => a.quantity > 0);
       if (nonZeroAllocations.length > 0) {
         const inventoryRecords = nonZeroAllocations.map((alloc) => ({
@@ -545,7 +566,7 @@ export class DatabaseStorage implements IStorage {
         }));
         await tx.insert(storeInventory).values(inventoryRecords);
       }
-      
+
       return createdSaree;
     });
   }
@@ -558,12 +579,12 @@ export class DatabaseStorage implements IStorage {
     return await db.transaction(async (tx) => {
       // Remove SKU from update data - SKU is auto-generated and should not be changed
       const { sku, ...updateData } = data as any;
-      
+
       const [updatedSaree] = await tx.update(sarees).set(updateData).where(eq(sarees.id, id)).returning();
       if (!updatedSaree) return undefined;
-      
+
       await tx.delete(storeInventory).where(eq(storeInventory.sareeId, id));
-      
+
       const nonZeroAllocations = allocations.filter(a => a.quantity > 0);
       if (nonZeroAllocations.length > 0) {
         const inventoryRecords = nonZeroAllocations.map((alloc) => ({
@@ -573,7 +594,7 @@ export class DatabaseStorage implements IStorage {
         }));
         await tx.insert(storeInventory).values(inventoryRecords);
       }
-      
+
       return updatedSaree;
     });
   }
@@ -588,7 +609,7 @@ export class DatabaseStorage implements IStorage {
       .from(storeInventory)
       .innerJoin(stores, eq(storeInventory.storeId, stores.id))
       .where(eq(storeInventory.sareeId, sareeId));
-    
+
     return result;
   }
 
@@ -837,18 +858,79 @@ export class DatabaseStorage implements IStorage {
     return result;
   }
 
-  async createOrder(order: InsertOrder, items: InsertOrderItem[]): Promise<Order> {
+  async createOrder(order: InsertOrder, items: Omit<InsertOrderItem, 'orderId'>[]): Promise<Order> {
     const [newOrder] = await db.insert(orders).values(order).returning();
 
     for (const item of items) {
       await db.insert(orderItems).values({ ...item, orderId: newOrder.id });
+
+      // Deduct from online stock and total stock
       await db
         .update(sarees)
-        .set({ onlineStock: sql`${sarees.onlineStock} - ${item.quantity}` })
+        .set({ 
+          onlineStock: sql`${sarees.onlineStock} - ${item.quantity}`,
+          totalStock: sql`${sarees.totalStock} - ${item.quantity}`,
+          updatedAt: new Date()
+        })
         .where(eq(sarees.id, item.sareeId));
+
+      // Record stock movement (negative for deduction)
+      await db.insert(stockMovements).values({
+        sareeId: item.sareeId,
+        quantity: -item.quantity,
+        movementType: "sale",
+        source: "online",
+        orderRefId: newOrder.id,
+        storeId: null,
+      });
+
+      // Check for low stock and create alert
+      await this.checkAndCreateStockAlert(item.sareeId);
     }
 
     return newOrder;
+  }
+
+  async checkAndCreateStockAlert(sareeId: string): Promise<void> {
+    const [saree] = await db.select().from(sarees).where(eq(sarees.id, sareeId));
+    if (!saree) return;
+
+    // Get threshold from settings, default to 10
+    const thresholdSetting = await this.getSetting("low_stock_threshold");
+    const threshold = thresholdSetting ? parseInt(thresholdSetting) : 10;
+
+    // Alert if total stock is at or below threshold
+    if (saree.totalStock <= threshold) {
+      // Get all inventory role users to notify
+      const inventoryUsers = await db.select().from(users).where(eq(users.role, "inventory"));
+      
+      for (const user of inventoryUsers) {
+        // Check if alert already exists in last 24 hours
+        const dayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
+        const [existingAlert] = await db
+          .select()
+          .from(notifications)
+          .where(
+            and(
+              eq(notifications.userId, user.id),
+              eq(notifications.type, "system"),
+              eq(notifications.relatedId, sareeId),
+              gte(notifications.createdAt, dayAgo)
+            )
+          );
+
+        if (!existingAlert) {
+          await this.createNotification({
+            userId: user.id,
+            type: "system",
+            title: "Low Stock Alert",
+            message: `${saree.name} is running low on stock (${saree.totalStock} remaining). Please restock soon.`,
+            relatedId: sareeId,
+            relatedType: "saree",
+          });
+        }
+      }
+    }
   }
 
   async updateOrderStatus(id: string, status: string): Promise<Order | undefined> {
@@ -856,27 +938,57 @@ export class DatabaseStorage implements IStorage {
       status: status as any, 
       updatedAt: new Date() 
     };
-    
+
     // When marking as delivered, set deliveredAt and calculate returnEligibleUntil
     if (status === "delivered") {
       const now = new Date();
       updateData.deliveredAt = now;
-      
+
       // Get return window setting, default to 7 days
       const windowDays = await this.getSetting("return_window_days");
       const days = windowDays ? parseInt(windowDays) : 7;
-      
+
       const eligibleUntil = new Date(now);
       eligibleUntil.setDate(eligibleUntil.getDate() + days);
       updateData.returnEligibleUntil = eligibleUntil;
     }
-    
+
     const [result] = await db
       .update(orders)
       .set(updateData)
       .where(eq(orders.id, id))
       .returning();
     return result || undefined;
+  }
+
+  async deductOnlineStock(sareeId: string, quantity: number): Promise<void> {
+    const [saree] = await db.select().from(sarees).where(eq(sarees.id, sareeId));
+    if (!saree) throw new Error("Saree not found");
+
+    const newOnlineStock = saree.onlineStock - quantity;
+    const newTotalStock = saree.totalStock - quantity;
+
+    if (newOnlineStock < 0) {
+      throw new Error("Insufficient online stock");
+    }
+
+    await db
+      .update(sarees)
+      .set({ 
+        onlineStock: newOnlineStock,
+        totalStock: newTotalStock,
+        updatedAt: new Date()
+      })
+      .where(eq(sarees.id, sareeId));
+
+    // Record stock movement
+    await db.insert(stockMovements).values({
+      sareeId,
+      quantity: -quantity,
+      movementType: "sale",
+      source: "online",
+      notes: "Online order stock deduction",
+    });
   }
 
   // Store Inventory
@@ -889,7 +1001,7 @@ export class DatabaseStorage implements IStorage {
       .leftJoin(colors, eq(sarees.colorId, colors.id))
       .leftJoin(fabrics, eq(sarees.fabricId, fabrics.id))
       .where(eq(storeInventory.storeId, storeId));
-
+      
     return result.map((row) => ({
       ...row.store_inventory,
       saree: {
@@ -899,6 +1011,91 @@ export class DatabaseStorage implements IStorage {
         fabric: row.fabrics,
       },
     }));
+  }
+
+  async getStoreInventoryItem(storeId: string, sareeId: string): Promise<StoreInventory | undefined> {
+    const [result] = await db
+      .select()
+      .from(storeInventory)
+      .where(
+        and(
+          eq(storeInventory.storeId, storeId),
+          eq(storeInventory.sareeId, sareeId)
+        )
+      );
+    return result || undefined;
+  }
+
+  async createStoreSale(data: {
+    storeId: string;
+    userId: string;
+    customerName?: string;
+    customerPhone?: string;
+    saleType: "walk_in" | "reserved";
+    items: { sareeId: string; quantity: number; price: string }[];
+  }): Promise<any> {
+    return await db.transaction(async (tx) => {
+      // Calculate total
+      const totalAmount = data.items.reduce((sum, item) => {
+        const price = typeof item.price === "string" ? parseFloat(item.price) : item.price;
+        return sum + price * item.quantity;
+      }, 0);
+
+      // Create sale record (you'll need to add storeSales table to schema)
+      // For now, deduct stock from store inventory
+      for (const item of data.items) {
+        const [inventory] = await tx
+          .select()
+          .from(storeInventory)
+          .where(
+            and(
+              eq(storeInventory.storeId, data.storeId),
+              eq(storeInventory.sareeId, item.sareeId)
+            )
+          );
+
+        if (!inventory || inventory.quantity < item.quantity) {
+          throw new Error(`Insufficient stock for ${item.sareeId}`);
+        }
+
+        // Deduct from store inventory
+        await tx
+          .update(storeInventory)
+          .set({ 
+            quantity: inventory.quantity - item.quantity,
+            updatedAt: new Date()
+          })
+          .where(eq(storeInventory.id, inventory.id));
+
+        // Deduct from total stock
+        const [saree] = await tx.select().from(sarees).where(eq(sarees.id, item.sareeId));
+        if (saree) {
+          await tx
+            .update(sarees)
+            .set({ 
+              totalStock: saree.totalStock - item.quantity,
+              updatedAt: new Date()
+            })
+            .where(eq(sarees.id, item.sareeId));
+        }
+
+        // Record stock movement
+        await tx.insert(stockMovements).values({
+          sareeId: item.sareeId,
+          quantity: -item.quantity,
+          movementType: "sale",
+          source: "store",
+          sourceId: data.storeId,
+          notes: `Store sale - ${data.saleType}`,
+        });
+      }
+
+      return {
+        success: true,
+        totalAmount: totalAmount.toString(),
+        itemCount: data.items.length,
+      };
+    });
   }
 
   async getShopAvailableProducts(storeId: string): Promise<{ saree: SareeWithDetails; storeStock: number }[]> {
@@ -1064,10 +1261,28 @@ export class DatabaseStorage implements IStorage {
 
     for (const item of items) {
       await db.insert(storeSaleItems).values({ ...item, saleId: newSale.id });
+
+      // Deduct from store inventory
       await db
         .update(storeInventory)
-        .set({ quantity: sql`${storeInventory.quantity} - ${item.quantity}` })
+        .set({ quantity: sql`${storeInventory.quantity} - ${item.quantity}`, updatedAt: new Date() })
         .where(and(eq(storeInventory.storeId, sale.storeId), eq(storeInventory.sareeId, item.sareeId)));
+
+      // Deduct from total stock
+      await db
+        .update(sarees)
+        .set({ totalStock: sql`${sarees.totalStock} - ${item.quantity}`, updatedAt: new Date() })
+        .where(eq(sarees.id, item.sareeId));
+
+      // Record stock movement (negative for deduction)
+      await db.insert(stockMovements).values({
+        sareeId: item.sareeId,
+        quantity: -item.quantity,
+        movementType: "sale",
+        source: "store",
+        orderRefId: newSale.id,
+        storeId: sale.storeId,
+      });
     }
 
     return newSale;
@@ -1224,7 +1439,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async deleteUserAddress(id: string): Promise<boolean> {
-    const result = await db.delete(userAddresses).where(eq(userAddresses.id, id));
+    await db.delete(userAddresses).where(eq(userAddresses.id, id));
     return true;
   }
 
@@ -1361,27 +1576,32 @@ export class DatabaseStorage implements IStorage {
   async createReturnRequest(request: InsertReturnRequest, items: InsertReturnItem[]): Promise<ReturnRequest> {
     return await db.transaction(async (tx) => {
       const [newRequest] = await tx.insert(returnRequests).values(request).returning();
-      
+
       for (const item of items) {
         await tx.insert(returnItems).values({
           ...item,
           returnRequestId: newRequest.id,
         });
       }
-      
+
       return newRequest;
     });
   }
 
   async updateReturnRequestStatus(id: string, status: string, processedBy?: string, adminNotes?: string): Promise<ReturnRequest | undefined> {
-    const updateData: any = { status };
+    const updateData: any = { status, updatedAt: new Date() };
     if (processedBy) updateData.processedBy = processedBy;
     if (adminNotes) updateData.adminNotes = adminNotes;
     if (status === "approved" || status === "rejected") {
       updateData.processedAt = new Date();
     }
-    
+
     const [result] = await db.update(returnRequests).set(updateData).where(eq(returnRequests.id, id)).returning();
+    return result || undefined;
+  }
+
+  async updateReturnRequest(id: string, data: Partial<InsertReturnRequest>): Promise<ReturnRequest | undefined> {
+    const [result] = await db.update(returnRequests).set({ ...data, updatedAt: new Date() }).where(eq(returnRequests.id, id)).returning();
     return result || undefined;
   }
 
@@ -1393,7 +1613,7 @@ export class DatabaseStorage implements IStorage {
     const order = await this.getOrder(orderId);
     if (!order) return { eligible: false, reason: "Order not found" };
     if (order.status !== "delivered") return { eligible: false, reason: "Order must be delivered to initiate return" };
-    
+
     // Handle missing return window - calculate from deliveredAt if available
     if (!order.returnEligibleUntil) {
       if (order.deliveredAt) {
@@ -1402,10 +1622,10 @@ export class DatabaseStorage implements IStorage {
         const days = windowDays ? parseInt(windowDays) : 7;
         const eligibleUntil = new Date(order.deliveredAt);
         eligibleUntil.setDate(eligibleUntil.getDate() + days);
-        
+
         // Update the order with the calculated return window
         await db.update(orders).set({ returnEligibleUntil: eligibleUntil }).where(eq(orders.id, orderId));
-        
+
         if (new Date() > eligibleUntil) {
           return { eligible: false, reason: "Return window has expired" };
         }
@@ -1413,20 +1633,20 @@ export class DatabaseStorage implements IStorage {
       }
       return { eligible: false, reason: "Return window not set - order delivery date missing" };
     }
-    
+
     if (new Date() > new Date(order.returnEligibleUntil)) {
       return { eligible: false, reason: "Return window has expired" };
     }
-    
+
     const existingReturns = await db
       .select()
       .from(returnRequests)
-      .where(and(eq(returnRequests.orderId, orderId), inArray(returnRequests.status, ["requested", "approved", "in_transit", "inspection", "completed"])));
-    
+      .where(and(eq(returnRequests.orderId, orderId), inArray(returnRequests.status, ["requested", "approved", "pickup_scheduled", "picked_up", "received", "inspected", "completed"])));
+
     if (existingReturns.length > 0) {
       return { eligible: false, reason: "A return request already exists for this order" };
     }
-    
+
     return { eligible: true };
   }
 
@@ -1435,7 +1655,7 @@ export class DatabaseStorage implements IStorage {
     const conditions: any[] = [];
     if (filters?.userId) conditions.push(eq(refunds.userId, filters.userId));
     if (filters?.status) conditions.push(eq(refunds.status, filters.status as any));
-    
+
     return db
       .select()
       .from(refunds)
@@ -1457,7 +1677,7 @@ export class DatabaseStorage implements IStorage {
     const updateData: any = { status };
     if (processedAt) updateData.processedAt = processedAt;
     if (transactionId) updateData.transactionId = transactionId;
-    
+
     const [result] = await db.update(refunds).set(updateData).where(eq(refunds.id, id)).returning();
     return result || undefined;
   }
@@ -1468,10 +1688,10 @@ export class DatabaseStorage implements IStorage {
   }
 
   // Product Reviews
-  async getProductReviews(sareeId: string, filters?: { status?: string }): Promise<ProductReview[]> {
+  async getProductReviews(sareeId: string, filters?: { approved?: boolean }): Promise<ProductReview[]> {
     const conditions = [eq(productReviews.sareeId, sareeId)];
-    if (filters?.status) conditions.push(eq(productReviews.status, filters.status as any));
-    
+    if (filters?.approved !== undefined) conditions.push(eq(productReviews.isApproved, filters.approved));
+
     return db
       .select()
       .from(productReviews)
@@ -1489,8 +1709,8 @@ export class DatabaseStorage implements IStorage {
     return result;
   }
 
-  async updateReviewStatus(id: string, status: string): Promise<ProductReview | undefined> {
-    const [result] = await db.update(productReviews).set({ status: status as any }).where(eq(productReviews.id, id)).returning();
+  async updateReviewApproval(id: string, isApproved: boolean): Promise<ProductReview | undefined> {
+    const [result] = await db.update(productReviews).set({ isApproved }).where(eq(productReviews.id, id)).returning();
     return result || undefined;
   }
 
@@ -1506,7 +1726,7 @@ export class DatabaseStorage implements IStorage {
     const saree = await this.getSaree(sareeId);
     if (!saree) return undefined;
 
-    const reviews = await this.getProductReviews(sareeId, { status: "approved" });
+    const reviews = await this.getProductReviews(sareeId, { approved: true });
     const avgRating = reviews.length > 0 
       ? reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length 
       : 0;
@@ -1525,21 +1745,21 @@ export class DatabaseStorage implements IStorage {
       .from(orders)
       .innerJoin(orderItems, eq(orders.id, orderItems.orderId))
       .where(and(eq(orders.userId, userId), eq(orders.status, "delivered"), eq(orderItems.sareeId, sareeId)));
-    
+
     if (deliveredOrders.length === 0) return false;
 
     const existingReview = await db
       .select()
       .from(productReviews)
       .where(and(eq(productReviews.userId, userId), eq(productReviews.sareeId, sareeId)));
-    
+
     return existingReview.length === 0;
   }
 
-  async getAllReviews(filters?: { status?: string; limit?: number }): Promise<(ProductReview & { saree: SareeWithDetails })[]> {
+  async getAllReviews(filters?: { approved?: boolean; limit?: number }): Promise<(ProductReview & { saree: SareeWithDetails })[]> {
     const conditions: any[] = [];
-    if (filters?.status) conditions.push(eq(productReviews.status, filters.status as any));
-    
+    if (filters?.approved !== undefined) conditions.push(eq(productReviews.isApproved, filters.approved));
+
     const reviews = await db
       .select()
       .from(productReviews)
@@ -1566,7 +1786,7 @@ export class DatabaseStorage implements IStorage {
   async getCoupons(filters?: { isActive?: boolean }): Promise<CouponWithUsage[]> {
     const conditions: any[] = [];
     if (filters?.isActive !== undefined) conditions.push(eq(coupons.isActive, filters.isActive));
-    
+
     const couponList = await db
       .select()
       .from(coupons)
@@ -1579,7 +1799,7 @@ export class DatabaseStorage implements IStorage {
         .select({ count: sql<number>`count(*)::int` })
         .from(couponUsage)
         .where(eq(couponUsage.couponId, coupon.id));
-      
+
       result.push({
         ...coupon,
         usageCount: usage?.count || 0,
@@ -1621,7 +1841,7 @@ export class DatabaseStorage implements IStorage {
     const coupon = await this.getCouponByCode(code);
     if (!coupon) return { valid: false, error: "Coupon not found" };
     if (!coupon.isActive) return { valid: false, error: "Coupon is not active" };
-    
+
     const now = new Date();
     if (coupon.validFrom && now < new Date(coupon.validFrom)) {
       return { valid: false, error: "Coupon is not yet valid" };
@@ -1629,33 +1849,33 @@ export class DatabaseStorage implements IStorage {
     if (coupon.validUntil && now > new Date(coupon.validUntil)) {
       return { valid: false, error: "Coupon has expired" };
     }
-    
-    if (coupon.maxUsage) {
+
+    if (coupon.usageLimit) {
       const [totalUsage] = await db
         .select({ count: sql<number>`count(*)::int` })
         .from(couponUsage)
         .where(eq(couponUsage.couponId, coupon.id));
-      
-      if (totalUsage && totalUsage.count >= coupon.maxUsage) {
+
+      if (totalUsage && totalUsage.count >= coupon.usageLimit) {
         return { valid: false, error: "Coupon usage limit reached" };
       }
     }
-    
-    if (coupon.maxUsagePerUser) {
+
+    if (coupon.perUserLimit) {
       const [userUsage] = await db
         .select({ count: sql<number>`count(*)::int` })
         .from(couponUsage)
         .where(and(eq(couponUsage.couponId, coupon.id), eq(couponUsage.userId, userId)));
-      
-      if (userUsage && userUsage.count >= coupon.maxUsagePerUser) {
+
+      if (userUsage && userUsage.count >= coupon.perUserLimit) {
         return { valid: false, error: "You have already used this coupon the maximum number of times" };
       }
     }
-    
+
     if (coupon.minOrderAmount && orderAmount < parseFloat(coupon.minOrderAmount)) {
       return { valid: false, error: `Minimum order amount of ₹${coupon.minOrderAmount} required` };
     }
-    
+
     return { valid: true, coupon };
   }
 
@@ -1673,7 +1893,7 @@ export class DatabaseStorage implements IStorage {
   async getNotifications(userId: string, unreadOnly?: boolean): Promise<Notification[]> {
     const conditions = [eq(notifications.userId, userId)];
     if (unreadOnly) conditions.push(eq(notifications.isRead, false));
-    
+
     return db
       .select()
       .from(notifications)
@@ -1732,16 +1952,16 @@ export class DatabaseStorage implements IStorage {
       const windowDays = await this.getSetting("return_window_days");
       if (windowDays) returnWindowDays = parseInt(windowDays);
     }
-    
+
     return await db.transaction(async (tx) => {
       const [order] = await tx.select().from(orders).where(eq(orders.id, orderId));
       if (!order) return undefined;
-      
+
       const updateData: any = { 
         status: status as any,
         updatedAt: new Date()
       };
-      
+
       // Set deliveredAt and returnEligibleUntil when marking as delivered
       if (status === "delivered") {
         const now = new Date();
@@ -1750,20 +1970,20 @@ export class DatabaseStorage implements IStorage {
         eligibleUntil.setDate(eligibleUntil.getDate() + returnWindowDays);
         updateData.returnEligibleUntil = eligibleUntil;
       }
-      
+
       const [updatedOrder] = await tx
         .update(orders)
         .set(updateData)
         .where(eq(orders.id, orderId))
         .returning();
-      
+
       await tx.insert(orderStatusHistory).values({
         orderId,
         status: status as any,
         note: notes,
         updatedBy: changedBy,
       });
-      
+
       return updatedOrder || undefined;
     });
   }
@@ -1791,6 +2011,167 @@ export class DatabaseStorage implements IStorage {
       description: appSettings.description,
       updatedAt: appSettings.updatedAt,
     }).from(appSettings).orderBy(asc(appSettings.key));
+  }
+
+  // Stock Movement Stats
+  async getStockMovementStats(): Promise<{
+    totalOnlineCleared: number;
+    totalStoreCleared: number;
+    onlineMovements: { sareeId: string; sareeName: string; quantity: number; orderRefId: string; createdAt: Date }[];
+    storeMovements: { sareeId: string; sareeName: string; quantity: number; orderRefId: string; storeId: string | null; storeName: string | null; createdAt: Date }[];
+  }> {
+    // Get total stock cleared from online orders
+    const [onlineTotal] = await db
+      .select({ sum: sql<number>`COALESCE(SUM(quantity), 0)::int` })
+      .from(stockMovements)
+      .where(eq(stockMovements.source, "online"));
+
+    // Get total stock cleared from store sales
+    const [storeTotal] = await db
+      .select({ sum: sql<number>`COALESCE(SUM(quantity), 0)::int` })
+      .from(stockMovements)
+      .where(eq(stockMovements.source, "store"));
+
+    // Get detailed online movements
+    const onlineMovements = await db
+      .select({
+        sareeId: stockMovements.sareeId,
+        sareeName: sarees.name,
+        quantity: stockMovements.quantity,
+        orderRefId: stockMovements.orderRefId,
+        createdAt: stockMovements.createdAt,
+      })
+      .from(stockMovements)
+      .innerJoin(sarees, eq(stockMovements.sareeId, sarees.id))
+      .where(eq(stockMovements.source, "online"))
+      .orderBy(desc(stockMovements.createdAt));
+
+    // Get detailed store movements
+    const storeMovements = await db
+      .select({
+        sareeId: stockMovements.sareeId,
+        sareeName: sarees.name,
+        quantity: stockMovements.quantity,
+        orderRefId: stockMovements.orderRefId,
+        storeId: stockMovements.storeId,
+        storeName: stores.name,
+        createdAt: stockMovements.createdAt,
+      })
+      .from(stockMovements)
+      .innerJoin(sarees, eq(stockMovements.sareeId, sarees.id))
+      .leftJoin(stores, eq(stockMovements.storeId, stores.id))
+      .where(eq(stockMovements.source, "store"))
+      .orderBy(desc(stockMovements.createdAt));
+
+    return {
+      totalOnlineCleared: onlineTotal?.sum || 0,
+      totalStoreCleared: storeTotal?.sum || 0,
+      onlineMovements,
+      storeMovements,
+    };
+  }
+
+  async getInventoryOverview(): Promise<{
+    totalStock: number;
+    onlineStock: number;
+    storeStock: number;
+    totalOnlineCleared: number;
+    totalStoreCleared: number;
+    products: { id: string; name: string; totalStock: number; onlineStock: number; storeStock: number }[];
+  }> {
+    // Get aggregated stock levels
+    const [stockTotals] = await db
+      .select({
+        totalStock: sql<number>`COALESCE(SUM(total_stock), 0)::int`,
+        onlineStock: sql<number>`COALESCE(SUM(online_stock), 0)::int`,
+      })
+      .from(sarees)
+      .where(eq(sarees.isActive, true));
+
+    // Get store inventory total
+    const [storeStockTotal] = await db
+      .select({ sum: sql<number>`COALESCE(SUM(quantity), 0)::int` })
+      .from(storeInventory);
+
+    // Get stock cleared totals
+    const [onlineCleared] = await db
+      .select({ sum: sql<number>`COALESCE(SUM(quantity), 0)::int` })
+      .from(stockMovements)
+      .where(eq(stockMovements.source, "online"));
+
+    const [storeCleared] = await db
+      .select({ sum: sql<number>`COALESCE(SUM(quantity), 0)::int` })
+      .from(stockMovements)
+      .where(eq(stockMovements.source, "store"));
+
+    // Get per-product stock breakdown
+    const products = await db
+      .select({
+        id: sarees.id,
+        name: sarees.name,
+        totalStock: sarees.totalStock,
+        onlineStock: sarees.onlineStock,
+        storeStock: sql<number>`COALESCE((
+          SELECT SUM(quantity) FROM store_inventory WHERE saree_id = ${sarees.id}
+        ), 0)::int`,
+      })
+      .from(sarees)
+      .where(eq(sarees.isActive, true))
+      .orderBy(sarees.name);
+
+    return {
+      totalStock: stockTotals?.totalStock || 0,
+      onlineStock: stockTotals?.onlineStock || 0,
+      storeStock: storeStockTotal?.sum || 0,
+      totalOnlineCleared: onlineCleared?.sum || 0,
+      totalStoreCleared: storeCleared?.sum || 0,
+      products,
+    };
+  }
+
+  async getStockMovements(filters?: { source?: string; sareeId?: string; limit?: number }): Promise<StockMovement[]> {
+    const conditions = [];
+
+    if (filters?.source) {
+      conditions.push(eq(stockMovements.source, filters.source as "online" | "store"));
+    }
+    if (filters?.sareeId) {
+      conditions.push(eq(stockMovements.sareeId, filters.sareeId));
+    }
+
+    let query = db
+      .select()
+      .from(stockMovements)
+      .where(conditions.length > 0 ? and(...conditions) : undefined)
+      .orderBy(desc(stockMovements.createdAt));
+
+    if (filters?.limit) {
+      query = query.limit(filters.limit) as any;
+    }
+
+    return query;
+  }
+
+  // Stock restoration from returns
+  async restoreStockFromReturn(sareeId: string, quantity: number, orderRefId: string): Promise<void> {
+    // Add stock back to total stock and online stock (assuming returns are processed centrally)
+    await db
+      .update(sarees)
+      .set({ 
+        totalStock: sql`${sarees.totalStock} + ${quantity}`,
+        onlineStock: sql`${sarees.onlineStock} + ${quantity}`
+      })
+      .where(eq(sarees.id, sareeId));
+
+    // Record stock movement (positive quantity for stock addition)
+    await db.insert(stockMovements).values({
+      sareeId,
+      quantity, // Positive value to show stock increase
+      movementType: "return",
+      source: "online", // Assuming central processing
+      orderRefId: orderRefId,
+      notes: "Stock restored from return",
+    });
   }
 }
 

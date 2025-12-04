@@ -16,7 +16,7 @@ const UPLOAD_TTL_MS = 15 * 60 * 1000;
 
 function cleanupExpiredUploads() {
   const now = Date.now();
-  for (const [key, value] of pendingUploads.entries()) {
+  for (const [key, value] of Array.from(pendingUploads.entries())) {
     if (value.expiresAt < now) {
       pendingUploads.delete(key);
     }

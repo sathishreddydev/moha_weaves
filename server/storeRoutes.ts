@@ -147,4 +147,45 @@ export const storeRoutes = (app: Express) => {
       res.status(500).json({ message: "Failed to update request" });
     }
   });
+
+  // Create store sale
+  app.post("/api/store/sales", authStore, async (req, res) => {
+    try {
+      const user = (req as any).user;
+      if (!user.storeId) {
+        return res.status(400).json({ message: "No store assigned" });
+      }
+
+      const { customerName, customerPhone, items, saleType } = req.body;
+
+      if (!items || items.length === 0) {
+        return res.status(400).json({ message: "No items in sale" });
+      }
+
+      // Verify stock availability and deduct from store inventory
+      for (const item of items) {
+        const inventory = await storage.getStoreInventoryItem(user.storeId, item.sareeId);
+        if (!inventory || inventory.quantity < item.quantity) {
+          return res.status(400).json({ 
+            message: `Insufficient stock for item ${item.sareeId}` 
+          });
+        }
+      }
+
+      // Create the sale and deduct stock
+      const sale = await storage.createStoreSale({
+        storeId: user.storeId,
+        userId: user.id,
+        customerName,
+        customerPhone,
+        saleType,
+        items,
+      });
+
+      res.json(sale);
+    } catch (error) {
+      console.error("Error creating sale:", error);
+      res.status(500).json({ message: "Failed to create sale" });
+    }
+  });
 };

@@ -18,6 +18,9 @@ export const returnResolutionEnum = pgEnum("return_resolution", ["refund", "exch
 export const refundStatusEnum = pgEnum("refund_status", ["pending", "initiated", "processing", "completed", "failed"]);
 export const couponTypeEnum = pgEnum("coupon_type", ["percentage", "fixed", "free_shipping"]);
 export const notificationTypeEnum = pgEnum("notification_type", ["order", "return", "refund", "promotion", "system"]);
+export const stockMovementSourceEnum = pgEnum("stock_movement_source", ["online", "store"]);
+export const stockMovementTypeEnum = pgEnum("stock_movement_type", ["sale", "return", "restock", "transfer", "adjustment"]);
+export const transferStatusEnum = pgEnum("transfer_status", ["pending", "approved", "in_transit", "received", "rejected", "cancelled"]);
 
 // Users table - supports all roles
 export const users = pgTable("users", {
@@ -95,7 +98,7 @@ export const sarees = pgTable("sarees", {
   totalStock: integer("total_stock").notNull().default(0),
   onlineStock: integer("online_stock").notNull().default(0),
   distributionChannel: distributionChannelEnum("distribution_channel").notNull().default("both"),
-  isActive: boolean("is_active").notNull().default(true),
+  isActive: boolean("is_active").notNull().default(false),
   isFeatured: boolean("is_featured").notNull().default(false),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
@@ -322,6 +325,9 @@ export const notifications = pgTable("notifications", {
   message: text("message").notNull(),
   data: text("data"),
   isRead: boolean("is_read").default(false),
+  relatedId: varchar("related_id"),
+  relatedType: text("related_type"),
+  readAt: timestamp("read_at"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
@@ -342,6 +348,46 @@ export const appSettings = pgTable("app_settings", {
   description: text("description"),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
   updatedBy: varchar("updated_by"),
+});
+
+// Stock movements for tracking stock deductions
+export const stockMovements = pgTable("stock_movements", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  sareeId: varchar("saree_id").references(() => sarees.id).notNull(),
+  quantity: integer("quantity").notNull(),
+  movementType: stockMovementTypeEnum("movement_type").notNull().default("sale"),
+  source: stockMovementSourceEnum("source").notNull(),
+  orderRefId: varchar("order_ref_id").notNull(),
+  storeId: varchar("store_id").references(() => stores.id),
+  notes: text("notes"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+// Stock transfers between stores
+export const stockTransfers = pgTable("stock_transfers", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  sareeId: varchar("saree_id").references(() => sarees.id).notNull(),
+  fromStoreId: varchar("from_store_id").references(() => stores.id),
+  toStoreId: varchar("to_store_id").references(() => stores.id).notNull(),
+  quantity: integer("quantity").notNull(),
+  status: transferStatusEnum("status").notNull().default("pending"),
+  requestedBy: varchar("requested_by").references(() => users.id).notNull(),
+  approvedBy: varchar("approved_by").references(() => users.id),
+  notes: text("notes"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
+// Inventory adjustments for damaged/lost items
+export const inventoryAdjustments = pgTable("inventory_adjustments", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  sareeId: varchar("saree_id").references(() => sarees.id).notNull(),
+  storeId: varchar("store_id").references(() => stores.id),
+  quantity: integer("quantity").notNull(),
+  reason: text("reason").notNull(),
+  adjustedBy: varchar("adjusted_by").references(() => users.id).notNull(),
+  notes: text("notes"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
 // Relations
@@ -485,6 +531,24 @@ export const orderStatusHistoryRelations = relations(orderStatusHistory, ({ one 
   order: one(orders, { fields: [orderStatusHistory.orderId], references: [orders.id] }),
 }));
 
+export const stockMovementsRelations = relations(stockMovements, ({ one }) => ({
+  saree: one(sarees, { fields: [stockMovements.sareeId], references: [sarees.id] }),
+  store: one(stores, { fields: [stockMovements.storeId], references: [stores.id] }),
+}));
+
+export const stockTransfersRelations = relations(stockTransfers, ({ one }) => ({
+  saree: one(sarees, { fields: [stockTransfers.sareeId], references: [sarees.id] }),
+  fromStore: one(stores, { fields: [stockTransfers.fromStoreId], references: [stores.id] }),
+  toStore: one(stores, { fields: [stockTransfers.toStoreId], references: [stores.id] }),
+  requester: one(users, { fields: [stockTransfers.requestedBy], references: [users.id] }),
+}));
+
+export const inventoryAdjustmentsRelations = relations(inventoryAdjustments, ({ one }) => ({
+  saree: one(sarees, { fields: [inventoryAdjustments.sareeId], references: [sarees.id] }),
+  store: one(stores, { fields: [inventoryAdjustments.storeId], references: [stores.id] }),
+  adjuster: one(users, { fields: [inventoryAdjustments.adjustedBy], references: [users.id] }),
+}));
+
 // Insert schemas
 export const insertUserSchema = createInsertSchema(users).omit({ id: true, createdAt: true, tokenVersion: true });
 export const insertRefreshTokenSchema = createInsertSchema(refreshTokens).omit({ id: true, createdAt: true });
@@ -512,6 +576,9 @@ export const insertCouponUsageSchema = createInsertSchema(couponUsage).omit({ id
 export const insertNotificationSchema = createInsertSchema(notifications).omit({ id: true, createdAt: true });
 export const insertOrderStatusHistorySchema = createInsertSchema(orderStatusHistory).omit({ id: true, createdAt: true });
 export const insertAppSettingSchema = createInsertSchema(appSettings).omit({ updatedAt: true });
+export const insertStockMovementSchema = createInsertSchema(stockMovements).omit({ id: true, createdAt: true });
+export const insertStockTransferSchema = createInsertSchema(stockTransfers).omit({ id: true, createdAt: true, updatedAt: true });
+export const insertInventoryAdjustmentSchema = createInsertSchema(inventoryAdjustments).omit({ id: true, createdAt: true });
 
 // Types
 export type User = typeof users.$inferSelect;
@@ -566,6 +633,12 @@ export type OrderStatusHistory = typeof orderStatusHistory.$inferSelect;
 export type InsertOrderStatusHistory = z.infer<typeof insertOrderStatusHistorySchema>;
 export type AppSetting = typeof appSettings.$inferSelect;
 export type InsertAppSetting = z.infer<typeof insertAppSettingSchema>;
+export type StockMovement = typeof stockMovements.$inferSelect;
+export type InsertStockMovement = z.infer<typeof insertStockMovementSchema>;
+export type StockTransfer = typeof stockTransfers.$inferSelect;
+export type InsertStockTransfer = z.infer<typeof insertStockTransferSchema>;
+export type InventoryAdjustment = typeof inventoryAdjustments.$inferSelect;
+export type InsertInventoryAdjustment = z.infer<typeof insertInventoryAdjustmentSchema>;
 
 // Extended types for frontend use
 export type SareeWithDetails = Saree & {
@@ -617,4 +690,15 @@ export type RefundWithDetails = Refund & {
 
 export type CouponWithUsage = Coupon & {
   usageCount?: number;
+};
+
+export type StockTransferWithDetails = StockTransfer & {
+  saree: SareeWithDetails;
+  fromStore?: Store;
+  toStore: Store;
+};
+
+export type InventoryAdjustmentWithDetails = InventoryAdjustment & {
+  saree: SareeWithDetails;
+  store?: Store;
 };

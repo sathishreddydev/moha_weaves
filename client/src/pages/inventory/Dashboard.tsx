@@ -53,6 +53,7 @@ const navItems = [
   { icon: Shirt, label: "Sarees", href: "/inventory/sarees" },
   { icon: Warehouse, label: "Stock Management", href: "/inventory/stock" },
   { icon: BarChart3, label: "Stock Distribution", href: "/inventory/distribution" },
+  { icon: TrendingUp, label: "Analytics", href: "/inventory/analytics" },
   { icon: ClipboardList, label: "Store Requests", href: "/inventory/requests" },
   { icon: Truck, label: "Online Orders", href: "/inventory/orders" },
   { icon: RotateCcw, label: "Returns", href: "/inventory/returns" },

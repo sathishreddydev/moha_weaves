@@ -179,9 +179,9 @@ const authInventory = createAuthMiddleware(["inventory"]);
       if (!validation.success) {
         return res.status(400).json({ message: validation.error.errors[0]?.message || "Invalid input" });
       }
-      
+
       const { storeAllocations, ...sareeData } = validation.data;
-      
+
       if (sareeData.distributionChannel === "online") {
         sareeData.onlineStock = sareeData.totalStock;
         const saree = await storage.createSareeWithAllocations(sareeData, []);
@@ -219,10 +219,10 @@ const authInventory = createAuthMiddleware(["inventory"]);
       if (!validation.success) {
         return res.status(400).json({ message: validation.error.errors[0]?.message || "Invalid input" });
       }
-      
+
       const { storeAllocations, ...sareeData } = validation.data;
       const allocations = storeAllocations || [];
-      
+
       if (sareeData.distributionChannel === "online") {
         sareeData.onlineStock = sareeData.totalStock;
         const saree = await storage.updateSareeWithAllocations(req.params.id, sareeData, []);
@@ -276,31 +276,31 @@ const authInventory = createAuthMiddleware(["inventory"]);
         res.status(500).json({ message: "Failed to fetch return requests" });
       }
     });
-  
+
     // Admin/Inventory: Update return request status
     app.patch("/api/inventory/returns/:id/status", authInventory, async (req, res) => {
       try {
         const user = (req as any).user;
         const { status, adminNotes } = req.body;
-        
+
         const returnRequest = await storage.getReturnRequest(req.params.id);
         if (!returnRequest) {
           return res.status(404).json({ message: "Return request not found" });
         }
-        
+
         const updated = await storage.updateReturnRequestStatus(
           req.params.id,
           status,
           user.id,
           adminNotes
         );
-        
+
         // Create notification for user
         let notificationTitle = "";
         let notificationMessage = "";
-        
-        const isExchange = returnRequest.resolutionType === "exchange";
-        
+
+        const isExchange = returnRequest.resolution === "exchange";
+
         switch (status) {
           case "approved":
             notificationTitle = isExchange ? "Exchange Request Approved" : "Return Request Approved";
@@ -312,7 +312,7 @@ const authInventory = createAuthMiddleware(["inventory"]);
             notificationTitle = isExchange ? "Exchange Request Rejected" : "Return Request Rejected";
             notificationMessage = `Your ${isExchange ? "exchange" : "return"} request has been rejected. ${adminNotes || ""}`;
             break;
-          case "in_transit":
+          case "received":
             notificationTitle = "Return Items Received";
             notificationMessage = `We have received your return items and they are being processed.`;
             break;
@@ -320,24 +320,75 @@ const authInventory = createAuthMiddleware(["inventory"]);
             if (isExchange) {
               notificationTitle = "Exchange Completed";
               notificationMessage = `Your exchange has been completed. Your new product will be shipped soon!`;
-              // For exchanges, we could create a new order for the exchange product
-              // This would involve processing any price difference
             } else {
               notificationTitle = "Return Completed";
               notificationMessage = `Your return has been completed. Refund will be processed shortly.`;
-              
+
               // Create refund record when return is completed
               await storage.createRefund({
                 returnRequestId: returnRequest.id,
                 orderId: returnRequest.orderId,
                 userId: returnRequest.userId,
-                amount: returnRequest.returnAmount,
-                method: returnRequest.order.paymentMethod || "original_method",
+                amount: returnRequest.refundAmount || "0",
+                reason: "return_completed",
               });
+
+              // Restore stock for returned items if restockable
+              for (const item of returnRequest.items) {
+                if (item.isRestockable) {
+                  await storage.restoreStockFromReturn(
+                    item.orderItem.sareeId,
+                    item.quantity,
+                    returnRequest.orderId
+                  );
+                }
+              }
+            }
+            
+            // Handle exchange order creation if resolution type is exchange
+            if (isExchange && status === "completed" && !returnRequest.exchangeOrderId) {
+              const originalOrder = await storage.getOrder(returnRequest.orderId);
+              if (originalOrder) {
+                // Create exchange order with same items
+                const exchangeOrder = await storage.createOrder(
+                  {
+                    userId: returnRequest.userId,
+                    totalAmount: returnRequest.refundAmount || "0",
+                    discountAmount: "0",
+                    finalAmount: returnRequest.refundAmount || "0",
+                    status: "confirmed",
+                    paymentStatus: "paid",
+                    paymentMethod: "exchange",
+                    shippingAddress: originalOrder.shippingAddress,
+                    phone: originalOrder.phone,
+                    notes: `Exchange order for original order #${returnRequest.orderId.slice(0, 8)}`,
+                  },
+                  returnRequest.items.map(item => ({
+                    sareeId: item.orderItem.sareeId,
+                    quantity: item.quantity,
+                    price: item.orderItem.price,
+                  }))
+                );
+
+                // Link exchange order to return request
+                await storage.updateReturnRequest(returnRequest.id, {
+                  exchangeOrderId: exchangeOrder.id,
+                });
+
+                // Create notification about exchange order
+                await storage.createNotification({
+                  userId: returnRequest.userId,
+                  type: "order",
+                  title: "Exchange Order Created",
+                  message: `Your exchange order #${exchangeOrder.id.slice(0, 8)} has been created and will be shipped soon!`,
+                  relatedId: exchangeOrder.id,
+                  relatedType: "order",
+                });
+              }
             }
             break;
         }
-        
+
         if (notificationTitle) {
           await storage.createNotification({
             userId: returnRequest.userId,
@@ -348,7 +399,7 @@ const authInventory = createAuthMiddleware(["inventory"]);
             relatedType: "return_request",
           });
         }
-        
+
         res.json(updated);
       } catch (error) {
         console.error("Error updating return request:", error);
@@ -368,24 +419,24 @@ const authInventory = createAuthMiddleware(["inventory"]);
           res.status(500).json({ message: "Failed to fetch refunds" });
         }
       });
-    
+
       // Admin/Inventory: Process refund
       app.patch("/api/inventory/refunds/:id/process", authInventory, async (req, res) => {
         try {
           const { status, transactionId } = req.body;
-          
+
           const refund = await storage.getRefund(req.params.id);
           if (!refund) {
             return res.status(404).json({ message: "Refund not found" });
           }
-          
+
           const updated = await storage.updateRefundStatus(
             req.params.id,
             status,
             status === "completed" || status === "failed" ? new Date() : undefined,
             transactionId
           );
-          
+
           // Create notification
           if (status === "completed") {
             await storage.createNotification({
@@ -397,7 +448,7 @@ const authInventory = createAuthMiddleware(["inventory"]);
               relatedType: "refund",
             });
           }
-          
+
           res.json(updated);
         } catch (error) {
           res.status(500).json({ message: "Failed to process refund" });
@@ -408,23 +459,23 @@ const authInventory = createAuthMiddleware(["inventory"]);
     try {
       const user = (req as any).user;
       const { status, notes } = req.body;
-      
+
       const order = await storage.getOrder(req.params.id);
       if (!order) {
         return res.status(404).json({ message: "Order not found" });
       }
-      
+
       const updated = await storage.updateOrderWithStatusHistory(
         req.params.id,
         status,
         user.id,
         notes
       );
-      
+
       if (!updated) {
         return res.status(500).json({ message: "Failed to update order" });
       }
-      
+
       // Create notification for user
       let notificationMessage = "";
       switch (status) {
@@ -445,7 +496,7 @@ const authInventory = createAuthMiddleware(["inventory"]);
           notificationMessage = "Your order has been cancelled.";
           break;
       }
-      
+
       if (notificationMessage) {
         await storage.createNotification({
           userId: order.userId,
@@ -456,12 +507,47 @@ const authInventory = createAuthMiddleware(["inventory"]);
           relatedType: "order",
         });
       }
-      
+
       res.json(updated);
     } catch (error) {
       console.error("Error updating order status:", error);
       res.status(500).json({ message: "Failed to update order status" });
     }
   });
-}
 
+  // Stock Movement Endpoints
+  app.get("/api/inventory/stock-movements", authInventory, async (req, res) => {
+    try {
+      const { source, sareeId, limit } = req.query;
+      const movements = await storage.getStockMovements({
+        source: source as string,
+        sareeId: sareeId as string,
+        limit: limit ? parseInt(limit as string) : undefined,
+      });
+      res.json(movements);
+    } catch (error) {
+      console.error("Error fetching stock movements:", error);
+      res.status(500).json({ message: "Failed to fetch stock movements" });
+    }
+  });
+
+  app.get("/api/inventory/stock-stats", authInventory, async (req, res) => {
+    try {
+      const stats = await storage.getStockMovementStats();
+      res.json(stats);
+    } catch (error) {
+      console.error("Error fetching stock stats:", error);
+      res.status(500).json({ message: "Failed to fetch stock stats" });
+    }
+  });
+
+  app.get("/api/inventory/overview", authInventory, async (req, res) => {
+    try {
+      const overview = await storage.getInventoryOverview();
+      res.json(overview);
+    } catch (error) {
+      console.error("Error fetching inventory overview:", error);
+      res.status(500).json({ message: "Failed to fetch inventory overview" });
+    }
+  });
+}

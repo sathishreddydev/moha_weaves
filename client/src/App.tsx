@@ -41,6 +41,7 @@ import InventoryDashboard from "@/pages/inventory/Dashboard";
 import InventorySarees from "@/pages/inventory/Sarees";
 import InventoryStock from "@/pages/inventory/Stock";
 import InventoryStockDistribution from "@/pages/inventory/StockDistribution";
+import InventoryAnalytics from "@/pages/inventory/Analytics";
 import InventoryRequests from "@/pages/inventory/Requests";
 import InventoryOrders from "@/pages/inventory/Orders";
 import InventoryReturns from "@/pages/inventory/Returns";
@@ -118,6 +119,7 @@ function Router() {
         <Route path="/inventory/sarees" element={<InventorySarees />} />
         <Route path="/inventory/stock" element={<InventoryStock />} />
         <Route path="/inventory/distribution" element={<InventoryStockDistribution />} />
+        <Route path="/inventory/analytics" element={<InventoryAnalytics />} />
         <Route path="/inventory/requests" element={<InventoryRequests />} />
         <Route path="/inventory/orders" element={<InventoryOrders />} />
         <Route path="/inventory/returns" element={<InventoryReturns />} />

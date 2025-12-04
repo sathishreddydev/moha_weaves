@@ -8,6 +8,13 @@
       "when": 1764742608663,
       "tag": "0000_moaning_wolfpack",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1764834469044,
+      "tag": "0001_mighty_guardian",
+      "breakpoints": true
     }
   ]
 }

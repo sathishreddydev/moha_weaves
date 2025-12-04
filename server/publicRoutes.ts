@@ -82,7 +82,7 @@ export const publicRoutes = (app: Express) => {
   app.get("/api/sarees/:id/reviews", async (req, res) => {
     try {
       const reviews = await storage.getProductReviews(req.params.id, {
-        status: "approved",
+        approved: true,
       });
       res.json(reviews);
     } catch (error) {
@@ -94,7 +94,7 @@ export const publicRoutes = (app: Express) => {
   app.get("/api/sarees/:id/reviews/stats", async (req, res) => {
     try {
       const reviews = await storage.getProductReviews(req.params.id, {
-        status: "approved",
+        approved: true,
       });
 
       const totalReviews = reviews.length;

@@ -237,9 +237,9 @@ export const adminRoutes = (app: Express) => {
   // Admin: Get all reviews (for moderation)
   app.get("/api/admin/reviews", authAdmin, async (req, res) => {
     try {
-      const { status } = req.query;
+      const { approved } = req.query;
       const reviews = await storage.getAllReviews({
-        status: status as string | undefined,
+        approved: approved === "true" ? true : approved === "false" ? false : undefined,
       });
       res.json(reviews);
     } catch (error) {
@@ -247,16 +247,16 @@ export const adminRoutes = (app: Express) => {
     }
   });
 
-  // Admin: Update review status (approve/reject)
+  // Admin: Update review approval status
   app.patch("/api/admin/reviews/:id/status", authAdmin, async (req, res) => {
     try {
-      const { status } = req.body;
+      const { isApproved } = req.body;
 
-      if (!["approved", "rejected"].includes(status)) {
-        return res.status(400).json({ message: "Invalid status" });
+      if (typeof isApproved !== "boolean") {
+        return res.status(400).json({ message: "isApproved must be a boolean" });
       }
 
-      const review = await storage.updateReviewStatus(req.params.id, status);
+      const review = await storage.updateReviewApproval(req.params.id, isApproved);
       if (!review) {
         return res.status(404).json({ message: "Review not found" });
       }
@@ -491,6 +491,42 @@ export const adminRoutes = (app: Express) => {
       } catch (error) {
         console.error("Error updating setting:", error);
         res.status(500).json({ message: "Failed to update setting" });
+      }
+    });
+
+    // Admin: Stock Movement Endpoints
+    app.get("/api/admin/stock-movements", authAdmin, async (req, res) => {
+      try {
+        const { source, sareeId, limit } = req.query;
+        const movements = await storage.getStockMovements({
+          source: source as string,
+          sareeId: sareeId as string,
+          limit: limit ? parseInt(limit as string) : undefined,
+        });
+        res.json(movements);
+      } catch (error) {
+        console.error("Error fetching stock movements:", error);
+        res.status(500).json({ message: "Failed to fetch stock movements" });
+      }
+    });
+
+    app.get("/api/admin/stock-stats", authAdmin, async (req, res) => {
+      try {
+        const stats = await storage.getStockMovementStats();
+        res.json(stats);
+      } catch (error) {
+        console.error("Error fetching stock stats:", error);
+        res.status(500).json({ message: "Failed to fetch stock stats" });
+      }
+    });
+
+    app.get("/api/admin/inventory-overview", authAdmin, async (req, res) => {
+      try {
+        const overview = await storage.getInventoryOverview();
+        res.json(overview);
+      } catch (error) {
+        console.error("Error fetching inventory overview:", error);
+        res.status(500).json({ message: "Failed to fetch inventory overview" });
       }
     });
 };
