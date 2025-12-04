@@ -56,6 +56,7 @@ const navItems = [
   { icon: TrendingUp, label: "Analytics", href: "/inventory/analytics" },
   { icon: ClipboardList, label: "Store Requests", href: "/inventory/requests" },
   { icon: Truck, label: "Online Orders", href: "/inventory/orders" },
+  { icon: Store, label: "Store Orders", href: "/inventory/store-orders" },
   { icon: RotateCcw, label: "Returns", href: "/inventory/returns" },
 ];
 
@@ -126,7 +127,7 @@ export default function InventoryDashboard() {
         {navItems.map((item) => (
           <Link key={item.href} to={item.href}>
             <Button
-              variant="ghost"
+              variant={item.href === "/inventory/dashboard" ? "secondary" : "ghost"}
               className="w-full justify-start gap-3"
               data-testid={`nav-${item.label.toLowerCase().replace(/\s/g, "-")}`}
             >

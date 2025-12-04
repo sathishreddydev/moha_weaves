@@ -550,4 +550,14 @@ const authInventory = createAuthMiddleware(["inventory"]);
       res.status(500).json({ message: "Failed to fetch inventory overview" });
     }
   });
+
+  app.get("/api/inventory/store-sales", authInventory, async (req, res) => {
+    try {
+      const storeSales = await storage.getAllStoreSales();
+      res.json(storeSales);
+    } catch (error) {
+      console.error("Error fetching store sales:", error);
+      res.status(500).json({ message: "Failed to fetch store sales" });
+    }
+  });
 }

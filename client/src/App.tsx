@@ -46,6 +46,7 @@ const InventoryAnalytics = lazy(() => import("@/pages/inventory/Analytics"));
 const InventoryRequests = lazy(() => import("@/pages/inventory/Requests"));
 const InventoryOrders = lazy(() => import("@/pages/inventory/Orders"));
 const InventoryReturns = lazy(() => import("@/pages/inventory/Returns"));
+const InventoryStoreOrders = lazy(() => import("@/pages/inventory/StoreOrders")); // Added new page
 
 const StoreLogin = lazy(() => import("@/pages/store/Login"));
 const StoreDashboard = lazy(() => import("@/pages/store/Dashboard"));
@@ -77,7 +78,7 @@ function UserLayout({ children }: { children: React.ReactNode }) {
 function Router() {
   const location = useLocation();
   const { user, isLoading } = useAuth();
-  
+
   const isAuthPage = [
     "/user/login",
     "/user/register",
@@ -102,7 +103,7 @@ function Router() {
         <Routes>
           <Route path="/user/login" element={<UserLogin />} />
           <Route path="/user/register" element={<UserRegister />} />
-          
+
           <Route path="/admin/login" element={<AdminLogin />} />
           <Route path="/admin/dashboard" element={<AdminDashboard />} />
           <Route path="/admin/sarees" element={<AdminSarees />} />
@@ -116,7 +117,7 @@ function Router() {
           <Route path="/admin/coupons" element={<AdminCoupons />} />
           <Route path="/admin/reviews" element={<AdminReviews />} />
           <Route path="/admin/settings" element={<AdminSettings />} />
-          
+
           <Route path="/inventory/login" element={<InventoryLogin />} />
           <Route path="/inventory/dashboard" element={<InventoryDashboard />} />
           <Route path="/inventory/sarees" element={<InventorySarees />} />
@@ -125,15 +126,16 @@ function Router() {
           <Route path="/inventory/analytics" element={<InventoryAnalytics />} />
           <Route path="/inventory/requests" element={<InventoryRequests />} />
           <Route path="/inventory/orders" element={<InventoryOrders />} />
+          <Route path="/inventory/store-orders" element={<InventoryStoreOrders />} /> {/* Added new route */}
           <Route path="/inventory/returns" element={<InventoryReturns />} />
-          
+
           <Route path="/store/login" element={<StoreLogin />} />
           <Route path="/store/dashboard" element={<StoreDashboard />} />
           <Route path="/store/sale" element={<StoreSale />} />
           <Route path="/store/inventory" element={<StoreInventoryPage />} />
           <Route path="/store/requests" element={<StoreRequests />} />
           <Route path="/store/history" element={<StoreHistory />} />
-          
+
           <Route path="*" element={<NotFound />} />
         </Routes>
       </Suspense>
@@ -148,10 +150,10 @@ function Router() {
           <Route path="/sarees" element={<Sarees />} />
           <Route path="/sarees/:id" element={<SareeDetail />} />
           <Route path="/categories" element={<Categories />} />
-          
+
           <Route path="/user/login" element={<UserLogin />} />
           <Route path="/user/register" element={<UserRegister />} />
-          
+
           <Route path="/user/cart" element={<Cart />} />
           <Route path="/user/wishlist" element={<Wishlist />} />
           <Route path="/user/orders" element={<Orders />} />
@@ -159,7 +161,7 @@ function Router() {
           <Route path="/user/returns" element={<Returns />} />
           <Route path="/user/checkout" element={<Checkout />} />
           <Route path="/user/addresses" element={<Addresses />} />
-          
+
           <Route path="*" element={<NotFound />} />
         </Routes>
       </Suspense>

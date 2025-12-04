@@ -15,8 +15,6 @@ import {
   Store,
   TrendingUp,
   Package,
-  ArrowUpRight,
-  ArrowDownRight,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -50,6 +48,7 @@ const navItems = [
   { icon: TrendingUp, label: "Analytics", href: "/inventory/analytics" },
   { icon: ClipboardList, label: "Store Requests", href: "/inventory/requests" },
   { icon: Truck, label: "Online Orders", href: "/inventory/orders" },
+  { icon: Store, label: "Store Orders", href: "/inventory/store-orders" },
   { icon: RotateCcw, label: "Returns", href: "/inventory/returns" },
 ];
 
@@ -114,7 +113,7 @@ export default function InventoryAnalytics() {
         {navItems.map((item) => (
           <Link key={item.href} to={item.href}>
             <Button
-              variant="ghost"
+              variant={item.href === "/inventory/analytics" ? "secondary" : "ghost"}
               className="w-full justify-start gap-3"
               data-testid={`nav-${item.label.toLowerCase().replace(/\s/g, "-")}`}
             >
