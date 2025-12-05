@@ -159,8 +159,8 @@ export default function Returns() {
                 <div className="mb-4">
                   <p className="text-sm text-muted-foreground mb-1">Reason</p>
                   <p className="text-sm font-medium capitalize">{returnRequest.reason.replace(/_/g, " ")}</p>
-                  {returnRequest.description && (
-                    <p className="text-sm text-muted-foreground mt-1">{returnRequest.description}</p>
+                  {returnRequest.reasonDetails && (
+                    <p className="text-sm text-muted-foreground mt-1">{returnRequest.reasonDetails}</p>
                   )}
                 </div>
 
@@ -193,7 +193,7 @@ export default function Returns() {
                       {isExchange ? "Exchange" : "Return"} Amount:
                     </span>{" "}
                     <span className="font-semibold text-lg" data-testid={`text-return-amount-${returnRequest.id}`}>
-                      {formatPrice(returnRequest.returnAmount)}
+                      {formatPrice(returnRequest.refundAmount || "0")}
                     </span>
                   </div>
 
@@ -204,10 +204,10 @@ export default function Returns() {
                   )}
                 </div>
 
-                {returnRequest.adminNotes && (
+                {returnRequest.inspectionNotes && (
                   <div className="mt-4 p-3 bg-muted/50 rounded-md">
-                    <p className="text-sm font-medium">Admin Notes:</p>
-                    <p className="text-sm text-muted-foreground">{returnRequest.adminNotes}</p>
+                    <p className="text-sm font-medium">Inspection Notes:</p>
+                    <p className="text-sm text-muted-foreground">{returnRequest.inspectionNotes}</p>
                   </div>
                 )}
               </div>

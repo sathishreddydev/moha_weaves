@@ -120,7 +120,7 @@ export default function InventoryReturns() {
         `/api/inventory/returns/${id}/status`,
         {
           status,
-          adminNotes: notes,
+          inspectionNotes: notes,
         }
       );
       return response.json();
@@ -144,7 +144,7 @@ export default function InventoryReturns() {
     request: ReturnRequestWithDetails,
     status: string
   ) => {
-    setAdminNotes(request.adminNotes || "");
+    setAdminNotes(request.inspectionNotes || "");
     setUpdateDialog({ open: true, request, status });
   };
 
@@ -377,7 +377,7 @@ export default function InventoryReturns() {
                           </div>
                         </TableCell>
                         <TableCell className="font-medium">
-                          {formatPrice(request.returnAmount)}
+                          {formatPrice(request.refundAmount || "0")}
                         </TableCell>
                         <TableCell>
                           <span className="text-sm capitalize">
@@ -454,10 +454,10 @@ export default function InventoryReturns() {
                 <span className="text-muted-foreground">Reason:</span>{" "}
                 {updateDialog.request.reason.replace(/_/g, " ")}
               </p>
-              {updateDialog.request.notes && (
+              {updateDialog.request.reasonDetails && (
                 <p className="text-sm">
                   <span className="text-muted-foreground">Customer Notes:</span>{" "}
-                  {updateDialog.request.notes}
+                  {updateDialog.request.reasonDetails}
                 </p>
               )}
             </div>

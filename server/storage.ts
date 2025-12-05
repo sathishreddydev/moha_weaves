@@ -1625,13 +1625,10 @@ export class DatabaseStorage implements IStorage {
     });
   }
 
-  async updateReturnRequestStatus(id: string, status: string, processedBy?: string, adminNotes?: string): Promise<ReturnRequest | undefined> {
+  async updateReturnRequestStatus(id: string, status: string, processedBy?: string, inspectionNotes?: string): Promise<ReturnRequest | undefined> {
     const updateData: any = { status, updatedAt: new Date() };
     if (processedBy) updateData.processedBy = processedBy;
-    if (adminNotes) updateData.adminNotes = adminNotes;
-    if (status === "approved" || status === "rejected") {
-      updateData.processedAt = new Date();
-    }
+    if (inspectionNotes) updateData.inspectionNotes = inspectionNotes;
 
     const [result] = await db.update(returnRequests).set(updateData).where(eq(returnRequests.id, id)).returning();
     return result || undefined;
