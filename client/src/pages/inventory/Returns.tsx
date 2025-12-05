@@ -174,7 +174,7 @@ export default function InventoryReturns() {
   const filteredReturns = returns?.filter((ret) => {
     const matchesStatus = filterStatus === "all" || ret.status === filterStatus;
     const matchesType =
-      filterType === "all" || ret.resolutionType === filterType;
+      filterType === "all" || ret.resolution === filterType;
     return matchesStatus && matchesType;
   });
 
@@ -233,7 +233,7 @@ export default function InventoryReturns() {
             data-testid={`button-complete-${request.id}`}
           >
             Complete{" "}
-            {request.resolutionType === "exchange" ? "Exchange" : "Return"}
+            {request.resolution === "exchange" ? "Exchange" : "Return"}
           </Button>
         );
       default:
@@ -315,7 +315,7 @@ export default function InventoryReturns() {
                     const status =
                       statusConfig[request.status] || statusConfig.requested;
                     const StatusIcon = status.icon;
-                    const isExchange = request.resolutionType === "exchange";
+                    const isExchange = request.resolution === "exchange";
 
                     return (
                       <TableRow
@@ -416,7 +416,7 @@ export default function InventoryReturns() {
           <DialogHeader>
             <DialogTitle>
               {updateDialog.status === "rejected" ? "Reject" : "Update"}{" "}
-              {updateDialog.request?.resolutionType === "exchange"
+              {updateDialog.request?.resolution === "exchange"
                 ? "Exchange"
                 : "Return"}{" "}
               Request
