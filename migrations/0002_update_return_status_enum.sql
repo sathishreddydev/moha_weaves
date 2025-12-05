@@ -13,7 +13,6 @@ DO $$ BEGIN
     'picked_up',
     'in_transit',
     'received',
-    'inspection',
     'inspected',
     'completed',
     'cancelled'

@@ -64,14 +64,29 @@ const statusConfig: Record<
     label: "Rejected",
     color: "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-100",
   },
+  pickup_scheduled: {
+    icon: Clock,
+    label: "Pickup Scheduled",
+    color: "bg-indigo-100 text-indigo-800 dark:bg-indigo-900 dark:text-indigo-100",
+  },
+  picked_up: {
+    icon: Package,
+    label: "Picked Up",
+    color: "bg-violet-100 text-violet-800 dark:bg-violet-900 dark:text-violet-100",
+  },
   in_transit: {
     icon: Truck,
     label: "In Transit",
     color: "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-100",
   },
-  inspection: {
+  received: {
     icon: Package,
-    label: "Inspection",
+    label: "Received",
+    color: "bg-cyan-100 text-cyan-800 dark:bg-cyan-900 dark:text-cyan-100",
+  },
+  inspected: {
+    icon: Package,
+    label: "Inspected",
     color:
       "bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-100",
   },
@@ -80,6 +95,11 @@ const statusConfig: Record<
     label: "Completed",
     color:
       "bg-emerald-100 text-emerald-800 dark:bg-emerald-900 dark:text-emerald-100",
+  },
+  cancelled: {
+    icon: XCircle,
+    label: "Cancelled",
+    color: "bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-100",
   },
 };
 
@@ -217,14 +237,25 @@ export default function InventoryReturns() {
         return (
           <Button
             size="sm"
-            onClick={() => handleStatusUpdate(request, "inspection")}
+            onClick={() => handleStatusUpdate(request, "received")}
             disabled={updateStatusMutation.isPending}
-            data-testid={`button-mark-inspection-${request.id}`}
+            data-testid={`button-mark-received-${request.id}`}
           >
-            Received for Inspection
+            Mark as Received
           </Button>
         );
-      case "inspection":
+      case "received":
+        return (
+          <Button
+            size="sm"
+            onClick={() => handleStatusUpdate(request, "inspected")}
+            disabled={updateStatusMutation.isPending}
+            data-testid={`button-mark-inspected-${request.id}`}
+          >
+            Mark as Inspected
+          </Button>
+        );
+      case "inspected":
         return (
           <Button
             size="sm"
@@ -279,9 +310,13 @@ export default function InventoryReturns() {
                 <SelectItem value="requested">Requested</SelectItem>
                 <SelectItem value="approved">Approved</SelectItem>
                 <SelectItem value="rejected">Rejected</SelectItem>
+                <SelectItem value="pickup_scheduled">Pickup Scheduled</SelectItem>
+                <SelectItem value="picked_up">Picked Up</SelectItem>
                 <SelectItem value="in_transit">In Transit</SelectItem>
-                <SelectItem value="inspection">Inspection</SelectItem>
+                <SelectItem value="received">Received</SelectItem>
+                <SelectItem value="inspected">Inspected</SelectItem>
                 <SelectItem value="completed">Completed</SelectItem>
+                <SelectItem value="cancelled">Cancelled</SelectItem>
               </SelectContent>
             </Select>
           </div>

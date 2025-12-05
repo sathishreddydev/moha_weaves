@@ -20,12 +20,32 @@ const statusConfig: Record<string, { icon: typeof Clock; label: string; color: s
     label: "Approved",
     color: "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-100",
   },
+  rejected: {
+    icon: XCircle,
+    label: "Rejected",
+    color: "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-100",
+  },
+  pickup_scheduled: {
+    icon: Clock,
+    label: "Pickup Scheduled",
+    color: "bg-indigo-100 text-indigo-800 dark:bg-indigo-900 dark:text-indigo-100",
+  },
+  picked_up: {
+    icon: Package,
+    label: "Picked Up",
+    color: "bg-violet-100 text-violet-800 dark:bg-violet-900 dark:text-violet-100",
+  },
   in_transit: {
     icon: Truck,
     label: "Items in Transit",
     color: "bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-100",
   },
-  inspection: {
+  received: {
+    icon: Package,
+    label: "Received at Warehouse",
+    color: "bg-cyan-100 text-cyan-800 dark:bg-cyan-900 dark:text-cyan-100",
+  },
+  inspected: {
     icon: Package,
     label: "Under Inspection",
     color: "bg-indigo-100 text-indigo-800 dark:bg-indigo-900 dark:text-indigo-100",
@@ -35,10 +55,10 @@ const statusConfig: Record<string, { icon: typeof Clock; label: string; color: s
     label: "Completed",
     color: "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-100",
   },
-  rejected: {
+  cancelled: {
     icon: XCircle,
-    label: "Rejected",
-    color: "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-100",
+    label: "Cancelled",
+    color: "bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-100",
   },
 };
 
