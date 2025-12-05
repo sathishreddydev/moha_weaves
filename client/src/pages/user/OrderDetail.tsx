@@ -215,9 +215,9 @@ export default function OrderDetail() {
                       {index < orderHistory.length - 1 && <div className="w-0.5 h-full bg-muted" />}
                     </div>
                     <div className="flex-1 pb-4">
-                      <p className="font-medium capitalize">{entry.newStatus.replace(/_/g, " ")}</p>
+                      <p className="font-medium capitalize">{(entry.newStatus || entry.status).replace(/_/g, " ")}</p>
                       <p className="text-sm text-muted-foreground">{formatDate(entry.createdAt)}</p>
-                      {entry.notes && <p className="text-sm mt-1">{entry.notes}</p>}
+                      {entry.note && <p className="text-sm mt-1">{entry.note}</p>}
                     </div>
                   </div>
                 ))}

@@ -344,7 +344,7 @@ const authInventory = createAuthMiddleware(["inventory"]);
                 }
               }
             }
-            
+
             // Handle exchange order creation if resolution type is exchange
             if (isExchange && status === "completed" && !returnRequest.exchangeOrderId) {
               const originalOrder = await storage.getOrder(returnRequest.orderId);

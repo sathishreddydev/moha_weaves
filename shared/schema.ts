@@ -336,6 +336,7 @@ export const orderStatusHistory = pgTable("order_status_history", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   orderId: varchar("order_id").references(() => orders.id).notNull(),
   status: orderStatusEnum("status").notNull(),
+  newStatus: orderStatusEnum("new_status"),
   note: text("note"),
   updatedBy: varchar("updated_by"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
