@@ -7,6 +7,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider, useAuth } from "@/lib/auth";
 import { Header } from "@/components/layout/Header";
 import { Footer } from "@/components/layout/Footer";
+import InventoryLayout from "./pages/inventory/Layout";
 
 const NotFound = lazy(() => import("@/pages/not-found"));
 const Home = lazy(() => import("@/pages/user/Home"));
@@ -41,12 +42,16 @@ const InventoryLogin = lazy(() => import("@/pages/inventory/Login"));
 const InventoryDashboard = lazy(() => import("@/pages/inventory/Dashboard"));
 const InventorySarees = lazy(() => import("@/pages/inventory/Sarees"));
 const InventoryStock = lazy(() => import("@/pages/inventory/Stock"));
-const InventoryStockDistribution = lazy(() => import("@/pages/inventory/StockDistribution"));
+const InventoryStockDistribution = lazy(
+  () => import("@/pages/inventory/StockDistribution")
+);
 const InventoryAnalytics = lazy(() => import("@/pages/inventory/Analytics"));
 const InventoryRequests = lazy(() => import("@/pages/inventory/Requests"));
 const InventoryOrders = lazy(() => import("@/pages/inventory/Orders"));
 const InventoryReturns = lazy(() => import("@/pages/inventory/Returns"));
-const InventoryStoreOrders = lazy(() => import("@/pages/inventory/StoreOrders")); // Added new page
+const InventoryStoreOrders = lazy(
+  () => import("@/pages/inventory/StoreOrders")
+); // Added new page
 
 const StoreLogin = lazy(() => import("@/pages/store/Login"));
 const StoreDashboard = lazy(() => import("@/pages/store/Dashboard"));
@@ -59,7 +64,9 @@ function LoadingFallback() {
   return (
     <div className="min-h-screen flex items-center justify-center">
       <div className="animate-pulse">
-        <div className="font-serif text-3xl font-semibold text-primary">Moha</div>
+        <div className="font-serif text-3xl font-semibold text-primary">
+          Moha
+        </div>
       </div>
     </div>
   );
@@ -91,7 +98,9 @@ function Router() {
     "/admin/dashboard",
     "/inventory/dashboard",
     "/store/dashboard",
-  ].some((path) => location.pathname.startsWith(path.replace("/dashboard", "")));
+  ].some((path) =>
+    location.pathname.startsWith(path.replace("/dashboard", ""))
+  );
 
   if (isLoading) {
     return <LoadingFallback />;
@@ -119,15 +128,30 @@ function Router() {
           <Route path="/admin/settings" element={<AdminSettings />} />
 
           <Route path="/inventory/login" element={<InventoryLogin />} />
-          <Route path="/inventory/dashboard" element={<InventoryDashboard />} />
-          <Route path="/inventory/sarees" element={<InventorySarees />} />
-          <Route path="/inventory/stock" element={<InventoryStock />} />
-          <Route path="/inventory/distribution" element={<InventoryStockDistribution />} />
-          <Route path="/inventory/analytics" element={<InventoryAnalytics />} />
-          <Route path="/inventory/requests" element={<InventoryRequests />} />
-          <Route path="/inventory/orders" element={<InventoryOrders />} />
-          <Route path="/inventory/store-orders" element={<InventoryStoreOrders />} /> {/* Added new route */}
-          <Route path="/inventory/returns" element={<InventoryReturns />} />
+
+          <Route path="inventory" element={<InventoryLayout />}>
+            <Route
+              path="dashboard"
+              element={<InventoryDashboard />}
+            />
+            <Route path="sarees" element={<InventorySarees />} />
+            <Route path="stock" element={<InventoryStock />} />
+            <Route
+              path="distribution"
+              element={<InventoryStockDistribution />}
+            />
+            <Route
+              path="analytics"
+              element={<InventoryAnalytics />}
+            />
+            <Route path="requests" element={<InventoryRequests />} />
+            <Route path="orders" element={<InventoryOrders />} />
+            <Route
+              path="store-orders"
+              element={<InventoryStoreOrders />}
+            />
+            <Route path="returns" element={<InventoryReturns />} />
+          </Route>
 
           <Route path="/store/login" element={<StoreLogin />} />
           <Route path="/store/dashboard" element={<StoreDashboard />} />
