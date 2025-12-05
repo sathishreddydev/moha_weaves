@@ -458,7 +458,7 @@ const authInventory = createAuthMiddleware(["inventory"]);
   app.patch("/api/inventory/orders/:id/status", authInventory, async (req, res) => {
     try {
       const user = (req as any).user;
-      const { status, notes } = req.body;
+      const { status, note } = req.body;
 
       const order = await storage.getOrder(req.params.id);
       if (!order) {
@@ -469,7 +469,7 @@ const authInventory = createAuthMiddleware(["inventory"]);
         req.params.id,
         status,
         user.id,
-        notes
+        note
       );
 
       if (!updated) {
