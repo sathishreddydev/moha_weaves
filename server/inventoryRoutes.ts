@@ -281,7 +281,7 @@ const authInventory = createAuthMiddleware(["inventory"]);
     app.patch("/api/inventory/returns/:id/status", authInventory, async (req, res) => {
       try {
         const user = (req as any).user;
-        const { status, adminNotes } = req.body;
+        const { status, inspectionNotes } = req.body;
 
         const returnRequest = await storage.getReturnRequest(req.params.id);
         if (!returnRequest) {
@@ -292,7 +292,7 @@ const authInventory = createAuthMiddleware(["inventory"]);
           req.params.id,
           status,
           user.id,
-          adminNotes
+          inspectionNotes
         );
 
         // Create notification for user
@@ -310,7 +310,7 @@ const authInventory = createAuthMiddleware(["inventory"]);
             break;
           case "rejected":
             notificationTitle = isExchange ? "Exchange Request Rejected" : "Return Request Rejected";
-            notificationMessage = `Your ${isExchange ? "exchange" : "return"} request has been rejected. ${adminNotes || ""}`;
+            notificationMessage = `Your ${isExchange ? "exchange" : "return"} request has been rejected. ${inspectionNotes || ""}`;
             break;
           case "received":
             notificationTitle = "Return Items Received";

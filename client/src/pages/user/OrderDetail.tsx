@@ -105,8 +105,8 @@ export default function OrderDetail() {
     createReturnMutation.mutate({
       orderId: id,
       reason: returnReason,
-      description: returnDescription,
-      resolutionType,
+      reasonDetails: returnDescription,
+      resolution: resolutionType,
       items,
     });
   };

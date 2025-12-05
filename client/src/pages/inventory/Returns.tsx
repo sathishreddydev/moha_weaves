@@ -98,7 +98,7 @@ export default function InventoryReturns() {
     request: null,
     status: "",
   });
-  const [adminNotes, setAdminNotes] = useState("");
+  const [inspectionNotes, setInspectionNotes] = useState("");
 
   const { data: returns, isLoading } = useQuery<ReturnRequestWithDetails[]>({
     queryKey: ["/api/inventory/returns"],
@@ -129,7 +129,7 @@ export default function InventoryReturns() {
       queryClient.invalidateQueries({ queryKey: ["/api/inventory/returns"] });
       toast({ title: "Success", description: "Return status updated" });
       setUpdateDialog({ open: false, request: null, status: "" });
-      setAdminNotes("");
+      setInspectionNotes("");
     },
     onError: () => {
       toast({
@@ -144,7 +144,7 @@ export default function InventoryReturns() {
     request: ReturnRequestWithDetails,
     status: string
   ) => {
-    setAdminNotes(request.inspectionNotes || "");
+    setInspectionNotes(request.inspectionNotes || "");
     setUpdateDialog({ open: true, request, status });
   };
 
@@ -153,7 +153,7 @@ export default function InventoryReturns() {
       updateStatusMutation.mutate({
         id: updateDialog.request.id,
         status: updateDialog.status,
-        notes: adminNotes,
+        notes: inspectionNotes,
       });
     }
   };
@@ -463,18 +463,18 @@ export default function InventoryReturns() {
             </div>
           )}
           <div className="py-4">
-            <Label htmlFor="admin-notes">Admin Notes</Label>
+            <Label htmlFor="inspection-notes">Inspection Notes</Label>
             <Textarea
-              id="admin-notes"
-              value={adminNotes}
-              onChange={(e) => setAdminNotes(e.target.value)}
+              id="inspection-notes"
+              value={inspectionNotes}
+              onChange={(e) => setInspectionNotes(e.target.value)}
               placeholder={
                 updateDialog.status === "rejected"
                   ? "Enter reason for rejection..."
-                  : "Add internal notes (optional)..."
+                  : "Add inspection notes (optional)..."
               }
               className="mt-2"
-              data-testid="input-admin-notes"
+              data-testid="input-inspection-notes"
             />
           </div>
           <DialogFooter>

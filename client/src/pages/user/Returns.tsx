@@ -120,7 +120,7 @@ export default function Returns() {
         {returns.map((returnRequest) => {
           const status = statusConfig[returnRequest.status] || statusConfig.requested;
           const StatusIcon = status.icon;
-          const isExchange = returnRequest.resolutionType === "exchange";
+          const isExchange = returnRequest.resolution === "exchange";
 
           return (
             <Card key={returnRequest.id} className="overflow-hidden" data-testid={`card-return-${returnRequest.id}`}>
