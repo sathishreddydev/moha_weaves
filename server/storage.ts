@@ -2054,38 +2054,39 @@ export class DatabaseStorage implements IStorage {
     onlineMovements: { sareeId: string; sareeName: string; quantity: number; orderRefId: string; createdAt: Date }[];
     storeMovements: { sareeId: string; sareeName: string; quantity: number; orderRefId: string; storeId: string | null; storeName: string | null; createdAt: Date }[];
   }> {
-    // Get total stock cleared from online orders
+    // Get total stock cleared from online sales only (sales are stored as negative values, so we use ABS)
+    // Filter by movementType = 'sale' to only count actual sales, not returns
     const [onlineTotal] = await db
-      .select({ sum: sql<number>`COALESCE(SUM(quantity), 0)::int` })
+      .select({ sum: sql<number>`COALESCE(ABS(SUM(CASE WHEN movement_type = 'sale' THEN quantity ELSE 0 END)), 0)::int` })
       .from(stockMovements)
       .where(eq(stockMovements.source, "online"));
 
-    // Get total stock cleared from store sales
+    // Get total stock cleared from store sales only
     const [storeTotal] = await db
-      .select({ sum: sql<number>`COALESCE(SUM(quantity), 0)::int` })
+      .select({ sum: sql<number>`COALESCE(ABS(SUM(CASE WHEN movement_type = 'sale' THEN quantity ELSE 0 END)), 0)::int` })
       .from(stockMovements)
       .where(eq(stockMovements.source, "store"));
 
-    // Get detailed online movements
+    // Get detailed online movements (sales only, convert negative to positive for display)
     const onlineMovements = await db
       .select({
         sareeId: stockMovements.sareeId,
         sareeName: sarees.name,
-        quantity: stockMovements.quantity,
+        quantity: sql<number>`ABS(${stockMovements.quantity})::int`,
         orderRefId: stockMovements.orderRefId,
         createdAt: stockMovements.createdAt,
       })
       .from(stockMovements)
       .innerJoin(sarees, eq(stockMovements.sareeId, sarees.id))
-      .where(eq(stockMovements.source, "online"))
+      .where(and(eq(stockMovements.source, "online"), eq(stockMovements.movementType, "sale")))
       .orderBy(desc(stockMovements.createdAt));
 
-    // Get detailed store movements
+    // Get detailed store movements (sales only, convert negative to positive for display)
     const storeMovements = await db
       .select({
         sareeId: stockMovements.sareeId,
         sareeName: sarees.name,
-        quantity: stockMovements.quantity,
+        quantity: sql<number>`ABS(${stockMovements.quantity})::int`,
         orderRefId: stockMovements.orderRefId,
         storeId: stockMovements.storeId,
         storeName: stores.name,
@@ -2094,7 +2095,7 @@ export class DatabaseStorage implements IStorage {
       .from(stockMovements)
       .innerJoin(sarees, eq(stockMovements.sareeId, sarees.id))
       .leftJoin(stores, eq(stockMovements.storeId, stores.id))
-      .where(eq(stockMovements.source, "store"))
+      .where(and(eq(stockMovements.source, "store"), eq(stockMovements.movementType, "sale")))
       .orderBy(desc(stockMovements.createdAt));
 
     return {
@@ -2127,14 +2128,14 @@ export class DatabaseStorage implements IStorage {
       .select({ sum: sql<number>`COALESCE(SUM(quantity), 0)::int` })
       .from(storeInventory);
 
-    // Get stock cleared totals
+    // Get stock cleared totals (sales are stored as negative values, so we use ABS and filter by sale type)
     const [onlineCleared] = await db
-      .select({ sum: sql<number>`COALESCE(SUM(quantity), 0)::int` })
+      .select({ sum: sql<number>`COALESCE(ABS(SUM(CASE WHEN movement_type = 'sale' THEN quantity ELSE 0 END)), 0)::int` })
       .from(stockMovements)
       .where(eq(stockMovements.source, "online"));
 
     const [storeCleared] = await db
-      .select({ sum: sql<number>`COALESCE(SUM(quantity), 0)::int` })
+      .select({ sum: sql<number>`COALESCE(ABS(SUM(CASE WHEN movement_type = 'sale' THEN quantity ELSE 0 END)), 0)::int` })
       .from(stockMovements)
       .where(eq(stockMovements.source, "store"));
 
