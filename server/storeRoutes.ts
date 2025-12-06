@@ -207,6 +207,29 @@ export const storeRoutes = (app: Express) => {
     }
   });
 
+  // Get exchanges for inventory view
+  app.get("/api/inventory/exchanges", async (req, res) => {
+    try {
+      const { storeId, limit } = req.query;
+      if (storeId) {
+        const exchanges = await storage.getStoreExchanges(
+          storeId as string,
+          limit ? parseInt(limit as string) : undefined
+        );
+        res.json(exchanges);
+      } else {
+        // Get all exchanges across all stores
+        const allExchanges = await storage.getAllStoreExchanges(
+          limit ? parseInt(limit as string) : undefined
+        );
+        res.json(allExchanges);
+      }
+    } catch (error) {
+      console.error("Error fetching exchanges:", error);
+      res.status(500).json({ message: "Failed to fetch exchanges" });
+    }
+  });
+
   // Get single exchange details
   app.get("/api/store/exchanges/:id", authStore, async (req, res) => {
     try {

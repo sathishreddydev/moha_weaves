@@ -560,4 +560,25 @@ const authInventory = createAuthMiddleware(["inventory"]);
       res.status(500).json({ message: "Failed to fetch store sales" });
     }
   });
+
+  app.get("/api/inventory/exchanges", authInventory, async (req, res) => {
+    try {
+      const { storeId, limit } = req.query;
+      if (storeId) {
+        const exchanges = await storage.getStoreExchanges(
+          storeId as string,
+          limit ? parseInt(limit as string) : undefined
+        );
+        res.json(exchanges);
+      } else {
+        const allExchanges = await storage.getAllStoreExchanges(
+          limit ? parseInt(limit as string) : undefined
+        );
+        res.json(allExchanges);
+      }
+    } catch (error) {
+      console.error("Error fetching exchanges:", error);
+      res.status(500).json({ message: "Failed to fetch exchanges" });
+    }
+  });
 }

@@ -2272,6 +2272,67 @@ export class DatabaseStorage implements IStorage {
     };
   }
 
+  async getAllStoreExchanges(limit?: number): Promise<StoreExchangeWithDetails[]> {
+    const exchangesList = await db
+      .select()
+      .from(storeExchanges)
+      .leftJoin(stores, eq(storeExchanges.storeId, stores.id))
+      .leftJoin(users, eq(storeExchanges.processedBy, users.id))
+      .orderBy(desc(storeExchanges.createdAt))
+      .limit(limit || 100);
+
+    const result: StoreExchangeWithDetails[] = [];
+
+    for (const exchange of exchangesList) {
+      const originalSale = await this.getStoreSaleForExchange(exchange.store_exchanges.originalSaleId);
+      
+      const returnItemsList = await db
+        .select()
+        .from(storeExchangeReturnItems)
+        .leftJoin(sarees, eq(storeExchangeReturnItems.sareeId, sarees.id))
+        .leftJoin(categories, eq(sarees.categoryId, categories.id))
+        .leftJoin(colors, eq(sarees.colorId, colors.id))
+        .leftJoin(fabrics, eq(sarees.fabricId, fabrics.id))
+        .where(eq(storeExchangeReturnItems.exchangeId, exchange.store_exchanges.id));
+
+      const newItemsList = await db
+        .select()
+        .from(storeExchangeNewItems)
+        .leftJoin(sarees, eq(storeExchangeNewItems.sareeId, sarees.id))
+        .leftJoin(categories, eq(sarees.categoryId, categories.id))
+        .leftJoin(colors, eq(sarees.colorId, colors.id))
+        .leftJoin(fabrics, eq(sarees.fabricId, fabrics.id))
+        .where(eq(storeExchangeNewItems.exchangeId, exchange.store_exchanges.id));
+
+      result.push({
+        ...exchange.store_exchanges,
+        store: exchange.stores!,
+        originalSale: originalSale!,
+        processor: exchange.users!,
+        returnItems: returnItemsList.map(item => ({
+          ...item.store_exchange_return_items,
+          saree: {
+            ...item.sarees!,
+            category: item.categories,
+            color: item.colors,
+            fabric: item.fabrics,
+          },
+        })),
+        newItems: newItemsList.map(item => ({
+          ...item.store_exchange_new_items,
+          saree: {
+            ...item.sarees!,
+            category: item.categories,
+            color: item.colors,
+            fabric: item.fabrics,
+          },
+        })),
+      });
+    }
+
+    return result;
+  }
+
   async getStoreExchanges(storeId: string, limit?: number): Promise<StoreExchangeWithDetails[]> {
     const exchangesList = await db
       .select()
@@ -2411,6 +2472,7 @@ export class DatabaseStorage implements IStorage {
             .set({ returnedQuantity: sql`${storeSaleItems.returnedQuantity} + ${item.quantity}` })
             .where(eq(storeSaleItems.id, item.saleItemId));
 
+          // Update store inventory
           await tx
             .update(storeInventory)
             .set({ 
@@ -2421,6 +2483,14 @@ export class DatabaseStorage implements IStorage {
               eq(storeInventory.storeId, exchange.storeId),
               eq(storeInventory.sareeId, item.sareeId)
             ));
+
+          // Update total stock in sarees table
+          await tx
+            .update(sarees)
+            .set({ 
+              totalStock: sql`${sarees.totalStock} + ${item.quantity}`
+            })
+            .where(eq(sarees.id, item.sareeId));
 
           await tx.insert(stockMovements).values({
             sareeId: item.sareeId,
@@ -2442,6 +2512,7 @@ export class DatabaseStorage implements IStorage {
         await tx.insert(storeExchangeNewItems).values(newRecords);
 
         for (const item of newItemsData) {
+          // Update store inventory
           await tx
             .update(storeInventory)
             .set({ 
@@ -2452,6 +2523,14 @@ export class DatabaseStorage implements IStorage {
               eq(storeInventory.storeId, exchange.storeId),
               eq(storeInventory.sareeId, item.sareeId)
             ));
+
+          // Update total stock in sarees table
+          await tx
+            .update(sarees)
+            .set({ 
+              totalStock: sql`${sarees.totalStock} - ${item.quantity}`
+            })
+            .where(eq(sarees.id, item.sareeId));
 
           await tx.insert(stockMovements).values({
             sareeId: item.sareeId,
