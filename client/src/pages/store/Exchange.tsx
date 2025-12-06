@@ -786,7 +786,8 @@ export default function StoreExchange() {
                         className="w-full"
                         size="lg"
                         onClick={handleCompleteExchange}
-                        disabled={returnItems.length === 0 || createExchangeMutation.isPending}
+                        disabled={createExchangeMutation.isPending || returnItems.length === 0}
+                        data-testid="button-complete-exchange"
                       >
                         {createExchangeMutation.isPending ? "Processing..." : "Complete Exchange"}
                       </Button>
