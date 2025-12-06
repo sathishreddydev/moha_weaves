@@ -141,15 +141,24 @@ export const storeRoutes = (app: Express) => {
         }
       }
 
+      // Calculate total amount
+      const totalAmount = items.reduce((sum, item) => {
+        const price = typeof item.price === "string" ? parseFloat(item.price) : item.price;
+        return sum + (price * item.quantity);
+      }, 0);
+
       // Create the sale and deduct stock
-      const sale = await storage.createStoreSale({
-        storeId: user.storeId,
-        soldBy: user.id,
-        customerName,
-        customerPhone,
-        saleType,
-        items,
-      });
+      const sale = await storage.createStoreSale(
+        {
+          storeId: user.storeId,
+          soldBy: user.id,
+          customerName,
+          customerPhone,
+          saleType,
+          totalAmount: totalAmount.toString(),
+        },
+        items
+      );
 
       res.json(sale);
     } catch (error) {
