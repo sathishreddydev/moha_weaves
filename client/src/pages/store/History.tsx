@@ -11,6 +11,7 @@ import {
   Receipt,
   User,
   Phone,
+  ArrowLeftRight,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -174,6 +175,7 @@ export default function StoreHistory() {
                           <TableHead>Items</TableHead>
                           <TableHead>Type</TableHead>
                           <TableHead>Total</TableHead>
+                          <TableHead>Actions</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
@@ -230,6 +232,19 @@ export default function StoreHistory() {
                             </TableCell>
                             <TableCell className="font-bold text-primary">
                               {formatPrice(sale.totalAmount)}
+                            </TableCell>
+                            <TableCell>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  navigate(`/store/exchange/${sale.id}`);
+                                }}
+                              >
+                                <ArrowLeftRight className="h-4 w-4 mr-1" />
+                                Exchange
+                              </Button>
                             </TableCell>
                           </TableRow>
                         ))}
@@ -305,6 +320,15 @@ export default function StoreHistory() {
                 <span className="font-bold">Total</span>
                 <span className="text-xl font-bold text-primary">{formatPrice(selectedSale.totalAmount)}</span>
               </div>
+
+              <Button
+                className="w-full mt-4"
+                variant="outline"
+                onClick={() => navigate(`/store/exchange/${selectedSale.id}`)}
+              >
+                <ArrowLeftRight className="h-4 w-4 mr-2" />
+                Process Exchange
+              </Button>
             </div>
           )}
         </DialogContent>

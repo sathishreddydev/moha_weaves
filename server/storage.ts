@@ -4,6 +4,7 @@ import {
   userAddresses, serviceablePincodes, refreshTokens,
   returnRequests, returnItems, refunds, productReviews, coupons, couponUsage,
   notifications, orderStatusHistory, appSettings, stockMovements,
+  storeExchanges, storeExchangeReturnItems, storeExchangeNewItems,
   type User, type InsertUser, type Category, type InsertCategory,
   type Color, type InsertColor, type Fabric, type InsertFabric,
   type Store, type InsertStore, type Saree, type InsertSaree,
@@ -22,9 +23,13 @@ import {
   type Notification, type InsertNotification,
   type OrderStatusHistory, type InsertOrderStatusHistory,
   type StockMovement, type InsertStockMovement,
+  type StoreExchange, type InsertStoreExchange,
+  type StoreExchangeReturnItem, type InsertStoreExchangeReturnItem,
+  type StoreExchangeNewItem, type InsertStoreExchangeNewItem,
   type SareeWithDetails, type CartItemWithSaree, type WishlistItemWithSaree,
   type OrderWithItems, type StockRequestWithDetails, type StoreSaleWithItems,
   type ReturnRequestWithDetails, type SareeWithReviews, type CouponWithUsage,
+  type StoreExchangeWithDetails,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, or, ilike, desc, asc, sql, gte, lte, inArray } from "drizzle-orm";
@@ -251,6 +256,16 @@ export interface IStorage {
 
   // Stock restoration from returns
   restoreStockFromReturn(sareeId: string, quantity: number, orderRefId: string): Promise<void>;
+
+  // Store Exchanges
+  getStoreSaleForExchange(saleId: string): Promise<StoreSaleWithItems | undefined>;
+  getStoreExchanges(storeId: string, limit?: number): Promise<StoreExchangeWithDetails[]>;
+  getStoreExchange(id: string): Promise<StoreExchangeWithDetails | undefined>;
+  createStoreExchange(
+    exchange: InsertStoreExchange,
+    returnItems: Omit<InsertStoreExchangeReturnItem, 'exchangeId'>[],
+    newItems: Omit<InsertStoreExchangeNewItem, 'exchangeId'>[]
+  ): Promise<StoreExchange>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -2206,6 +2221,251 @@ export class DatabaseStorage implements IStorage {
       source: "online", // Assuming central processing
       orderRefId: orderRefId,
       notes: "Stock restored from return",
+    });
+  }
+
+  // Store Exchanges
+  async getStoreSaleForExchange(saleId: string): Promise<StoreSaleWithItems | undefined> {
+    const [sale] = await db
+      .select()
+      .from(storeSales)
+      .leftJoin(stores, eq(storeSales.storeId, stores.id))
+      .where(eq(storeSales.id, saleId));
+
+    if (!sale) return undefined;
+
+    const items = await db
+      .select()
+      .from(storeSaleItems)
+      .leftJoin(sarees, eq(storeSaleItems.sareeId, sarees.id))
+      .leftJoin(categories, eq(sarees.categoryId, categories.id))
+      .leftJoin(colors, eq(sarees.colorId, colors.id))
+      .leftJoin(fabrics, eq(sarees.fabricId, fabrics.id))
+      .where(eq(storeSaleItems.saleId, saleId));
+
+    const itemsWithReturns = await Promise.all(
+      items.map(async (item) => {
+        const returnedResult = await db
+          .select({ totalReturned: sql<number>`COALESCE(SUM(${storeExchangeReturnItems.quantity}), 0)` })
+          .from(storeExchangeReturnItems)
+          .where(eq(storeExchangeReturnItems.saleItemId, item.store_sale_items.id));
+        
+        const returnedQuantity = Number(returnedResult[0]?.totalReturned || 0);
+        
+        return {
+          ...item.store_sale_items,
+          returnedQuantity,
+          saree: {
+            ...item.sarees!,
+            category: item.categories,
+            color: item.colors,
+            fabric: item.fabrics,
+          },
+        };
+      })
+    );
+
+    return {
+      ...sale.store_sales,
+      store: sale.stores!,
+      items: itemsWithReturns,
+    };
+  }
+
+  async getStoreExchanges(storeId: string, limit?: number): Promise<StoreExchangeWithDetails[]> {
+    const exchangesList = await db
+      .select()
+      .from(storeExchanges)
+      .leftJoin(stores, eq(storeExchanges.storeId, stores.id))
+      .leftJoin(users, eq(storeExchanges.processedBy, users.id))
+      .where(eq(storeExchanges.storeId, storeId))
+      .orderBy(desc(storeExchanges.createdAt))
+      .limit(limit || 100);
+
+    const result: StoreExchangeWithDetails[] = [];
+
+    for (const exchange of exchangesList) {
+      const originalSale = await this.getStoreSaleForExchange(exchange.store_exchanges.originalSaleId);
+      
+      const returnItemsList = await db
+        .select()
+        .from(storeExchangeReturnItems)
+        .leftJoin(sarees, eq(storeExchangeReturnItems.sareeId, sarees.id))
+        .leftJoin(categories, eq(sarees.categoryId, categories.id))
+        .leftJoin(colors, eq(sarees.colorId, colors.id))
+        .leftJoin(fabrics, eq(sarees.fabricId, fabrics.id))
+        .where(eq(storeExchangeReturnItems.exchangeId, exchange.store_exchanges.id));
+
+      const newItemsList = await db
+        .select()
+        .from(storeExchangeNewItems)
+        .leftJoin(sarees, eq(storeExchangeNewItems.sareeId, sarees.id))
+        .leftJoin(categories, eq(sarees.categoryId, categories.id))
+        .leftJoin(colors, eq(sarees.colorId, colors.id))
+        .leftJoin(fabrics, eq(sarees.fabricId, fabrics.id))
+        .where(eq(storeExchangeNewItems.exchangeId, exchange.store_exchanges.id));
+
+      result.push({
+        ...exchange.store_exchanges,
+        store: exchange.stores!,
+        originalSale: originalSale!,
+        processor: exchange.users!,
+        returnItems: returnItemsList.map(item => ({
+          ...item.store_exchange_return_items,
+          saree: {
+            ...item.sarees!,
+            category: item.categories,
+            color: item.colors,
+            fabric: item.fabrics,
+          },
+        })),
+        newItems: newItemsList.map(item => ({
+          ...item.store_exchange_new_items,
+          saree: {
+            ...item.sarees!,
+            category: item.categories,
+            color: item.colors,
+            fabric: item.fabrics,
+          },
+        })),
+      });
+    }
+
+    return result;
+  }
+
+  async getStoreExchange(id: string): Promise<StoreExchangeWithDetails | undefined> {
+    const [exchange] = await db
+      .select()
+      .from(storeExchanges)
+      .leftJoin(stores, eq(storeExchanges.storeId, stores.id))
+      .leftJoin(users, eq(storeExchanges.processedBy, users.id))
+      .where(eq(storeExchanges.id, id));
+
+    if (!exchange) return undefined;
+
+    const originalSale = await this.getStoreSaleForExchange(exchange.store_exchanges.originalSaleId);
+
+    const returnItemsList = await db
+      .select()
+      .from(storeExchangeReturnItems)
+      .leftJoin(sarees, eq(storeExchangeReturnItems.sareeId, sarees.id))
+      .leftJoin(categories, eq(sarees.categoryId, categories.id))
+      .leftJoin(colors, eq(sarees.colorId, colors.id))
+      .leftJoin(fabrics, eq(sarees.fabricId, fabrics.id))
+      .where(eq(storeExchangeReturnItems.exchangeId, id));
+
+    const newItemsList = await db
+      .select()
+      .from(storeExchangeNewItems)
+      .leftJoin(sarees, eq(storeExchangeNewItems.sareeId, sarees.id))
+      .leftJoin(categories, eq(sarees.categoryId, categories.id))
+      .leftJoin(colors, eq(sarees.colorId, colors.id))
+      .leftJoin(fabrics, eq(sarees.fabricId, fabrics.id))
+      .where(eq(storeExchangeNewItems.exchangeId, id));
+
+    return {
+      ...exchange.store_exchanges,
+      store: exchange.stores!,
+      originalSale: originalSale!,
+      processor: exchange.users!,
+      returnItems: returnItemsList.map(item => ({
+        ...item.store_exchange_return_items,
+        saree: {
+          ...item.sarees!,
+          category: item.categories,
+          color: item.colors,
+          fabric: item.fabrics,
+        },
+      })),
+      newItems: newItemsList.map(item => ({
+        ...item.store_exchange_new_items,
+        saree: {
+          ...item.sarees!,
+          category: item.categories,
+          color: item.colors,
+          fabric: item.fabrics,
+        },
+      })),
+    };
+  }
+
+  async createStoreExchange(
+    exchange: InsertStoreExchange,
+    returnItemsData: Omit<InsertStoreExchangeReturnItem, 'exchangeId'>[],
+    newItemsData: Omit<InsertStoreExchangeNewItem, 'exchangeId'>[]
+  ): Promise<StoreExchange> {
+    return await db.transaction(async (tx) => {
+      const [createdExchange] = await tx.insert(storeExchanges).values(exchange).returning();
+
+      if (returnItemsData.length > 0) {
+        const returnRecords = returnItemsData.map(item => ({
+          ...item,
+          exchangeId: createdExchange.id,
+        }));
+        await tx.insert(storeExchangeReturnItems).values(returnRecords);
+
+        for (const item of returnItemsData) {
+          await tx
+            .update(storeSaleItems)
+            .set({ returnedQuantity: sql`${storeSaleItems.returnedQuantity} + ${item.quantity}` })
+            .where(eq(storeSaleItems.id, item.saleItemId));
+
+          await tx
+            .update(storeInventory)
+            .set({ 
+              quantity: sql`${storeInventory.quantity} + ${item.quantity}`,
+              updatedAt: new Date(),
+            })
+            .where(and(
+              eq(storeInventory.storeId, exchange.storeId),
+              eq(storeInventory.sareeId, item.sareeId)
+            ));
+
+          await tx.insert(stockMovements).values({
+            sareeId: item.sareeId,
+            quantity: item.quantity,
+            movementType: "return",
+            source: "store",
+            orderRefId: createdExchange.id,
+            storeId: exchange.storeId,
+            notes: "Exchange return - item returned to store",
+          });
+        }
+      }
+
+      if (newItemsData.length > 0) {
+        const newRecords = newItemsData.map(item => ({
+          ...item,
+          exchangeId: createdExchange.id,
+        }));
+        await tx.insert(storeExchangeNewItems).values(newRecords);
+
+        for (const item of newItemsData) {
+          await tx
+            .update(storeInventory)
+            .set({ 
+              quantity: sql`${storeInventory.quantity} - ${item.quantity}`,
+              updatedAt: new Date(),
+            })
+            .where(and(
+              eq(storeInventory.storeId, exchange.storeId),
+              eq(storeInventory.sareeId, item.sareeId)
+            ));
+
+          await tx.insert(stockMovements).values({
+            sareeId: item.sareeId,
+            quantity: -item.quantity,
+            movementType: "sale",
+            source: "store",
+            orderRefId: createdExchange.id,
+            storeId: exchange.storeId,
+            notes: "Exchange - new item given to customer",
+          });
+        }
+      }
+
+      return createdExchange;
     });
   }
 }

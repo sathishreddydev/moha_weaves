@@ -21,6 +21,8 @@ export const notificationTypeEnum = pgEnum("notification_type", ["order", "retur
 export const stockMovementSourceEnum = pgEnum("stock_movement_source", ["online", "store"]);
 export const stockMovementTypeEnum = pgEnum("stock_movement_type", ["sale", "return", "restock", "transfer", "adjustment"]);
 export const transferStatusEnum = pgEnum("transfer_status", ["pending", "approved", "in_transit", "received", "rejected", "cancelled"]);
+export const storeExchangeStatusEnum = pgEnum("store_exchange_status", ["pending", "completed", "cancelled"]);
+export const balanceDirectionEnum = pgEnum("balance_direction", ["refund_to_customer", "due_from_customer", "even"]);
 
 // Users table - supports all roles
 export const users = pgTable("users", {
@@ -181,6 +183,7 @@ export const storeSaleItems = pgTable("store_sale_items", {
   sareeId: varchar("saree_id").references(() => sarees.id).notNull(),
   quantity: integer("quantity").notNull(),
   price: decimal("price", { precision: 10, scale: 2 }).notNull(),
+  returnedQuantity: integer("returned_quantity").notNull().default(0),
 });
 
 // User addresses for delivery
@@ -391,6 +394,45 @@ export const inventoryAdjustments = pgTable("inventory_adjustments", {
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
+// Store exchanges - for in-store item exchanges
+export const storeExchanges = pgTable("store_exchanges", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  storeId: varchar("store_id").references(() => stores.id).notNull(),
+  originalSaleId: varchar("original_sale_id").references(() => storeSales.id).notNull(),
+  processedBy: varchar("processed_by").references(() => users.id).notNull(),
+  customerName: text("customer_name"),
+  customerPhone: text("customer_phone"),
+  reason: text("reason"),
+  notes: text("notes"),
+  returnAmount: decimal("return_amount", { precision: 10, scale: 2 }).notNull().default("0"),
+  newItemsAmount: decimal("new_items_amount", { precision: 10, scale: 2 }).notNull().default("0"),
+  balanceAmount: decimal("balance_amount", { precision: 10, scale: 2 }).notNull().default("0"),
+  balanceDirection: balanceDirectionEnum("balance_direction").notNull().default("even"),
+  status: storeExchangeStatusEnum("status").notNull().default("completed"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
+// Store exchange return items - items being returned in the exchange
+export const storeExchangeReturnItems = pgTable("store_exchange_return_items", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  exchangeId: varchar("exchange_id").references(() => storeExchanges.id).notNull(),
+  saleItemId: varchar("sale_item_id").references(() => storeSaleItems.id).notNull(),
+  sareeId: varchar("saree_id").references(() => sarees.id).notNull(),
+  quantity: integer("quantity").notNull(),
+  unitPrice: decimal("unit_price", { precision: 10, scale: 2 }).notNull(),
+  returnAmount: decimal("return_amount", { precision: 10, scale: 2 }).notNull(),
+});
+
+// Store exchange new items - new items being given in the exchange
+export const storeExchangeNewItems = pgTable("store_exchange_new_items", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  exchangeId: varchar("exchange_id").references(() => storeExchanges.id).notNull(),
+  sareeId: varchar("saree_id").references(() => sarees.id).notNull(),
+  quantity: integer("quantity").notNull(),
+  unitPrice: decimal("unit_price", { precision: 10, scale: 2 }).notNull(),
+  lineAmount: decimal("line_amount", { precision: 10, scale: 2 }).notNull(),
+});
+
 // Relations
 export const usersRelations = relations(users, ({ one, many }) => ({
   store: one(stores, { fields: [users.storeId], references: [stores.id] }),
@@ -550,6 +592,25 @@ export const inventoryAdjustmentsRelations = relations(inventoryAdjustments, ({ 
   adjuster: one(users, { fields: [inventoryAdjustments.adjustedBy], references: [users.id] }),
 }));
 
+export const storeExchangesRelations = relations(storeExchanges, ({ one, many }) => ({
+  store: one(stores, { fields: [storeExchanges.storeId], references: [stores.id] }),
+  originalSale: one(storeSales, { fields: [storeExchanges.originalSaleId], references: [storeSales.id] }),
+  processor: one(users, { fields: [storeExchanges.processedBy], references: [users.id] }),
+  returnItems: many(storeExchangeReturnItems),
+  newItems: many(storeExchangeNewItems),
+}));
+
+export const storeExchangeReturnItemsRelations = relations(storeExchangeReturnItems, ({ one }) => ({
+  exchange: one(storeExchanges, { fields: [storeExchangeReturnItems.exchangeId], references: [storeExchanges.id] }),
+  saleItem: one(storeSaleItems, { fields: [storeExchangeReturnItems.saleItemId], references: [storeSaleItems.id] }),
+  saree: one(sarees, { fields: [storeExchangeReturnItems.sareeId], references: [sarees.id] }),
+}));
+
+export const storeExchangeNewItemsRelations = relations(storeExchangeNewItems, ({ one }) => ({
+  exchange: one(storeExchanges, { fields: [storeExchangeNewItems.exchangeId], references: [storeExchanges.id] }),
+  saree: one(sarees, { fields: [storeExchangeNewItems.sareeId], references: [sarees.id] }),
+}));
+
 // Insert schemas
 export const insertUserSchema = createInsertSchema(users).omit({ id: true, createdAt: true, tokenVersion: true });
 export const insertRefreshTokenSchema = createInsertSchema(refreshTokens).omit({ id: true, createdAt: true });
@@ -580,6 +641,9 @@ export const insertAppSettingSchema = createInsertSchema(appSettings).omit({ upd
 export const insertStockMovementSchema = createInsertSchema(stockMovements).omit({ id: true, createdAt: true });
 export const insertStockTransferSchema = createInsertSchema(stockTransfers).omit({ id: true, createdAt: true, updatedAt: true });
 export const insertInventoryAdjustmentSchema = createInsertSchema(inventoryAdjustments).omit({ id: true, createdAt: true });
+export const insertStoreExchangeSchema = createInsertSchema(storeExchanges).omit({ id: true, createdAt: true });
+export const insertStoreExchangeReturnItemSchema = createInsertSchema(storeExchangeReturnItems).omit({ id: true });
+export const insertStoreExchangeNewItemSchema = createInsertSchema(storeExchangeNewItems).omit({ id: true });
 
 // Types
 export type User = typeof users.$inferSelect;
@@ -640,6 +704,12 @@ export type StockTransfer = typeof stockTransfers.$inferSelect;
 export type InsertStockTransfer = z.infer<typeof insertStockTransferSchema>;
 export type InventoryAdjustment = typeof inventoryAdjustments.$inferSelect;
 export type InsertInventoryAdjustment = z.infer<typeof insertInventoryAdjustmentSchema>;
+export type StoreExchange = typeof storeExchanges.$inferSelect;
+export type InsertStoreExchange = z.infer<typeof insertStoreExchangeSchema>;
+export type StoreExchangeReturnItem = typeof storeExchangeReturnItems.$inferSelect;
+export type InsertStoreExchangeReturnItem = z.infer<typeof insertStoreExchangeReturnItemSchema>;
+export type StoreExchangeNewItem = typeof storeExchangeNewItems.$inferSelect;
+export type InsertStoreExchangeNewItem = z.infer<typeof insertStoreExchangeNewItemSchema>;
 
 // Extended types for frontend use
 export type SareeWithDetails = Saree & {
@@ -702,4 +772,12 @@ export type StockTransferWithDetails = StockTransfer & {
 export type InventoryAdjustmentWithDetails = InventoryAdjustment & {
   saree: SareeWithDetails;
   store?: Store;
+};
+
+export type StoreExchangeWithDetails = StoreExchange & {
+  store: Store;
+  originalSale: StoreSaleWithItems;
+  processor: User;
+  returnItems: (StoreExchangeReturnItem & { saree: SareeWithDetails })[];
+  newItems: (StoreExchangeNewItem & { saree: SareeWithDetails })[];
 };

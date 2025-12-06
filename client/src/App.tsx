@@ -59,6 +59,7 @@ const StoreSale = lazy(() => import("@/pages/store/Sale"));
 const StoreInventoryPage = lazy(() => import("@/pages/store/Inventory"));
 const StoreRequests = lazy(() => import("@/pages/store/Requests"));
 const StoreHistory = lazy(() => import("@/pages/store/History"));
+const StoreExchange = lazy(() => import("@/pages/store/Exchange"));
 
 function LoadingFallback() {
   return (
@@ -159,6 +160,8 @@ function Router() {
           <Route path="/store/inventory" element={<StoreInventoryPage />} />
           <Route path="/store/requests" element={<StoreRequests />} />
           <Route path="/store/history" element={<StoreHistory />} />
+          <Route path="/store/exchange" element={<StoreExchange />} />
+          <Route path="/store/exchange/:saleId" element={<StoreExchange />} />
 
           <Route path="*" element={<NotFound />} />
         </Routes>
