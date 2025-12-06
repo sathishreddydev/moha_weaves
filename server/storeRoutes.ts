@@ -61,37 +61,6 @@ export const storeRoutes = (app: Express) => {
     }
   });
 
-  app.post("/api/store/sales", authStore, async (req, res) => {
-    try {
-      const user = (req as any).user;
-      if (!user.storeId) {
-        return res.status(400).json({ message: "No store assigned" });
-      }
-      const { customerName, customerPhone, items, saleType } = req.body;
-
-      const totalAmount = items.reduce(
-        (sum: number, item: any) =>
-          sum + parseFloat(item.price) * item.quantity,
-        0
-      );
-
-      const sale = await storage.createStoreSale(
-        {
-          storeId: user.storeId,
-          soldBy: user.id,
-          customerName,
-          customerPhone,
-          totalAmount: totalAmount.toString(),
-          saleType,
-        },
-        items
-      );
-      res.json(sale);
-    } catch (error) {
-      res.status(500).json({ message: "Failed to create sale" });
-    }
-  });
-
   app.get("/api/store/requests", authStore, async (req, res) => {
     try {
       const user = (req as any).user;
