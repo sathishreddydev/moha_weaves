@@ -37,6 +37,7 @@ import {
 import { useAuth } from "@/lib/auth";
 import { useQuery } from "@tanstack/react-query";
 import type { StoreSaleWithItems } from "@shared/schema";
+import { Badge } from "@/components/ui/badge";
 
 
 
@@ -77,9 +78,9 @@ export default function InventoryStoreOrders() {
     });
   };
 
- 
 
- 
+
+
 
   return (
     <div>
@@ -182,9 +183,16 @@ export default function InventoryStoreOrders() {
                           {formatPrice(sale.totalAmount)}
                         </TableCell>
                         <TableCell>
-                          <span className="capitalize text-sm">
-                            {sale.saleType.replace("_", " ")}
-                          </span>
+                          <div className="space-y-1">
+                            <span className="capitalize text-sm">
+                              {sale.saleType.replace("_", " ")}
+                            </span>
+                            {sale.items.some((item: any) => (item.returnedQuantity || 0) > 0) && (
+                              <Badge variant="outline" className="text-xs text-orange-600 border-orange-600 block w-fit">
+                                Exchanged
+                              </Badge>
+                            )}
+                          </div>
                         </TableCell>
                       </TableRow>
                     ))}
@@ -263,6 +271,11 @@ export default function InventoryStoreOrders() {
                         <p className="text-xs text-muted-foreground">
                           Qty: {item.quantity} x {formatPrice(item.price)}
                         </p>
+                        {(item.returnedQuantity || 0) > 0 && (
+                          <p className="text-xs text-orange-600">
+                            Exchanged: {item.returnedQuantity}
+                          </p>
+                        )}
                       </div>
                     </div>
                   ))}

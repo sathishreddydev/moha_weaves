@@ -226,25 +226,38 @@ export default function StoreHistory() {
                               </div>
                             </TableCell>
                             <TableCell>
-                              <Badge variant="secondary">
-                                {sale.saleType === "walk_in" ? "Walk-in" : "Reserved"}
-                              </Badge>
+                              <div className="space-y-1">
+                                <Badge variant="secondary">
+                                  {sale.saleType === "walk_in" ? "Walk-in" : "Reserved"}
+                                </Badge>
+                                {sale.items.some((item: any) => (item.returnedQuantity || 0) > 0) && (
+                                  <Badge variant="outline" className="text-orange-600 border-orange-600">
+                                    Exchanged
+                                  </Badge>
+                                )}
+                              </div>
                             </TableCell>
                             <TableCell className="font-bold text-primary">
                               {formatPrice(sale.totalAmount)}
                             </TableCell>
                             <TableCell>
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  navigate(`/store/exchange/${sale.id}`);
-                                }}
-                              >
-                                <ArrowLeftRight className="h-4 w-4 mr-1" />
-                                Exchange
-                              </Button>
+                              {sale.items.every((item: any) => item.quantity === (item.returnedQuantity || 0)) ? (
+                                <Badge variant="secondary" className="text-xs">
+                                  Fully Returned
+                                </Badge>
+                              ) : (
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    navigate(`/store/exchange/${sale.id}`);
+                                  }}
+                                >
+                                  <ArrowLeftRight className="h-4 w-4 mr-1" />
+                                  Exchange
+                                </Button>
+                              )}
                             </TableCell>
                           </TableRow>
                         ))}
@@ -295,7 +308,7 @@ export default function StoreHistory() {
               <div>
                 <p className="font-medium text-sm mb-2">Items Sold</p>
                 <div className="space-y-2">
-                  {selectedSale.items.map((item) => (
+                  {selectedSale.items.map((item: any) => (
                     <div key={item.id} className="flex items-center gap-3 p-2 border rounded-lg">
                       <img
                         src={item.saree.imageUrl || "https://images.unsplash.com/photo-1610030469983-98e550d6193c?w=60"}
@@ -307,6 +320,11 @@ export default function StoreHistory() {
                         <p className="text-xs text-muted-foreground">
                           Qty: {item.quantity} x {formatPrice(item.price)}
                         </p>
+                        {(item.returnedQuantity || 0) > 0 && (
+                          <Badge variant="outline" className="text-xs mt-1 text-orange-600 border-orange-600">
+                            {item.returnedQuantity} returned
+                          </Badge>
+                        )}
                       </div>
                       <span className="font-medium">
                         {formatPrice(parseFloat(item.price) * item.quantity)}
