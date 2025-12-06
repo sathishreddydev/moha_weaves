@@ -5,11 +5,12 @@ import jwt from "jsonwebtoken";
 import crypto from "crypto";
 import { createAuthMiddleware } from "./authMiddleware";
 
-
 // Security: Require SESSION_SECRET environment variable
 const JWT_SECRET = process.env.SESSION_SECRET;
 if (!JWT_SECRET) {
-  throw new Error("SESSION_SECRET environment variable is required for security. Please set it in your environment.");
+  throw new Error(
+    "SESSION_SECRET environment variable is required for security. Please set it in your environment.",
+  );
 }
 
 // Token expiration settings
@@ -35,27 +36,26 @@ function hashRefreshToken(token: string): string {
   return crypto.createHash("sha256").update(token).digest("hex");
 }
 
-
 const authAny = createAuthMiddleware(["user", "admin", "inventory", "store"]);
 
 export const authRoutes = (app: Express) => {
   // Helper function to issue tokens
   const issueTokens = async (
     user: { id: string; role: string; tokenVersion: number },
-    res: Response
+    res: Response,
   ) => {
     // Create short-lived access token with tokenVersion for invalidation
     const accessToken = jwt.sign(
       { userId: user.id, role: user.role, tokenVersion: user.tokenVersion },
       JWT_SECRET,
-      { expiresIn: ACCESS_TOKEN_EXPIRY }
+      { expiresIn: ACCESS_TOKEN_EXPIRY },
     );
 
     // Create refresh token
     const refreshToken = generateRefreshToken();
     const hashedToken = hashRefreshToken(refreshToken);
     const expiresAt = new Date(
-      Date.now() + REFRESH_TOKEN_EXPIRY_DAYS * 24 * 60 * 60 * 1000
+      Date.now() + REFRESH_TOKEN_EXPIRY_DAYS * 24 * 60 * 60 * 1000,
     );
 
     // Store HASHED refresh token in database for security
@@ -189,7 +189,7 @@ export const authRoutes = (app: Express) => {
   const handleLogin = async (
     req: Request,
     res: Response,
-    expectedRole: string
+    expectedRole: string,
   ) => {
     try {
       const { email, password } = req.body;
@@ -220,13 +220,13 @@ export const authRoutes = (app: Express) => {
 
   app.post("/api/auth/user/login", (req, res) => handleLogin(req, res, "user"));
   app.post("/api/auth/admin/login", (req, res) =>
-    handleLogin(req, res, "admin")
+    handleLogin(req, res, "admin"),
   );
   app.post("/api/auth/inventory/login", (req, res) =>
-    handleLogin(req, res, "inventory")
+    handleLogin(req, res, "inventory"),
   );
   app.post("/api/auth/store/login", (req, res) =>
-    handleLogin(req, res, "store")
+    handleLogin(req, res, "store"),
   );
 
   // Logout - revoke current refresh token
@@ -280,7 +280,7 @@ export const authRoutes = (app: Express) => {
       // Validate current password
       const validPassword = await bcrypt.compare(
         currentPassword,
-        user.password
+        user.password,
       );
       if (!validPassword) {
         return res
