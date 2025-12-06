@@ -14,8 +14,8 @@ if (!JWT_SECRET) {
 }
 
 // Token expiration settings
-const ACCESS_TOKEN_EXPIRY = "15m"; // Short-lived access tokens
-const REFRESH_TOKEN_EXPIRY_DAYS = 7; // Refresh token valid for 7 days
+const ACCESS_TOKEN_EXPIRY = "7d"; // 7 days like most e-commerce apps
+const REFRESH_TOKEN_EXPIRY_DAYS = 30; // Refresh token valid for 30 days
 
 // Cookie security settings based on environment
 const isProduction = process.env.NODE_ENV === "production";
