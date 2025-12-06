@@ -144,7 +144,7 @@ export const storeRoutes = (app: Express) => {
       // Create the sale and deduct stock
       const sale = await storage.createStoreSale({
         storeId: user.storeId,
-        userId: user.id,
+        soldBy: user.id,
         customerName,
         customerPhone,
         saleType,
