@@ -115,6 +115,31 @@ export interface IStorage {
   getOrders(userId: string): Promise<OrderWithItems[]>;
   getOrder(id: string): Promise<OrderWithItems | undefined>;
   getAllOrders(filters?: { status?: string; limit?: number }): Promise<OrderWithItems[]>;
+  getOrdersPaginated(params: {
+    page: number;
+    pageSize: number;
+    status?: string;
+    search?: string;
+    dateFrom?: string;
+    dateTo?: string;
+  }): Promise<{ data: OrderWithItems[]; total: number; page: number; pageSize: number; totalPages: number }>;
+  getUsersPaginated(params: {
+    page: number;
+    pageSize: number;
+    role?: string;
+    search?: string;
+    dateFrom?: string;
+    dateTo?: string;
+  }): Promise<{ data: Omit<User, 'password'>[]; total: number; page: number; pageSize: number; totalPages: number }>;
+  getSareesPaginated(params: {
+    page: number;
+    pageSize: number;
+    search?: string;
+    category?: string;
+    status?: string;
+    dateFrom?: string;
+    dateTo?: string;
+  }): Promise<{ data: SareeWithDetails[]; total: number; page: number; pageSize: number; totalPages: number }>;
   createOrder(order: InsertOrder, items: Omit<InsertOrderItem, 'orderId'>[]): Promise<Order>;
   updateOrderStatus(id: string, status: string): Promise<Order | undefined>;
 
@@ -872,6 +897,228 @@ export class DatabaseStorage implements IStorage {
     }
 
     return result;
+  }
+
+  async getOrdersPaginated(params: {
+    page: number;
+    pageSize: number;
+    status?: string;
+    search?: string;
+    dateFrom?: string;
+    dateTo?: string;
+  }): Promise<{ data: OrderWithItems[]; total: number; page: number; pageSize: number; totalPages: number }> {
+    const { page, pageSize, status, search, dateFrom, dateTo } = params;
+    const offset = (page - 1) * pageSize;
+
+    const conditions: any[] = [];
+    
+    if (status) {
+      conditions.push(eq(orders.status, status as any));
+    }
+    
+    if (dateFrom) {
+      conditions.push(gte(orders.createdAt, new Date(dateFrom)));
+    }
+    
+    if (dateTo) {
+      conditions.push(lte(orders.createdAt, new Date(dateTo)));
+    }
+    
+    if (search) {
+      conditions.push(ilike(orders.id, `%${search}%`));
+    }
+
+    const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
+
+    const [countResult] = await db
+      .select({ count: sql<number>`count(*)` })
+      .from(orders)
+      .where(whereClause);
+    
+    const total = Number(countResult?.count || 0);
+
+    const orderList = await db
+      .select()
+      .from(orders)
+      .where(whereClause)
+      .orderBy(desc(orders.createdAt))
+      .limit(pageSize)
+      .offset(offset);
+
+    const result: OrderWithItems[] = [];
+
+    for (const order of orderList) {
+      const items = await db
+        .select()
+        .from(orderItems)
+        .innerJoin(sarees, eq(orderItems.sareeId, sarees.id))
+        .leftJoin(categories, eq(sarees.categoryId, categories.id))
+        .leftJoin(colors, eq(sarees.colorId, colors.id))
+        .leftJoin(fabrics, eq(sarees.fabricId, fabrics.id))
+        .where(eq(orderItems.orderId, order.id));
+
+      result.push({
+        ...order,
+        items: items.map((row) => ({
+          ...row.order_items,
+          saree: {
+            ...row.sarees,
+            category: row.categories,
+            color: row.colors,
+            fabric: row.fabrics,
+          },
+        })),
+      });
+    }
+
+    return {
+      data: result,
+      total,
+      page,
+      pageSize,
+      totalPages: Math.ceil(total / pageSize),
+    };
+  }
+
+  async getUsersPaginated(params: {
+    page: number;
+    pageSize: number;
+    role?: string;
+    search?: string;
+    dateFrom?: string;
+    dateTo?: string;
+  }): Promise<{ data: Omit<User, 'password'>[]; total: number; page: number; pageSize: number; totalPages: number }> {
+    const { page, pageSize, role, search, dateFrom, dateTo } = params;
+    const offset = (page - 1) * pageSize;
+
+    const conditions: any[] = [];
+    
+    if (role) {
+      conditions.push(eq(users.role, role as any));
+    }
+    
+    if (dateFrom) {
+      conditions.push(gte(users.createdAt, new Date(dateFrom)));
+    }
+    
+    if (dateTo) {
+      conditions.push(lte(users.createdAt, new Date(dateTo)));
+    }
+    
+    if (search) {
+      conditions.push(
+        or(
+          ilike(users.name, `%${search}%`),
+          ilike(users.email, `%${search}%`),
+          ilike(users.phone, `%${search}%`)
+        )
+      );
+    }
+
+    const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
+
+    const [countResult] = await db
+      .select({ count: sql<number>`count(*)` })
+      .from(users)
+      .where(whereClause);
+    
+    const total = Number(countResult?.count || 0);
+
+    const userList = await db
+      .select()
+      .from(users)
+      .where(whereClause)
+      .orderBy(desc(users.createdAt))
+      .limit(pageSize)
+      .offset(offset);
+
+    const safeUsers = userList.map(({ password, ...u }) => u);
+
+    return {
+      data: safeUsers,
+      total,
+      page,
+      pageSize,
+      totalPages: Math.ceil(total / pageSize),
+    };
+  }
+
+  async getSareesPaginated(params: {
+    page: number;
+    pageSize: number;
+    search?: string;
+    category?: string;
+    status?: string;
+    dateFrom?: string;
+    dateTo?: string;
+  }): Promise<{ data: SareeWithDetails[]; total: number; page: number; pageSize: number; totalPages: number }> {
+    const { page, pageSize, search, category, status, dateFrom, dateTo } = params;
+    const offset = (page - 1) * pageSize;
+
+    const conditions: any[] = [eq(sarees.isActive, true)];
+    
+    if (category) {
+      conditions.push(eq(sarees.categoryId, category));
+    }
+    
+    if (status === "active") {
+      conditions.push(eq(sarees.isActive, true));
+    } else if (status === "inactive") {
+      conditions.push(eq(sarees.isActive, false));
+    }
+    
+    if (dateFrom) {
+      conditions.push(gte(sarees.createdAt, new Date(dateFrom)));
+    }
+    
+    if (dateTo) {
+      conditions.push(lte(sarees.createdAt, new Date(dateTo)));
+    }
+    
+    if (search) {
+      conditions.push(
+        or(
+          ilike(sarees.name, `%${search}%`),
+          ilike(sarees.sku, `%${search}%`),
+          ilike(sarees.description, `%${search}%`)
+        )
+      );
+    }
+
+    const whereClause = and(...conditions);
+
+    const [countResult] = await db
+      .select({ count: sql<number>`count(*)` })
+      .from(sarees)
+      .where(whereClause);
+    
+    const total = Number(countResult?.count || 0);
+
+    const result = await db
+      .select()
+      .from(sarees)
+      .leftJoin(categories, eq(sarees.categoryId, categories.id))
+      .leftJoin(colors, eq(sarees.colorId, colors.id))
+      .leftJoin(fabrics, eq(sarees.fabricId, fabrics.id))
+      .where(whereClause)
+      .orderBy(desc(sarees.createdAt))
+      .limit(pageSize)
+      .offset(offset);
+
+    const sareeList = result.map((row) => ({
+      ...row.sarees,
+      category: row.categories,
+      color: row.colors,
+      fabric: row.fabrics,
+    }));
+
+    return {
+      data: sareeList,
+      total,
+      page,
+      pageSize,
+      totalPages: Math.ceil(total / pageSize),
+    };
   }
 
   async createOrder(order: InsertOrder, items: Omit<InsertOrderItem, 'orderId'>[]): Promise<Order> {

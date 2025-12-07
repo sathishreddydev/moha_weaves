@@ -4,6 +4,7 @@ import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import crypto from "crypto";
 import { createAuthMiddleware } from "./authMiddleware";
+import { parsePaginationParams, createPaginatedResponse, getOffset } from "./paginationHelper";
 
 export const adminRoutes = (app: Express) => {
   const authAdmin = createAuthMiddleware(["admin"]);
@@ -19,7 +20,21 @@ export const adminRoutes = (app: Express) => {
 
   app.get("/api/admin/orders", authAdmin, async (req, res) => {
     try {
-      const { status, limit } = req.query;
+      const { status, limit, page, pageSize, search, dateFrom, dateTo } = req.query;
+      
+      if (page && pageSize) {
+        const params = parsePaginationParams(req.query);
+        const result = await storage.getOrdersPaginated({
+          page: params.page,
+          pageSize: params.pageSize,
+          status: status as string,
+          search: search as string,
+          dateFrom: dateFrom as string,
+          dateTo: dateTo as string,
+        });
+        return res.json(result);
+      }
+      
       const orders = await storage.getAllOrders({
         status: status as string,
         limit: limit ? parseInt(limit as string) : undefined,
@@ -42,7 +57,21 @@ export const adminRoutes = (app: Express) => {
 
   app.get("/api/admin/users", authAdmin, async (req, res) => {
     try {
-      const { role } = req.query;
+      const { role, page, pageSize, search, dateFrom, dateTo } = req.query;
+      
+      if (page && pageSize) {
+        const params = parsePaginationParams(req.query);
+        const result = await storage.getUsersPaginated({
+          page: params.page,
+          pageSize: params.pageSize,
+          role: role as string,
+          search: search as string,
+          dateFrom: dateFrom as string,
+          dateTo: dateTo as string,
+        });
+        return res.json(result);
+      }
+      
       const users = await storage.getUsers({ role: role as string });
       res.json(users.map(({ password, ...u }) => u));
     } catch (error) {
