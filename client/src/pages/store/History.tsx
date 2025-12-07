@@ -1,18 +1,10 @@
+
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Receipt, User, Phone, ArrowLeftRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Skeleton } from "@/components/ui/skeleton";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import {
   Dialog,
   DialogContent,
@@ -21,7 +13,9 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { useAuth } from "@/lib/auth";
-import { useQuery } from "@tanstack/react-query";
+import { DataTable } from "@/components/ui/data-table";
+import { useDataTable } from "@/hooks/use-data-table";
+import { ColumnDef } from "@tanstack/react-table";
 import type { StoreSaleWithItems } from "@shared/schema";
 
 export default function StoreHistory() {
@@ -31,9 +25,18 @@ export default function StoreHistory() {
     null
   );
 
-  const { data: sales, isLoading } = useQuery<StoreSaleWithItems[]>({
-    queryKey: ["/api/store/sales"],
-    enabled: !!user && user.role === "store",
+  const {
+    data: sales,
+    totalCount,
+    pageIndex,
+    pageSize,
+    isLoading,
+    handlePaginationChange,
+    handleSearchChange,
+    handleDateFilterChange,
+  } = useDataTable<StoreSaleWithItems>({
+    queryKey: "/api/store/sales/paginated",
+    initialPageSize: 10,
   });
 
   const formatPrice = (price: number | string) => {
@@ -55,6 +58,145 @@ export default function StoreHistory() {
     });
   };
 
+  const salesColumns: ColumnDef<StoreSaleWithItems>[] = [
+    {
+      accessorKey: "id",
+      header: "Sale ID",
+      cell: ({ row }) => (
+        <span className="font-mono text-sm">
+          #{row.original.id.slice(0, 8).toUpperCase()}
+        </span>
+      ),
+    },
+    {
+      accessorKey: "createdAt",
+      header: "Date",
+      cell: ({ row }) => (
+        <span className="text-sm text-muted-foreground">
+          {formatDate(row.original.createdAt)}
+        </span>
+      ),
+    },
+    {
+      accessorKey: "customerName",
+      header: "Customer",
+      cell: ({ row }) => {
+        const sale = row.original;
+        return sale.customerName ? (
+          <div>
+            <p className="font-medium">{sale.customerName}</p>
+            {sale.customerPhone && (
+              <p className="text-xs text-muted-foreground">
+                {sale.customerPhone}
+              </p>
+            )}
+          </div>
+        ) : (
+          <span className="text-muted-foreground">Walk-in Customer</span>
+        );
+      },
+    },
+    {
+      accessorKey: "items",
+      header: "Items",
+      cell: ({ row }) => {
+        const sale = row.original;
+        return (
+          <div className="flex items-center gap-1">
+            {sale.items.slice(0, 2).map((item) => (
+              <div
+                key={item.id}
+                className="w-10 h-12 rounded overflow-hidden bg-muted"
+              >
+                <img
+                  src={
+                    item.saree.imageUrl ||
+                    "https://images.unsplash.com/photo-1610030469983-98e550d6193c?w=50"
+                  }
+                  alt=""
+                  className="w-full h-full object-cover"
+                />
+              </div>
+            ))}
+            {sale.items.length > 2 && (
+              <span className="text-xs text-muted-foreground">
+                +{sale.items.length - 2}
+              </span>
+            )}
+          </div>
+        );
+      },
+    },
+    {
+      accessorKey: "saleType",
+      header: "Type",
+      cell: ({ row }) => {
+        const sale = row.original;
+        return (
+          <div className="space-y-1">
+            <Badge variant="secondary">
+              {sale.saleType === "walk_in" ? "Walk-in" : "Reserved"}
+            </Badge>
+            {sale.items.some(
+              (item: any) => (item.returnedQuantity || 0) > 0
+            ) && (
+              <Badge
+                variant="outline"
+                className="text-orange-600 border-orange-600"
+              >
+                Exchanged
+              </Badge>
+            )}
+          </div>
+        );
+      },
+    },
+    {
+      accessorKey: "totalAmount",
+      header: "Total",
+      cell: ({ row }) => (
+        <span className="font-bold text-primary">
+          {formatPrice(row.original.totalAmount)}
+        </span>
+      ),
+    },
+    {
+      id: "actions",
+      header: "Actions",
+      cell: ({ row }) => {
+        const sale = row.original;
+        return sale.items.every(
+          (item: any) => item.quantity === (item.returnedQuantity || 0)
+        ) ? (
+          <Badge variant="secondary" className="text-xs">
+            Fully Returned
+          </Badge>
+        ) : (
+          <div className="flex gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setSelectedSale(sale)}
+            >
+              View
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={(e) => {
+                e.stopPropagation();
+                navigate(`/store/exchange/${sale.id}`);
+              }}
+            >
+              <ArrowLeftRight className="h-4 w-4 mr-1" />
+              Exchange
+            </Button>
+          </div>
+        );
+      },
+    },
+  ];
+
   return (
     <div>
       <div className="max-w-6xl mx-auto">
@@ -69,134 +211,20 @@ export default function StoreHistory() {
 
         <Card>
           <CardContent className="p-4">
-            {isLoading ? (
-              <div className="space-y-3">
-                {[...Array(5)].map((_, i) => (
-                  <Skeleton key={i} className="h-16" />
-                ))}
-              </div>
-            ) : sales && sales.length > 0 ? (
-              <div className="overflow-x-auto">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Sale ID</TableHead>
-                      <TableHead>Date</TableHead>
-                      <TableHead>Customer</TableHead>
-                      <TableHead>Items</TableHead>
-                      <TableHead>Type</TableHead>
-                      <TableHead>Total</TableHead>
-                      <TableHead>Actions</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {sales.map((sale) => (
-                      <TableRow
-                        key={sale.id}
-                        className="cursor-pointer"
-                        onClick={() => setSelectedSale(sale)}
-                        data-testid={`row-sale-${sale.id}`}
-                      >
-                        <TableCell className="font-mono text-sm">
-                          #{sale.id.slice(0, 8).toUpperCase()}
-                        </TableCell>
-                        <TableCell className="text-sm text-muted-foreground">
-                          {formatDate(sale.createdAt)}
-                        </TableCell>
-                        <TableCell>
-                          {sale.customerName ? (
-                            <div>
-                              <p className="font-medium">{sale.customerName}</p>
-                              {sale.customerPhone && (
-                                <p className="text-xs text-muted-foreground">
-                                  {sale.customerPhone}
-                                </p>
-                              )}
-                            </div>
-                          ) : (
-                            <span className="text-muted-foreground">
-                              Walk-in Customer
-                            </span>
-                          )}
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex items-center gap-1">
-                            {sale.items.slice(0, 2).map((item) => (
-                              <div
-                                key={item.id}
-                                className="w-10 h-12 rounded overflow-hidden bg-muted"
-                              >
-                                <img
-                                  src={
-                                    item.saree.imageUrl ||
-                                    "https://images.unsplash.com/photo-1610030469983-98e550d6193c?w=50"
-                                  }
-                                  alt=""
-                                  className="w-full h-full object-cover"
-                                />
-                              </div>
-                            ))}
-                            {sale.items.length > 2 && (
-                              <span className="text-xs text-muted-foreground">
-                                +{sale.items.length - 2}
-                              </span>
-                            )}
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          <div className="space-y-1">
-                            <Badge variant="secondary">
-                              {sale.saleType === "walk_in"
-                                ? "Walk-in"
-                                : "Reserved"}
-                            </Badge>
-                            {sale.items.some(
-                              (item: any) => (item.returnedQuantity || 0) > 0
-                            ) && (
-                              <Badge
-                                variant="outline"
-                                className="text-orange-600 border-orange-600"
-                              >
-                                Exchanged
-                              </Badge>
-                            )}
-                          </div>
-                        </TableCell>
-                        <TableCell className="font-bold text-primary">
-                          {formatPrice(sale.totalAmount)}
-                        </TableCell>
-                        <TableCell>
-                          {sale.items.every(
-                            (item: any) =>
-                              item.quantity === (item.returnedQuantity || 0)
-                          ) ? (
-                            <Badge variant="secondary" className="text-xs">
-                              Fully Returned
-                            </Badge>
-                          ) : (
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                navigate(`/store/exchange/${sale.id}`);
-                              }}
-                            >
-                              <ArrowLeftRight className="h-4 w-4 mr-1" />
-                              Exchange
-                            </Button>
-                          )}
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </div>
-            ) : (
-              <div className="text-center py-8 text-muted-foreground">
-                No sales history yet
-              </div>
-            )}
+            <DataTable
+              columns={salesColumns}
+              data={sales}
+              totalCount={totalCount}
+              pageIndex={pageIndex}
+              pageSize={pageSize}
+              onPaginationChange={handlePaginationChange}
+              onSearchChange={handleSearchChange}
+              onDateFilterChange={handleDateFilterChange}
+              isLoading={isLoading}
+              searchPlaceholder="Search by sale ID..."
+              dateFilter={{ key: "date", label: "Filter by date" }}
+              emptyMessage="No sales history yet"
+            />
           </CardContent>
         </Card>
       </div>
