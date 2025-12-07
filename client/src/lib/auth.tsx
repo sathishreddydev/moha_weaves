@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useEffect, useCallback } from "react";
+import { createContext, useContext, useState, useEffect, useCallback, useRef } from "react";
 import type { User } from "@shared/schema";
 
 interface AuthContextType {
@@ -8,6 +8,7 @@ interface AuthContextType {
   logout: () => Promise<void>;
   register: (data: any) => Promise<any>;
   changePassword: (currentPassword: string, newPassword: string) => Promise<any>;
+  authFetch: (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>;
 }
 
 const AuthContext = createContext<AuthContextType | null>(null);
@@ -15,26 +16,68 @@ const AuthContext = createContext<AuthContextType | null>(null);
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const isRefreshing = useRef(false);
+  const refreshPromise = useRef<Promise<boolean> | null>(null);
 
-
-  const refreshAccessToken = useCallback(async () => {
-    try {
-      const res = await fetch("/api/auth/refresh", {
-        method: "POST",
-        credentials: "include",
-      });
-
-      if (!res.ok) return null;
-
-      const data = await res.json();
-      setUser(data.user);
-
-      return data.user;
-    } catch (err) {
-      return null;
+  const refreshAccessToken = useCallback(async (): Promise<boolean> => {
+    if (isRefreshing.current && refreshPromise.current) {
+      return refreshPromise.current;
     }
+
+    isRefreshing.current = true;
+    refreshPromise.current = (async () => {
+      try {
+        const res = await fetch("/api/auth/refresh", {
+          method: "POST",
+          credentials: "include",
+        });
+
+        if (!res.ok) {
+          setUser(null);
+          return false;
+        }
+
+        const data = await res.json();
+        setUser(data.user);
+        return true;
+      } catch (err) {
+        setUser(null);
+        return false;
+      } finally {
+        isRefreshing.current = false;
+        refreshPromise.current = null;
+      }
+    })();
+
+    return refreshPromise.current;
   }, []);
 
+
+  const authFetch = useCallback(async (input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
+    const makeRequest = () => fetch(input, {
+      ...init,
+      credentials: "include",
+    });
+
+    const res = await makeRequest();
+
+    if (res.status === 401) {
+      const clonedRes = res.clone();
+      try {
+        const data = await clonedRes.json();
+        if (data.code === "TOKEN_EXPIRED" || data.message === "Token expired") {
+          const refreshed = await refreshAccessToken();
+          if (refreshed) {
+            return makeRequest();
+          }
+        }
+      } catch {
+        // JSON parse failed, return original response
+      }
+    }
+
+    return res;
+  }, [refreshAccessToken]);
 
   const checkAuth = useCallback(async () => {
     try {
@@ -49,10 +92,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
 
       // If access token expired → refresh once
-      const refreshedUser = await refreshAccessToken();
-      if (refreshedUser) return;
-
-      setUser(null);
+      const refreshed = await refreshAccessToken();
+      if (!refreshed) {
+        setUser(null);
+      }
     } catch {
       setUser(null);
     } finally {
@@ -145,7 +188,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, isLoading, login, logout, register, changePassword }}>
+    <AuthContext.Provider value={{ user, isLoading, login, logout, register, changePassword, authFetch }}>
       {children}
     </AuthContext.Provider>
   );

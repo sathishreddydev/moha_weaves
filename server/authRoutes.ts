@@ -67,9 +67,10 @@ export const authRoutes = (app: Express) => {
     });
 
     // Set cookies with proper security (client gets plaintext token)
+    // Cookie expiration should match JWT expiration (7 days)
     res.cookie("accessToken", accessToken, {
       ...cookieOptions,
-      maxAge: 15 * 60 * 1000, // 15 minutes
+      maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days to match ACCESS_TOKEN_EXPIRY
     });
 
     res.cookie("refreshToken", refreshToken, {
