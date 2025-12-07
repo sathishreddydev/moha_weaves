@@ -2769,8 +2769,8 @@ export class DatabaseStorage implements IStorage {
     if (options.search) {
       conditions.push(
         or(
-          sql`${sarees.name} ILIKE ${`%${options.search}%`}`,
-          sql`${sarees.sku} ILIKE ${`%${options.search}%`}`
+          ilike(sarees.name, `%${options.search}%`),
+          ilike(sarees.sku, `%${options.search}%`)
         )!
       );
     }
@@ -2790,24 +2790,24 @@ export class DatabaseStorage implements IStorage {
       conditions.push(eq(sarees.fabricId, options.fabricId));
     }
 
-    // Date filters (based on when added to inventory)
+    // Date filters (based on product creation date)
     if (options.dateFrom) {
-      conditions.push(gte(storeInventory.updatedAt, new Date(options.dateFrom)));
+      conditions.push(gte(sarees.createdAt, new Date(options.dateFrom)));
     }
 
     if (options.dateTo) {
       // Add one day to include the entire end date
       const endDate = new Date(options.dateTo);
       endDate.setDate(endDate.getDate() + 1);
-      conditions.push(lte(storeInventory.updatedAt, endDate));
+      conditions.push(lte(sarees.createdAt, endDate));
     }
 
     const whereClause = and(...conditions);
 
     const [allSarees, countResult] = await Promise.all([
       db.select()
-        .from(sarees)
-        .innerJoin(storeInventory, eq(sarees.id, storeInventory.sareeId))
+        .from(storeInventory)
+        .innerJoin(sarees, eq(storeInventory.sareeId, sarees.id))
         .leftJoin(categories, eq(sarees.categoryId, categories.id))
         .leftJoin(colors, eq(sarees.colorId, colors.id))
         .leftJoin(fabrics, eq(sarees.fabricId, fabrics.id))
@@ -2817,18 +2817,10 @@ export class DatabaseStorage implements IStorage {
         .offset(options.offset),
       db
         .select({ count: sql<number>`count(*)::int` })
-        .from(sarees)
-        .innerJoin(storeInventory, eq(sarees.id, storeInventory.sareeId))
+        .from(storeInventory)
+        .innerJoin(sarees, eq(storeInventory.sareeId, sarees.id))
         .where(whereClause),
     ]);
-
-    const storeStockMap = new Map<string, number>();
-    // This is already handled by the inner join above, but just in case
-    const inventoryItems = await db.select().from(storeInventory).where(eq(storeInventory.storeId, storeId));
-
-    for (const item of inventoryItems) {
-      storeStockMap.set(item.sareeId, item.quantity);
-    }
 
     const data = allSarees.map((row) => ({
       saree: {
@@ -2837,7 +2829,7 @@ export class DatabaseStorage implements IStorage {
         color: row.colors,
         fabric: row.fabrics,
       },
-      storeStock: storeStockMap.get(row.sarees.id) || 0,
+      storeStock: row.store_inventory.quantity,
     }));
 
     return {
