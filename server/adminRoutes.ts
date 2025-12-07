@@ -145,6 +145,22 @@ export const adminRoutes = (app: Express) => {
   // Admin saree management
   app.get("/api/admin/sarees", authAdmin, async (req, res) => {
     try {
+      const { page, pageSize, search, category, status, dateFrom, dateTo } = req.query;
+      
+      if (page && pageSize) {
+        const params = parsePaginationParams(req.query);
+        const result = await storage.getSareesPaginated({
+          page: params.page,
+          pageSize: params.pageSize,
+          search: search as string,
+          category: category as string,
+          status: status as string,
+          dateFrom: dateFrom as string,
+          dateTo: dateTo as string,
+        });
+        return res.json(result);
+      }
+      
       const sarees = await storage.getSarees({});
       res.json(sarees);
     } catch (error) {

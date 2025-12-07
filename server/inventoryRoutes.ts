@@ -1,6 +1,7 @@
 import type { Express, Request, Response, NextFunction } from "express";
 import { storage } from "./storage";
 import { createAuthMiddleware } from "./authMiddleware";
+import { parsePaginationParams } from "./paginationHelper";
 import { z } from "zod";
 const storeAllocationSchema = z.object({
   storeId: z.string().min(1, "Store ID is required"),
@@ -98,7 +99,21 @@ const authInventory = createAuthMiddleware(["inventory"]);
 
   app.get("/api/inventory/orders", authInventory, async (req, res) => {
     try {
-      const { status } = req.query;
+      const { status, page, pageSize, search, dateFrom, dateTo } = req.query;
+      
+      if (page && pageSize) {
+        const params = parsePaginationParams(req.query);
+        const result = await storage.getOrdersPaginated({
+          page: params.page,
+          pageSize: params.pageSize,
+          status: status as string,
+          search: search as string,
+          dateFrom: dateFrom as string,
+          dateTo: dateTo as string,
+        });
+        return res.json(result);
+      }
+      
       const orders = await storage.getAllOrders({ status: status as string });
       res.json(orders);
     } catch (error) {
@@ -148,6 +163,22 @@ const authInventory = createAuthMiddleware(["inventory"]);
   // Inventory saree management (moved from admin)
   app.get("/api/inventory/sarees", authInventory, async (req, res) => {
     try {
+      const { page, pageSize, search, category, status, dateFrom, dateTo } = req.query;
+      
+      if (page && pageSize) {
+        const params = parsePaginationParams(req.query);
+        const result = await storage.getSareesPaginated({
+          page: params.page,
+          pageSize: params.pageSize,
+          search: search as string,
+          category: category as string,
+          status: status as string,
+          dateFrom: dateFrom as string,
+          dateTo: dateTo as string,
+        });
+        return res.json(result);
+      }
+      
       const sarees = await storage.getSarees({});
       res.json(sarees);
     } catch (error) {
