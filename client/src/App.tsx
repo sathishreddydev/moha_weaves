@@ -1,5 +1,5 @@
 import { lazy, Suspense } from "react";
-import { Routes, Route, useLocation } from "react-router-dom";
+import { Routes, Route, useLocation, Navigate } from "react-router-dom";
 import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
@@ -8,6 +8,10 @@ import { AuthProvider, useAuth } from "@/lib/auth";
 import { Header } from "@/components/layout/Header";
 import { Footer } from "@/components/layout/Footer";
 import InventoryLayout from "./pages/inventory/Layout";
+import StoreLayout from "./pages/store/Layout";
+import AdminLayout from "./pages/admin/Layout";
+import ProtectedRoute from "./ProtectedRoute";
+import Unauthorized from "./Unauthorized";
 
 const NotFound = lazy(() => import("@/pages/not-found"));
 const Home = lazy(() => import("@/pages/user/Home"));
@@ -111,57 +115,92 @@ function Router() {
     return (
       <Suspense fallback={<LoadingFallback />}>
         <Routes>
+          <Route path="unauthorized" element={<Unauthorized />} />
+
           <Route path="/user/login" element={<UserLogin />} />
           <Route path="/user/register" element={<UserRegister />} />
 
-          <Route path="/admin/login" element={<AdminLogin />} />
-          <Route path="/admin/dashboard" element={<AdminDashboard />} />
-          <Route path="/admin/sarees" element={<AdminSarees />} />
-          <Route path="/admin/categories" element={<AdminCategories />} />
-          <Route path="/admin/colors" element={<AdminColors />} />
-          <Route path="/admin/fabrics" element={<AdminFabrics />} />
-          <Route path="/admin/users" element={<AdminUsers />} />
-          <Route path="/admin/staff" element={<AdminStaff />} />
-          <Route path="/admin/stores" element={<AdminStores />} />
-          <Route path="/admin/orders" element={<AdminOrders />} />
-          <Route path="/admin/coupons" element={<AdminCoupons />} />
-          <Route path="/admin/reviews" element={<AdminReviews />} />
-          <Route path="/admin/settings" element={<AdminSettings />} />
-
-          <Route path="/inventory/login" element={<InventoryLogin />} />
-
-          <Route path="inventory" element={<InventoryLayout />}>
+          <Route path="admin">
+            <Route path="login" element={<AdminLogin />} />
             <Route
-              path="dashboard"
-              element={<InventoryDashboard />}
-            />
-            <Route path="sarees" element={<InventorySarees />} />
-            <Route path="stock" element={<InventoryStock />} />
-            <Route
-              path="distribution"
-              element={<InventoryStockDistribution />}
-            />
-            <Route
-              path="analytics"
-              element={<InventoryAnalytics />}
-            />
-            <Route path="requests" element={<InventoryRequests />} />
-            <Route path="orders" element={<InventoryOrders />} />
-            <Route
-              path="store-orders"
-              element={<InventoryStoreOrders />}
-            />
-            <Route path="returns" element={<InventoryReturns />} />
+              element={
+                <ProtectedRoute
+                  allowedRoles={["admin"]}
+                  loginPath="/admin/login"
+                />
+              }
+            >
+              <Route element={<AdminLayout />}>
+                <Route index element={<Navigate to="dashboard" replace />} />
+                <Route path="dashboard" element={<AdminDashboard />} />
+                <Route path="sarees" element={<AdminSarees />} />
+                <Route path="categories" element={<AdminCategories />} />
+                <Route path="colors" element={<AdminColors />} />
+                <Route path="fabrics" element={<AdminFabrics />} />
+                <Route path="users" element={<AdminUsers />} />
+                <Route path="staff" element={<AdminStaff />} />
+                <Route path="stores" element={<AdminStores />} />
+                <Route path="orders" element={<AdminOrders />} />
+                <Route path="coupons" element={<AdminCoupons />} />
+                <Route path="reviews" element={<AdminReviews />} />
+                <Route path="settings" element={<AdminSettings />} />
+              </Route>
+            </Route>
           </Route>
 
-          <Route path="/store/login" element={<StoreLogin />} />
-          <Route path="/store/dashboard" element={<StoreDashboard />} />
-          <Route path="/store/sale" element={<StoreSale />} />
-          <Route path="/store/inventory" element={<StoreInventoryPage />} />
-          <Route path="/store/requests" element={<StoreRequests />} />
-          <Route path="/store/history" element={<StoreHistory />} />
-          <Route path="/store/exchange" element={<StoreExchange />} />
-          <Route path="/store/exchange/:saleId" element={<StoreExchange />} />
+          <Route path="inventory">
+            <Route path="login" element={<InventoryLogin />} />
+
+            <Route
+              element={
+                <ProtectedRoute
+                  allowedRoles={["inventory"]}
+                  loginPath="/inventory/login"
+                />
+              }
+            >
+              <Route element={<InventoryLayout />}>
+                <Route index element={<Navigate to="dashboard" replace />} />
+
+                <Route path="dashboard" element={<InventoryDashboard />} />
+                <Route path="sarees" element={<InventorySarees />} />
+                <Route path="stock" element={<InventoryStock />} />
+                <Route
+                  path="distribution"
+                  element={<InventoryStockDistribution />}
+                />
+                <Route path="analytics" element={<InventoryAnalytics />} />
+                <Route path="requests" element={<InventoryRequests />} />
+                <Route path="orders" element={<InventoryOrders />} />
+                <Route path="store-orders" element={<InventoryStoreOrders />} />
+                <Route path="returns" element={<InventoryReturns />} />
+              </Route>
+            </Route>
+          </Route>
+
+          <Route path="store">
+            <Route path="login" element={<StoreLogin />} />
+            <Route
+              element={
+                <ProtectedRoute
+                  allowedRoles={["store"]}
+                  loginPath="/store/login"
+                />
+              }
+            >
+              <Route element={<StoreLayout />}>
+                <Route index element={<Navigate to="dashboard" replace />} />
+
+                <Route path="dashboard" element={<StoreDashboard />} />
+                <Route path="sale" element={<StoreSale />} />
+                <Route path="inventory" element={<StoreInventoryPage />} />
+                <Route path="requests" element={<StoreRequests />} />
+                <Route path="history" element={<StoreHistory />} />
+                <Route path="exchange" element={<StoreExchange />} />
+                <Route path="exchange/:saleId" element={<StoreExchange />} />
+              </Route>
+            </Route>
+          </Route>
 
           <Route path="*" element={<NotFound />} />
         </Routes>

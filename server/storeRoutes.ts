@@ -142,7 +142,7 @@ export const storeRoutes = (app: Express) => {
       }
 
       // Calculate total amount
-      const totalAmount = items.reduce((sum, item) => {
+      const totalAmount = items.reduce((sum:any, item:any) => {
         const price = typeof item.price === "string" ? parseFloat(item.price) : item.price;
         return sum + (price * item.quantity);
       }, 0);

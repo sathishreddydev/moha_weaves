@@ -19,7 +19,7 @@ export const NavItems = [
     label: "Stock Distribution",
     href: "/inventory/distribution",
   },
-  { icon: TrendingUp, label: "Analytics", href: "/inventory/analytics" },
+  // { icon: TrendingUp, label: "Analytics", href: "/inventory/analytics" },
   { icon: ClipboardList, label: "Store Requests", href: "/inventory/requests" },
   { icon: Truck, label: "Online Orders", href: "/inventory/orders" },
   { icon: Store, label: "Store Orders", href: "/inventory/store-orders" },

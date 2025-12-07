@@ -73,7 +73,12 @@ export default function AdminCategories() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingCategory, setEditingCategory] = useState<Category | null>(null);
-  const [formData, setFormData] = useState({ name: "", description: "", imageUrl: "", isActive: true });
+  const [formData, setFormData] = useState({
+    name: "",
+    description: "",
+    imageUrl: "",
+    isActive: true,
+  });
 
   const { data: categories, isLoading } = useQuery<Category[]>({
     queryKey: ["/api/categories"],
@@ -90,13 +95,21 @@ export default function AdminCategories() {
       handleCloseDialog();
     },
     onError: () => {
-      toast({ title: "Error", description: "Failed to create category", variant: "destructive" });
+      toast({
+        title: "Error",
+        description: "Failed to create category",
+        variant: "destructive",
+      });
     },
   });
 
   const updateMutation = useMutation({
     mutationFn: async ({ id, data }: { id: string; data: typeof formData }) => {
-      const response = await apiRequest("PATCH", `/api/admin/categories/${id}`, data);
+      const response = await apiRequest(
+        "PATCH",
+        `/api/admin/categories/${id}`,
+        data
+      );
       return response.json();
     },
     onSuccess: () => {
@@ -105,7 +118,11 @@ export default function AdminCategories() {
       handleCloseDialog();
     },
     onError: () => {
-      toast({ title: "Error", description: "Failed to update category", variant: "destructive" });
+      toast({
+        title: "Error",
+        description: "Failed to update category",
+        variant: "destructive",
+      });
     },
   });
 
@@ -145,144 +162,91 @@ export default function AdminCategories() {
     }
   };
 
-  if (!user || user.role !== "admin") {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <h2 className="text-xl font-semibold mb-4">Access Denied</h2>
-          <Link to="/admin/login">
-            <Button>Go to Admin Login</Button>
-          </Link>
-        </div>
-      </div>
-    );
-  }
-
-  const Sidebar = () => (
-    <div className="flex flex-col h-full">
-      <div className="p-4 border-b">
-        <Link to="/" className="font-serif text-xl font-semibold text-primary">
-          Moha Admin
-        </Link>
-      </div>
-      <nav className="flex-1 p-4 space-y-1">
-        {navItems.map((item) => (
-          <Link key={item.href} to={item.href}>
-            <Button
-              variant={item.href === "/admin/categories" ? "secondary" : "ghost"}
-              className="w-full justify-start gap-3"
-            >
-              <item.icon className="h-4 w-4" />
-              {item.label}
-            </Button>
-          </Link>
-        ))}
-      </nav>
-      <div className="p-4 border-t">
-        <div className="mb-3">
-          <p className="text-sm font-medium">{user.name}</p>
-          <p className="text-xs text-muted-foreground">{user.email}</p>
-        </div>
-        <Button variant="outline" className="w-full" onClick={handleLogout}>
-          <LogOut className="h-4 w-4 mr-2" />
-          Logout
-        </Button>
-      </div>
-    </div>
-  );
-
   return (
-    <div className="min-h-screen bg-muted/30">
-      <header className="lg:hidden sticky top-0 z-50 bg-background border-b p-4 flex items-center justify-between">
-        <Sheet open={sidebarOpen} onOpenChange={setSidebarOpen}>
-          <SheetTrigger asChild>
-            <Button variant="ghost" size="icon">
-              <Menu className="h-5 w-5" />
-            </Button>
-          </SheetTrigger>
-          <SheetContent side="left" className="p-0 w-64">
-            <Sidebar />
-          </SheetContent>
-        </Sheet>
-        <span className="font-serif text-lg font-semibold text-primary">Moha Admin</span>
-        <div className="w-10" />
-      </header>
-
-      <div className="flex">
-        <aside className="hidden lg:block w-64 border-r bg-background h-screen sticky top-0">
-          <Sidebar />
-        </aside>
-
-        <main className="flex-1 p-6">
-          <div className="max-w-4xl mx-auto">
-            <div className="flex items-center justify-between mb-8">
-              <div>
-                <h1 className="text-2xl font-semibold" data-testid="text-page-title">Categories</h1>
-                <p className="text-muted-foreground">Manage product categories</p>
-              </div>
-              <Button onClick={handleOpenCreate} data-testid="button-add-category">
-                <Plus className="h-4 w-4 mr-2" />
-                Add Category
-              </Button>
-            </div>
-
-            <Card>
-              <CardContent className="p-4">
-                {isLoading ? (
-                  <div className="space-y-3">
-                    {[...Array(3)].map((_, i) => (
-                      <Skeleton key={i} className="h-12" />
-                    ))}
-                  </div>
-                ) : (
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Name</TableHead>
-                        <TableHead>Description</TableHead>
-                        <TableHead>Status</TableHead>
-                        <TableHead className="text-right">Actions</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {categories?.map((category) => (
-                        <TableRow key={category.id} data-testid={`row-category-${category.id}`}>
-                          <TableCell className="font-medium">{category.name}</TableCell>
-                          <TableCell className="text-muted-foreground max-w-[300px] truncate">
-                            {category.description || "-"}
-                          </TableCell>
-                          <TableCell>
-                            <Badge variant={category.isActive ? "default" : "secondary"}>
-                              {category.isActive ? "Active" : "Inactive"}
-                            </Badge>
-                          </TableCell>
-                          <TableCell className="text-right">
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => handleOpenEdit(category)}
-                              data-testid={`button-edit-${category.id}`}
-                            >
-                              <Edit className="h-4 w-4" />
-                            </Button>
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                )}
-              </CardContent>
-            </Card>
+    <div>
+      <div className="max-w-4xl mx-auto">
+        <div className="flex items-center justify-between mb-8">
+          <div>
+            <h1
+              className="text-2xl font-semibold"
+              data-testid="text-page-title"
+            >
+              Categories
+            </h1>
+            <p className="text-muted-foreground">Manage product categories</p>
           </div>
-        </main>
+          <Button onClick={handleOpenCreate} data-testid="button-add-category">
+            <Plus className="h-4 w-4 mr-2" />
+            Add Category
+          </Button>
+        </div>
+
+        <Card>
+          <CardContent className="p-4">
+            {isLoading ? (
+              <div className="space-y-3">
+                {[...Array(3)].map((_, i) => (
+                  <Skeleton key={i} className="h-12" />
+                ))}
+              </div>
+            ) : (
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Name</TableHead>
+                    <TableHead>Description</TableHead>
+                    <TableHead>Status</TableHead>
+                    <TableHead className="text-right">Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {categories?.map((category) => (
+                    <TableRow
+                      key={category.id}
+                      data-testid={`row-category-${category.id}`}
+                    >
+                      <TableCell className="font-medium">
+                        {category.name}
+                      </TableCell>
+                      <TableCell className="text-muted-foreground max-w-[300px] truncate">
+                        {category.description || "-"}
+                      </TableCell>
+                      <TableCell>
+                        <Badge
+                          variant={category.isActive ? "default" : "secondary"}
+                        >
+                          {category.isActive ? "Active" : "Inactive"}
+                        </Badge>
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => handleOpenEdit(category)}
+                          data-testid={`button-edit-${category.id}`}
+                        >
+                          <Edit className="h-4 w-4" />
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            )}
+          </CardContent>
+        </Card>
       </div>
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>{editingCategory ? "Edit Category" : "Add Category"}</DialogTitle>
+            <DialogTitle>
+              {editingCategory ? "Edit Category" : "Add Category"}
+            </DialogTitle>
             <DialogDescription>
-              {editingCategory ? "Update category details" : "Create a new category"}
+              {editingCategory
+                ? "Update category details"
+                : "Create a new category"}
             </DialogDescription>
           </DialogHeader>
           <form onSubmit={handleSubmit} className="space-y-4">
@@ -291,7 +255,9 @@ export default function AdminCategories() {
               <Input
                 id="name"
                 value={formData.name}
-                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                onChange={(e) =>
+                  setFormData({ ...formData, name: e.target.value })
+                }
                 required
                 data-testid="input-name"
               />
@@ -301,7 +267,9 @@ export default function AdminCategories() {
               <Textarea
                 id="description"
                 value={formData.description}
-                onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                onChange={(e) =>
+                  setFormData({ ...formData, description: e.target.value })
+                }
                 data-testid="input-description"
               />
             </div>
@@ -310,7 +278,9 @@ export default function AdminCategories() {
               <Input
                 id="imageUrl"
                 value={formData.imageUrl}
-                onChange={(e) => setFormData({ ...formData, imageUrl: e.target.value })}
+                onChange={(e) =>
+                  setFormData({ ...formData, imageUrl: e.target.value })
+                }
                 placeholder="https://..."
                 data-testid="input-image-url"
               />
@@ -319,13 +289,19 @@ export default function AdminCategories() {
               <Switch
                 id="isActive"
                 checked={formData.isActive}
-                onCheckedChange={(checked) => setFormData({ ...formData, isActive: checked })}
+                onCheckedChange={(checked) =>
+                  setFormData({ ...formData, isActive: checked })
+                }
                 data-testid="switch-active"
               />
               <Label htmlFor="isActive">Active</Label>
             </div>
             <DialogFooter>
-              <Button type="button" variant="outline" onClick={handleCloseDialog}>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={handleCloseDialog}
+              >
                 Cancel
               </Button>
               <Button
@@ -333,7 +309,11 @@ export default function AdminCategories() {
                 disabled={createMutation.isPending || updateMutation.isPending}
                 data-testid="button-submit"
               >
-                {createMutation.isPending || updateMutation.isPending ? "Saving..." : editingCategory ? "Update" : "Create"}
+                {createMutation.isPending || updateMutation.isPending
+                  ? "Saving..."
+                  : editingCategory
+                  ? "Update"
+                  : "Create"}
               </Button>
             </DialogFooter>
           </form>

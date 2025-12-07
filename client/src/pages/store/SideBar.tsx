@@ -1,0 +1,34 @@
+import { useNavigate, useLocation } from "react-router-dom";
+import { Button } from "@/components/ui/button";
+import { StoreNavItems } from "./NavItems";
+
+export function StoreSidebar() {
+  const navigate = useNavigate();
+  const location = useLocation(); 
+
+  const handleNavigation = (href:string) => {
+    navigate(href);
+  };
+
+  return (
+    <div className="flex flex-col h-full">
+      <nav className="flex-1 p-4 space-y-1">
+        {StoreNavItems.map((item) => {
+          const isActive = location.pathname === item.href; 
+          return (
+            <Button
+              key={item.href}
+              variant={isActive ? "secondary" : "ghost"} 
+              className="w-full justify-start gap-3"
+              data-testid={`nav-${item.label.toLowerCase().replace(/\s/g, "-")}`}
+              onClick={() => handleNavigation(item.href)}
+            >
+              <item.icon className="h-4 w-4" />
+              {item.label}
+            </Button>
+          );
+        })}
+      </nav>
+    </div>
+  );
+}

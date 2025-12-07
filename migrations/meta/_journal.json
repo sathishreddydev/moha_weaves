@@ -15,6 +15,13 @@
       "when": 1764834469044,
       "tag": "0001_mighty_guardian",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1765042347379,
+      "tag": "0002_orange_sleepwalker",
+      "breakpoints": true
     }
   ]
 }
