@@ -4,10 +4,11 @@ import { Package, Store as StoreIcon, ShoppingBag } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/lib/auth";
+import { useQuery } from "@tanstack/react-query";
 import { DataTable, FilterConfig } from "@/components/ui/data-table";
 import { useDataTable } from "@/hooks/use-data-table";
 import { ColumnDef } from "@tanstack/react-table";
-import type { StoreSaleWithItems } from "@shared/schema";
+import type { StoreSaleWithItems, Store } from "@shared/schema";
 
 const formatPrice = (price: string | number) => {
   const numPrice = typeof price === "string" ? parseFloat(price) : price;
@@ -32,6 +33,10 @@ export default function InventoryStoreOrders() {
   const navigate = useNavigate();
   const { user } = useAuth();
 
+  const { data: stores } = useQuery<Store[]>({
+    queryKey: ["/api/inventory/stores"],
+  });
+
   const {
     data: storeSales,
     totalCount,
@@ -40,11 +45,26 @@ export default function InventoryStoreOrders() {
     isLoading,
     handlePaginationChange,
     handleSearchChange,
+    handleFiltersChange,
     handleDateFilterChange,
   } = useDataTable<StoreSaleWithItems>({
     queryKey: "/api/inventory/store-sales",
     initialPageSize: 10,
   });
+
+  const filters: FilterConfig[] = useMemo(
+    () => [
+      {
+        key: "storeId",
+        label: "Store",
+        options: (stores || []).map((store) => ({
+          label: store.name,
+          value: store.id,
+        })),
+      },
+    ],
+    [stores]
+  );
 
   const columns: ColumnDef<StoreSaleWithItems>[] = useMemo(
     () => [
@@ -150,9 +170,11 @@ export default function InventoryStoreOrders() {
               pageSize={pageSize}
               onPaginationChange={handlePaginationChange}
               onSearchChange={handleSearchChange}
+              onFiltersChange={handleFiltersChange}
               onDateFilterChange={handleDateFilterChange}
               isLoading={isLoading}
               searchPlaceholder="Search by sale ID..."
+              filters={filters}
               dateFilter={{ key: "date", label: "Filter by date" }}
               emptyMessage="No store sales found"
             />

@@ -1076,17 +1076,27 @@ export class DatabaseStorage implements IStorage {
     pageSize: number;
     search?: string;
     category?: string;
+    color?: string;
+    fabric?: string;
     status?: string;
     dateFrom?: string;
     dateTo?: string;
   }): Promise<{ data: SareeWithDetails[]; total: number; page: number; pageSize: number; totalPages: number }> {
-    const { page, pageSize, search, category, status, dateFrom, dateTo } = params;
+    const { page, pageSize, search, category, color, fabric, status, dateFrom, dateTo } = params;
     const offset = (page - 1) * pageSize;
 
     const conditions: any[] = [eq(sarees.isActive, true)];
 
     if (category) {
       conditions.push(eq(sarees.categoryId, category));
+    }
+
+    if (color) {
+      conditions.push(eq(sarees.colorId, color));
+    }
+
+    if (fabric) {
+      conditions.push(eq(sarees.fabricId, fabric));
     }
 
     if (status === "active") {
@@ -1514,16 +1524,21 @@ export class DatabaseStorage implements IStorage {
     page: number;
     pageSize: number;
     search?: string;
+    storeId?: string;
     dateFrom?: string;
     dateTo?: string;
   }): Promise<{ data: StoreSaleWithItems[]; total: number; page: number; pageSize: number; totalPages: number }> {
-    const { page, pageSize, search, dateFrom, dateTo } = params;
+    const { page, pageSize, search, storeId, dateFrom, dateTo } = params;
     const offset = (page - 1) * pageSize;
 
     const conditions: any[] = [];
 
     if (search) {
       conditions.push(ilike(storeSales.id, `%${search}%`));
+    }
+
+    if (storeId) {
+      conditions.push(eq(storeSales.storeId, storeId));
     }
 
     if (dateFrom) {

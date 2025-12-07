@@ -163,7 +163,7 @@ const authInventory = createAuthMiddleware(["inventory"]);
   // Inventory saree management (moved from admin)
   app.get("/api/inventory/sarees", authInventory, async (req, res) => {
     try {
-      const { page, pageSize, search, category, status, dateFrom, dateTo } = req.query;
+      const { page, pageSize, search, category, color, fabric, status, dateFrom, dateTo } = req.query;
       
       if (page && pageSize) {
         const params = parsePaginationParams(req.query);
@@ -172,6 +172,8 @@ const authInventory = createAuthMiddleware(["inventory"]);
           pageSize: params.pageSize,
           search: search as string,
           category: category as string,
+          color: color as string,
+          fabric: fabric as string,
           status: status as string,
           dateFrom: dateFrom as string,
           dateTo: dateTo as string,
@@ -584,7 +586,7 @@ const authInventory = createAuthMiddleware(["inventory"]);
 
   app.get("/api/inventory/store-sales", authInventory, async (req, res) => {
     try {
-      const { page, pageSize, search, dateFrom, dateTo } = req.query;
+      const { page, pageSize, search, dateFrom, dateTo, storeId } = req.query;
       
       if (page && pageSize) {
         const params = parsePaginationParams(req.query);
@@ -594,6 +596,7 @@ const authInventory = createAuthMiddleware(["inventory"]);
           search: search as string,
           dateFrom: dateFrom as string,
           dateTo: dateTo as string,
+          storeId: storeId as string,
         });
         return res.json(result);
       }
