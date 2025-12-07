@@ -681,7 +681,70 @@ export class DatabaseStorage implements IStorage {
 
     return result;
   }
+async getStockDistribution(): Promise<{
+    saree: SareeWithDetails;
+    totalStock: number;
+    onlineStock: number;
+    storeAllocations: { store: Store; quantity: number }[];
+    unallocated: number;
+  }[]> {
+    // Get all active sarees
+    const allSarees = await db
+      .select()
+      .from(sarees)
+      .leftJoin(categories, eq(sarees.categoryId, categories.id))
+      .leftJoin(colors, eq(sarees.colorId, colors.id))
+      .leftJoin(fabrics, eq(sarees.fabricId, fabrics.id))
+      .where(eq(sarees.isActive, true));
 
+    const result = [];
+
+    for (const row of allSarees) {
+      const saree = {
+        ...row.sarees,
+        category: row.categories,
+        color: row.colors,
+        fabric: row.fabrics,
+      };
+
+      // Get store allocations for this saree
+      const allocations = await db
+        .select({
+          storeId: storeInventory.storeId,
+          quantity: storeInventory.quantity,
+        })
+        .from(storeInventory)
+        .where(eq(storeInventory.sareeId, saree.id));
+
+      // Get store details for each allocation
+      const storeAllocations = [];
+      let totalStoreStock = 0;
+
+      for (const alloc of allocations) {
+        const store = await this.getStore(alloc.storeId);
+        if (store) {
+          storeAllocations.push({
+            store,
+            quantity: alloc.quantity,
+          });
+          totalStoreStock += alloc.quantity;
+        }
+      }
+
+      // Calculate unallocated stock
+      const unallocated = saree.totalStock - saree.onlineStock - totalStoreStock;
+
+      result.push({
+        saree,
+        totalStock: saree.totalStock,
+        onlineStock: saree.onlineStock,
+        storeAllocations,
+        unallocated: Math.max(0, unallocated),
+      });
+    }
+
+    return result;
+  }
   async getLowStockSarees(threshold = 10): Promise<SareeWithDetails[]> {
     const result = await db
       .select()
