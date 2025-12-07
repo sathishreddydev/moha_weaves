@@ -171,6 +171,16 @@ export interface IStorage {
 
   // Store Sales
   getStoreSales(storeId: string, limit?: number): Promise<StoreSaleWithItems[]>;
+  getStoreSalesPaginated(
+    storeId: string,
+    options: {
+      limit: number;
+      offset: number;
+      search?: string;
+      dateFrom?: string;
+      dateTo?: string;
+    }
+  ): Promise<{ data: StoreSaleWithItems[]; total: number }>;
   createStoreSale(sale: InsertStoreSale, items: InsertStoreSaleItem[]): Promise<StoreSale>;
 
   // Stock Requests
@@ -214,7 +224,8 @@ export interface IStorage {
   getReturnRequests(filters?: { userId?: string; status?: string }): Promise<ReturnRequestWithDetails[]>;
   getReturnRequest(id: string): Promise<ReturnRequestWithDetails | undefined>;
   createReturnRequest(request: InsertReturnRequest, items: InsertReturnItem[]): Promise<ReturnRequest>;
-  updateReturnRequestStatus(id: string, status: string, processedBy?: string, adminNotes?: string): Promise<ReturnRequest | undefined>;
+  updateReturnRequestStatus(id: string, status: string, processedBy?: string, inspectionNotes?: string): Promise<ReturnRequest | undefined>;
+  updateReturnRequest(id: string, data: Partial<InsertReturnRequest>): Promise<ReturnRequest | undefined>;
   getUserReturnRequests(userId: string): Promise<ReturnRequestWithDetails[]>;
   checkOrderReturnEligibility(orderId: string): Promise<{ eligible: boolean; reason?: string }>;
 
@@ -291,6 +302,23 @@ export interface IStorage {
     returnItems: Omit<InsertStoreExchangeReturnItem, 'exchangeId'>[],
     newItems: Omit<InsertStoreExchangeNewItem, 'exchangeId'>[]
   ): Promise<StoreExchange>;
+
+  // Paginated methods for store sales and products
+  getShopProductsPaginated(
+    storeId: string,
+    options: {
+      limit: number;
+      offset: number;
+      search?: string;
+      categoryId?: string;
+      colorId?: string;
+      fabricId?: string;
+      dateFrom?: string;
+      dateTo?: string;
+    }
+  ): Promise<{ data: { saree: SareeWithDetails; storeStock: number }[]; total: number }>;
+
+  getStockMovements(filters?: { source?: string; sareeId?: string; limit?: number }): Promise<StockMovement[]>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -911,19 +939,19 @@ export class DatabaseStorage implements IStorage {
     const offset = (page - 1) * pageSize;
 
     const conditions: any[] = [];
-    
+
     if (status) {
       conditions.push(eq(orders.status, status as any));
     }
-    
+
     if (dateFrom) {
       conditions.push(gte(orders.createdAt, new Date(dateFrom)));
     }
-    
+
     if (dateTo) {
       conditions.push(lte(orders.createdAt, new Date(dateTo)));
     }
-    
+
     if (search) {
       conditions.push(ilike(orders.id, `%${search}%`));
     }
@@ -934,7 +962,7 @@ export class DatabaseStorage implements IStorage {
       .select({ count: sql<number>`count(*)` })
       .from(orders)
       .where(whereClause);
-    
+
     const total = Number(countResult?.count || 0);
 
     const orderList = await db
@@ -992,19 +1020,19 @@ export class DatabaseStorage implements IStorage {
     const offset = (page - 1) * pageSize;
 
     const conditions: any[] = [];
-    
+
     if (role) {
       conditions.push(eq(users.role, role as any));
     }
-    
+
     if (dateFrom) {
       conditions.push(gte(users.createdAt, new Date(dateFrom)));
     }
-    
+
     if (dateTo) {
       conditions.push(lte(users.createdAt, new Date(dateTo)));
     }
-    
+
     if (search) {
       conditions.push(
         or(
@@ -1021,7 +1049,7 @@ export class DatabaseStorage implements IStorage {
       .select({ count: sql<number>`count(*)` })
       .from(users)
       .where(whereClause);
-    
+
     const total = Number(countResult?.count || 0);
 
     const userList = await db
@@ -1056,25 +1084,25 @@ export class DatabaseStorage implements IStorage {
     const offset = (page - 1) * pageSize;
 
     const conditions: any[] = [eq(sarees.isActive, true)];
-    
+
     if (category) {
       conditions.push(eq(sarees.categoryId, category));
     }
-    
+
     if (status === "active") {
       conditions.push(eq(sarees.isActive, true));
     } else if (status === "inactive") {
       conditions.push(eq(sarees.isActive, false));
     }
-    
+
     if (dateFrom) {
       conditions.push(gte(sarees.createdAt, new Date(dateFrom)));
     }
-    
+
     if (dateTo) {
       conditions.push(lte(sarees.createdAt, new Date(dateTo)));
     }
-    
+
     if (search) {
       conditions.push(
         or(
@@ -1091,7 +1119,7 @@ export class DatabaseStorage implements IStorage {
       .select({ count: sql<number>`count(*)` })
       .from(sarees)
       .where(whereClause);
-    
+
     const total = Number(countResult?.count || 0);
 
     const result = await db
@@ -1165,7 +1193,7 @@ export class DatabaseStorage implements IStorage {
     if (saree.totalStock <= threshold) {
       // Get all inventory role users to notify
       const inventoryUsers = await db.select().from(users).where(eq(users.role, "inventory"));
-      
+
       for (const user of inventoryUsers) {
         // Check if alert already exists in last 24 hours
         const dayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
@@ -1263,7 +1291,7 @@ export class DatabaseStorage implements IStorage {
       .leftJoin(colors, eq(sarees.colorId, colors.id))
       .leftJoin(fabrics, eq(sarees.fabricId, fabrics.id))
       .where(eq(storeInventory.storeId, storeId));
-      
+
     return result.map((row) => ({
       ...row.store_inventory,
       saree: {
@@ -1288,193 +1316,6 @@ export class DatabaseStorage implements IStorage {
     return result || undefined;
   }
 
-  // async createStoreSale(data: {
-  //   storeId: string;
-  //   userId: string;
-  //   customerName?: string;
-  //   customerPhone?: string;
-  //   saleType: "walk_in" | "reserved";
-  //   items: { sareeId: string; quantity: number; price: string }[];
-  // }): Promise<any> {
-  //   return await db.transaction(async (tx) => {
-  //     // Calculate total
-  //     const totalAmount = data.items.reduce((sum, item) => {
-  //       const price = typeof item.price === "string" ? parseFloat(item.price) : item.price;
-  //       return sum + price * item.quantity;
-  //     }, 0);
-
-  //     // Create sale record (you'll need to add storeSales table to schema)
-  //     // For now, deduct stock from store inventory
-  //     for (const item of data.items) {
-  //       const [inventory] = await tx
-  //         .select()
-  //         .from(storeInventory)
-  //         .where(
-  //           and(
-  //             eq(storeInventory.storeId, data.storeId),
-  //             eq(storeInventory.sareeId, item.sareeId)
-  //           )
-  //         );
-
-  //       if (!inventory || inventory.quantity < item.quantity) {
-  //         throw new Error(`Insufficient stock for ${item.sareeId}`);
-  //       }
-
-  //       // Deduct from store inventory
-  //       await tx
-  //         .update(storeInventory)
-  //         .set({ 
-  //           quantity: inventory.quantity - item.quantity,
-  //           updatedAt: new Date()
-  //         })
-  //         .where(eq(storeInventory.id, inventory.id));
-
-  //       // Deduct from total stock
-  //       const [saree] = await tx.select().from(sarees).where(eq(sarees.id, item.sareeId));
-  //       if (saree) {
-  //         await tx
-  //           .update(sarees)
-  //           .set({ 
-  //             totalStock: saree.totalStock - item.quantity,
-  //             updatedAt: new Date()
-  //           })
-  //           .where(eq(sarees.id, item.sareeId));
-  //       }
-
-  //       // Record stock movement
-  //       await tx.insert(stockMovements).values({
-  //         sareeId: item.sareeId,
-  //         quantity: -item.quantity,
-  //         movementType: "sale",
-  //         source: "store",
-  //         sourceId: data.storeId,
-  //         notes: `Store sale - ${data.saleType}`,
-  //       });
-  //     }
-
-  //     return {
-  //       success: true,
-  //       totalAmount: totalAmount.toString(),
-  //       itemCount: data.items.length,
-  //     };
-  //   });
-  // }
-
-  async getShopAvailableProducts(storeId: string): Promise<{ saree: SareeWithDetails; storeStock: number }[]> {
-    const result = await db
-      .select({
-        saree: sarees,
-        category: categories,
-        color: colors,
-        fabric: fabrics,
-        storeStock: sql<number>`COALESCE((
-          SELECT quantity FROM store_inventory 
-          WHERE store_id = ${storeId} AND saree_id = ${sarees.id}
-        ), 0)::int`,
-      })
-      .from(sarees)
-      .leftJoin(categories, eq(sarees.categoryId, categories.id))
-      .leftJoin(colors, eq(sarees.colorId, colors.id))
-      .leftJoin(fabrics, eq(sarees.fabricId, fabrics.id))
-      .where(
-        and(
-          eq(sarees.isActive, true),
-          or(
-            eq(sarees.distributionChannel, "shop"),
-            eq(sarees.distributionChannel, "both")
-          )
-        )
-      )
-      .orderBy(sarees.name);
-
-    return result.map((row) => ({
-      saree: {
-        ...row.saree,
-        category: row.category,
-        color: row.color,
-        fabric: row.fabric,
-      },
-      storeStock: row.storeStock || 0,
-    }));
-  }
-
-  async updateStoreInventory(storeId: string, sareeId: string, quantity: number): Promise<StoreInventory> {
-    const [existing] = await db
-      .select()
-      .from(storeInventory)
-      .where(and(eq(storeInventory.storeId, storeId), eq(storeInventory.sareeId, sareeId)));
-
-    if (existing) {
-      const [updated] = await db
-        .update(storeInventory)
-        .set({ quantity, updatedAt: new Date() })
-        .where(eq(storeInventory.id, existing.id))
-        .returning();
-      return updated;
-    }
-
-    const [result] = await db
-      .insert(storeInventory)
-      .values({ storeId, sareeId, quantity })
-      .returning();
-    return result;
-  }
-
-  async getStockDistribution(): Promise<{
-    saree: SareeWithDetails;
-    totalStock: number;
-    onlineStock: number;
-    storeAllocations: { store: Store; quantity: number }[];
-    unallocated: number;
-  }[]> {
-    const allSarees = await db
-      .select()
-      .from(sarees)
-      .leftJoin(categories, eq(sarees.categoryId, categories.id))
-      .leftJoin(colors, eq(sarees.colorId, colors.id))
-      .leftJoin(fabrics, eq(sarees.fabricId, fabrics.id))
-      .where(eq(sarees.isActive, true))
-      .orderBy(sarees.name);
-
-    const allStores = await db.select().from(stores).where(eq(stores.isActive, true));
-    const allStoreInventory = await db.select().from(storeInventory);
-
-    const result = allSarees.map((row) => {
-      const sareeStoreInventory = allStoreInventory.filter(
-        (inv) => inv.sareeId === row.sarees.id
-      );
-
-      const storeAllocations = sareeStoreInventory
-        .map((inv) => {
-          const store = allStores.find((s) => s.id === inv.storeId);
-          if (store && inv.quantity > 0) {
-            return { store, quantity: inv.quantity };
-          }
-          return null;
-        })
-        .filter((item): item is { store: Store; quantity: number } => item !== null);
-
-      const totalStoreAllocated = storeAllocations.reduce((sum, a) => sum + a.quantity, 0);
-      const unallocated = row.sarees.totalStock - row.sarees.onlineStock - totalStoreAllocated;
-
-      return {
-        saree: {
-          ...row.sarees,
-          category: row.categories,
-          color: row.colors,
-          fabric: row.fabrics,
-        },
-        totalStock: row.sarees.totalStock,
-        onlineStock: row.sarees.onlineStock,
-        storeAllocations,
-        unallocated: Math.max(0, unallocated),
-      };
-    });
-
-    return result;
-  }
-
-  // Store Sales
   async getStoreSales(storeId: string, limit?: number): Promise<StoreSaleWithItems[]> {
     let query = db
       .select()
@@ -1516,6 +1357,81 @@ export class DatabaseStorage implements IStorage {
     }
 
     return result;
+  }
+
+  async getStoreSalesPaginated(
+    storeId: string,
+    options: {
+      limit: number;
+      offset: number;
+      search?: string;
+      dateFrom?: string;
+      dateTo?: string;
+    }
+  ) {
+    const conditions = [eq(storeSales.storeId, storeId)];
+
+    if (options.search) {
+      conditions.push(
+        sql`${storeSales.id}::text ILIKE ${`%${options.search}%`}`
+      );
+    }
+
+    if (options.dateFrom) {
+      conditions.push(gte(storeSales.createdAt, new Date(options.dateFrom)));
+    }
+
+    if (options.dateTo) {
+      conditions.push(lte(storeSales.createdAt, new Date(options.dateTo)));
+    }
+
+    const whereClause = and(...conditions);
+
+    const [data, countResult] = await Promise.all([
+      db.select()
+        .from(storeSales)
+        .innerJoin(stores, eq(storeSales.storeId, stores.id))
+        .where(whereClause)
+        .orderBy(desc(storeSales.createdAt))
+        .limit(options.limit)
+        .offset(options.offset),
+      db
+        .select({ count: sql<number>`count(*)::int` })
+        .from(storeSales)
+        .where(whereClause),
+    ]);
+
+    const result: StoreSaleWithItems[] = [];
+
+    for (const row of data) {
+      const items = await db
+        .select()
+        .from(storeSaleItems)
+        .innerJoin(sarees, eq(storeSaleItems.sareeId, sarees.id))
+        .leftJoin(categories, eq(sarees.categoryId, categories.id))
+        .leftJoin(colors, eq(sarees.colorId, colors.id))
+        .leftJoin(fabrics, eq(sarees.fabricId, fabrics.id))
+        .where(eq(storeSaleItems.saleId, row.store_sales.id));
+
+      result.push({
+        ...row.store_sales,
+        store: row.stores,
+        items: items.map((itemRow) => ({
+          ...itemRow.store_sale_items,
+          saree: {
+            ...itemRow.sarees,
+            category: itemRow.categories,
+            color: itemRow.colors,
+            fabric: itemRow.fabrics,
+          },
+        })),
+      });
+    }
+
+    return {
+      data: result,
+      total: countResult[0]?.count || 0,
+    };
   }
 
   async getAllStoreSales(): Promise<StoreSaleWithItems[]> {
@@ -2496,9 +2412,9 @@ export class DatabaseStorage implements IStorage {
           .select({ totalReturned: sql<number>`COALESCE(SUM(${storeExchangeReturnItems.quantity}), 0)` })
           .from(storeExchangeReturnItems)
           .where(eq(storeExchangeReturnItems.saleItemId, item.store_sale_items.id));
-        
+
         const returnedQuantity = Number(returnedResult[0]?.totalReturned || 0);
-        
+
         return {
           ...item.store_sale_items,
           returnedQuantity,
@@ -2532,7 +2448,7 @@ export class DatabaseStorage implements IStorage {
 
     for (const exchange of exchangesList) {
       const originalSale = await this.getStoreSaleForExchange(exchange.store_exchanges.originalSaleId);
-      
+
       const returnItemsList = await db
         .select()
         .from(storeExchangeReturnItems)
@@ -2594,7 +2510,7 @@ export class DatabaseStorage implements IStorage {
 
     for (const exchange of exchangesList) {
       const originalSale = await this.getStoreSaleForExchange(exchange.store_exchanges.originalSaleId);
-      
+
       const returnItemsList = await db
         .select()
         .from(storeExchangeReturnItems)
@@ -2793,6 +2709,96 @@ export class DatabaseStorage implements IStorage {
 
       return createdExchange;
     });
+  }
+
+  async getShopProductsPaginated(
+    storeId: string,
+    options: {
+      limit: number;
+      offset: number;
+      search?: string;
+      categoryId?: string;
+      colorId?: string;
+      fabricId?: string;
+      dateFrom?: string;
+      dateTo?: string;
+    }
+  ): Promise<{ data: { saree: SareeWithDetails; storeStock: number }[]; total: number }> {
+    const conditions = [
+      or(
+        eq(sarees.distributionChannel, "shop"),
+        eq(sarees.distributionChannel, "both")
+      ),
+    ];
+
+    if (options.search) {
+      conditions.push(
+        or(
+          ilike(sarees.name, `%${options.search}%`),
+          ilike(sarees.sku, `%${options.search}%`)
+        )
+      );
+    }
+
+    if (options.categoryId) {
+      conditions.push(eq(sarees.categoryId, options.categoryId));
+    }
+
+    if (options.colorId) {
+      conditions.push(eq(sarees.colorId, options.colorId));
+    }
+
+    if (options.fabricId) {
+      conditions.push(eq(sarees.fabricId, options.fabricId));
+    }
+
+    if (options.dateFrom) {
+      conditions.push(gte(sarees.createdAt, new Date(options.dateFrom)));
+    }
+
+    if (options.dateTo) {
+      conditions.push(lte(sarees.createdAt, new Date(options.dateTo)));
+    }
+
+    const whereClause = and(...conditions);
+
+    const [allSarees, countResult] = await Promise.all([
+      db.select()
+        .from(sarees)
+        .leftJoin(categories, eq(sarees.categoryId, categories.id))
+        .leftJoin(colors, eq(sarees.colorId, colors.id))
+        .leftJoin(fabrics, eq(sarees.fabricId, fabrics.id))
+        .where(whereClause)
+        .orderBy(desc(sarees.createdAt))
+        .limit(options.limit)
+        .offset(options.offset),
+      db
+        .select({ count: sql<number>`count(*)::int` })
+        .from(sarees)
+        .where(whereClause),
+    ]);
+
+    const storeStockMap = new Map<string, number>();
+    const inventoryItems = await db.select().from(storeInventory).where(eq(storeInventory.storeId, storeId));
+
+    for (const item of inventoryItems) {
+      storeStockMap.set(item.sareeId, item.quantity);
+    }
+
+    const data = allSarees.map((row) => ({
+      saree: {
+        ...row.sarees,
+        category: row.categories,
+        color: row.colors,
+        fabric: row.fabrics,
+      },
+      storeStock: storeStockMap.get(row.sarees.id) || 0,
+    }));
+
+    return {
+      data,
+      total: countResult[0]?.count || 0,
+    };
   }
 }
 

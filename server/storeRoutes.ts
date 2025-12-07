@@ -1,6 +1,7 @@
 import type { Express, Request, Response, NextFunction } from "express";
 import { storage } from "./storage";
 import { createAuthMiddleware } from "./authMiddleware";
+import { parsePaginationParams, createPaginatedResponse, getOffset } from "./paginationHelper";
 
 export const storeRoutes = (app: Express) => {
   const authStore = createAuthMiddleware(["store"]);
@@ -58,6 +59,79 @@ export const storeRoutes = (app: Express) => {
       res.json(sales);
     } catch (error) {
       res.status(500).json({ message: "Failed to fetch sales" });
+    }
+  });
+
+  app.get("/api/store/sales/paginated", authStore, async (req, res) => {
+    try {
+      const user = (req as any).user;
+      if (!user.storeId) {
+        return res.status(400).json({ message: "No store assigned" });
+      }
+      
+      const params = parsePaginationParams(req.query);
+      const offset = getOffset(params.page, params.pageSize);
+      
+      const result = await storage.getStoreSalesPaginated(
+        user.storeId,
+        {
+          limit: params.pageSize,
+          offset,
+          search: params.search,
+          dateFrom: params.dateFrom,
+          dateTo: params.dateTo,
+        }
+      );
+      
+      const response = createPaginatedResponse(
+        result.data,
+        result.total,
+        params.page,
+        params.pageSize
+      );
+      
+      res.json(response);
+    } catch (error) {
+      console.error("Error fetching paginated sales:", error);
+      res.status(500).json({ message: "Failed to fetch sales" });
+    }
+  });
+
+  app.get("/api/store/products/paginated", authStore, async (req, res) => {
+    try {
+      const user = (req as any).user;
+      if (!user.storeId) {
+        return res.status(400).json({ message: "No store assigned" });
+      }
+      
+      const params = parsePaginationParams(req.query);
+      const offset = getOffset(params.page, params.pageSize);
+      
+      const result = await storage.getShopProductsPaginated(
+        user.storeId,
+        {
+          limit: params.pageSize,
+          offset,
+          search: params.search,
+          categoryId: req.query.categoryId as string,
+          colorId: req.query.colorId as string,
+          fabricId: req.query.fabricId as string,
+          dateFrom: params.dateFrom,
+          dateTo: params.dateTo,
+        }
+      );
+      
+      const response = createPaginatedResponse(
+        result.data,
+        result.total,
+        params.page,
+        params.pageSize
+      );
+      
+      res.json(response);
+    } catch (error) {
+      console.error("Error fetching paginated products:", error);
+      res.status(500).json({ message: "Failed to fetch products" });
     }
   });
 
