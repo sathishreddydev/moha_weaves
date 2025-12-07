@@ -584,6 +584,20 @@ const authInventory = createAuthMiddleware(["inventory"]);
 
   app.get("/api/inventory/store-sales", authInventory, async (req, res) => {
     try {
+      const { page, pageSize, search, dateFrom, dateTo } = req.query;
+      
+      if (page && pageSize) {
+        const params = parsePaginationParams(req.query);
+        const result = await storage.getStoreSalesPaginatedInventory({
+          page: params.page,
+          pageSize: params.pageSize,
+          search: search as string,
+          dateFrom: dateFrom as string,
+          dateTo: dateTo as string,
+        });
+        return res.json(result);
+      }
+      
       const storeSales = await storage.getAllStoreSales();
       res.json(storeSales);
     } catch (error) {

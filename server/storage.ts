@@ -1510,6 +1510,84 @@ export class DatabaseStorage implements IStorage {
     return result;
   }
 
+  async getStoreSalesPaginatedInventory(params: {
+    page: number;
+    pageSize: number;
+    search?: string;
+    dateFrom?: string;
+    dateTo?: string;
+  }): Promise<{ data: StoreSaleWithItems[]; total: number; page: number; pageSize: number; totalPages: number }> {
+    const { page, pageSize, search, dateFrom, dateTo } = params;
+    const offset = (page - 1) * pageSize;
+
+    const conditions: any[] = [];
+
+    if (search) {
+      conditions.push(ilike(storeSales.id, `%${search}%`));
+    }
+
+    if (dateFrom) {
+      conditions.push(gte(storeSales.createdAt, new Date(dateFrom)));
+    }
+
+    if (dateTo) {
+      conditions.push(lte(storeSales.createdAt, new Date(dateTo)));
+    }
+
+    const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
+
+    const [countResult] = await db
+      .select({ count: sql<number>`count(*)` })
+      .from(storeSales)
+      .where(whereClause);
+
+    const total = Number(countResult?.count || 0);
+
+    const salesList = await db
+      .select()
+      .from(storeSales)
+      .innerJoin(stores, eq(storeSales.storeId, stores.id))
+      .where(whereClause)
+      .orderBy(desc(storeSales.createdAt))
+      .limit(pageSize)
+      .offset(offset);
+
+    const result: StoreSaleWithItems[] = [];
+
+    for (const row of salesList) {
+      const items = await db
+        .select()
+        .from(storeSaleItems)
+        .innerJoin(sarees, eq(storeSaleItems.sareeId, sarees.id))
+        .leftJoin(categories, eq(sarees.categoryId, categories.id))
+        .leftJoin(colors, eq(sarees.colorId, colors.id))
+        .leftJoin(fabrics, eq(sarees.fabricId, fabrics.id))
+        .where(eq(storeSaleItems.saleId, row.store_sales.id));
+
+      result.push({
+        ...row.store_sales,
+        store: row.stores,
+        items: items.map((itemRow) => ({
+          ...itemRow.store_sale_items,
+          saree: {
+            ...itemRow.sarees,
+            category: itemRow.categories,
+            color: itemRow.colors,
+            fabric: itemRow.fabrics,
+          },
+        })),
+      });
+    }
+
+    return {
+      data: result,
+      total,
+      page,
+      pageSize,
+      totalPages: Math.ceil(total / pageSize),
+    };
+  }
+
   async createStoreSale(sale: InsertStoreSale, items: InsertStoreSaleItem[]): Promise<StoreSale> {
     const [newSale] = await db.insert(storeSales).values(sale).returning();
 

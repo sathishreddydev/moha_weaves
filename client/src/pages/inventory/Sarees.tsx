@@ -1,40 +1,18 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import {
-  Package,
   Plus,
   Edit,
   Trash2,
-  Search,
-  LogOut,
-  Menu,
-  LayoutDashboard,
-  ClipboardList,
-  Truck,
   Eye,
-  BarChart3,
-  Warehouse,
-  Shirt,
   Upload,
   X,
   Video,
-  Image,
-  RotateCcw,
+  Image as ImageIcon,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Skeleton } from "@/components/ui/skeleton";
-import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import {
   Dialog,
   DialogContent,
@@ -43,6 +21,10 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Switch } from "@/components/ui/switch";
 import {
   Select,
   SelectContent,
@@ -50,13 +32,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
-import { Switch } from "@/components/ui/switch";
 import { useAuth } from "@/lib/auth";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+import { DataTable, FilterConfig } from "@/components/ui/data-table";
+import { useDataTable } from "@/hooks/use-data-table";
+import { ColumnDef } from "@tanstack/react-table";
+import { ObjectUploader } from "@/components/ObjectUploader";
 import type {
   SareeWithDetails,
   Category,
@@ -64,7 +47,6 @@ import type {
   Fabric,
   Store,
 } from "@shared/schema";
-import { ObjectUploader } from "@/components/ObjectUploader";
 
 interface StoreAllocation {
   storeId: string;
@@ -89,22 +71,25 @@ interface SareeFormData {
   isActive: boolean;
 }
 
+const formatPrice = (price: string | number) => {
+  const numPrice = typeof price === "string" ? parseFloat(price) : price;
+  return new Intl.NumberFormat("en-IN", {
+    style: "currency",
+    currency: "INR",
+    maximumFractionDigits: 0,
+  }).format(numPrice);
+};
+
 export default function InventorySarees() {
   const navigate = useNavigate();
   const { user, logout } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [searchTerm, setSearchTerm] = useState("");
   const [dialogOpen, setDialogOpen] = useState(false);
-  const [editingSaree, setEditingSaree] = useState<SareeWithDetails | null>(
-    null
-  );
+  const [editingSaree, setEditingSaree] = useState<SareeWithDetails | null>(null);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [deletingSareeId, setDeletingSareeId] = useState<string | null>(null);
-  const [storeAllocations, setStoreAllocations] = useState<StoreAllocation[]>(
-    []
-  );
+  const [storeAllocations, setStoreAllocations] = useState<StoreAllocation[]>([]);
 
   const [formData, setFormData] = useState<SareeFormData>({
     name: "",
@@ -123,10 +108,6 @@ export default function InventorySarees() {
     isActive: true,
   });
 
-  const { data: sarees, isLoading } = useQuery<SareeWithDetails[]>({
-    queryKey: ["/api/inventory/sarees"],
-  });
-
   const { data: categories } = useQuery<Category[]>({
     queryKey: ["/api/categories"],
   });
@@ -141,6 +122,22 @@ export default function InventorySarees() {
 
   const { data: stores } = useQuery<Store[]>({
     queryKey: ["/api/inventory/stores"],
+  });
+
+  const {
+    data: sarees,
+    totalCount,
+    pageIndex,
+    pageSize,
+    isLoading,
+    handlePaginationChange,
+    handleSearchChange,
+    handleFiltersChange,
+    handleDateFilterChange,
+    refetch,
+  } = useDataTable<SareeWithDetails>({
+    queryKey: "/api/inventory/sarees",
+    initialPageSize: 10,
   });
 
   const createMutation = useMutation({
@@ -161,7 +158,7 @@ export default function InventorySarees() {
       return response.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/inventory/sarees"] });
+      refetch();
       toast({ title: "Success", description: "Saree created successfully" });
       handleCloseDialog();
     },
@@ -201,7 +198,7 @@ export default function InventorySarees() {
       return response.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/inventory/sarees"] });
+      refetch();
       toast({ title: "Success", description: "Saree updated successfully" });
       handleCloseDialog();
     },
@@ -219,7 +216,7 @@ export default function InventorySarees() {
       await apiRequest("DELETE", `/api/inventory/sarees/${id}`);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/inventory/sarees"] });
+      refetch();
       toast({ title: "Success", description: "Saree deleted successfully" });
       setDeleteDialogOpen(false);
       setDeletingSareeId(null);
@@ -232,11 +229,6 @@ export default function InventorySarees() {
       });
     },
   });
-
-  const handleLogout = async () => {
-    await logout();
-    navigate("/inventory/login");
-  };
 
   const handleOpenCreate = () => {
     setEditingSaree(null);
@@ -376,19 +368,181 @@ export default function InventorySarees() {
       ? formData.totalStock - totalStoreAllocated
       : formData.totalStock - formData.onlineStock - totalStoreAllocated;
 
-  const formatPrice = (price: string | number) => {
-    const numPrice = typeof price === "string" ? parseFloat(price) : price;
-    return new Intl.NumberFormat("en-IN", {
-      style: "currency",
-      currency: "INR",
-      maximumFractionDigits: 0,
-    }).format(numPrice);
-  };
+  const columns: ColumnDef<SareeWithDetails>[] = useMemo(
+    () => [
+      {
+        accessorKey: "imageUrl",
+        header: "Image",
+        cell: ({ row }) => (
+          <div className="w-12 h-16 rounded overflow-hidden bg-muted">
+            <img
+              src={
+                row.original.imageUrl ||
+                "https://images.unsplash.com/photo-1610030469983-98e550d6193c?w=100"
+              }
+              alt={row.original.name}
+              className="w-full h-full object-cover"
+            />
+          </div>
+        ),
+      },
+      {
+        accessorKey: "name",
+        header: "Name",
+        cell: ({ row }) => (
+          <div className="max-w-[200px]">
+            <span className="font-medium line-clamp-1">{row.original.name}</span>
+            {row.original.isFeatured && (
+              <Badge variant="secondary" className="ml-2 text-xs">
+                Featured
+              </Badge>
+            )}
+          </div>
+        ),
+      },
+      {
+        accessorKey: "sku",
+        header: "SKU",
+        cell: ({ row }) => (
+          <span className="text-muted-foreground font-mono text-sm">
+            {row.original.sku || "-"}
+          </span>
+        ),
+      },
+      {
+        accessorKey: "category",
+        header: "Category",
+        cell: ({ row }) => row.original.category?.name || "-",
+      },
+      {
+        accessorKey: "color",
+        header: "Color",
+        cell: ({ row }) => row.original.color?.name || "-",
+      },
+      {
+        accessorKey: "fabric",
+        header: "Fabric",
+        cell: ({ row }) => row.original.fabric?.name || "-",
+      },
+      {
+        accessorKey: "price",
+        header: "Price",
+        cell: ({ row }) => formatPrice(row.original.price),
+      },
+      {
+        accessorKey: "totalStock",
+        header: "Stock",
+        cell: ({ row }) => (
+          <div className="text-sm">
+            <span
+              className={
+                row.original.totalStock < 10 ? "text-destructive" : ""
+              }
+            >
+              {row.original.totalStock} total
+            </span>
+            <br />
+            <span className="text-muted-foreground">
+              {row.original.onlineStock} online
+            </span>
+          </div>
+        ),
+      },
+      {
+        accessorKey: "distributionChannel",
+        header: "Channel",
+        cell: ({ row }) => (
+          <Badge variant="outline" className="capitalize">
+            {row.original.distributionChannel}
+          </Badge>
+        ),
+      },
+      {
+        accessorKey: "isActive",
+        header: "Status",
+        cell: ({ row }) => (
+          <Badge variant={row.original.isActive ? "default" : "secondary"}>
+            {row.original.isActive ? "Active" : "Inactive"}
+          </Badge>
+        ),
+      },
+      {
+        id: "actions",
+        header: "Actions",
+        cell: ({ row }) => (
+          <div className="flex items-center gap-2">
+            <Link to={`/sarees/${row.original.id}`}>
+              <Button
+                variant="ghost"
+                size="icon"
+                data-testid={`button-view-${row.original.id}`}
+              >
+                <Eye className="h-4 w-4" />
+              </Button>
+            </Link>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => handleOpenEdit(row.original)}
+              data-testid={`button-edit-${row.original.id}`}
+            >
+              <Edit className="h-4 w-4" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="text-destructive"
+              onClick={() => {
+                setDeletingSareeId(row.original.id);
+                setDeleteDialogOpen(true);
+              }}
+              data-testid={`button-delete-${row.original.id}`}
+            >
+              <Trash2 className="h-4 w-4" />
+            </Button>
+          </div>
+        ),
+      },
+    ],
+    []
+  );
 
-  const filteredSarees = sarees?.filter(
-    (saree) =>
-      saree.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      saree.sku?.toLowerCase().includes(searchTerm.toLowerCase())
+  const filters: FilterConfig[] = useMemo(
+    () => [
+      {
+        key: "category",
+        label: "Category",
+        options: (categories || []).map((cat) => ({
+          label: cat.name,
+          value: cat.id,
+        })),
+      },
+      {
+        key: "color",
+        label: "Color",
+        options: (colors || []).map((col) => ({
+          label: col.name,
+          value: col.id,
+        })),
+      },
+      {
+        key: "fabric",
+        label: "Fabric",
+        options: (fabrics || []).map((fab) => ({
+          label: fab.name,
+          value: fab.id,
+        })),
+      },
+      {
+        key: "status",
+        label: "Status",
+        options: [
+          { label: "Active", value: "active" },
+          { label: "Inactive", value: "inactive" },
+        ],
+      },
+    ],
+    [categories, colors, fabrics]
   );
 
   return (
@@ -396,10 +550,7 @@ export default function InventorySarees() {
       <div className="max-w-7xl mx-auto">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
           <div>
-            <h1
-              className="text-2xl font-semibold"
-              data-testid="text-page-title"
-            >
+            <h1 className="text-2xl font-semibold" data-testid="text-page-title">
               Sarees
             </h1>
             <p className="text-muted-foreground">Manage saree inventory</p>
@@ -412,138 +563,22 @@ export default function InventorySarees() {
 
         <Card>
           <CardContent className="p-4">
-            <div className="flex items-center gap-4 mb-4">
-              <div className="relative flex-1 max-w-sm">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input
-                  placeholder="Search sarees..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-9"
-                  data-testid="input-search"
-                />
-              </div>
-            </div>
-
-            {isLoading ? (
-              <div className="space-y-3">
-                {[...Array(5)].map((_, i) => (
-                  <Skeleton key={i} className="h-16" />
-                ))}
-              </div>
-            ) : (
-              <div className="overflow-x-auto">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Image</TableHead>
-                      <TableHead>Name</TableHead>
-                      <TableHead>SKU</TableHead>
-                      <TableHead>Category</TableHead>
-                      <TableHead>Price</TableHead>
-                      <TableHead>Stock</TableHead>
-                      <TableHead>Channel</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead className="text-right">Actions</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {filteredSarees?.map((saree) => (
-                      <TableRow
-                        key={saree.id}
-                        data-testid={`row-saree-${saree.id}`}
-                      >
-                        <TableCell>
-                          <div className="w-12 h-16 rounded overflow-hidden bg-muted">
-                            <img
-                              src={
-                                saree.imageUrl ||
-                                "https://images.unsplash.com/photo-1610030469983-98e550d6193c?w=100"
-                              }
-                              alt={saree.name}
-                              className="w-full h-full object-cover"
-                            />
-                          </div>
-                        </TableCell>
-                        <TableCell className="font-medium max-w-[200px] truncate">
-                          {saree.name}
-                          {saree.isFeatured && (
-                            <Badge variant="secondary" className="ml-2 text-xs">
-                              Featured
-                            </Badge>
-                          )}
-                        </TableCell>
-                        <TableCell className="text-muted-foreground">
-                          {saree.sku || "-"}
-                        </TableCell>
-                        <TableCell>{saree.category?.name || "-"}</TableCell>
-                        <TableCell>{formatPrice(saree.price)}</TableCell>
-                        <TableCell>
-                          <div className="text-sm">
-                            <span
-                              className={
-                                saree.totalStock < 10 ? "text-destructive" : ""
-                              }
-                            >
-                              {saree.totalStock} total
-                            </span>
-                            <br />
-                            <span className="text-muted-foreground">
-                              {saree.onlineStock} online
-                            </span>
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          <Badge variant="outline" className="capitalize">
-                            {saree.distributionChannel}
-                          </Badge>
-                        </TableCell>
-                        <TableCell>
-                          <Badge
-                            variant={saree.isActive ? "default" : "secondary"}
-                          >
-                            {saree.isActive ? "Active" : "Inactive"}
-                          </Badge>
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex items-center justify-end gap-2">
-                            <Link to={`/sarees/${saree.id}`}>
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                data-testid={`button-view-${saree.id}`}
-                              >
-                                <Eye className="h-4 w-4" />
-                              </Button>
-                            </Link>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              onClick={() => handleOpenEdit(saree)}
-                              data-testid={`button-edit-${saree.id}`}
-                            >
-                              <Edit className="h-4 w-4" />
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="text-destructive"
-                              onClick={() => {
-                                setDeletingSareeId(saree.id);
-                                setDeleteDialogOpen(true);
-                              }}
-                              data-testid={`button-delete-${saree.id}`}
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </div>
-            )}
+            <DataTable
+              columns={columns}
+              data={sarees}
+              totalCount={totalCount}
+              pageIndex={pageIndex}
+              pageSize={pageSize}
+              onPaginationChange={handlePaginationChange}
+              onSearchChange={handleSearchChange}
+              onFiltersChange={handleFiltersChange}
+              onDateFilterChange={handleDateFilterChange}
+              isLoading={isLoading}
+              searchPlaceholder="Search sarees..."
+              filters={filters}
+              dateFilter={{ key: "date", label: "Filter by date" }}
+              emptyMessage="No sarees found"
+            />
           </CardContent>
         </Card>
       </div>
@@ -911,7 +946,7 @@ export default function InventorySarees() {
                       });
                     }}
                   >
-                    <Image className="h-4 w-4 mr-2" />
+                    <ImageIcon className="h-4 w-4 mr-2" />
                     Upload Images (Max 5)
                   </ObjectUploader>
                 </div>
