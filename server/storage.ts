@@ -1316,6 +1316,45 @@ export class DatabaseStorage implements IStorage {
     return result || undefined;
   }
 
+  async getShopAvailableProducts(storeId: string): Promise<{ saree: SareeWithDetails; storeStock: number }[]> {
+    const result = await db
+      .select()
+      .from(storeInventory)
+      .innerJoin(sarees, eq(storeInventory.sareeId, sarees.id))
+      .leftJoin(categories, eq(sarees.categoryId, categories.id))
+      .leftJoin(colors, eq(sarees.colorId, colors.id))
+      .leftJoin(fabrics, eq(sarees.fabricId, fabrics.id))
+      .where(eq(storeInventory.storeId, storeId));
+
+    return result.map((row) => ({
+      saree: {
+        ...row.sarees,
+        category: row.categories,
+        color: row.colors,
+        fabric: row.fabrics,
+      },
+      storeStock: row.store_inventory.quantity,
+    }));
+  }
+
+  async updateStoreInventory(storeId: string, sareeId: string, quantity: number): Promise<StoreInventory> {
+    const [result] = await db
+      .update(storeInventory)
+      .set({ quantity, updatedAt: new Date() })
+      .where(and(eq(storeInventory.storeId, storeId), eq(storeInventory.sareeId, sareeId)))
+      .returning();
+
+    if (!result) {
+      // If no existing record, insert a new one
+      const [inserted] = await db
+        .insert(storeInventory)
+        .values({ storeId, sareeId, quantity, createdAt: new Date(), updatedAt: new Date() })
+        .returning();
+      return inserted;
+    }
+    return result;
+  }
+
   async getStoreSales(storeId: string, limit?: number): Promise<StoreSaleWithItems[]> {
     let query = db
       .select()
@@ -1434,7 +1473,7 @@ export class DatabaseStorage implements IStorage {
     };
   }
 
-  async getAllStoreSales(): Promise<StoreSaleWithItems[]> {
+  async getAllStoreSales(): Promise<StoreSaleWithItems[]>{
     const salesList = await db
       .select()
       .from(storeSales)
