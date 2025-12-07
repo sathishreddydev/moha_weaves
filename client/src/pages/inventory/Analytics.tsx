@@ -123,7 +123,6 @@ export default function InventoryAnalytics() {
     { name: "Online", value: stats?.totalOnlineCleared || 0, color: "#3b82f6" },
     { name: "Store", value: stats?.totalStoreCleared || 0, color: "#22c55e" },
   ];
-console.log(pieData, 'pieData');
   const topOnlineProducts = stats
     ? getTopProducts(stats.onlineMovements, 10)
     : [];

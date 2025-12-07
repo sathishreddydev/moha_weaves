@@ -93,7 +93,6 @@ export const addressRoutes = (app: Express) => {
        // const pincode = await storage.checkPincodeAvailability(req.params.pincode);
        const info = postalcodes.find(req.params.pincode);
        
-      console.log("Pincode info:", info);
        if (info) {
          res.json({
            available: info.isValid,

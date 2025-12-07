@@ -20,10 +20,6 @@ async function createAdmin() {
       isActive: true,
     }).returning();
 
-    console.log("✅ Admin user created successfully!");
-    console.log("Email:", admin.email);
-    console.log("Password:", password);
-    console.log("\nYou can now login at /admin/login");
     process.exit(0);
   } catch (error: any) {
     if (error.message?.includes("unique")) {

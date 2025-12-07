@@ -1,47 +1,28 @@
-import { Link, Outlet } from "react-router-dom";
+import { Outlet } from "react-router-dom";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { Menu } from "lucide-react";
 import { useState } from "react";
-import { useAuth } from "@/lib/auth";
-import { useIsMobile } from "@/hooks/use-mobile";
 import StoreHeader from "./Header";
 import { StoreSidebar } from "./SideBar";
 
 export default function StoreLayout() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const { user } = useAuth();
-  const isMobile = useIsMobile();
-
-  if (!user || user.role !== "store") {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <h2 className="text-xl font-semibold mb-4">Access Denied</h2>
-          <Link to="/store/login">
-            <Button>Go to Store Login</Button>
-          </Link>
-        </div>
-      </div>
-    );
-  }
 
   return (
-    <div className="min-h-screen bg-muted/30 flex flex-col"> 
+    <div className="min-h-screen bg-muted/30 flex flex-col">
       <StoreHeader>
-        {isMobile && (
-          <Sheet open={sidebarOpen} onOpenChange={setSidebarOpen}>
-            <SheetTrigger asChild>
-              <Button variant="ghost" size="icon" className="lg:hidden">
-                <Menu className="h-5 w-5" />
-              </Button>
-            </SheetTrigger>
+        <Sheet open={sidebarOpen} onOpenChange={setSidebarOpen}>
+          <SheetTrigger asChild>
+            <Button variant="ghost" size="icon" className="lg:hidden">
+              <Menu className="h-5 w-5" />
+            </Button>
+          </SheetTrigger>
 
-            <SheetContent side="left" className="p-0 w-64">
-              <StoreSidebar />
-            </SheetContent>
-          </Sheet>
-        )}
+          <SheetContent side="left" className="p-0 w-64 lg:hidden">
+            <StoreSidebar />
+          </SheetContent>
+        </Sheet>
       </StoreHeader>
 
       <div className="flex flex-1">
@@ -56,5 +37,3 @@ export default function StoreLayout() {
     </div>
   );
 }
-
-
