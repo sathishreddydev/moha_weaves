@@ -10,29 +10,33 @@ export default function InventoryLayout() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   return (
-    <div className="min-h-screen bg-muted/30 flex flex-col">
-      <InventoryHeader>
-        <Sheet open={sidebarOpen} onOpenChange={setSidebarOpen}>
-          <SheetTrigger asChild>
-            <Button variant="ghost" size="icon" className="lg:hidden">
-              <Menu className="h-5 w-5" />
-            </Button>
-          </SheetTrigger>
+    <div className="min-h-screen bg-muted/30">
+      <div className="scale-[0.8] origin-top-left w-[125%]">
+        <div className="min-h-screen flex flex-col">
+          <InventoryHeader>
+            <Sheet open={sidebarOpen} onOpenChange={setSidebarOpen}>
+              <SheetTrigger asChild>
+                <Button variant="ghost" size="icon" className="lg:hidden">
+                  <Menu className="h-5 w-5" />
+                </Button>
+              </SheetTrigger>
 
-          <SheetContent side="left" className="p-0 w-64">
-            <InventorySidebar />
-          </SheetContent>
-        </Sheet>
-      </InventoryHeader>
+              <SheetContent side="left" className="p-0 w-64">
+                <InventorySidebar />
+              </SheetContent>
+            </Sheet>
+          </InventoryHeader>
 
-      <div className="flex flex-1">
-        <aside className="hidden lg:block w-64 border-r bg-background h-[calc(100vh-64px)] sticky top-16">
-          <InventorySidebar />
-        </aside>
+          <div className="flex flex-1">
+            <aside className="hidden lg:block w-64 border-r bg-white sticky top-16">
+              <InventorySidebar />
+            </aside>
 
-        <main className="flex-1 p-6 overflow-auto">
-          <Outlet />
-        </main>
+            <main className="flex-1 p-6 overflow-auto">
+              <Outlet />
+            </main>
+          </div>
+        </div>
       </div>
     </div>
   );

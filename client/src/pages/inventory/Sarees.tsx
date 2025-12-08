@@ -774,14 +774,14 @@ export default function InventorySarees() {
           value: fab.id,
         })),
       },
-      {
-        key: "status",
-        label: "Status",
-        options: [
-          { label: "Active", value: "active" },
-          { label: "Inactive", value: "inactive" },
-        ],
-      },
+      // {
+      //   key: "status",
+      //   label: "Status",
+      //   options: [
+      //     { label: "Active", value: "active" },
+      //     { label: "Inactive", value: "inactive" },
+      //   ],
+      // },
     ],
     [categories, colors, fabrics]
   );

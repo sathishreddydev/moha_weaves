@@ -16,11 +16,11 @@ export function InventorySidebar() {
     <div className="flex flex-col h-full">
       <nav className="flex-1 p-4 space-y-1">
         {NavItems.map((item) => {
-          const isActive = location.pathname === item.href; // check if current page
+          const isActive = location.pathname === item.href; 
           return (
             <Button
               key={item.href}
-              variant={isActive ? "secondary" : "ghost"} // active style
+              variant={isActive ? "secondary" : "ghost"} 
               className="w-full justify-start gap-3"
               data-testid={`nav-${item.label.toLowerCase().replace(/\s/g, "-")}`}
               onClick={() => handleNavigation(item.href)}

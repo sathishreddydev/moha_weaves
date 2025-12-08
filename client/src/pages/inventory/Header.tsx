@@ -21,7 +21,6 @@ export default function InventoryHeader({ children }: { children: React.ReactNod
 
   return (
     <header className="w-full h-16 border-b bg-background flex items-center justify-between px-4 sticky top-0 z-20">
-      
       <div className="flex items-center gap-2">
         {children}
         {<h1 className="font-serif text-lg font-semibold text-primary">Moha Inventory</h1>}
