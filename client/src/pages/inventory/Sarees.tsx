@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useRef } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import {
   Plus,
@@ -9,7 +9,13 @@ import {
   X,
   Video,
   Image as ImageIcon,
+  Printer,
+  Download,
 } from "lucide-react";
+import Barcode from "react-barcode";
+import * as XLSX from "xlsx";
+import { saveAs } from "file-saver";
+import jsPDF from "jspdf";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -90,6 +96,9 @@ export default function InventorySarees() {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [deletingSareeId, setDeletingSareeId] = useState<string | null>(null);
   const [storeAllocations, setStoreAllocations] = useState<StoreAllocation[]>([]);
+  const [printDialogOpen, setPrintDialogOpen] = useState(false);
+  const [printingSaree, setPrintingSaree] = useState<SareeWithDetails | null>(null);
+  const printRef = useRef<HTMLDivElement>(null);
 
   const [formData, setFormData] = useState<SareeFormData>({
     name: "",
@@ -368,6 +377,105 @@ export default function InventorySarees() {
       ? formData.totalStock - totalStoreAllocated
       : formData.totalStock - formData.onlineStock - totalStoreAllocated;
 
+  const handlePrintBarcode = (saree: SareeWithDetails) => {
+    setPrintingSaree(saree);
+    setPrintDialogOpen(true);
+  };
+
+  const handlePrint = () => {
+    if (!printRef.current) return;
+
+    const printContent = printRef.current.innerHTML;
+    const printWindow = window.open("", "_blank");
+    if (printWindow) {
+      printWindow.document.write(`
+        <html>
+          <head>
+            <title>Print Product Details</title>
+            <style>
+              body { font-family: Arial, sans-serif; padding: 20px; }
+              .product-details { max-width: 800px; margin: 0 auto; }
+              h1 { text-align: center; margin-bottom: 20px; }
+              .detail-row { display: flex; justify-content: space-between; margin: 10px 0; padding: 8px; border-bottom: 1px solid #eee; }
+              .label { font-weight: bold; }
+              .barcode-container { text-align: center; margin: 20px 0; }
+              @media print {
+                body { padding: 0; }
+              }
+            </style>
+          </head>
+          <body>${printContent}</body>
+        </html>
+      `);
+      printWindow.document.close();
+      setTimeout(() => {
+        printWindow.print();
+        printWindow.close();
+      }, 250);
+    }
+  };
+
+  const handleDownloadExcel = () => {
+    if (!sarees || sarees.length === 0) {
+      toast({
+        title: "No Data",
+        description: "No sarees to download",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const excelData = sarees.map((saree) => ({
+      SKU: saree.sku || "-",
+      Name: saree.name,
+      Category: saree.category?.name || "-",
+      Color: saree.color?.name || "-",
+      Fabric: saree.fabric?.name || "-",
+      Price: saree.price,
+      "Total Stock": saree.totalStock,
+      "Online Stock": saree.onlineStock,
+      "Distribution Channel": saree.distributionChannel,
+      Status: saree.isActive ? "Active" : "Inactive",
+      Featured: saree.isFeatured ? "Yes" : "No",
+      Description: saree.description || "-",
+    }));
+
+    const worksheet = XLSX.utils.json_to_sheet(excelData);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Sarees");
+
+    // Set column widths
+    const columnWidths = [
+      { wch: 15 }, // SKU
+      { wch: 30 }, // Name
+      { wch: 15 }, // Category
+      { wch: 15 }, // Color
+      { wch: 15 }, // Fabric
+      { wch: 10 }, // Price
+      { wch: 12 }, // Total Stock
+      { wch: 12 }, // Online Stock
+      { wch: 18 }, // Distribution Channel
+      { wch: 10 }, // Status
+      { wch: 10 }, // Featured
+      { wch: 40 }, // Description
+    ];
+    worksheet["!cols"] = columnWidths;
+
+    const excelBuffer = XLSX.write(workbook, {
+      bookType: "xlsx",
+      type: "array",
+    });
+    const data = new Blob([excelBuffer], {
+      type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    });
+    saveAs(data, `sarees_inventory_${new Date().toISOString().split("T")[0]}.xlsx`);
+
+    toast({
+      title: "Success",
+      description: "Excel file downloaded successfully",
+    });
+  };
+
   const columns: ColumnDef<SareeWithDetails>[] = useMemo(
     () => [
       {
@@ -467,6 +575,21 @@ export default function InventorySarees() {
         ),
       },
       {
+        id: "print",
+        header: "Print",
+        cell: ({ row }) => (
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => handlePrintBarcode(row.original)}
+            data-testid={`button-print-${row.original.id}`}
+            title="Print with Barcode"
+          >
+            <Printer className="h-4 w-4" />
+          </Button>
+        ),
+      },
+      {
         id: "actions",
         header: "Actions",
         cell: ({ row }) => (
@@ -555,10 +678,20 @@ export default function InventorySarees() {
             </h1>
             <p className="text-muted-foreground">Manage saree inventory</p>
           </div>
-          <Button onClick={handleOpenCreate} data-testid="button-add-saree">
-            <Plus className="h-4 w-4 mr-2" />
-            Add Saree
-          </Button>
+          <div className="flex gap-2">
+            <Button
+              variant="outline"
+              onClick={handleDownloadExcel}
+              data-testid="button-download-excel"
+            >
+              <Download className="h-4 w-4 mr-2" />
+              Download Excel
+            </Button>
+            <Button onClick={handleOpenCreate} data-testid="button-add-saree">
+              <Plus className="h-4 w-4 mr-2" />
+              Add Saree
+            </Button>
+          </div>
         </div>
 
         <Card>
@@ -1071,6 +1204,82 @@ export default function InventorySarees() {
               data-testid="button-confirm-delete"
             >
               {deleteMutation.isPending ? "Deleting..." : "Delete"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={printDialogOpen} onOpenChange={setPrintDialogOpen}>
+        <DialogContent className="max-w-3xl">
+          <DialogHeader>
+            <DialogTitle>Print Product Details with Barcode</DialogTitle>
+          </DialogHeader>
+          {printingSaree && (
+            <div ref={printRef} className="product-details">
+              <h1 className="text-xl font-bold text-center mb-4">
+                Product Details
+              </h1>
+              <div className="space-y-3">
+                <div className="detail-row flex justify-between border-b pb-2">
+                  <span className="label font-semibold">SKU:</span>
+                  <span>{printingSaree.sku || "-"}</span>
+                </div>
+                <div className="detail-row flex justify-between border-b pb-2">
+                  <span className="label font-semibold">Name:</span>
+                  <span>{printingSaree.name}</span>
+                </div>
+                <div className="detail-row flex justify-between border-b pb-2">
+                  <span className="label font-semibold">Category:</span>
+                  <span>{printingSaree.category?.name || "-"}</span>
+                </div>
+                <div className="detail-row flex justify-between border-b pb-2">
+                  <span className="label font-semibold">Color:</span>
+                  <span>{printingSaree.color?.name || "-"}</span>
+                </div>
+                <div className="detail-row flex justify-between border-b pb-2">
+                  <span className="label font-semibold">Fabric:</span>
+                  <span>{printingSaree.fabric?.name || "-"}</span>
+                </div>
+                <div className="detail-row flex justify-between border-b pb-2">
+                  <span className="label font-semibold">Price:</span>
+                  <span>{formatPrice(printingSaree.price)}</span>
+                </div>
+                <div className="detail-row flex justify-between border-b pb-2">
+                  <span className="label font-semibold">Total Stock:</span>
+                  <span>{printingSaree.totalStock}</span>
+                </div>
+                <div className="detail-row flex justify-between border-b pb-2">
+                  <span className="label font-semibold">Online Stock:</span>
+                  <span>{printingSaree.onlineStock}</span>
+                </div>
+                <div className="detail-row flex justify-between border-b pb-2">
+                  <span className="label font-semibold">Distribution Channel:</span>
+                  <span className="capitalize">{printingSaree.distributionChannel}</span>
+                </div>
+                {printingSaree.description && (
+                  <div className="detail-row flex justify-between border-b pb-2">
+                    <span className="label font-semibold">Description:</span>
+                    <span className="text-right max-w-md">{printingSaree.description}</span>
+                  </div>
+                )}
+              </div>
+              <div className="barcode-container mt-6 flex justify-center">
+                <Barcode
+                  value={printingSaree.sku || printingSaree.id}
+                  width={2}
+                  height={60}
+                  displayValue={true}
+                />
+              </div>
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setPrintDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button onClick={handlePrint}>
+              <Printer className="h-4 w-4 mr-2" />
+              Print
             </Button>
           </DialogFooter>
         </DialogContent>
