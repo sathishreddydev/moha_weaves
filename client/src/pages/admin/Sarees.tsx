@@ -107,9 +107,7 @@ export default function AdminSarees() {
         cell: ({ row }) => (
           <span
             className={
-              row.original.totalStock < 10
-                ? "text-destructive font-medium"
-                : ""
+              row.original.totalStock < 10 ? "text-destructive font-medium" : ""
             }
           >
             {row.original.totalStock}
@@ -198,9 +196,6 @@ export default function AdminSarees() {
               View saree inventory details (read-only)
             </p>
           </div>
-          <Badge variant="secondary" className="text-sm">
-            To add/edit sarees, use the Inventory module
-          </Badge>
         </div>
 
         <Card>
@@ -292,14 +287,19 @@ export default function AdminSarees() {
                   </p>
                   <p className="text-xs text-muted-foreground">Online Stock</p>
                 </div>
-                <div className="p-3 bg-muted rounded-lg text-center">
-                  <p className="text-2xl font-bold text-green-600">
-                    {viewingSaree.totalStock - viewingSaree.onlineStock}
-                  </p>
-                  <p className="text-xs text-muted-foreground">
-                    Store/Warehouse
-                  </p>
-                </div>
+                {viewingSaree?.storeAllocations?.map((item, index) => (
+                  <div
+                    key={index}
+                    className="p-3 bg-muted rounded-lg text-center"
+                  >
+                    <p className="text-2xl font-bold text-green-600">
+                      {item.quantity}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      {item.storeName ? item.storeName : "Store/Warehouse"}
+                    </p>
+                  </div>
+                ))}
               </div>
 
               <div className="grid grid-cols-3 gap-4 text-sm">
