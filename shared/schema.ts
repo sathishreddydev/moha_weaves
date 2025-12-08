@@ -716,6 +716,11 @@ export type SareeWithDetails = Saree & {
   category?: Category | null;
   color?: Color | null;
   fabric?: Fabric | null;
+  storeAllocations?: {
+    storeId: string;
+    storeName: string;
+    quantity: number;
+  }[];
 };
 
 export type CartItemWithSaree = CartItem & {

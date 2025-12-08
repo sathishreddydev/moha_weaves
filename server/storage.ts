@@ -1206,11 +1206,38 @@ async getStockDistribution(): Promise<{
       .limit(pageSize)
       .offset(offset);
 
-    const sareeList = result.map((row) => ({
-      ...row.sarees,
-      category: row.categories,
-      color: row.colors,
-      fabric: row.fabrics,
+    const sareeList = await Promise.all(result.map(async (row) => {
+      // Get store allocations for this saree
+      const allocations = await db
+        .select({
+          storeId: storeInventory.storeId,
+          quantity: storeInventory.quantity,
+        })
+        .from(storeInventory)
+        .where(eq(storeInventory.sareeId, row.sarees.id));
+
+      // Get store details for each allocation
+      const storeAllocations = await Promise.all(
+        allocations.map(async (alloc) => {
+          const [store] = await db
+            .select()
+            .from(stores)
+            .where(eq(stores.id, alloc.storeId));
+          return {
+            storeId: alloc.storeId,
+            storeName: store?.name || "Unknown",
+            quantity: alloc.quantity,
+          };
+        })
+      );
+
+      return {
+        ...row.sarees,
+        category: row.categories,
+        color: row.colors,
+        fabric: row.fabrics,
+        storeAllocations,
+      };
     }));
 
     return {
