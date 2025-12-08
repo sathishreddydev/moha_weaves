@@ -1,72 +1,102 @@
-import { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { useState, useMemo } from "react";
+import { useNavigate } from "react-router-dom";
 import {
   Package,
-  Search,
-  LogOut,
-  Menu,
-  LayoutDashboard,
-  ClipboardList,
-  Truck,
   Globe,
   Store,
-  BarChart3,
-  ChevronDown,
-  ChevronUp,
   Warehouse,
-  Shirt,
-  RotateCcw,
 } from "lucide-react";
-import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
-import { Skeleton } from "@/components/ui/skeleton";
-import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
-import { Progress } from "@/components/ui/progress";
-import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from "@/components/ui/collapsible";
 import { useAuth } from "@/lib/auth";
 import { useQuery } from "@tanstack/react-query";
-import type { SareeWithDetails, Store as StoreType } from "@shared/schema";
+import { DataTable, FilterConfig } from "@/components/ui/data-table";
+import { useDataTable } from "@/hooks/use-data-table";
+import { ColumnDef } from "@tanstack/react-table";
+import type { SareeWithDetails, Store as StoreType, Category } from "@shared/schema";
 
-interface StockDistributionItem {
-  saree: SareeWithDetails;
-  totalStock: number;
-  onlineStock: number;
-  storeAllocations: { store: StoreType; quantity: number }[];
+interface StoreAllocation {
+  storeId: string;
+  storeName: string;
+  quantity: number;
+}
+
+interface StockDistributionRow extends SareeWithDetails {
   unallocated: number;
+  storeAllocations: StoreAllocation[];
 }
 
 export default function StockDistribution() {
   const navigate = useNavigate();
   const { user, logout } = useAuth();
-  const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [searchTerm, setSearchTerm] = useState("");
-  const [expandedItems, setExpandedItems] = useState<Set<string>>(new Set());
 
-  const { data: distribution, isLoading } = useQuery<StockDistributionItem[]>({
-    queryKey: ["/api/inventory/stock-distribution"],
+  // Fetch stores to build dynamic columns
+  const { data: stores } = useQuery<StoreType[]>({
+    queryKey: ["/api/inventory/stores"],
     enabled: !!user && user.role === "inventory",
   });
 
-  const handleLogout = async () => {
-    await logout();
-    navigate("/inventory/login");
-  };
+  // Fetch categories for filtering
+  const { data: categories } = useQuery<Category[]>({
+    queryKey: ["/api/categories"],
+  });
 
-  const toggleExpand = (sareeId: string) => {
-    const newExpanded = new Set(expandedItems);
-    if (newExpanded.has(sareeId)) {
-      newExpanded.delete(sareeId);
-    } else {
-      newExpanded.add(sareeId);
-    }
-    setExpandedItems(newExpanded);
-  };
+  const {
+    data: sarees,
+    totalCount,
+    pageIndex,
+    pageSize,
+    isLoading,
+    handlePaginationChange,
+    handleSearchChange,
+    handleFiltersChange,
+    handleDateFilterChange,
+    refetch,
+  } = useDataTable<SareeWithDetails>({
+    queryKey: "/api/inventory/sarees",
+    initialPageSize: 10,
+  });
+
+  // Fetch allocations for each saree and calculate unallocated stock
+  const { data: distributionData, isLoading: isLoadingAllocations } = useQuery({
+    queryKey: ["/api/inventory/stock-distribution", sarees],
+    queryFn: async () => {
+      if (!sarees || sarees.length === 0) return [];
+
+      const results = await Promise.all(
+        sarees.map(async (saree) => {
+          try {
+            const response = await fetch(
+              `/api/inventory/sarees/${saree.id}/allocations`,
+              { credentials: "include" }
+            );
+            const allocations: StoreAllocation[] = await response.json();
+
+            const totalStoreStock = allocations.reduce(
+              (sum, a) => sum + a.quantity,
+              0
+            );
+            const unallocated =
+              saree.totalStock - saree.onlineStock - totalStoreStock;
+
+            return {
+              ...saree,
+              unallocated: Math.max(0, unallocated),
+              storeAllocations: allocations,
+            };
+          } catch (error) {
+            return {
+              ...saree,
+              unallocated: 0,
+              storeAllocations: [],
+            };
+          }
+        })
+      );
+
+      return results;
+    },
+    enabled: !!sarees && sarees.length > 0,
+  });
 
   const formatPrice = (price: string | number) => {
     const numPrice = typeof price === "string" ? parseFloat(price) : price;
@@ -77,28 +107,132 @@ export default function StockDistribution() {
     }).format(numPrice);
   };
 
-  const filteredDistribution = distribution?.filter(
-    (item) =>
-      item.saree.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      item.saree.sku?.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  // Build dynamic columns including store columns
+  const columns: ColumnDef<StockDistributionRow>[] = useMemo(() => {
+    const baseColumns: ColumnDef<StockDistributionRow>[] = [
+      {
+        accessorKey: "sku",
+        header: "SKU",
+        cell: ({ row }) => (
+          <span className="font-mono text-sm">
+            {row.original.sku || "-"}
+          </span>
+        ),
+      },
+      {
+        accessorKey: "name",
+        header: "Saree Name",
+        cell: ({ row }) => (
+          <div className="max-w-[200px]">
+            <span className="font-medium line-clamp-1">{row.original.name}</span>
+          </div>
+        ),
+      },
+      {
+        accessorKey: "price",
+        header: "Price",
+        cell: ({ row }) => formatPrice(row.original.price),
+      },
+      {
+        accessorKey: "category",
+        header: "Category",
+        cell: ({ row }) => row.original.category?.name || "-",
+      },
+      {
+        accessorKey: "totalStock",
+        header: "Total Stock",
+        cell: ({ row }) => (
+          <span className="font-medium">{row.original.totalStock}</span>
+        ),
+      },
+      {
+        accessorKey: "unallocated",
+        header: "Unallocated",
+        cell: ({ row }) => (
+          <div className="flex items-center gap-1">
+            <Warehouse className="h-4 w-4 text-orange-500" />
+            <span className={row.original.unallocated > 0 ? "text-orange-600" : ""}>
+              {row.original.unallocated}
+            </span>
+          </div>
+        ),
+      },
+      {
+        accessorKey: "onlineStock",
+        header: "Online",
+        cell: ({ row }) => (
+          <div className="flex items-center gap-1">
+            <Globe className="h-4 w-4 text-blue-500" />
+            <span className="text-blue-600">{row.original.onlineStock}</span>
+          </div>
+        ),
+      },
+    ];
 
-  const totalProducts = distribution?.length || 0;
+    // Add dynamic store columns
+    const storeColumns: ColumnDef<StockDistributionRow>[] = (stores || []).map(
+      (store) => ({
+        id: `store-${store.id}`,
+        header: store.name,
+        cell: ({ row }) => {
+          const allocation = row.original.storeAllocations?.find(
+            (a) => a.storeId === store.id
+          );
+          const quantity = allocation?.quantity || 0;
+          return (
+            <div className="flex items-center gap-1">
+              <Store className="h-4 w-4 text-green-500" />
+              <span className={quantity > 0 ? "text-green-600" : "text-muted-foreground"}>
+                {quantity}
+              </span>
+            </div>
+          );
+        },
+      })
+    );
+
+    return [...baseColumns, ...storeColumns];
+  }, [stores]);
+
+  // Calculate summary statistics
+  const totalProducts = distributionData?.length || 0;
   const totalStock =
-    distribution?.reduce((sum, item) => sum + item.totalStock, 0) || 0;
+    distributionData?.reduce((sum, item) => sum + item.totalStock, 0) || 0;
   const totalOnline =
-    distribution?.reduce((sum, item) => sum + item.onlineStock, 0) || 0;
+    distributionData?.reduce((sum, item) => sum + item.onlineStock, 0) || 0;
   const totalStoreAllocated =
-    distribution?.reduce(
+    distributionData?.reduce(
       (sum, item) =>
         sum + item.storeAllocations.reduce((s, a) => s + a.quantity, 0),
       0
     ) || 0;
   const totalUnallocated =
-    distribution?.reduce((sum, item) => sum + item.unallocated, 0) || 0;
+    distributionData?.reduce((sum, item) => sum + item.unallocated, 0) || 0;
+
+  const filters: FilterConfig[] = useMemo(
+    () => [
+      {
+        key: "category",
+        label: "Category",
+        options: (categories || []).map((cat) => ({
+          label: cat.name,
+          value: cat.id,
+        })),
+      },
+      {
+        key: "status",
+        label: "Status",
+        options: [
+          { label: "Active", value: "active" },
+          { label: "Inactive", value: "inactive" },
+        ],
+      },
+    ],
+    [categories]
+  );
 
   return (
-    <div className="max-w-7xl mx-auto">
+    <div className="max-w-full mx-auto">
       <div className="mb-8">
         <h1 className="text-2xl font-semibold" data-testid="text-page-title">
           Stock Distribution
@@ -197,230 +331,26 @@ export default function StockDistribution() {
         </Card>
       </div>
 
-      {/* Search */}
-      <Card className="mb-6">
+      {/* Data Table */}
+      <Card>
         <CardContent className="p-4">
-          <div className="relative max-w-sm">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="Search by name or SKU..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-9"
-              data-testid="input-search-distribution"
-            />
-          </div>
+          <DataTable
+            columns={columns}
+            data={distributionData || []}
+            totalCount={totalCount}
+            pageIndex={pageIndex}
+            pageSize={pageSize}
+            onPaginationChange={handlePaginationChange}
+            onSearchChange={handleSearchChange}
+            onFiltersChange={handleFiltersChange}
+            onDateFilterChange={handleDateFilterChange}
+            isLoading={isLoading || isLoadingAllocations}
+            searchPlaceholder="Search by name or SKU..."
+            filters={filters}
+            emptyMessage="No products found"
+          />
         </CardContent>
       </Card>
-
-      {/* Distribution List */}
-      {isLoading ? (
-        <div className="space-y-4">
-          {[...Array(5)].map((_, i) => (
-            <Skeleton key={i} className="h-24" />
-          ))}
-        </div>
-      ) : filteredDistribution && filteredDistribution.length > 0 ? (
-        <div className="space-y-4">
-          {filteredDistribution.map((item) => (
-            <Card
-              key={item.saree.id}
-              data-testid={`card-distribution-${item.saree.id}`}
-            >
-              <Collapsible
-                open={expandedItems.has(item.saree.id)}
-                onOpenChange={() => toggleExpand(item.saree.id)}
-              >
-                <CollapsibleTrigger asChild>
-                  <CardContent className="p-4 cursor-pointer hover-elevate">
-                    <div className="flex items-center gap-4">
-                      <img
-                        src={
-                          item.saree.imageUrl ||
-                          "https://images.unsplash.com/photo-1610030469983-98e550d6193c?w=80"
-                        }
-                        alt={item.saree.name}
-                        className="w-16 h-20 rounded object-cover"
-                      />
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 mb-1">
-                          <h3 className="font-semibold truncate">
-                            {item.saree.name}
-                          </h3>
-                          <Badge variant="secondary" className="text-xs">
-                            {item.saree.sku || "No SKU"}
-                          </Badge>
-                        </div>
-                        <p className="text-sm text-muted-foreground mb-2">
-                          {formatPrice(item.saree.price)} |{" "}
-                          {item.saree.category?.name || "Uncategorized"}
-                        </p>
-                        <div className="flex items-center gap-4 text-sm">
-                          <span className="font-medium">
-                            Total: {item.totalStock}
-                          </span>
-                          <span className="text-blue-600">
-                            Online: {item.onlineStock}
-                          </span>
-                          <span className="text-green-600">
-                            Stores:{" "}
-                            {item.storeAllocations.reduce(
-                              (s, a) => s + a.quantity,
-                              0
-                            )}
-                          </span>
-                          {item.unallocated > 0 && (
-                            <span className="text-orange-600">
-                              Warehouse: {item.unallocated}
-                            </span>
-                          )}
-                        </div>
-                        {/* Progress bar showing distribution */}
-                        {item.totalStock > 0 ? (
-                          <div className="mt-2 flex gap-0.5 h-2 bg-muted rounded overflow-hidden">
-                            {item.onlineStock > 0 && (
-                              <div
-                                className="bg-blue-500"
-                                style={{
-                                  width: `${Math.min(
-                                    (item.onlineStock / item.totalStock) * 100,
-                                    100
-                                  )}%`,
-                                }}
-                                title={`Online: ${item.onlineStock}`}
-                              />
-                            )}
-                            {item.storeAllocations.map((alloc, idx) => (
-                              <div
-                                key={alloc.store.id}
-                                style={{
-                                  width: `${Math.min(
-                                    (alloc.quantity / item.totalStock) * 100,
-                                    100
-                                  )}%`,
-                                  backgroundColor: `hsl(142, 76%, ${
-                                    45 + idx * 10
-                                  }%)`,
-                                }}
-                                title={`${alloc.store.name}: ${alloc.quantity}`}
-                              />
-                            ))}
-                            {item.unallocated > 0 && (
-                              <div
-                                className="bg-orange-400"
-                                style={{
-                                  width: `${Math.min(
-                                    (item.unallocated / item.totalStock) * 100,
-                                    100
-                                  )}%`,
-                                }}
-                                title={`Unallocated: ${item.unallocated}`}
-                              />
-                            )}
-                          </div>
-                        ) : (
-                          <div
-                            className="mt-2 h-2 bg-muted rounded"
-                            title="No stock"
-                          />
-                        )}
-                      </div>
-                      <div className="flex items-center gap-2">
-                        {expandedItems.has(item.saree.id) ? (
-                          <ChevronUp className="h-5 w-5 text-muted-foreground" />
-                        ) : (
-                          <ChevronDown className="h-5 w-5 text-muted-foreground" />
-                        )}
-                      </div>
-                    </div>
-                  </CardContent>
-                </CollapsibleTrigger>
-                <CollapsibleContent>
-                  <div className="border-t px-4 py-4 bg-muted/30">
-                    <h4 className="text-sm font-medium mb-3">
-                      Stock Breakdown
-                    </h4>
-                    <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                      {/* Online Stock */}
-                      <div className="flex items-center gap-3 p-3 rounded-lg border bg-background">
-                        <div className="p-2 rounded-lg bg-blue-100 dark:bg-blue-900">
-                          <Globe className="h-4 w-4 text-blue-600 dark:text-blue-400" />
-                        </div>
-                        <div>
-                          <p className="text-xs text-muted-foreground">
-                            Online
-                          </p>
-                          <p className="font-semibold">
-                            {item.onlineStock} units
-                          </p>
-                        </div>
-                      </div>
-
-                      {/* Store Allocations */}
-                      {item.storeAllocations.map((alloc) => (
-                        <div
-                          key={alloc.store.id}
-                          className="flex items-center gap-3 p-3 rounded-lg border bg-background"
-                          data-testid={`allocation-${item.saree.id}-${alloc.store.id}`}
-                        >
-                          <div className="p-2 rounded-lg bg-green-100 dark:bg-green-900">
-                            <Store className="h-4 w-4 text-green-600 dark:text-green-400" />
-                          </div>
-                          <div>
-                            <p className="text-xs text-muted-foreground">
-                              {alloc.store.name}
-                            </p>
-                            <p className="font-semibold">
-                              {alloc.quantity} units
-                            </p>
-                          </div>
-                        </div>
-                      ))}
-
-                      {/* Unallocated */}
-                      {item.unallocated > 0 && (
-                        <div className="flex items-center gap-3 p-3 rounded-lg border bg-background">
-                          <div className="p-2 rounded-lg bg-orange-100 dark:bg-orange-900">
-                            <Warehouse className="h-4 w-4 text-orange-600 dark:text-orange-400" />
-                          </div>
-                          <div>
-                            <p className="text-xs text-muted-foreground">
-                              Warehouse (Unallocated)
-                            </p>
-                            <p className="font-semibold">
-                              {item.unallocated} units
-                            </p>
-                          </div>
-                        </div>
-                      )}
-
-                      {item.storeAllocations.length === 0 &&
-                        item.unallocated === 0 &&
-                        item.onlineStock === 0 && (
-                          <div className="col-span-full text-center py-4 text-sm text-muted-foreground">
-                            No stock allocated yet
-                          </div>
-                        )}
-                    </div>
-                  </div>
-                </CollapsibleContent>
-              </Collapsible>
-            </Card>
-          ))}
-        </div>
-      ) : (
-        <Card>
-          <CardContent className="py-12 text-center">
-            <Package className="h-12 w-12 mx-auto text-muted-foreground/50 mb-4" />
-            <h3 className="text-lg font-medium mb-2">No Products Found</h3>
-            <p className="text-muted-foreground">
-              {searchTerm
-                ? "No products match your search"
-                : "No products available"}
-            </p>
-          </CardContent>
-        </Card>
-      )}
     </div>
   );
 }
