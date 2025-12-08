@@ -1231,12 +1231,17 @@ async getStockDistribution(): Promise<{
         })
       );
 
+      // Calculate unallocated stock
+      const totalStoreStock = storeAllocations.reduce((sum, alloc) => sum + alloc.quantity, 0);
+      const unallocated = Math.max(0, row.sarees.totalStock - row.sarees.onlineStock - totalStoreStock);
+
       return {
         ...row.sarees,
         category: row.categories,
         color: row.colors,
         fabric: row.fabrics,
         storeAllocations,
+        unallocated,
       };
     }));
 

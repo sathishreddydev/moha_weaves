@@ -721,6 +721,7 @@ export type SareeWithDetails = Saree & {
     storeName: string;
     quantity: number;
   }[];
+  unallocated?: number;
 };
 
 export type CartItemWithSaree = CartItem & {
