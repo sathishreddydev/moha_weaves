@@ -28,11 +28,11 @@ export default function InventoryLayout() {
           </InventoryHeader>
 
           <div className="flex flex-1">
-            <aside className="hidden lg:block w-64 border-r bg-white sticky top-16">
+            <aside className="hidden lg:block w-64 border-r bg-white fixed left-0 top-16 bottom-0 overflow-y-auto">
               <InventorySidebar />
             </aside>
 
-            <main className="flex-1 p-6 overflow-auto">
+            <main className="flex-1 p-6 overflow-auto lg:ml-64">
               <Outlet />
             </main>
           </div>
