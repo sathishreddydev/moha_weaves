@@ -99,6 +99,10 @@ export default function InventorySarees() {
   const [printDialogOpen, setPrintDialogOpen] = useState(false);
   const [printingSaree, setPrintingSaree] = useState<SareeWithDetails | null>(null);
   const printRef = useRef<HTMLDivElement>(null);
+  const [selectedRows, setSelectedRows] = useState<Set<string>>(new Set());
+  const [bulkDeleteDialogOpen, setBulkDeleteDialogOpen] = useState(false);
+  const [bulkPrintDialogOpen, setBulkPrintDialogOpen] = useState(false);
+  const bulkPrintRef = useRef<HTMLDivElement>(null);
 
   const [formData, setFormData] = useState<SareeFormData>({
     name: "",
@@ -234,6 +238,30 @@ export default function InventorySarees() {
       toast({
         title: "Error",
         description: "Failed to delete saree",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const bulkDeleteMutation = useMutation({
+    mutationFn: async (ids: string[]) => {
+      await Promise.all(
+        ids.map((id) => apiRequest("DELETE", `/api/inventory/sarees/${id}`))
+      );
+    },
+    onSuccess: () => {
+      refetch();
+      toast({ 
+        title: "Success", 
+        description: `${selectedRows.size} saree(s) deleted successfully` 
+      });
+      setBulkDeleteDialogOpen(false);
+      setSelectedRows(new Set());
+    },
+    onError: () => {
+      toast({
+        title: "Error",
+        description: "Failed to delete selected sarees",
         variant: "destructive",
       });
     },
@@ -415,6 +443,73 @@ export default function InventorySarees() {
     }
   };
 
+  const handleBulkDelete = () => {
+    if (selectedRows.size === 0) return;
+    setBulkDeleteDialogOpen(true);
+  };
+
+  const confirmBulkDelete = () => {
+    bulkDeleteMutation.mutate(Array.from(selectedRows));
+  };
+
+  const handleBulkPrint = () => {
+    if (selectedRows.size === 0) return;
+    setBulkPrintDialogOpen(true);
+  };
+
+  const handleBulkPrintConfirm = () => {
+    if (!bulkPrintRef.current) return;
+
+    const printContent = bulkPrintRef.current.innerHTML;
+    const printWindow = window.open("", "_blank");
+    if (printWindow) {
+      printWindow.document.write(`
+        <html>
+          <head>
+            <title>Print Multiple Products</title>
+            <style>
+              body { font-family: Arial, sans-serif; padding: 20px; }
+              .product-details { max-width: 800px; margin: 0 auto 40px; page-break-after: always; }
+              .product-details:last-child { page-break-after: auto; }
+              h1 { text-align: center; margin-bottom: 20px; }
+              .detail-row { display: flex; justify-content: space-between; margin: 10px 0; padding: 8px; border-bottom: 1px solid #eee; }
+              .label { font-weight: bold; }
+              .barcode-container { text-align: center; margin: 20px 0; }
+              @media print {
+                body { padding: 0; }
+              }
+            </style>
+          </head>
+          <body>${printContent}</body>
+        </html>
+      `);
+      printWindow.document.close();
+      setTimeout(() => {
+        printWindow.print();
+        printWindow.close();
+        setBulkPrintDialogOpen(false);
+      }, 250);
+    }
+  };
+
+  const handleRowSelect = (id: string, checked: boolean) => {
+    const newSelected = new Set(selectedRows);
+    if (checked) {
+      newSelected.add(id);
+    } else {
+      newSelected.delete(id);
+    }
+    setSelectedRows(newSelected);
+  };
+
+  const handleSelectAll = (checked: boolean) => {
+    if (checked) {
+      setSelectedRows(new Set(sarees.map((s) => s.id)));
+    } else {
+      setSelectedRows(new Set());
+    }
+  };
+
   const handleDownloadExcel = () => {
     if (!sarees || sarees.length === 0) {
       toast({
@@ -478,6 +573,29 @@ export default function InventorySarees() {
 
   const columns: ColumnDef<SareeWithDetails>[] = useMemo(
     () => [
+      {
+        id: "select",
+        header: ({ table }) => {
+          const allOnPage = sarees.map((s) => s.id);
+          const allSelected = allOnPage.length > 0 && allOnPage.every((id) => selectedRows.has(id));
+          return (
+            <input
+              type="checkbox"
+              checked={allSelected}
+              onChange={(e) => handleSelectAll(e.target.checked)}
+              className="cursor-pointer"
+            />
+          );
+        },
+        cell: ({ row }) => (
+          <input
+            type="checkbox"
+            checked={selectedRows.has(row.original.id)}
+            onChange={(e) => handleRowSelect(row.original.id, e.target.checked)}
+            className="cursor-pointer"
+          />
+        ),
+      },
       {
         accessorKey: "imageUrl",
         header: "Image",
@@ -627,7 +745,7 @@ export default function InventorySarees() {
         ),
       },
     ],
-    []
+    [selectedRows, sarees]
   );
 
   const filters: FilterConfig[] = useMemo(
@@ -677,8 +795,33 @@ export default function InventorySarees() {
               Sarees
             </h1>
             <p className="text-muted-foreground">Manage saree inventory</p>
+            {selectedRows.size > 0 && (
+              <p className="text-sm text-primary mt-1">
+                {selectedRows.size} item(s) selected
+              </p>
+            )}
           </div>
-          <div className="flex gap-2">
+          <div className="flex gap-2 flex-wrap">
+            {selectedRows.size > 0 && (
+              <>
+                <Button
+                  variant="outline"
+                  onClick={handleBulkPrint}
+                  data-testid="button-bulk-print"
+                >
+                  <Printer className="h-4 w-4 mr-2" />
+                  Print Selected ({selectedRows.size})
+                </Button>
+                <Button
+                  variant="destructive"
+                  onClick={handleBulkDelete}
+                  data-testid="button-bulk-delete"
+                >
+                  <Trash2 className="h-4 w-4 mr-2" />
+                  Delete Selected ({selectedRows.size})
+                </Button>
+              </>
+            )}
             <Button
               variant="outline"
               onClick={handleDownloadExcel}
@@ -1204,6 +1347,107 @@ export default function InventorySarees() {
               data-testid="button-confirm-delete"
             >
               {deleteMutation.isPending ? "Deleting..." : "Delete"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={bulkDeleteDialogOpen} onOpenChange={setBulkDeleteDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Delete Multiple Sarees</DialogTitle>
+            <DialogDescription>
+              Are you sure you want to delete {selectedRows.size} saree(s)? This action cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setBulkDeleteDialogOpen(false)}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={confirmBulkDelete}
+              disabled={bulkDeleteMutation.isPending}
+              data-testid="button-confirm-bulk-delete"
+            >
+              {bulkDeleteMutation.isPending ? "Deleting..." : "Delete All"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={bulkPrintDialogOpen} onOpenChange={setBulkPrintDialogOpen}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Print Multiple Products with Barcodes</DialogTitle>
+          </DialogHeader>
+          <div ref={bulkPrintRef}>
+            {sarees
+              .filter((s) => selectedRows.has(s.id))
+              .map((saree) => (
+                <div key={saree.id} className="product-details">
+                  <h1 className="text-xl font-bold text-center mb-4">
+                    Product Details
+                  </h1>
+                  <div className="space-y-3">
+                    <div className="detail-row flex justify-between border-b pb-2">
+                      <span className="label font-semibold">SKU:</span>
+                      <span>{saree.sku || "-"}</span>
+                    </div>
+                    <div className="detail-row flex justify-between border-b pb-2">
+                      <span className="label font-semibold">Name:</span>
+                      <span>{saree.name}</span>
+                    </div>
+                    <div className="detail-row flex justify-between border-b pb-2">
+                      <span className="label font-semibold">Category:</span>
+                      <span>{saree.category?.name || "-"}</span>
+                    </div>
+                    <div className="detail-row flex justify-between border-b pb-2">
+                      <span className="label font-semibold">Color:</span>
+                      <span>{saree.color?.name || "-"}</span>
+                    </div>
+                    <div className="detail-row flex justify-between border-b pb-2">
+                      <span className="label font-semibold">Fabric:</span>
+                      <span>{saree.fabric?.name || "-"}</span>
+                    </div>
+                    <div className="detail-row flex justify-between border-b pb-2">
+                      <span className="label font-semibold">Price:</span>
+                      <span>{formatPrice(saree.price)}</span>
+                    </div>
+                    <div className="detail-row flex justify-between border-b pb-2">
+                      <span className="label font-semibold">Total Stock:</span>
+                      <span>{saree.totalStock}</span>
+                    </div>
+                    <div className="detail-row flex justify-between border-b pb-2">
+                      <span className="label font-semibold">Online Stock:</span>
+                      <span>{saree.onlineStock}</span>
+                    </div>
+                    <div className="detail-row flex justify-between border-b pb-2">
+                      <span className="label font-semibold">Distribution Channel:</span>
+                      <span className="capitalize">{saree.distributionChannel}</span>
+                    </div>
+                  </div>
+                  <div className="barcode-container mt-6 flex justify-center">
+                    <Barcode
+                      value={saree.sku || saree.id}
+                      width={2}
+                      height={60}
+                      displayValue={true}
+                    />
+                  </div>
+                </div>
+              ))}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setBulkPrintDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button onClick={handleBulkPrintConfirm}>
+              <Printer className="h-4 w-4 mr-2" />
+              Print All
             </Button>
           </DialogFooter>
         </DialogContent>
