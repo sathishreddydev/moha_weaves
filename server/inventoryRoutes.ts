@@ -3,6 +3,7 @@ import { storage } from "./storage";
 import { createAuthMiddleware } from "./authMiddleware";
 import { parsePaginationParams } from "./paginationHelper";
 import { z } from "zod";
+import { orderService } from "./order/orderStorage";
 const storeAllocationSchema = z.object({
   storeId: z.string().min(1, "Store ID is required"),
   quantity: z.number().int().min(0, "Quantity must be a non-negative integer"),
@@ -380,10 +381,10 @@ const authInventory = createAuthMiddleware(["inventory"]);
 
             // Handle exchange order creation if resolution type is exchange
             if (isExchange && status === "completed" && !returnRequest.exchangeOrderId) {
-              const originalOrder = await storage.getOrder(returnRequest.orderId);
+              const originalOrder = await orderService.getOrder(returnRequest.orderId);
               if (originalOrder) {
                 // Create exchange order with same items
-                const exchangeOrder = await storage.createOrder(
+                const exchangeOrder = await orderService.createOrder(
                   {
                     userId: returnRequest.userId,
                     totalAmount: returnRequest.refundAmount || "0",
@@ -493,7 +494,7 @@ const authInventory = createAuthMiddleware(["inventory"]);
       const user = (req as any).user;
       const { status, note } = req.body;
 
-      const order = await storage.getOrder(req.params.id);
+      const order = await orderService.getOrder(req.params.id);
       if (!order) {
         return res.status(404).json({ message: "Order not found" });
       }

@@ -35,43 +35,11 @@ import {
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, or, ilike, desc, asc, sql, gte, lte, inArray } from "drizzle-orm";
+import { userService } from "./auth/authStorage";
+import { orderService } from "./order/orderStorage";
 
 export interface IStorage {
-  // Users
-  getUser(id: string): Promise<User | undefined>;
-  getUserByEmail(email: string): Promise<User | undefined>;
-  createUser(user: InsertUser): Promise<User>;
-  getUsers(filters?: { role?: string }): Promise<User[]>;
-  updateUser(id: string, data: Partial<InsertUser>): Promise<User | undefined>;
-  incrementUserTokenVersion(id: string): Promise<void>;
-  updateUserPassword(id: string, hashedPassword: string): Promise<void>;
 
-  // Refresh Tokens
-  createRefreshToken(token: InsertRefreshToken): Promise<RefreshToken>;
-  getRefreshToken(token: string): Promise<RefreshToken | undefined>;
-  revokeRefreshToken(token: string): Promise<void>;
-  revokeAllUserRefreshTokens(userId: string): Promise<void>;
-
-  // Categories
-  getCategories(): Promise<Category[]>;
-  getCategory(id: string): Promise<Category | undefined>;
-  createCategory(category: InsertCategory): Promise<Category>;
-  updateCategory(id: string, data: Partial<InsertCategory>): Promise<Category | undefined>;
-  deleteCategory(id: string): Promise<boolean>;
-
-  // Colors
-  getColors(): Promise<Color[]>;
-  getColor(id: string): Promise<Color | undefined>;
-  createColor(color: InsertColor): Promise<Color>;
-  updateColor(id: string, data: Partial<InsertColor>): Promise<Color | undefined>;
-  deleteColor(id: string): Promise<boolean>;
-
-  // Fabrics
-  getFabrics(): Promise<Fabric[]>;
-  getFabric(id: string): Promise<Fabric | undefined>;
-  createFabric(fabric: InsertFabric): Promise<Fabric>;
-  updateFabric(id: string, data: Partial<InsertFabric>): Promise<Fabric | undefined>;
-  deleteFabric(id: string): Promise<boolean>;
 
   // Stores
   getStores(): Promise<Store[]>;
@@ -98,24 +66,8 @@ export interface IStorage {
   deleteSaree(id: string): Promise<boolean>;
   getLowStockSarees(threshold?: number): Promise<SareeWithDetails[]>;
 
-  // Cart
-  getCartItems(userId: string): Promise<CartItemWithSaree[]>;
-  getCartCount(userId: string): Promise<number>;
-  addToCart(item: InsertCartItem): Promise<CartItem>;
-  updateCartItem(id: string, quantity: number): Promise<CartItem | undefined>;
-  removeFromCart(id: string): Promise<boolean>;
-  clearCart(userId: string): Promise<boolean>;
-
-  // Wishlist
-  getWishlistItems(userId: string): Promise<WishlistItemWithSaree[]>;
-  getWishlistCount(userId: string): Promise<number>;
-  addToWishlist(item: InsertWishlistItem): Promise<WishlistItem>;
-  removeFromWishlist(userId: string, sareeId: string): Promise<boolean>;
-  isInWishlist(userId: string, sareeId: string): Promise<boolean>;
-
   // Orders
-  getOrders(userId: string): Promise<OrderWithItems[]>;
-  getOrder(id: string): Promise<OrderWithItems | undefined>;
+
   getAllOrders(filters?: { status?: string; limit?: number }): Promise<OrderWithItems[]>;
   getOrdersPaginated(params: {
     page: number;
@@ -142,7 +94,6 @@ export interface IStorage {
     dateFrom?: string;
     dateTo?: string;
   }): Promise<{ data: SareeWithDetails[]; total: number; page: number; pageSize: number; totalPages: number }>;
-  createOrder(order: InsertOrder, items: Omit<InsertOrderItem, 'orderId'>[]): Promise<Order>;
   updateOrderStatus(id: string, status: string): Promise<Order | undefined>;
 
   // Store Inventory
@@ -207,13 +158,7 @@ export interface IStorage {
   }>;
   getAllStoreSales(): Promise<StoreSaleWithItems[]>;
 
-  // User Addresses
-  getUserAddresses(userId: string): Promise<UserAddress[]>;
-  getUserAddress(id: string): Promise<UserAddress | undefined>;
-  createUserAddress(address: InsertUserAddress): Promise<UserAddress>;
-  updateUserAddress(id: string, data: Partial<InsertUserAddress>): Promise<UserAddress | undefined>;
-  deleteUserAddress(id: string): Promise<boolean>;
-  setDefaultAddress(userId: string, addressId: string): Promise<UserAddress | undefined>;
+
 
   // Serviceable Pincodes
   checkPincodeAvailability(pincode: string): Promise<ServiceablePincode | undefined>;
@@ -339,145 +284,11 @@ export interface IStorage {
 
 export class DatabaseStorage implements IStorage {
   // Users
-  async getUser(id: string): Promise<User | undefined> {
-    const [user] = await db.select().from(users).where(eq(users.id, id));
-    return user || undefined;
-  }
 
-  async getUserByEmail(email: string): Promise<User | undefined> {
-    const [user] = await db.select().from(users).where(eq(users.email, email));
-    return user || undefined;
-  }
 
-  async createUser(insertUser: InsertUser): Promise<User> {
-    const [user] = await db.insert(users).values(insertUser).returning();
-    return user;
-  }
+  
 
-  async getUsers(filters?: { role?: string }): Promise<User[]> {
-    if (filters?.role) {
-      return db.select().from(users).where(eq(users.role, filters.role as any));
-    }
-    return db.select().from(users);
-  }
-
-  async updateUser(id: string, data: Partial<InsertUser>): Promise<User | undefined> {
-    const [user] = await db.update(users).set(data).where(eq(users.id, id)).returning();
-    return user || undefined;
-  }
-
-  async incrementUserTokenVersion(id: string): Promise<void> {
-    await db.update(users)
-      .set({ tokenVersion: sql`${users.tokenVersion} + 1` })
-      .where(eq(users.id, id));
-  }
-
-  async updateUserPassword(id: string, hashedPassword: string): Promise<void> {
-    await db.update(users)
-      .set({ 
-        password: hashedPassword, 
-        tokenVersion: sql`${users.tokenVersion} + 1` 
-      })
-      .where(eq(users.id, id));
-  }
-
-  // Refresh Tokens
-  async createRefreshToken(token: InsertRefreshToken): Promise<RefreshToken> {
-    const [result] = await db.insert(refreshTokens).values(token).returning();
-    return result;
-  }
-
-  async getRefreshToken(token: string): Promise<RefreshToken | undefined> {
-    const [result] = await db.select().from(refreshTokens).where(eq(refreshTokens.token, token));
-    return result || undefined;
-  }
-
-  async revokeRefreshToken(token: string): Promise<void> {
-    await db.update(refreshTokens)
-      .set({ isRevoked: true })
-      .where(eq(refreshTokens.token, token));
-  }
-
-  async revokeAllUserRefreshTokens(userId: string): Promise<void> {
-    await db.update(refreshTokens)
-      .set({ isRevoked: true })
-      .where(eq(refreshTokens.userId, userId));
-  }
-
-  // Categories
-  async getCategories(): Promise<Category[]> {
-    return db.select().from(categories).where(eq(categories.isActive, true));
-  }
-
-  async getCategory(id: string): Promise<Category | undefined> {
-    const [category] = await db.select().from(categories).where(eq(categories.id, id));
-    return category || undefined;
-  }
-
-  async createCategory(category: InsertCategory): Promise<Category> {
-    const [result] = await db.insert(categories).values(category).returning();
-    return result;
-  }
-
-  async updateCategory(id: string, data: Partial<InsertCategory>): Promise<Category | undefined> {
-    const [result] = await db.update(categories).set(data).where(eq(categories.id, id)).returning();
-    return result || undefined;
-  }
-
-  async deleteCategory(id: string): Promise<boolean> {
-    const [result] = await db.update(categories).set({ isActive: false }).where(eq(categories.id, id)).returning();
-    return !!result;
-  }
-
-  // Colors
-  async getColors(): Promise<Color[]> {
-    return db.select().from(colors).where(eq(colors.isActive, true));
-  }
-
-  async getColor(id: string): Promise<Color | undefined> {
-    const [color] = await db.select().from(colors).where(eq(colors.id, id));
-    return color || undefined;
-  }
-
-  async createColor(color: InsertColor): Promise<Color> {
-    const [result] = await db.insert(colors).values(color).returning();
-    return result;
-  }
-
-  async updateColor(id: string, data: Partial<InsertColor>): Promise<Color | undefined> {
-    const [result] = await db.update(colors).set(data).where(eq(colors.id, id)).returning();
-    return result || undefined;
-  }
-
-  async deleteColor(id: string): Promise<boolean> {
-    const [result] = await db.update(colors).set({ isActive: false }).where(eq(colors.id, id)).returning();
-    return !!result;
-  }
-
-  // Fabrics
-  async getFabrics(): Promise<Fabric[]> {
-    return db.select().from(fabrics).where(eq(fabrics.isActive, true));
-  }
-
-  async getFabric(id: string): Promise<Fabric | undefined> {
-    const [fabric] = await db.select().from(fabrics).where(eq(fabrics.id, id));
-    return fabric || undefined;
-  }
-
-  async createFabric(fabric: InsertFabric): Promise<Fabric> {
-    const [result] = await db.insert(fabrics).values(fabric).returning();
-    return result;
-  }
-
-  async updateFabric(id: string, data: Partial<InsertFabric>): Promise<Fabric | undefined> {
-    const [result] = await db.update(fabrics).set(data).where(eq(fabrics.id, id)).returning();
-    return result || undefined;
-  }
-
-  async deleteFabric(id: string): Promise<boolean> {
-    const [result] = await db.update(fabrics).set({ isActive: false }).where(eq(fabrics.id, id)).returning();
-    return !!result;
-  }
+  
 
   // Stores
   async getStores(): Promise<Store[]> {
@@ -642,191 +453,10 @@ export class DatabaseStorage implements IStorage {
     }));
   }
 
-  // Cart
-  async getCartItems(userId: string): Promise<CartItemWithSaree[]> {
-    const result = await db
-      .select()
-      .from(cart)
-      .innerJoin(sarees, eq(cart.sareeId, sarees.id))
-      .leftJoin(categories, eq(sarees.categoryId, categories.id))
-      .leftJoin(colors, eq(sarees.colorId, colors.id))
-      .leftJoin(fabrics, eq(sarees.fabricId, fabrics.id))
-      .where(eq(cart.userId, userId));
 
-    return result.map((row) => ({
-      ...row.cart,
-      saree: {
-        ...row.sarees,
-        category: row.categories,
-        color: row.colors,
-        fabric: row.fabrics,
-      },
-    }));
-  }
-
-  async getCartCount(userId: string): Promise<number> {
-    const [result] = await db
-      .select({ count: sql<number>`count(*)::int` })
-      .from(cart)
-      .where(eq(cart.userId, userId));
-    return result?.count || 0;
-  }
-
-  async addToCart(item: InsertCartItem): Promise<CartItem> {
-    const [existing] = await db
-      .select()
-      .from(cart)
-      .where(and(eq(cart.userId, item.userId), eq(cart.sareeId, item.sareeId)));
-
-    if (existing) {
-      const [updated] = await db
-        .update(cart)
-        .set({ quantity: existing.quantity + (item.quantity || 1) })
-        .where(eq(cart.id, existing.id))
-        .returning();
-      return updated;
-    }
-
-    const [result] = await db.insert(cart).values(item).returning();
-    return result;
-  }
-
-  async updateCartItem(id: string, quantity: number): Promise<CartItem | undefined> {
-    const [result] = await db.update(cart).set({ quantity }).where(eq(cart.id, id)).returning();
-    return result || undefined;
-  }
-
-  async removeFromCart(id: string): Promise<boolean> {
-    const [result] = await db.delete(cart).where(eq(cart.id, id)).returning();
-    return !!result;
-  }
-
-  async clearCart(userId: string): Promise<boolean> {
-    await db.delete(cart).where(eq(cart.userId, userId));
-    return true;
-  }
-
-  // Wishlist
-  async getWishlistItems(userId: string): Promise<WishlistItemWithSaree[]> {
-    const result = await db
-      .select()
-      .from(wishlist)
-      .innerJoin(sarees, eq(wishlist.sareeId, sarees.id))
-      .leftJoin(categories, eq(sarees.categoryId, categories.id))
-      .leftJoin(colors, eq(sarees.colorId, colors.id))
-      .leftJoin(fabrics, eq(sarees.fabricId, fabrics.id))
-      .where(eq(wishlist.userId, userId));
-
-    return result.map((row) => ({
-      ...row.wishlist,
-      saree: {
-        ...row.sarees,
-        category: row.categories,
-        color: row.colors,
-        fabric: row.fabrics,
-      },
-    }));
-  }
-
-  async getWishlistCount(userId: string): Promise<number> {
-    const [result] = await db
-      .select({ count: sql<number>`count(*)::int` })
-      .from(wishlist)
-      .where(eq(wishlist.userId, userId));
-    return result?.count || 0;
-  }
-
-  async addToWishlist(item: InsertWishlistItem): Promise<WishlistItem> {
-    const [existing] = await db
-      .select()
-      .from(wishlist)
-      .where(and(eq(wishlist.userId, item.userId), eq(wishlist.sareeId, item.sareeId)));
-
-    if (existing) return existing;
-
-    const [result] = await db.insert(wishlist).values(item).returning();
-    return result;
-  }
-
-  async removeFromWishlist(userId: string, sareeId: string): Promise<boolean> {
-    const [result] = await db
-      .delete(wishlist)
-      .where(and(eq(wishlist.userId, userId), eq(wishlist.sareeId, sareeId)))
-      .returning();
-    return !!result;
-  }
-
-  async isInWishlist(userId: string, sareeId: string): Promise<boolean> {
-    const [result] = await db
-      .select()
-      .from(wishlist)
-      .where(and(eq(wishlist.userId, userId), eq(wishlist.sareeId, sareeId)));
-    return !!result;
-  }
 
   // Orders
-  async getOrders(userId: string): Promise<OrderWithItems[]> {
-    const orderList = await db
-      .select()
-      .from(orders)
-      .where(eq(orders.userId, userId))
-      .orderBy(desc(orders.createdAt));
 
-    const result: OrderWithItems[] = [];
-
-    for (const order of orderList) {
-      const items = await db
-        .select()
-        .from(orderItems)
-        .innerJoin(sarees, eq(orderItems.sareeId, sarees.id))
-        .leftJoin(categories, eq(sarees.categoryId, categories.id))
-        .leftJoin(colors, eq(sarees.colorId, colors.id))
-        .leftJoin(fabrics, eq(sarees.fabricId, fabrics.id))
-        .where(eq(orderItems.orderId, order.id));
-
-      result.push({
-        ...order,
-        items: items.map((row) => ({
-          ...row.order_items,
-          saree: {
-            ...row.sarees,
-            category: row.categories,
-            color: row.colors,
-            fabric: row.fabrics,
-          },
-        })),
-      });
-    }
-
-    return result;
-  }
-
-  async getOrder(id: string): Promise<OrderWithItems | undefined> {
-    const [order] = await db.select().from(orders).where(eq(orders.id, id));
-    if (!order) return undefined;
-
-    const items = await db
-      .select()
-      .from(orderItems)
-      .innerJoin(sarees, eq(orderItems.sareeId, sarees.id))
-      .leftJoin(categories, eq(sarees.categoryId, categories.id))
-      .leftJoin(colors, eq(sarees.colorId, colors.id))
-      .leftJoin(fabrics, eq(sarees.fabricId, fabrics.id))
-      .where(eq(orderItems.orderId, order.id));
-
-    return {
-      ...order,
-      items: items.map((row) => ({
-        ...row.order_items,
-        saree: {
-          ...row.sarees,
-          category: row.categories,
-          color: row.colors,
-          fabric: row.fabrics,
-        },
-      })),
-    };
-  }
 
   async getAllOrders(filters?: { status?: string; limit?: number }): Promise<OrderWithItems[]> {
     let query = db.select().from(orders).orderBy(desc(orders.createdAt));
@@ -1133,37 +763,7 @@ export class DatabaseStorage implements IStorage {
     };
   }
 
-  async createOrder(order: InsertOrder, items: Omit<InsertOrderItem, 'orderId'>[]): Promise<Order> {
-    const [newOrder] = await db.insert(orders).values(order).returning();
 
-    for (const item of items) {
-      await db.insert(orderItems).values({ ...item, orderId: newOrder.id });
-
-      // Deduct from online stock and total stock
-      await db
-        .update(sarees)
-        .set({ 
-          onlineStock: sql`${sarees.onlineStock} - ${item.quantity}`,
-          totalStock: sql`${sarees.totalStock} - ${item.quantity}`
-        })
-        .where(eq(sarees.id, item.sareeId));
-
-      // Record stock movement (negative for deduction)
-      await db.insert(stockMovements).values({
-        sareeId: item.sareeId,
-        quantity: -item.quantity,
-        movementType: "sale",
-        source: "online",
-        orderRefId: newOrder.id,
-        storeId: null,
-      });
-
-      // Check for low stock and create alert
-      await this.checkAndCreateStockAlert(item.sareeId);
-    }
-
-    return newOrder;
-  }
 
   async checkAndCreateStockAlert(sareeId: string): Promise<void> {
     const [saree] = await db.select().from(sarees).where(eq(sarees.id, sareeId));
@@ -1834,59 +1434,7 @@ export class DatabaseStorage implements IStorage {
     };
   }
 
-  // User Addresses
-  async getUserAddresses(userId: string): Promise<UserAddress[]> {
-    return db
-      .select()
-      .from(userAddresses)
-      .where(eq(userAddresses.userId, userId))
-      .orderBy(desc(userAddresses.isDefault), desc(userAddresses.createdAt));
-  }
 
-  async getUserAddress(id: string): Promise<UserAddress | undefined> {
-    const [address] = await db.select().from(userAddresses).where(eq(userAddresses.id, id));
-    return address || undefined;
-  }
-
-  async createUserAddress(address: InsertUserAddress): Promise<UserAddress> {
-    if (address.isDefault) {
-      await db
-        .update(userAddresses)
-        .set({ isDefault: false })
-        .where(eq(userAddresses.userId, address.userId));
-    }
-    const [result] = await db.insert(userAddresses).values(address).returning();
-    return result;
-  }
-
-  async updateUserAddress(id: string, data: Partial<InsertUserAddress>): Promise<UserAddress | undefined> {
-    if (data.isDefault) {
-      const [existing] = await db.select().from(userAddresses).where(eq(userAddresses.id, id));
-      if (existing) {
-        await db
-          .update(userAddresses)
-          .set({ isDefault: false })
-          .where(eq(userAddresses.userId, existing.userId));
-      }
-    }
-    const [result] = await db.update(userAddresses).set(data).where(eq(userAddresses.id, id)).returning();
-    return result || undefined;
-  }
-
-  async deleteUserAddress(id: string): Promise<boolean> {
-    await db.delete(userAddresses).where(eq(userAddresses.id, id));
-    return true;
-  }
-
-  async setDefaultAddress(userId: string, addressId: string): Promise<UserAddress | undefined> {
-    await db.update(userAddresses).set({ isDefault: false }).where(eq(userAddresses.userId, userId));
-    const [result] = await db
-      .update(userAddresses)
-      .set({ isDefault: true })
-      .where(and(eq(userAddresses.id, addressId), eq(userAddresses.userId, userId)))
-      .returning();
-    return result || undefined;
-  }
 
   // Serviceable Pincodes
   async checkPincodeAvailability(pincode: string): Promise<ServiceablePincode | undefined> {
@@ -1930,8 +1478,8 @@ export class DatabaseStorage implements IStorage {
 
     const result: ReturnRequestWithDetails[] = [];
     for (const request of requests) {
-      const orderWithItems = await this.getOrder(request.orderId);
-      const user = await this.getUser(request.userId);
+      const orderWithItems = await orderService.getOrder(request.orderId);
+      const user = await userService.getUser(request.userId);
       const items = await db
         .select()
         .from(returnItems)
@@ -1972,8 +1520,8 @@ export class DatabaseStorage implements IStorage {
     const [request] = await db.select().from(returnRequests).where(eq(returnRequests.id, id));
     if (!request) return undefined;
 
-    const orderWithItems = await this.getOrder(request.orderId);
-    const user = await this.getUser(request.userId);
+    const orderWithItems = await orderService.getOrder(request.orderId);
+    const user = await userService.getUser(request.userId);
     if (!orderWithItems || !user) return undefined;
 
     const items = await db
@@ -2042,7 +1590,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async checkOrderReturnEligibility(orderId: string): Promise<{ eligible: boolean; reason?: string }> {
-    const order = await this.getOrder(orderId);
+    const order = await orderService.getOrder(orderId);
     if (!order) return { eligible: false, reason: "Order not found" };
     if (order.status !== "delivered") return { eligible: false, reason: "Order must be delivered to initiate return" };
 

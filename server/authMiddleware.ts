@@ -2,7 +2,7 @@
 import 'dotenv/config';
 import { Request, Response, NextFunction } from "express";
 import jwt from "jsonwebtoken";
-import { storage } from "./storage"; 
+import { userService } from './auth/authStorage';
 
 
 declare module "express-serve-static-core" {
@@ -43,7 +43,7 @@ export function createAuthMiddleware(allowedRoles: string[]) {
 
       const payload = decoded as AccessTokenPayload;
 
-      const user = await storage.getUser(payload.userId);
+      const user = await userService.getUser(payload.userId);
       if (!user) return res.status(401).json({ message: "User not found" });
 
       if (!allowedRoles.includes(user.role)) {

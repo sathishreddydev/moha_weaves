@@ -1,10 +1,10 @@
-import type { Express, Request, Response, NextFunction } from "express";
+import type { Express } from "express";
 import { storage } from "./storage";
 import bcrypt from "bcryptjs";
-import jwt from "jsonwebtoken";
-import crypto from "crypto";
 import { createAuthMiddleware } from "./authMiddleware";
-import { parsePaginationParams, createPaginatedResponse, getOffset } from "./paginationHelper";
+import { parsePaginationParams } from "./paginationHelper";
+import { userService } from "./auth/authStorage";
+import { publicStorage } from "./public/publicStorage";
 
 export const adminRoutes = (app: Express) => {
   const authAdmin = createAuthMiddleware(["admin"]);
@@ -72,7 +72,7 @@ export const adminRoutes = (app: Express) => {
         return res.json(result);
       }
       
-      const users = await storage.getUsers({ role: role as string });
+      const users = await userService.getUsers({ role: role as string });
       res.json(users.map(({ password, ...u }) => u));
     } catch (error) {
       res.status(500).json({ message: "Failed to fetch users" });
@@ -83,7 +83,7 @@ export const adminRoutes = (app: Express) => {
     try {
       const { email, password, name, phone, role, storeId } = req.body;
       const hashedPassword = await bcrypt.hash(password, 10);
-      const user = await storage.createUser({
+      const user = await userService.createUser({
         email,
         password: hashedPassword,
         name,
@@ -119,7 +119,7 @@ export const adminRoutes = (app: Express) => {
         (key) => updateData[key] === undefined && delete updateData[key]
       );
 
-      const user = await storage.updateUser(req.params.id, updateData);
+      const user = await userService.updateUser(req.params.id, updateData);
       if (!user) {
         return res.status(404).json({ message: "User not found" });
       }
@@ -132,7 +132,7 @@ export const adminRoutes = (app: Express) => {
 
   app.delete("/api/admin/users/:id", authAdmin, async (req, res) => {
     try {
-      const user = await storage.updateUser(req.params.id, { isActive: false });
+      const user = await userService.updateUser(req.params.id, { isActive: false });
       if (!user) {
         return res.status(404).json({ message: "User not found" });
       }
@@ -198,7 +198,7 @@ export const adminRoutes = (app: Express) => {
   // Admin category management
   app.post("/api/admin/categories", authAdmin, async (req, res) => {
     try {
-      const category = await storage.createCategory(req.body);
+      const category = await publicStorage.createCategory(req.body);
       res.json(category);
     } catch (error) {
       res.status(500).json({ message: "Failed to create category" });
@@ -207,7 +207,7 @@ export const adminRoutes = (app: Express) => {
 
   app.patch("/api/admin/categories/:id", authAdmin, async (req, res) => {
     try {
-      const category = await storage.updateCategory(req.params.id, req.body);
+      const category = await publicStorage.updateCategory(req.params.id, req.body);
       res.json(category);
     } catch (error) {
       res.status(500).json({ message: "Failed to update category" });
@@ -217,7 +217,7 @@ export const adminRoutes = (app: Express) => {
   // Admin color management
   app.post("/api/admin/colors", authAdmin, async (req, res) => {
     try {
-      const color = await storage.createColor(req.body);
+      const color = await publicStorage.createColor(req.body);
       res.json(color);
     } catch (error) {
       res.status(500).json({ message: "Failed to create color" });
@@ -227,7 +227,7 @@ export const adminRoutes = (app: Express) => {
   // Admin fabric management
   app.post("/api/admin/fabrics", authAdmin, async (req, res) => {
     try {
-      const fabric = await storage.createFabric(req.body);
+      const fabric = await publicStorage.createFabric(req.body);
       res.json(fabric);
     } catch (error) {
       res.status(500).json({ message: "Failed to create fabric" });

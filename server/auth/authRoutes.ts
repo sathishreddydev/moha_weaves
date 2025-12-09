@@ -1,9 +1,9 @@
 import type { Express, Request, Response, NextFunction } from "express";
-import { storage } from "./storage";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import crypto from "crypto";
-import { createAuthMiddleware } from "./authMiddleware";
+import { createAuthMiddleware } from "../authMiddleware";
+import { userService } from "./authStorage";
 
 // Security: Require SESSION_SECRET environment variable
 const JWT_SECRET = process.env.SESSION_SECRET;
@@ -59,7 +59,7 @@ export const authRoutes = (app: Express) => {
     );
 
     // Store HASHED refresh token in database for security
-    await storage.createRefreshToken({
+    await userService.createRefreshToken({
       userId: user.id,
       token: hashedToken, // Store hash, not plaintext
       expiresAt,
@@ -91,7 +91,7 @@ export const authRoutes = (app: Express) => {
         userId: string;
         tokenVersion: number;
       };
-      const user = await storage.getUser(decoded.userId);
+      const user = await userService.getUser(decoded.userId);
 
       if (!user) {
         return res.status(401).json({ message: "User not found" });
@@ -128,23 +128,23 @@ export const authRoutes = (app: Express) => {
       const hashedToken = hashRefreshToken(refreshToken);
 
       // Validate refresh token from database (lookup by hash)
-      const storedToken = await storage.getRefreshToken(hashedToken);
+      const storedToken = await userService.getRefreshToken(hashedToken);
       if (!storedToken || storedToken.isRevoked) {
         return res.status(401).json({ message: "Invalid refresh token" });
       }
 
       if (new Date() > storedToken.expiresAt) {
-        await storage.revokeRefreshToken(hashedToken);
+        await userService.revokeRefreshToken(hashedToken);
         return res.status(401).json({ message: "Refresh token expired" });
       }
 
-      const user = await storage.getUser(storedToken.userId);
+      const user = await userService.getUser(storedToken.userId);
       if (!user || !user.isActive) {
         return res.status(401).json({ message: "User not found or disabled" });
       }
 
       // Revoke old refresh token (rotation)
-      await storage.revokeRefreshToken(hashedToken);
+      await userService.revokeRefreshToken(hashedToken);
 
       // Issue new tokens
       await issueTokens(user, res);
@@ -162,13 +162,13 @@ export const authRoutes = (app: Express) => {
     try {
       const { email, password, name, phone } = req.body;
 
-      const existing = await storage.getUserByEmail(email);
+      const existing = await userService.getUserByEmail(email);
       if (existing) {
         return res.status(400).json({ message: "Email already registered" });
       }
 
       const hashedPassword = await bcrypt.hash(password, 10);
-      const user = await storage.createUser({
+      const user = await userService.createUser({
         email,
         password: hashedPassword,
         name,
@@ -195,7 +195,7 @@ export const authRoutes = (app: Express) => {
     try {
       const { email, password } = req.body;
 
-      const user = await storage.getUserByEmail(email);
+      const user = await userService.getUserByEmail(email);
       if (!user || user.role !== expectedRole) {
         return res.status(401).json({ message: "Invalid credentials" });
       }
@@ -237,7 +237,7 @@ export const authRoutes = (app: Express) => {
       if (refreshToken) {
         // Hash the token before revoking to match stored hash
         const hashedToken = hashRefreshToken(refreshToken);
-        await storage.revokeRefreshToken(hashedToken);
+        await userService.revokeRefreshToken(hashedToken);
       }
       res.clearCookie("accessToken", cookieOptions);
       res.clearCookie("refreshToken", cookieOptions);
@@ -256,10 +256,10 @@ export const authRoutes = (app: Express) => {
       const user = (req as any).user;
 
       // Increment tokenVersion to invalidate all existing tokens
-      await storage.incrementUserTokenVersion(user.id);
+      await userService.incrementUserTokenVersion(user.id);
 
       // Revoke all refresh tokens for this user
-      await storage.revokeAllUserRefreshTokens(user.id);
+      await userService.revokeAllUserRefreshTokens(user.id);
 
       // Clear current session cookies
       res.clearCookie("accessToken", cookieOptions);
@@ -293,13 +293,13 @@ export const authRoutes = (app: Express) => {
       const hashedPassword = await bcrypt.hash(newPassword, 10);
 
       // Update password and increment tokenVersion to invalidate all tokens
-      await storage.updateUserPassword(user.id, hashedPassword);
+      await userService.updateUserPassword(user.id, hashedPassword);
 
       // Revoke all refresh tokens
-      await storage.revokeAllUserRefreshTokens(user.id);
+      await userService.revokeAllUserRefreshTokens(user.id);
 
       // Issue new tokens
-      const updatedUser = await storage.getUser(user.id);
+      const updatedUser = await userService.getUser(user.id);
       if (updatedUser) {
         await issueTokens(updatedUser, res);
       }

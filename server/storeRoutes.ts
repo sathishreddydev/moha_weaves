@@ -139,7 +139,6 @@ export const storeRoutes = (app: Express) => {
         params.pageSize
       );
       
-      console.log("Returning paginated products:", response.data.length, "items of", response.totalCount);
       
       res.json(response);
     } catch (error) {

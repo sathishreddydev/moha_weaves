@@ -1,11 +1,8 @@
-import type { Express, Request, Response, NextFunction } from "express";
-import { storage } from "./storage";
-import bcrypt from "bcryptjs";
-import jwt from "jsonwebtoken";
-import crypto from "crypto";
+import type { Express} from "express";
 import postalcodes from "postalcodes-india";
 import { z } from "zod";
-import { createAuthMiddleware } from "./authMiddleware";
+import { createAuthMiddleware } from "../authMiddleware";
+import { addressService } from "./addressStorage";
 const addressSchema = z.object({
   name: z.string().min(2, "Name must be at least 2 characters").max(100),
   phone: z.string().regex(/^[0-9]{10}$/, "Phone must be a 10-digit number"),
@@ -22,7 +19,7 @@ export const addressRoutes = (app: Express) => {
    // User Addresses
    app.get("/api/user/addresses", authUser, async (req, res) => {
      try {
-       const addresses = await storage.getUserAddresses((req as any).user.id);
+       const addresses = await addressService.getUserAddresses((req as any).user.id);
        res.json(addresses);
      } catch (error) {
        res.status(500).json({ message: "Failed to fetch addresses" });
@@ -35,7 +32,7 @@ export const addressRoutes = (app: Express) => {
        if (!validation.success) {
          return res.status(400).json({ message: validation.error.errors[0].message });
        }
-       const address = await storage.createUserAddress({
+       const address = await addressService.createUserAddress({
          ...validation.data,
          userId: (req as any).user.id,
        });
@@ -47,7 +44,7 @@ export const addressRoutes = (app: Express) => {
  
    app.patch("/api/user/addresses/:id", authUser, async (req, res) => {
      try {
-       const address = await storage.getUserAddress(req.params.id);
+       const address = await addressService.getUserAddress(req.params.id);
        if (!address || address.userId !== (req as any).user.id) {
          return res.status(404).json({ message: "Address not found" });
        }
@@ -55,7 +52,7 @@ export const addressRoutes = (app: Express) => {
        if (!validation.success) {
          return res.status(400).json({ message: validation.error.errors[0].message });
        }
-       const updated = await storage.updateUserAddress(req.params.id, validation.data);
+       const updated = await addressService.updateUserAddress(req.params.id, validation.data);
        res.json(updated);
      } catch (error) {
        res.status(500).json({ message: "Failed to update address" });
@@ -64,7 +61,7 @@ export const addressRoutes = (app: Express) => {
  
    app.patch("/api/user/addresses/:id/default", authUser, async (req, res) => {
      try {
-       const address = await storage.setDefaultAddress((req as any).user.id, req.params.id);
+       const address = await addressService.setDefaultAddress((req as any).user.id, req.params.id);
        if (!address) {
          return res.status(404).json({ message: "Address not found" });
        }
@@ -76,11 +73,11 @@ export const addressRoutes = (app: Express) => {
  
    app.delete("/api/user/addresses/:id", authUser, async (req, res) => {
      try {
-       const address = await storage.getUserAddress(req.params.id);
+       const address = await addressService.getUserAddress(req.params.id);
        if (!address || address.userId !== (req as any).user.id) {
          return res.status(404).json({ message: "Address not found" });
        }
-       await storage.deleteUserAddress(req.params.id);
+       await addressService.deleteUserAddress(req.params.id);
        res.json({ success: true });
      } catch (error) {
        res.status(500).json({ message: "Failed to delete address" });
@@ -90,7 +87,7 @@ export const addressRoutes = (app: Express) => {
    // Pincode availability check (public)
    app.get("/api/pincodes/:pincode/check", async (req, res) => {
      try {
-       // const pincode = await storage.checkPincodeAvailability(req.params.pincode);
+       // const pincode = await addressService.checkPincodeAvailability(req.params.pincode);
        const info = postalcodes.find(req.params.pincode);
        
        if (info) {

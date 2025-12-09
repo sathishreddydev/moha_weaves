@@ -2,16 +2,16 @@ import type { Express } from "express";
 import { type Server } from "http";
 import { storage } from "./storage";
 import { ObjectStorageService, ObjectNotFoundError } from "./objectStorage";
-import { authRoutes } from "./authRoutes";
+import { authRoutes } from "./auth/authRoutes";
 import { adminRoutes } from "./adminRoutes";
-import { cartRoutes } from "./cartRoutes";
-import { orderRoutes } from "./orderRoutes";
+import { cartRoutes } from "./cart/cartRoutes";
+import { orderRoutes } from "./order/orderRoutes";
 import { createAuthMiddleware } from "./authMiddleware";
-import { addressRoutes } from "./addressRoutes";
+import { addressRoutes } from "./address/addressRoutes";
 import { inventoryRoutes } from "./inventoryRoutes";
 import { storeRoutes } from "./storeRoutes";
 import { userRoutes } from "./userRoutes";
-import { publicRoutes } from "./publicRoutes";
+import { publicRoutes } from "./public/publicRoutes";
 
 const authAny = createAuthMiddleware(["user", "admin", "inventory", "store"]);
 

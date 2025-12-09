@@ -1,13 +1,13 @@
-import type { Express, Request, Response, NextFunction } from "express";
-import { storage } from "./storage";
-import { createAuthMiddleware } from "./authMiddleware";
+import type { Express } from "express";
+import { createAuthMiddleware } from "../authMiddleware";
+import { cartServices } from "./cartStorage";
 
 const authUser = createAuthMiddleware(["user"]);
 export const cartRoutes = (app: Express) => {
   // Cart
   app.get("/api/user/cart", authUser, async (req, res) => {
     try {
-      const items = await storage.getCartItems((req as any).user.id);
+      const items = await cartServices.getCartItems((req as any).user.id);
       res.json(items);
     } catch (error) {
       res.status(500).json({ message: "Failed to fetch cart" });
@@ -16,7 +16,7 @@ export const cartRoutes = (app: Express) => {
 
   app.get("/api/user/cart/count", authUser, async (req, res) => {
     try {
-      const count = await storage.getCartCount((req as any).user.id);
+      const count = await cartServices.getCartCount((req as any).user.id);
       res.json({ count });
     } catch (error) {
       res.status(500).json({ message: "Failed to fetch cart count" });
@@ -26,7 +26,7 @@ export const cartRoutes = (app: Express) => {
   app.post("/api/user/cart", authUser, async (req, res) => {
     try {
       const { sareeId, quantity = 1 } = req.body;
-      const item = await storage.addToCart({
+      const item = await cartServices.addToCart({
         userId: (req as any).user.id,
         sareeId,
         quantity,
@@ -40,7 +40,7 @@ export const cartRoutes = (app: Express) => {
   app.patch("/api/user/cart/:id", authUser, async (req, res) => {
     try {
       const { quantity } = req.body;
-      const item = await storage.updateCartItem(req.params.id, quantity);
+      const item = await cartServices.updateCartItem(req.params.id, quantity);
       res.json(item);
     } catch (error) {
       res.status(500).json({ message: "Failed to update cart" });
@@ -49,7 +49,7 @@ export const cartRoutes = (app: Express) => {
 
   app.delete("/api/user/cart/:id", authUser, async (req, res) => {
     try {
-      await storage.removeFromCart(req.params.id);
+      await cartServices.removeFromCart(req.params.id);
       res.json({ success: true });
     } catch (error) {
       res.status(500).json({ message: "Failed to remove from cart" });
@@ -58,7 +58,7 @@ export const cartRoutes = (app: Express) => {
   // Wishlist
   app.get("/api/user/wishlist", authUser, async (req, res) => {
     try {
-      const items = await storage.getWishlistItems((req as any).user.id);
+      const items = await cartServices.getWishlistItems((req as any).user.id);
       res.json(items);
     } catch (error) {
       res.status(500).json({ message: "Failed to fetch wishlist" });
@@ -67,7 +67,7 @@ export const cartRoutes = (app: Express) => {
 
   app.get("/api/user/wishlist/count", authUser, async (req, res) => {
     try {
-      const count = await storage.getWishlistCount((req as any).user.id);
+      const count = await cartServices.getWishlistCount((req as any).user.id);
       res.json({ count });
     } catch (error) {
       res.status(500).json({ message: "Failed to fetch wishlist count" });
@@ -77,7 +77,7 @@ export const cartRoutes = (app: Express) => {
   app.post("/api/user/wishlist", authUser, async (req, res) => {
     try {
       const { sareeId } = req.body;
-      const item = await storage.addToWishlist({
+      const item = await cartServices.addToWishlist({
         userId: (req as any).user.id,
         sareeId,
       });
@@ -89,7 +89,7 @@ export const cartRoutes = (app: Express) => {
 
   app.delete("/api/user/wishlist/:sareeId", authUser, async (req, res) => {
     try {
-      await storage.removeFromWishlist(
+      await cartServices.removeFromWishlist(
         (req as any).user.id,
         req.params.sareeId
       );

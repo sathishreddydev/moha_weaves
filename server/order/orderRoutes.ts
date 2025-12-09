@@ -1,9 +1,8 @@
-import type { Express, Request, Response, NextFunction } from "express";
-import { storage } from "./storage";
-import bcrypt from "bcryptjs";
-import jwt from "jsonwebtoken";
-import crypto from "crypto";
-import { createAuthMiddleware } from "./authMiddleware";
+import type { Express } from "express";
+import { storage } from "../storage";
+import { createAuthMiddleware } from "../authMiddleware";
+import { cartServices } from "../cart/cartStorage";
+import { orderService } from "./orderStorage";
 
 export const orderRoutes = (app: Express) => {
   const authUser = createAuthMiddleware(["user"]);
@@ -11,7 +10,7 @@ export const orderRoutes = (app: Express) => {
   // Orders
   app.get("/api/user/orders", authUser, async (req, res) => {
     try {
-      const orders = await storage.getOrders((req as any).user.id);
+      const orders = await orderService.getOrders((req as any).user.id);
       res.json(orders);
     } catch (error) {
       res.status(500).json({ message: "Failed to fetch orders" });
@@ -20,7 +19,7 @@ export const orderRoutes = (app: Express) => {
 
   app.get("/api/user/orders/:id", authUser, async (req, res) => {
     try {
-      const order = await storage.getOrder(req.params.id);
+      const order = await orderService.getOrder(req.params.id);
       if (!order || order.userId !== (req as any).user.id) {
         return res.status(404).json({ message: "Order not found" });
       }
@@ -35,7 +34,7 @@ export const orderRoutes = (app: Express) => {
       const { shippingAddress, phone, notes, couponId } = req.body;
       const userId = (req as any).user.id;
 
-      const cartItems = await storage.getCartItems(userId);
+      const cartItems = await cartServices.getCartItems(userId);
       if (cartItems.length === 0) {
         return res.status(400).json({ message: "Cart is empty" });
       }
@@ -71,7 +70,7 @@ export const orderRoutes = (app: Express) => {
 
       const finalAmount = totalAmount - discountAmount;
 
-      const order = await storage.createOrder(
+      const order = await orderService.createOrder(
         {
           userId,
           totalAmount: totalAmount.toString(),
@@ -95,7 +94,7 @@ export const orderRoutes = (app: Express) => {
         await storage.deductOnlineStock(item.sareeId, item.quantity);
       }
 
-      await storage.clearCart(userId);
+      await cartServices.clearCart(userId);
 
       // Record coupon usage after order is created
       if (validCoupon && discountAmount > 0) {
