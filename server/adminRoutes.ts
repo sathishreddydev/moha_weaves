@@ -544,7 +544,7 @@ export const adminRoutes = (app: Express) => {
 
       const sale = await storage.createSale({
         name,
-        description,
+        description: description || null,
         offerType,
         discountValue: String(discountValue),
         categoryId: categoryId || null,
@@ -558,14 +558,14 @@ export const adminRoutes = (app: Express) => {
       });
 
       // Add products if it's a product-level offer
-      if (offerType === 'product' && productIds && Array.isArray(productIds)) {
+      if (offerType === 'product' && productIds && Array.isArray(productIds) && productIds.length > 0) {
         await storage.addProductsToSale(sale.id, productIds);
       }
 
       res.json(sale);
     } catch (error) {
       console.error("Error creating sale:", error);
-      res.status(500).json({ message: "Failed to create sale" });
+      res.status(500).json({ message: "Failed to create sale", error: error instanceof Error ? error.message : String(error) });
     }
   });
 

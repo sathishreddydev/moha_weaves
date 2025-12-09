@@ -3043,8 +3043,8 @@ export class DatabaseStorage implements IStorage {
 
     if (actualFilters.current) {
       const now = new Date();
-      conditions.push(gte(sales.validFrom, now));
-      conditions.push(lte(sales.validUntil, now));
+      conditions.push(lte(sales.validFrom, now));
+      conditions.push(gte(sales.validUntil, now));
     }
 
     const salesResult = await db
@@ -3109,7 +3109,13 @@ export class DatabaseStorage implements IStorage {
   }
 
   async addProductsToSale(saleId: string, sareeIds: string[]): Promise<void> {
+    if (!sareeIds || sareeIds.length === 0) return;
+    
     await db.transaction(async (tx) => {
+      // First, remove existing products for this sale
+      await tx.delete(saleProducts).where(eq(saleProducts.saleId, saleId));
+      
+      // Then add the new products
       for (const sareeId of sareeIds) {
         await tx.insert(saleProducts).values({ saleId, sareeId });
       }
@@ -3120,8 +3126,8 @@ export class DatabaseStorage implements IStorage {
     const now = new Date();
     const conditions: any[] = [
       eq(sales.isActive, true),
-      gte(sales.validFrom, now),
-      lte(sales.validUntil, now),
+      lte(sales.validFrom, now),
+      gte(sales.validUntil, now),
     ];
 
     if (categoryId) {
