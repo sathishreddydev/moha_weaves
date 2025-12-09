@@ -1,5 +1,18 @@
-import { LayoutDashboard, ShoppingCart, Building2, Package, Palette, Settings, Shirt, Star, Tags, Ticket, UserCog, Users } from "lucide-react";
-
+import {
+  LayoutDashboard,
+  Package,
+  Tags,
+  Palette,
+  Shirt,
+  Users,
+  UserCog,
+  Building2,
+  ShoppingCart,
+  Ticket,
+  Star,
+  Settings,
+  Zap,
+} from "lucide-react";
 
 export const AdminNavItems = [
   { icon: LayoutDashboard, label: "Dashboard", href: "/admin/dashboard" },
@@ -11,7 +24,8 @@ export const AdminNavItems = [
   { icon: UserCog, label: "Staff", href: "/admin/staff" },
   { icon: Building2, label: "Stores", href: "/admin/stores" },
   { icon: ShoppingCart, label: "Orders", href: "/admin/orders" },
+  { icon: Zap, label: "Sales & Offers", href: "/admin/sales" },
   { icon: Ticket, label: "Coupons", href: "/admin/coupons" },
   { icon: Star, label: "Reviews", href: "/admin/reviews" },
   { icon: Settings, label: "Settings", href: "/admin/settings" },
-];;
+];

@@ -138,4 +138,41 @@ export const publicRoutes = (app: Express) => {
       res.status(500).json({ message: "Failed to fetch saree with reviews" });
     }
   });
+
+  // Public: Get active sales
+  app.get("/api/sales", async (req, res) => {
+    try {
+      const { featured, category } = req.query;
+      const sales = await storage.getSales({
+        isActive: true,
+        isFeatured: featured === "true" ? true : undefined,
+        categoryId: category as string,
+        current: true,
+      });
+      res.json(sales);
+    } catch (error) {
+      console.error("Error fetching sales:", error);
+      res.status(500).json({ message: "Failed to fetch sales" });
+    }
+  });
+
+  // Public: Get single sale with products
+  app.get("/api/sales/:id", async (req, res) => {
+    try {
+      const sale = await storage.getSale(req.params.id);
+      if (!sale || !sale.isActive) {
+        return res.status(404).json({ message: "Sale not found" });
+      }
+      
+      const now = new Date();
+      if (now < new Date(sale.startDate) || now > new Date(sale.endDate)) {
+        return res.status(404).json({ message: "Sale not active" });
+      }
+      
+      res.json(sale);
+    } catch (error) {
+      console.error("Error fetching sale:", error);
+      res.status(500).json({ message: "Failed to fetch sale" });
+    }
+  });
 };

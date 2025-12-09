@@ -30,6 +30,8 @@ import {
   type OrderWithItems, type StockRequestWithDetails, type StoreSaleWithItems,
   type ReturnRequestWithDetails, type SareeWithReviews, type CouponWithUsage,
   type StoreExchangeWithDetails,
+  // Import for Sales & Offers
+  sales, saleProducts, type Sale, type InsertSale, type SaleWithProducts,
 } from "@shared/schema";
 import { db } from "./db";
 import { eq, and, or, ilike, desc, asc, sql, gte, lte, inArray } from "drizzle-orm";
@@ -319,6 +321,20 @@ export interface IStorage {
   ): Promise<{ data: { saree: SareeWithDetails; storeStock: number }[]; total: number }>;
 
   getStockMovements(filters?: { source?: string; sareeId?: string; limit?: number }): Promise<StockMovement[]>;
+
+  // ==================== SALES & OFFERS ====================
+  getSales(filters: { 
+    isActive?: boolean; 
+    isFeatured?: boolean; 
+    categoryId?: string;
+    current?: boolean;
+  } = {}): Promise<Array<SaleWithProducts & { productCount: number }>>;
+  getSale(id: string): Promise<SaleWithProducts & { productCount: number } | null>;
+  createSale(data: InsertSale): Promise<Sale>;
+  updateSale(id: string, data: Partial<InsertSale>): Promise<Sale | undefined>;
+  deleteSale(id: string): Promise<void>;
+  addProductsToSale(saleId: string, sareeIds: string[]): Promise<void>;
+  getActiveSalesForSaree(sareeId: string, categoryId?: string): Promise<SaleWithProducts[]>;
 }
 
 export class DatabaseStorage implements IStorage {

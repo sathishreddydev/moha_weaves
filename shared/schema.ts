@@ -17,6 +17,7 @@ export const returnReasonEnum = pgEnum("return_reason", ["defective", "wrong_ite
 export const returnResolutionEnum = pgEnum("return_resolution", ["refund", "exchange", "store_credit"]);
 export const refundStatusEnum = pgEnum("refund_status", ["pending", "initiated", "processing", "completed", "failed"]);
 export const couponTypeEnum = pgEnum("coupon_type", ["percentage", "fixed", "free_shipping"]);
+export const offerTypeEnum = pgEnum("offer_type", ["percentage", "flat", "category", "product", "flash_sale"]);
 export const notificationTypeEnum = pgEnum("notification_type", ["order", "return", "refund", "promotion", "system"]);
 export const stockMovementSourceEnum = pgEnum("stock_movement_source", ["online", "store"]);
 export const stockMovementTypeEnum = pgEnum("stock_movement_type", ["sale", "return", "restock", "transfer", "adjustment"]);
@@ -309,6 +310,33 @@ export const coupons = pgTable("coupons", {
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
+// Sales and Offers
+export const sales = pgTable("sales", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  name: text("name").notNull(),
+  description: text("description"),
+  offerType: offerTypeEnum("offer_type").notNull(),
+  discountValue: decimal("discount_value", { precision: 10, scale: 2 }).notNull(),
+  categoryId: varchar("category_id").references(() => categories.id),
+  minOrderAmount: decimal("min_order_amount", { precision: 10, scale: 2 }),
+  maxDiscount: decimal("max_discount", { precision: 10, scale: 2 }),
+  startDate: timestamp("start_date").notNull(),
+  endDate: timestamp("end_date").notNull(),
+  isActive: boolean("is_active").notNull().default(true),
+  isFeatured: boolean("is_featured").notNull().default(false),
+  bannerImage: text("banner_image"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
+// Sale product mapping (for product-level offers)
+export const saleProducts = pgTable("sale_products", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  saleId: varchar("sale_id").references(() => sales.id).notNull(),
+  sareeId: varchar("saree_id").references(() => sarees.id).notNull(),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+});
+
 // Coupon usage tracking
 export const couponUsage = pgTable("coupon_usage", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
@@ -560,6 +588,16 @@ export const couponsRelations = relations(coupons, ({ many }) => ({
   orders: many(orders),
 }));
 
+export const salesRelations = relations(sales, ({ one, many }) => ({
+  category: one(categories, { fields: [sales.categoryId], references: [categories.id] }),
+  products: many(saleProducts),
+}));
+
+export const saleProductsRelations = relations(saleProducts, ({ one }) => ({
+  sale: one(sales, { fields: [saleProducts.saleId], references: [sales.id] }),
+  saree: one(sarees, { fields: [saleProducts.sareeId], references: [sarees.id] }),
+}));
+
 export const couponUsageRelations = relations(couponUsage, ({ one }) => ({
   coupon: one(coupons, { fields: [couponUsage.couponId], references: [coupons.id] }),
   user: one(users, { fields: [couponUsage.userId], references: [users.id] }),
@@ -644,6 +682,8 @@ export const insertInventoryAdjustmentSchema = createInsertSchema(inventoryAdjus
 export const insertStoreExchangeSchema = createInsertSchema(storeExchanges).omit({ id: true, createdAt: true });
 export const insertStoreExchangeReturnItemSchema = createInsertSchema(storeExchangeReturnItems).omit({ id: true });
 export const insertStoreExchangeNewItemSchema = createInsertSchema(storeExchangeNewItems).omit({ id: true });
+export const insertSaleSchema = createInsertSchema(sales).omit({ id: true, createdAt: true, updatedAt: true });
+export const insertSaleProductSchema = createInsertSchema(saleProducts).omit({ id: true, createdAt: true });
 
 // Types
 export type User = typeof users.$inferSelect;
@@ -710,6 +750,10 @@ export type StoreExchangeReturnItem = typeof storeExchangeReturnItems.$inferSele
 export type InsertStoreExchangeReturnItem = z.infer<typeof insertStoreExchangeReturnItemSchema>;
 export type StoreExchangeNewItem = typeof storeExchangeNewItems.$inferSelect;
 export type InsertStoreExchangeNewItem = z.infer<typeof insertStoreExchangeNewItemSchema>;
+export type Sale = typeof sales.$inferSelect;
+export type InsertSale = z.infer<typeof insertSaleSchema>;
+export type SaleProduct = typeof saleProducts.$inferSelect;
+export type InsertSaleProduct = z.infer<typeof insertSaleProductSchema>;
 
 // Extended types for frontend use
 export type SareeWithDetails = Saree & {
@@ -786,4 +830,10 @@ export type StoreExchangeWithDetails = StoreExchange & {
   processor: User;
   returnItems: (StoreExchangeReturnItem & { saree: SareeWithDetails })[];
   newItems: (StoreExchangeNewItem & { saree: SareeWithDetails })[];
+};
+
+export type SaleWithDetails = Sale & {
+  category?: Category | null;
+  products?: (SaleProduct & { saree: SareeWithDetails })[];
+  productCount?: number;
 };

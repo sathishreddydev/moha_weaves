@@ -486,6 +486,149 @@ export const adminRoutes = (app: Express) => {
       res.status(500).json({ message: "Failed to delete coupon" });
     }
   });
+
+  // ==================== SALES & OFFERS ROUTES ====================
+
+  // Admin: Get all sales
+  app.get("/api/admin/sales", authAdmin, async (req, res) => {
+    try {
+      const { active, featured, category } = req.query;
+      const sales = await storage.getSales({
+        isActive: active === "true" ? true : active === "false" ? false : undefined,
+        isFeatured: featured === "true" ? true : undefined,
+        categoryId: category as string,
+      });
+      res.json(sales);
+    } catch (error) {
+      console.error("Error fetching sales:", error);
+      res.status(500).json({ message: "Failed to fetch sales" });
+    }
+  });
+
+  // Admin: Get single sale
+  app.get("/api/admin/sales/:id", authAdmin, async (req, res) => {
+    try {
+      const sale = await storage.getSale(req.params.id);
+      if (!sale) {
+        return res.status(404).json({ message: "Sale not found" });
+      }
+      res.json(sale);
+    } catch (error) {
+      console.error("Error fetching sale:", error);
+      res.status(500).json({ message: "Failed to fetch sale" });
+    }
+  });
+
+  // Admin: Create sale
+  app.post("/api/admin/sales", authAdmin, async (req, res) => {
+    try {
+      const {
+        name,
+        description,
+        offerType,
+        discountValue,
+        categoryId,
+        minOrderAmount,
+        maxDiscount,
+        startDate,
+        endDate,
+        isActive,
+        isFeatured,
+        bannerImage,
+        productIds,
+      } = req.body;
+
+      if (!name || !offerType || !discountValue || !startDate || !endDate) {
+        return res.status(400).json({ message: "Missing required fields" });
+      }
+
+      const sale = await storage.createSale({
+        name,
+        description,
+        offerType,
+        discountValue: String(discountValue),
+        categoryId: categoryId || null,
+        minOrderAmount: minOrderAmount ? String(minOrderAmount) : null,
+        maxDiscount: maxDiscount ? String(maxDiscount) : null,
+        startDate: new Date(startDate),
+        endDate: new Date(endDate),
+        isActive: isActive !== undefined ? isActive : true,
+        isFeatured: isFeatured !== undefined ? isFeatured : false,
+        bannerImage: bannerImage || null,
+      });
+
+      // Add products if it's a product-level offer
+      if (offerType === 'product' && productIds && Array.isArray(productIds)) {
+        await storage.addProductsToSale(sale.id, productIds);
+      }
+
+      res.json(sale);
+    } catch (error) {
+      console.error("Error creating sale:", error);
+      res.status(500).json({ message: "Failed to create sale" });
+    }
+  });
+
+  // Admin: Update sale
+  app.patch("/api/admin/sales/:id", authAdmin, async (req, res) => {
+    try {
+      const {
+        name,
+        description,
+        offerType,
+        discountValue,
+        categoryId,
+        minOrderAmount,
+        maxDiscount,
+        startDate,
+        endDate,
+        isActive,
+        isFeatured,
+        bannerImage,
+        productIds,
+      } = req.body;
+
+      const updateData: any = {};
+      if (name !== undefined) updateData.name = name;
+      if (description !== undefined) updateData.description = description;
+      if (offerType !== undefined) updateData.offerType = offerType;
+      if (discountValue !== undefined) updateData.discountValue = String(discountValue);
+      if (categoryId !== undefined) updateData.categoryId = categoryId || null;
+      if (minOrderAmount !== undefined) updateData.minOrderAmount = minOrderAmount ? String(minOrderAmount) : null;
+      if (maxDiscount !== undefined) updateData.maxDiscount = maxDiscount ? String(maxDiscount) : null;
+      if (startDate !== undefined) updateData.startDate = new Date(startDate);
+      if (endDate !== undefined) updateData.endDate = new Date(endDate);
+      if (isActive !== undefined) updateData.isActive = isActive;
+      if (isFeatured !== undefined) updateData.isFeatured = isFeatured;
+      if (bannerImage !== undefined) updateData.bannerImage = bannerImage || null;
+
+      const sale = await storage.updateSale(req.params.id, updateData);
+      if (!sale) {
+        return res.status(404).json({ message: "Sale not found" });
+      }
+
+      // Update products if provided
+      if (productIds !== undefined && Array.isArray(productIds)) {
+        await storage.addProductsToSale(req.params.id, productIds);
+      }
+
+      res.json(sale);
+    } catch (error) {
+      console.error("Error updating sale:", error);
+      res.status(500).json({ message: "Failed to update sale" });
+    }
+  });
+
+  // Admin: Delete sale
+  app.delete("/api/admin/sales/:id", authAdmin, async (req, res) => {
+    try {
+      await storage.deleteSale(req.params.id);
+      res.json({ message: "Sale deleted" });
+    } catch (error) {
+      console.error("Error deleting sale:", error);
+      res.status(500).json({ message: "Failed to delete sale" });
+    }
+  });
     // Admin: Get all settings
     app.get("/api/admin/settings", authAdmin, async (req, res) => {
       try {
