@@ -186,8 +186,8 @@ export default function AdminSales() {
       categoryId: sale.categoryId || "",
       minOrderAmount: sale.minOrderAmount || "",
       maxDiscount: sale.maxDiscount || "",
-      startDate: new Date(sale.startDate).toISOString().split("T")[0],
-      endDate: new Date(sale.endDate).toISOString().split("T")[0],
+      startDate: new Date(sale.validFrom).toISOString().split("T")[0],
+      endDate: new Date(sale.validUntil).toISOString().split("T")[0],
       isActive: sale.isActive,
       isFeatured: sale.isFeatured,
       bannerImage: sale.bannerImage || "",
@@ -262,7 +262,7 @@ export default function AdminSales() {
   const isActive = (sale: SaleWithDetails) => {
     if (!sale.isActive) return false;
     const now = new Date();
-    return now >= new Date(sale.startDate) && now <= new Date(sale.endDate);
+    return now >= new Date(sale.validFrom) && now <= new Date(sale.validUntil);
   };
 
   return (
@@ -329,9 +329,9 @@ export default function AdminSales() {
                       <TableCell className="text-sm">
                         <div className="flex items-center gap-1 text-muted-foreground">
                           <Calendar className="h-3 w-3" />
-                          <span>{formatDate(sale.startDate)}</span>
+                          <span>{formatDate(sale.validFrom)}</span>
                           <span>-</span>
-                          <span>{formatDate(sale.endDate)}</span>
+                          <span>{formatDate(sale.validUntil)}</span>
                         </div>
                       </TableCell>
                       <TableCell>

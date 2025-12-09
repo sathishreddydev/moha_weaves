@@ -3094,12 +3094,24 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createSale(data: InsertSale): Promise<Sale> {
-    const [result] = await db.insert(sales).values(data).returning();
+    const saleData = {
+      ...data,
+      validFrom: typeof data.validFrom === 'string' ? new Date(data.validFrom) : data.validFrom,
+      validUntil: typeof data.validUntil === 'string' ? new Date(data.validUntil) : data.validUntil,
+    };
+    const [result] = await db.insert(sales).values(saleData).returning();
     return result;
   }
 
   async updateSale(id: string, data: Partial<InsertSale>): Promise<Sale | undefined> {
-    const [result] = await db.update(sales).set(data).where(eq(sales.id, id)).returning();
+    const updateData: any = { ...data };
+    if (updateData.validFrom && typeof updateData.validFrom === 'string') {
+      updateData.validFrom = new Date(updateData.validFrom);
+    }
+    if (updateData.validUntil && typeof updateData.validUntil === 'string') {
+      updateData.validUntil = new Date(updateData.validUntil);
+    }
+    const [result] = await db.update(sales).set(updateData).where(eq(sales.id, id)).returning();
     return result || undefined;
   }
 
