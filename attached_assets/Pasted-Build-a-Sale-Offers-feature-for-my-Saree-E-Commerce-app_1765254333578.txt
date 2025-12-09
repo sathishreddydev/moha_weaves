@@ -1,0 +1,67 @@
+Build a "Sale & Offers" feature for my Saree E-Commerce application.
+
+Project Requirements:
+---------------------
+
+1. Tech Stack:
+   - Backend: Node.js + Express + MongoDB
+   - Frontend: React or simple HTML/CSS/JS pages
+   - Admin Panel: React-based
+   - API should be RESTful
+
+2. Offer Types Needed:
+   - Percentage discount (e.g., 20% OFF)
+   - Flat discount (e.g., ₹300 OFF)
+   - Category-level offers (e.g., Silk Sarees 30% OFF)
+   - Product-level offers (attach offer to selected sarees)
+   - Flash sale with start/end time + countdown timer
+   - Coupon codes (e.g., FESTIVE10)
+
+3. Backend Features:
+   - Create offers table/collection:
+       fields: offerName, offerType, discountValue, startDate, endDate,
+               appliesTo (product/category/all), couponCode, status
+   - Create mapping between offer and products
+   - Auto-apply offer if time is active
+   - API routes:
+       POST /offers
+       GET /offers
+       GET /offers/active
+       POST /offers/applyCoupon
+       GET /products/:id (return product with final price after discount)
+
+4. Admin Panel Features:
+   - Create/edit/delete offers
+   - Select products for offer
+   - Set start & end date/time
+   - Activate/deactivate offers
+   - Dashboard showing:
+       - Active offers
+       - Total users using coupons
+       - Sale performance
+
+5. Frontend Features:
+   - Product page shows:
+        Original Price (striked)
+        Sale Price (calculated using offer)
+        % OFF badge
+   - Flash sale countdown timer
+   - Sale banner section
+   - Coupon apply input in cart
+   - List all products under current sales
+
+6. Logic Requirements:
+   - finalPrice = originalPrice - discountValue
+   - OR finalPrice = originalPrice * (1 - discountValue/100)
+   - If flash sale: final price only inside time range
+   - Only one highest discount should be applied if multiple offers exist
+
+7. Deliverables:
+   - Express backend with all offer routes
+   - MongoDB schema for offers and product-offer mapping
+   - React admin panel for managing offers
+   - Frontend components to show discounted price + countdown timers
+   - Sample data seeds for saree products
+   - Instructions to run backend & frontend on Replit
+
+Build this entire system as a functioning project.
