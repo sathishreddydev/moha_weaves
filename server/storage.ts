@@ -323,12 +323,12 @@ export interface IStorage {
   getStockMovements(filters?: { source?: string; sareeId?: string; limit?: number }): Promise<StockMovement[]>;
 
   // ==================== SALES & OFFERS ====================
-  getSales(filters: { 
+  getSales(filters?: { 
     isActive?: boolean; 
     isFeatured?: boolean; 
     categoryId?: string;
     current?: boolean;
-  } = {}): Promise<Array<SaleWithProducts & { productCount: number }>>;
+  }): Promise<Array<SaleWithProducts & { productCount: number }>>;
   getSale(id: string): Promise<SaleWithProducts & { productCount: number } | null>;
   createSale(data: InsertSale): Promise<Sale>;
   updateSale(id: string, data: Partial<InsertSale>): Promise<Sale | undefined>;
@@ -624,143 +624,6 @@ export class DatabaseStorage implements IStorage {
     return !!result;
   }
 
-  async createSareeWithAllocations(
-    saree: InsertSaree,
-    allocations: { storeId: string; quantity: number }[]
-  ): Promise<Saree> {
-    return await db.transaction(async (tx) => {
-      // Auto-generate SKU: MH-YYYYMMDD-XXXXX (timestamp + random suffix)
-      const now = new Date();
-      const dateStr = now.toISOString().slice(0, 10).replace(/-/g, "");
-      const randomSuffix = Math.random().toString(36).substring(2, 7).toUpperCase();
-      const generatedSku = `MH-${dateStr}-${randomSuffix}`;
-
-      const sareeWithSku = {
-        ...saree,
-        sku: generatedSku,
-      };
-
-      const [createdSaree] = await tx.insert(sarees).values(sareeWithSku).returning();
-
-      const nonZeroAllocations = allocations.filter(a => a.quantity > 0);
-      if (nonZeroAllocations.length > 0) {
-        const inventoryRecords = nonZeroAllocations.map((alloc) => ({
-          storeId: alloc.storeId,
-          sareeId: createdSaree.id,
-          quantity: alloc.quantity,
-        }));
-        await tx.insert(storeInventory).values(inventoryRecords);
-      }
-
-      return createdSaree;
-    });
-  }
-
-  async updateSareeWithAllocations(
-    id: string,
-    data: Partial<InsertSaree>,
-    allocations: { storeId: string; quantity: number }[]
-  ): Promise<Saree | undefined> {
-    return await db.transaction(async (tx) => {
-      // Remove SKU from update data - SKU is auto-generated and should not be changed
-      const { sku, ...updateData } = data as any;
-
-      const [updatedSaree] = await tx.update(sarees).set(updateData).where(eq(sarees.id, id)).returning();
-      if (!updatedSaree) return undefined;
-
-      await tx.delete(storeInventory).where(eq(storeInventory.sareeId, id));
-
-      const nonZeroAllocations = allocations.filter(a => a.quantity > 0);
-      if (nonZeroAllocations.length > 0) {
-        const inventoryRecords = nonZeroAllocations.map((alloc) => ({
-          storeId: alloc.storeId,
-          sareeId: id,
-          quantity: alloc.quantity,
-        }));
-        await tx.insert(storeInventory).values(inventoryRecords);
-      }
-
-      return updatedSaree;
-    });
-  }
-
-  async getSareeAllocations(sareeId: string): Promise<{ storeId: string; storeName: string; quantity: number }[]> {
-    const result = await db
-      .select({
-        storeId: storeInventory.storeId,
-        storeName: stores.name,
-        quantity: storeInventory.quantity,
-      })
-      .from(storeInventory)
-      .innerJoin(stores, eq(storeInventory.storeId, stores.id))
-      .where(eq(storeInventory.sareeId, sareeId));
-
-    return result;
-  }
-async getStockDistribution(): Promise<{
-    saree: SareeWithDetails;
-    totalStock: number;
-    onlineStock: number;
-    storeAllocations: { store: Store; quantity: number }[];
-    unallocated: number;
-  }[]> {
-    // Get all active sarees
-    const allSarees = await db
-      .select()
-      .from(sarees)
-      .leftJoin(categories, eq(sarees.categoryId, categories.id))
-      .leftJoin(colors, eq(sarees.colorId, colors.id))
-      .leftJoin(fabrics, eq(sarees.fabricId, fabrics.id))
-      .where(eq(sarees.isActive, true));
-
-    const result = [];
-
-    for (const row of allSarees) {
-      const saree = {
-        ...row.sarees,
-        category: row.categories,
-        color: row.colors,
-        fabric: row.fabrics,
-      };
-
-      // Get store allocations for this saree
-      const allocations = await db
-        .select({
-          storeId: storeInventory.storeId,
-          quantity: storeInventory.quantity,
-        })
-        .from(storeInventory)
-        .where(eq(storeInventory.sareeId, saree.id));
-
-      // Get store details for each allocation
-      const storeAllocations = [];
-      let totalStoreStock = 0;
-
-      for (const alloc of allocations) {
-        const store = await this.getStore(alloc.storeId);
-        if (store) {
-          storeAllocations.push({
-            store,
-            quantity: alloc.quantity,
-          });
-          totalStoreStock += alloc.quantity;
-        }
-      }
-
-      // Calculate unallocated stock
-      const unallocated = saree.totalStock - saree.onlineStock - totalStoreStock;
-
-      result.push({
-        saree,
-        totalStock: saree.totalStock,
-        onlineStock: saree.onlineStock,
-        storeAllocations,
-        unallocated: Math.max(0, unallocated),
-      });
-    }
-
-    return result;
-  }
   async getLowStockSarees(threshold = 10): Promise<SareeWithDetails[]> {
     const result = await db
       .select()
@@ -3040,6 +2903,165 @@ async getStockDistribution(): Promise<{
       data,
       total: countResult[0]?.count || 0,
     };
+  }
+
+  // ==================== SALES & OFFERS ====================
+  async getSales(filters?: { 
+    isActive?: boolean; 
+    isFeatured?: boolean; 
+    categoryId?: string;
+    current?: boolean;
+  }): Promise<Array<SaleWithProducts & { productCount: number }>> {
+    const actualFilters = filters || {};
+    const conditions: any[] = [];
+
+    if (actualFilters.isActive !== undefined) {
+      conditions.push(eq(sales.isActive, actualFilters.isActive));
+    }
+
+    if (actualFilters.isFeatured !== undefined) {
+      conditions.push(eq(sales.isFeatured, actualFilters.isFeatured));
+    }
+
+    if (actualFilters.categoryId) {
+      conditions.push(eq(sales.categoryId, actualFilters.categoryId));
+    }
+
+    if (actualFilters.current) {
+      const now = new Date();
+      conditions.push(gte(sales.validFrom, now));
+      conditions.push(lte(sales.validUntil, now));
+    }
+
+    const salesResult = await db
+      .select()
+      .from(sales)
+      .where(and(...conditions))
+      .orderBy(desc(sales.createdAt));
+    
+    const result = [];
+
+    for (const sale of salesResult) {
+      const products = await db
+        .select()
+        .from(saleProducts)
+        .where(eq(saleProducts.saleId, sale.id));
+      
+      result.push({
+        ...sale,
+        products: products.map(p => ({
+          ...p,
+          saree: null // Placeholder for saree details, to be fetched separately if needed
+        })),
+        productCount: products.length,
+      });
+    }
+    
+    return result;
+  }
+
+  async getSale(id: string): Promise<SaleWithProducts & { productCount: number } | null> {
+    const [sale] = await db.select().from(sales).where(eq(sales.id, id));
+    if (!sale) return null;
+
+    const products = await db
+      .select()
+      .from(saleProducts)
+      .where(eq(saleProducts.saleId, sale.id));
+
+    return {
+      ...sale,
+      products: products.map(p => ({
+        ...p,
+        saree: null // Placeholder for saree details
+      })),
+      productCount: products.length,
+    };
+  }
+
+  async createSale(data: InsertSale): Promise<Sale> {
+    const [result] = await db.insert(sales).values(data).returning();
+    return result;
+  }
+
+  async updateSale(id: string, data: Partial<InsertSale>): Promise<Sale | undefined> {
+    const [result] = await db.update(sales).set(data).where(eq(sales.id, id)).returning();
+    return result || undefined;
+  }
+
+  async deleteSale(id: string): Promise<void> {
+    await db.delete(sales).where(eq(sales.id, id));
+    await db.delete(saleProducts).where(eq(saleProducts.saleId, id));
+  }
+
+  async addProductsToSale(saleId: string, sareeIds: string[]): Promise<void> {
+    await db.transaction(async (tx) => {
+      for (const sareeId of sareeIds) {
+        await tx.insert(saleProducts).values({ saleId, sareeId });
+      }
+    });
+  }
+
+  async getActiveSalesForSaree(sareeId: string, categoryId?: string): Promise<SaleWithProducts[]>{
+    const now = new Date();
+    const conditions: any[] = [
+      eq(sales.isActive, true),
+      gte(sales.validFrom, now),
+      lte(sales.validUntil, now),
+    ];
+
+    if (categoryId) {
+      conditions.push(eq(sales.categoryId, categoryId));
+    }
+
+    // Find sales that include the specific saree
+    const salesWithSaree = await db
+      .select()
+      .from(sales)
+      .innerJoin(saleProducts, eq(sales.id, saleProducts.saleId))
+      .where(
+        and(
+          ...conditions,
+          eq(saleProducts.sareeId, sareeId)
+        )
+      );
+    
+    // Fetch products for each sale (simplified, actual products might be complex)
+    const result: SaleWithProducts[] = [];
+    for (const sale of salesWithSaree) {
+      const products = await db.select().from(saleProducts).where(eq(saleProducts.saleId, sale.sales.id));
+      result.push({
+        ...sale.sales,
+        products: products.map(p => ({ ...p, saree: null })),
+      });
+    }
+
+    // Also consider sales in the same category if no direct match
+    if (categoryId) {
+      const categorySales = await db
+        .select()
+        .from(sales)
+        .leftJoin(saleProducts, eq(sales.id, saleProducts.saleId))
+        .where(
+          and(
+            ...conditions,
+            eq(sales.categoryId, categoryId),
+            sql`NOT EXISTS (SELECT 1 FROM sale_products WHERE sale_id = sales.id AND saree_id = ${sareeId})`
+          )
+        );
+
+      const categorySalesWithProducts = [];
+      for (const sale of categorySales) {
+        const products = await db.select().from(saleProducts).where(eq(saleProducts.saleId, sale.sales.id));
+        categorySalesWithProducts.push({
+          ...sale.sales,
+          products: products.map(p => ({ ...p, saree: null })),
+        });
+      }
+      result.push(...categorySalesWithProducts);
+    }
+
+    return result;
   }
 }
 
