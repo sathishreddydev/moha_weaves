@@ -1,0 +1,32 @@
+No overload matches this call.
+  Overload 1 of 2, '(value: { storeId: string | SQL<unknown> | Placeholder<string, any>; sareeId: string | SQL<unknown> | Placeholder<string, any>; id?: string | SQL<unknown> | Placeholder<...> | undefined; quantity?: number | ... 2 more ... | undefined; updatedAt?: SQL<...> | ... 2 more ... | undefined; }): PgInsertBase<...>', gave the following error.
+    Object literal may only specify known properties, and 'createdAt' does not exist in type '{ storeId: string | SQL<unknown> | Placeholder<string, any>; sareeId: string | SQL<unknown> | Placeholder<string, any>; id?: string | SQL<unknown> | Placeholder<string, any> | undefined; quantity?: number | ... 2 more ... | undefined; updatedAt?: SQL<...> | ... 2 more ... | undefined; }'.
+  Overload 2 of 2, '(values: { storeId: string | SQL<unknown> | Placeholder<string, any>; sareeId: string | SQL<unknown> | Placeholder<string, any>; id?: string | SQL<unknown> | Placeholder<...> | undefined; quantity?: number | ... 2 more ... | undefined; updatedAt?: SQL<...> | ... 2 more ... | undefined; }[]): PgInsertBase<...>', gave the following error.
+    Object literal may only specify known properties, and 'storeId' does not exist in type '{ storeId: string | SQL<unknown> | Placeholder<string, any>; sareeId: string | SQL<unknown> | Placeholder<string, any>; id?: string | SQL<unknown> | Placeholder<string, any> | undefined; quantity?: number | ... 2 more ... | undefined; updatedAt?: SQL<...> | ... 2 more ... | undefined; }[]'.ts(2769)
+(method) PgInsertBuilder<PgTableWithColumns<{ name: "store_inventory"; schema: undefined; columns: { id: PgColumn<{ name: "id"; tableName: "store_inventory"; dataType: "string"; columnType: "PgVarchar"; data: string; driverParam: string; ... 8 more ...; generated: undefined; }, {}, { ...; }>; storeId: PgColumn<...>; sareeId: PgColumn<...>; quantity: PgColumn<...>; updatedAt: PgColumn<...>; }; dialect: "pg"; }>, NeonQueryResultHKT, false>.values(value: {
+    storeId: string | SQL<unknown> | Placeholder<string, any>;
+    sareeId: string | SQL<unknown> | Placeholder<string, any>;
+    id?: string | SQL<unknown> | Placeholder<string, any> | undefined;
+    quantity?: number | SQL<unknown> | Placeholder<string, any> | undefined;
+    updatedAt?: SQL<unknown> | Date | Placeholder<string, any> | undefined;
+}): PgInsertBase<PgTableWithColumns<{
+    name: "store_inventory";
+    schema: undefined;
+    columns: {
+        id: PgColumn<{
+            name: "id";
+            tableName: "store_inventory";
+            dataType: "string";
+            columnType: "PgVarchar";
+            ... 10 more ...;
+            generated: undefined;
+        }, {}, {
+            ...;
+        }>;
+        storeId: PgColumn<...>;
+        sareeId: PgColumn<...>;
+        quantity: PgColumn<...>;
+        updatedAt: PgColumn<...>;
+    };
+    dialect: "pg";
+}>, ... 4 more ..., never> (+1 overload)
