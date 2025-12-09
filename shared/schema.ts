@@ -320,8 +320,8 @@ export const sales = pgTable("sales", {
   categoryId: varchar("category_id").references(() => categories.id),
   minOrderAmount: decimal("min_order_amount", { precision: 10, scale: 2 }),
   maxDiscount: decimal("max_discount", { precision: 10, scale: 2 }),
-  startDate: timestamp("start_date").notNull(),
-  endDate: timestamp("end_date").notNull(),
+  validFrom: timestamp("valid_from").notNull(),
+  validUntil: timestamp("valid_until").notNull(),
   isActive: boolean("is_active").notNull().default(true),
   isFeatured: boolean("is_featured").notNull().default(false),
   bannerImage: text("banner_image"),
@@ -682,7 +682,10 @@ export const insertInventoryAdjustmentSchema = createInsertSchema(inventoryAdjus
 export const insertStoreExchangeSchema = createInsertSchema(storeExchanges).omit({ id: true, createdAt: true });
 export const insertStoreExchangeReturnItemSchema = createInsertSchema(storeExchangeReturnItems).omit({ id: true });
 export const insertStoreExchangeNewItemSchema = createInsertSchema(storeExchangeNewItems).omit({ id: true });
-export const insertSaleSchema = createInsertSchema(sales).omit({ id: true, createdAt: true, updatedAt: true });
+export const insertSaleSchema = createInsertSchema(sales).omit({ id: true, createdAt: true, updatedAt: true }).extend({
+  validFrom: z.date().or(z.string()),
+  validUntil: z.date().or(z.string()),
+});
 export const insertSaleProductSchema = createInsertSchema(saleProducts).omit({ id: true, createdAt: true });
 
 // Types
@@ -836,4 +839,8 @@ export type SaleWithDetails = Sale & {
   category?: Category | null;
   products?: (SaleProduct & { saree: SareeWithDetails })[];
   productCount?: number;
+};
+
+export type SaleWithProducts = Sale & {
+  products: (SaleProduct & { saree: SareeWithDetails | null })[];
 };

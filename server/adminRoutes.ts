@@ -550,8 +550,8 @@ export const adminRoutes = (app: Express) => {
         categoryId: categoryId || null,
         minOrderAmount: minOrderAmount ? String(minOrderAmount) : null,
         maxDiscount: maxDiscount ? String(maxDiscount) : null,
-        startDate: new Date(startDate),
-        endDate: new Date(endDate),
+        validFrom: new Date(startDate),
+        validUntil: new Date(endDate),
         isActive: isActive !== undefined ? isActive : true,
         isFeatured: isFeatured !== undefined ? isFeatured : false,
         bannerImage: bannerImage || null,
@@ -596,8 +596,8 @@ export const adminRoutes = (app: Express) => {
       if (categoryId !== undefined) updateData.categoryId = categoryId || null;
       if (minOrderAmount !== undefined) updateData.minOrderAmount = minOrderAmount ? String(minOrderAmount) : null;
       if (maxDiscount !== undefined) updateData.maxDiscount = maxDiscount ? String(maxDiscount) : null;
-      if (startDate !== undefined) updateData.startDate = new Date(startDate);
-      if (endDate !== undefined) updateData.endDate = new Date(endDate);
+      if (startDate !== undefined) updateData.validFrom = new Date(startDate);
+      if (endDate !== undefined) updateData.validUntil = new Date(endDate);
       if (isActive !== undefined) updateData.isActive = isActive;
       if (isFeatured !== undefined) updateData.isFeatured = isFeatured;
       if (bannerImage !== undefined) updateData.bannerImage = bannerImage || null;

@@ -1300,6 +1300,120 @@ export class DatabaseStorage implements IStorage {
     return result || undefined;
   }
 
+  // Saree with Store Allocations
+  async createSareeWithAllocations(
+    saree: InsertSaree,
+    storeAllocations: { storeId: string; quantity: number }[]
+  ): Promise<Saree> {
+    return await db.transaction(async (tx) => {
+      const createdSaree = await this.createSaree(saree);
+
+      for (const allocation of storeAllocations) {
+        await tx.insert(storeInventory).values({
+          storeId: allocation.storeId,
+          sareeId: createdSaree.id,
+          quantity: allocation.quantity,
+          updatedAt: new Date(),
+        });
+      }
+
+      return createdSaree;
+    });
+  }
+
+  async updateSareeWithAllocations(
+    id: string,
+    data: Partial<InsertSaree>,
+    storeAllocations: { storeId: string; quantity: number }[]
+  ): Promise<Saree | undefined> {
+    return await db.transaction(async (tx) => {
+      const updatedSaree = await this.updateSaree(id, data);
+      if (!updatedSaree) return undefined;
+
+      for (const allocation of storeAllocations) {
+        const existing = await this.getStoreInventoryItem(allocation.storeId, id);
+        if (existing) {
+          await tx
+            .update(storeInventory)
+            .set({ quantity: allocation.quantity, updatedAt: new Date() })
+            .where(and(eq(storeInventory.storeId, allocation.storeId), eq(storeInventory.sareeId, id)));
+        } else {
+          await tx.insert(storeInventory).values({
+            storeId: allocation.storeId,
+            sareeId: id,
+            quantity: allocation.quantity,
+            updatedAt: new Date(),
+          });
+        }
+      }
+
+      return updatedSaree;
+    });
+  }
+
+  async getSareeAllocations(sareeId: string): Promise<{ storeId: string; storeName: string; quantity: number }[]> {
+    const allocations = await db
+      .select({
+        storeId: storeInventory.storeId,
+        quantity: storeInventory.quantity,
+      })
+      .from(storeInventory)
+      .where(eq(storeInventory.sareeId, sareeId));
+
+    const result = await Promise.all(
+      allocations.map(async (alloc) => {
+        const [store] = await db
+          .select()
+          .from(stores)
+          .where(eq(stores.id, alloc.storeId));
+        return {
+          storeId: alloc.storeId,
+          storeName: store?.name || "Unknown",
+          quantity: alloc.quantity,
+        };
+      })
+    );
+
+    return result;
+  }
+
+  async getStockDistribution(): Promise<{
+    saree: SareeWithDetails;
+    totalStock: number;
+    onlineStock: number;
+    storeAllocations: { store: Store; quantity: number }[];
+    unallocated: number;
+  }[]> {
+    const allSarees = await this.getSarees({ limit: 1000 });
+    const result = [];
+
+    for (const saree of allSarees) {
+      const allocations = await db
+        .select()
+        .from(storeInventory)
+        .innerJoin(stores, eq(storeInventory.storeId, stores.id))
+        .where(eq(storeInventory.sareeId, saree.id));
+
+      const storeAllocations = allocations.map((alloc) => ({
+        store: alloc.stores,
+        quantity: alloc.store_inventory.quantity,
+      }));
+
+      const totalStoreStock = storeAllocations.reduce((sum, alloc) => sum + alloc.quantity, 0);
+      const unallocated = Math.max(0, saree.totalStock - saree.onlineStock - totalStoreStock);
+
+      result.push({
+        saree,
+        totalStock: saree.totalStock,
+        onlineStock: saree.onlineStock,
+        storeAllocations,
+        unallocated,
+      });
+    }
+
+    return result;
+  }
+
   async getShopAvailableProducts(storeId: string): Promise<{ saree: SareeWithDetails; storeStock: number }[]> {
     const result = await db
       .select()
@@ -1332,7 +1446,7 @@ export class DatabaseStorage implements IStorage {
       // If no existing record, insert a new one
       const [inserted] = await db
         .insert(storeInventory)
-        .values({ storeId, sareeId, quantity, createdAt: new Date(), updatedAt: new Date() })
+        .values({ storeId, sareeId, quantity, updatedAt: new Date() })
         .returning();
       return inserted;
     }

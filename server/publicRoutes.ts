@@ -165,7 +165,7 @@ export const publicRoutes = (app: Express) => {
       }
       
       const now = new Date();
-      if (now < new Date(sale.startDate) || now > new Date(sale.endDate)) {
+      if (now < new Date(sale.validFrom) || now > new Date(sale.validUntil)) {
         return res.status(404).json({ message: "Sale not active" });
       }
       
