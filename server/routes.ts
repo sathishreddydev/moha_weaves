@@ -12,6 +12,7 @@ import { inventoryRoutes } from "./inventory/inventoryRoutes";
 import { storeRoutes } from "./store/storeRoutes";
 import { userRoutes } from "./user/userRoutes";
 import { publicRoutes } from "./public/publicRoutes";
+import multer from "multer";
 
 const authAny = createAuthMiddleware(["user", "admin", "inventory", "store"]);
 
@@ -19,6 +20,10 @@ export async function registerRoutes(
   httpServer: Server,
   app: Express
 ): Promise<Server> {
+  // Public routes (categories, colors, fabrics, sales)
+  publicRoutes(app);
+
+  // Auth routes (public)
   authRoutes(app);
   adminRoutes(app);
   cartRoutes(app);
@@ -27,7 +32,6 @@ export async function registerRoutes(
   inventoryRoutes(app);
   storeRoutes(app);
   userRoutes(app);
-  publicRoutes(app);
 
   // ==================== FILE UPLOAD ROUTES ====================
 
