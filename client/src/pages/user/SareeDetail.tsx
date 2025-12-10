@@ -1,5 +1,15 @@
 import { useParams, Link } from "react-router-dom";
-import { Heart, ShoppingBag, Minus, Plus, ArrowLeft, Truck, RefreshCw, Shield, Star } from "lucide-react";
+import {
+  Heart,
+  ShoppingBag,
+  Minus,
+  Plus,
+  ArrowLeft,
+  Truck,
+  RefreshCw,
+  Shield,
+  Star,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
@@ -26,7 +36,7 @@ export default function SareeDetail() {
     queryKey: ["/api/sarees", id],
   });
 
-  const relatedQueryString = saree?.categoryId 
+  const relatedQueryString = saree?.categoryId
     ? `/api/sarees?category=${saree.categoryId}&limit=4`
     : null;
 
@@ -43,14 +53,22 @@ export default function SareeDetail() {
   const isInWishlist = wishlistItems?.some((item) => item.sareeId === id);
 
   const addToCartMutation = useMutation({
-    mutationFn: () => apiRequest("POST", "/api/user/cart", { sareeId: id, quantity }),
+    mutationFn: () =>
+      apiRequest("POST", "/api/user/cart", { sareeId: id, quantity }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/user/cart"] });
       queryClient.invalidateQueries({ queryKey: ["/api/user/cart/count"] });
-      toast({ title: "Added to cart", description: `${quantity} item(s) added to your cart.` });
+      toast({
+        title: "Added to cart",
+        description: `${quantity} item(s) added to your cart.`,
+      });
     },
     onError: () => {
-      toast({ title: "Error", description: "Failed to add to cart.", variant: "destructive" });
+      toast({
+        title: "Error",
+        description: "Failed to add to cart.",
+        variant: "destructive",
+      });
     },
   });
 
@@ -107,21 +125,31 @@ export default function SareeDetail() {
     );
   }
 
-  const images = [saree.imageUrl, ...(saree.images || [])].filter(Boolean) as string[];
+  const images = [saree.imageUrl, ...(saree.images || [])].filter(
+    Boolean
+  ) as string[];
   if (images.length === 0) {
-    images.push("https://images.unsplash.com/photo-1610030469983-98e550d6193c?w=600&h=800&fit=crop");
+    images.push(
+      "https://images.unsplash.com/photo-1610030469983-98e550d6193c?w=600&h=800&fit=crop"
+    );
   }
 
-  const isOnlineAvailable = saree.distributionChannel === "online" || saree.distributionChannel === "both";
+  const isOnlineAvailable =
+    saree.distributionChannel === "online" ||
+    saree.distributionChannel === "both";
   const hasStock = saree.onlineStock > 0;
 
   return (
     <div className="max-w-7xl mx-auto px-4 py-8">
       {/* Breadcrumb */}
       <nav className="flex items-center gap-2 text-sm text-muted-foreground mb-6">
-        <Link to="/" className="hover:text-primary">Home</Link>
+        <Link to="/" className="hover:text-primary">
+          Home
+        </Link>
         <span>/</span>
-        <Link to="/sarees" className="hover:text-primary">Sarees</Link>
+        <Link to="/sarees" className="hover:text-primary">
+          Sarees
+        </Link>
         <span>/</span>
         <span className="text-foreground">{saree.name}</span>
       </nav>
@@ -144,11 +172,17 @@ export default function SareeDetail() {
                   key={i}
                   onClick={() => setSelectedImage(i)}
                   className={`w-20 h-24 rounded-md overflow-hidden flex-shrink-0 border-2 transition-colors ${
-                    selectedImage === i ? "border-primary" : "border-transparent"
+                    selectedImage === i
+                      ? "border-primary"
+                      : "border-transparent"
                   }`}
                   data-testid={`button-thumbnail-${i}`}
                 >
-                  <img src={img} alt="" className="w-full h-full object-cover" />
+                  <img
+                    src={img}
+                    alt=""
+                    className="w-full h-full object-cover"
+                  />
                 </button>
               ))}
             </div>
@@ -158,13 +192,17 @@ export default function SareeDetail() {
         {/* Product Info */}
         <div className="space-y-6">
           <div>
-            {saree.isFeatured && (
-              <Badge className="mb-2">Featured</Badge>
-            )}
-            <h1 className="font-serif text-2xl md:text-3xl font-semibold" data-testid="text-product-name">
+            {saree.isFeatured && <Badge className="mb-2">Featured</Badge>}
+            <h1
+              className="font-serif text-2xl md:text-3xl font-semibold"
+              data-testid="text-product-name"
+            >
               {saree.name}
             </h1>
-            <p className="text-2xl font-semibold text-primary mt-2" data-testid="text-product-price">
+            <p
+              className="text-2xl font-semibold text-primary mt-2"
+              data-testid="text-product-price"
+            >
               {formatPrice(saree.price)}
             </p>
           </div>
@@ -199,7 +237,10 @@ export default function SareeDetail() {
           <div>
             {isOnlineAvailable ? (
               hasStock ? (
-                <Badge variant="secondary" className="bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-100">
+                <Badge
+                  variant="secondary"
+                  className="bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-100"
+                >
                   In Stock ({saree.onlineStock} available)
                 </Badge>
               ) : (
@@ -227,11 +268,18 @@ export default function SareeDetail() {
                   >
                     <Minus className="h-4 w-4" />
                   </Button>
-                  <span className="w-12 text-center" data-testid="text-quantity">{quantity}</span>
+                  <span
+                    className="w-12 text-center"
+                    data-testid="text-quantity"
+                  >
+                    {quantity}
+                  </span>
                   <Button
                     variant="ghost"
                     size="icon"
-                    onClick={() => setQuantity(Math.min(saree.onlineStock, quantity + 1))}
+                    onClick={() =>
+                      setQuantity(Math.min(saree.onlineStock, quantity + 1))
+                    }
                     disabled={quantity >= saree.onlineStock}
                     data-testid="button-quantity-plus"
                   >
@@ -257,7 +305,11 @@ export default function SareeDetail() {
                   disabled={toggleWishlistMutation.isPending}
                   data-testid="button-wishlist"
                 >
-                  <Heart className={`h-4 w-4 ${isInWishlist ? "fill-primary text-primary" : ""}`} />
+                  <Heart
+                    className={`h-4 w-4 ${
+                      isInWishlist ? "fill-primary text-primary" : ""
+                    }`}
+                  />
                 </Button>
               </div>
             </div>
@@ -269,7 +321,9 @@ export default function SareeDetail() {
                 Please login to add items to cart or wishlist.
               </p>
               <Link to="/user/login">
-                <Button data-testid="button-login-prompt">Login to Continue</Button>
+                <Button data-testid="button-login-prompt">
+                  Login to Continue
+                </Button>
               </Link>
             </div>
           )}
@@ -289,52 +343,68 @@ export default function SareeDetail() {
               <span className="text-xs">Secure Payment</span>
             </div>
           </div>
+          <Tabs defaultValue="description" className="mt-12">
+            <TabsList>
+              <TabsTrigger value="description" data-testid="tab-description">
+                Description
+              </TabsTrigger>
+              <TabsTrigger value="details" data-testid="tab-details">
+                Details
+              </TabsTrigger>
+              <TabsTrigger value="reviews" data-testid="tab-reviews">
+                <Star className="h-4 w-4 mr-1" />
+                Reviews
+              </TabsTrigger>
+              <TabsTrigger value="shipping" data-testid="tab-shipping">
+                Shipping
+              </TabsTrigger>
+            </TabsList>
+            <TabsContent value="description" className="mt-4">
+              <div className="prose max-w-none dark:prose-invert">
+                <p>
+                  {saree.description ||
+                    "This exquisite saree showcases the finest craftsmanship, blending traditional artistry with contemporary elegance. Perfect for special occasions and celebrations."}
+                </p>
+              </div>
+            </TabsContent>
+            <TabsContent value="details" className="mt-4">
+              <div className="space-y-2 text-sm">
+                <p>
+                  <strong>SKU:</strong> {saree.sku || "N/A"}
+                </p>
+                <p>
+                  <strong>Category:</strong> {saree.category?.name || "N/A"}
+                </p>
+                <p>
+                  <strong>Fabric:</strong> {saree.fabric?.name || "N/A"}
+                </p>
+                <p>
+                  <strong>Color:</strong> {saree.color?.name || "N/A"}
+                </p>
+              </div>
+            </TabsContent>
+            <TabsContent value="reviews" className="mt-4">
+              {id && <Reviews sareeId={id} />}
+            </TabsContent>
+            <TabsContent value="shipping" className="mt-4">
+              <div className="prose max-w-none dark:prose-invert text-sm">
+                <ul>
+                  <li>Free shipping on orders above ₹2,999</li>
+                  <li>Standard delivery: 5-7 business days</li>
+                  <li>Express delivery available at extra cost</li>
+                  <li>15-day hassle-free returns</li>
+                </ul>
+              </div>
+            </TabsContent>
+          </Tabs>
         </div>
       </div>
 
-      {/* Tabs */}
-      <Tabs defaultValue="description" className="mt-12">
-        <TabsList>
-          <TabsTrigger value="description" data-testid="tab-description">Description</TabsTrigger>
-          <TabsTrigger value="details" data-testid="tab-details">Details</TabsTrigger>
-          <TabsTrigger value="reviews" data-testid="tab-reviews">
-            <Star className="h-4 w-4 mr-1" />
-            Reviews
-          </TabsTrigger>
-          <TabsTrigger value="shipping" data-testid="tab-shipping">Shipping</TabsTrigger>
-        </TabsList>
-        <TabsContent value="description" className="mt-4">
-          <div className="prose max-w-none dark:prose-invert">
-            <p>{saree.description || "This exquisite saree showcases the finest craftsmanship, blending traditional artistry with contemporary elegance. Perfect for special occasions and celebrations."}</p>
-          </div>
-        </TabsContent>
-        <TabsContent value="details" className="mt-4">
-          <div className="space-y-2 text-sm">
-            <p><strong>SKU:</strong> {saree.sku || "N/A"}</p>
-            <p><strong>Category:</strong> {saree.category?.name || "N/A"}</p>
-            <p><strong>Fabric:</strong> {saree.fabric?.name || "N/A"}</p>
-            <p><strong>Color:</strong> {saree.color?.name || "N/A"}</p>
-          </div>
-        </TabsContent>
-        <TabsContent value="reviews" className="mt-4">
-          {id && <Reviews sareeId={id} />}
-        </TabsContent>
-        <TabsContent value="shipping" className="mt-4">
-          <div className="prose max-w-none dark:prose-invert text-sm">
-            <ul>
-              <li>Free shipping on orders above ₹2,999</li>
-              <li>Standard delivery: 5-7 business days</li>
-              <li>Express delivery available at extra cost</li>
-              <li>15-day hassle-free returns</li>
-            </ul>
-          </div>
-        </TabsContent>
-      </Tabs>
-
-      {/* Related Products */}
       {relatedSarees && relatedSarees.length > 0 && (
         <section className="mt-16">
-          <h2 className="font-serif text-2xl font-semibold mb-6">You May Also Like</h2>
+          <h2 className="font-serif text-2xl font-semibold mb-6">
+            You May Also Like
+          </h2>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
             {relatedSarees.map((s) => (
               <ProductCard key={s.id} saree={s} />

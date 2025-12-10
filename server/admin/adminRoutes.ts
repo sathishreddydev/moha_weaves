@@ -8,6 +8,7 @@ import { publicStorage } from "../public/publicStorage";
 import { storeService } from "server/store/storeStorage";
 import { salesService } from "server/sales&offer/salesStorage";
 import { couponsService } from "server/coupons/couponsStorage";
+import { sareeService } from "server/saree/sareeStorage";
 
 export const adminRoutes = (app: Express) => {
   const authAdmin = createAuthMiddleware(["admin"]);
@@ -164,7 +165,7 @@ export const adminRoutes = (app: Express) => {
         return res.json(result);
       }
       
-      const sarees = await storage.getSarees({});
+      const sarees = await sareeService.getSarees({});
       res.json(sarees);
     } catch (error) {
       res.status(500).json({ message: "Failed to fetch sarees" });
@@ -173,7 +174,7 @@ export const adminRoutes = (app: Express) => {
 
   app.post("/api/admin/sarees", authAdmin, async (req, res) => {
     try {
-      const saree = await storage.createSaree(req.body);
+      const saree = await sareeService.createSaree(req.body);
       res.json(saree);
     } catch (error) {
       res.status(500).json({ message: "Failed to create saree" });
@@ -182,7 +183,7 @@ export const adminRoutes = (app: Express) => {
 
   app.patch("/api/admin/sarees/:id", authAdmin, async (req, res) => {
     try {
-      const saree = await storage.updateSaree(req.params.id, req.body);
+      const saree = await sareeService.updateSaree(req.params.id, req.body);
       res.json(saree);
     } catch (error) {
       res.status(500).json({ message: "Failed to update saree" });
@@ -191,7 +192,7 @@ export const adminRoutes = (app: Express) => {
 
   app.delete("/api/admin/sarees/:id", authAdmin, async (req, res) => {
     try {
-      await storage.deleteSaree(req.params.id);
+      await sareeService.deleteSaree(req.params.id);
       res.json({ success: true });
     } catch (error) {
       res.status(500).json({ message: "Failed to delete saree" });

@@ -5,6 +5,7 @@ import { parsePaginationParams } from "../paginationHelper";
 import { z } from "zod";
 import { orderService } from "../order/orderStorage";
 import { storeService } from "server/store/storeStorage";
+import { sareeService } from "server/saree/sareeStorage";
 const storeAllocationSchema = z.object({
   storeId: z.string().min(1, "Store ID is required"),
   quantity: z.number().int().min(0, "Quantity must be a non-negative integer"),
@@ -80,7 +81,7 @@ export const inventoryRoutes = (app: Express) => {
 
   app.get("/api/inventory/low-stock", authInventory, async (req, res) => {
     try {
-      const items = await storage.getLowStockSarees(10);
+      const items = await sareeService.getLowStockSarees(10);
       res.json(items);
     } catch (error) {
       res.status(500).json({ message: "Failed to fetch low stock items" });
@@ -168,7 +169,7 @@ export const inventoryRoutes = (app: Express) => {
     async (req, res) => {
       try {
         const { channel } = req.body;
-        const saree = await storage.updateSaree(req.params.id, {
+        const saree = await sareeService.updateSaree(req.params.id, {
           distributionChannel: channel,
         });
         res.json(saree);
@@ -184,7 +185,7 @@ export const inventoryRoutes = (app: Express) => {
     async (req, res) => {
       try {
         const { totalStock, onlineStock } = req.body;
-        const saree = await storage.updateSaree(req.params.id, {
+        const saree = await sareeService.updateSaree(req.params.id, {
           totalStock,
           onlineStock,
         });
@@ -239,7 +240,7 @@ export const inventoryRoutes = (app: Express) => {
         return res.json(result);
       }
 
-      const sarees = await storage.getSarees({});
+      const sarees = await sareeService.getSarees({});
       res.json(sarees);
     } catch (error) {
       res.status(500).json({ message: "Failed to fetch sarees" });
@@ -405,7 +406,7 @@ export const inventoryRoutes = (app: Express) => {
 
   app.delete("/api/inventory/sarees/:id", authInventory, async (req, res) => {
     try {
-      await storage.deleteSaree(req.params.id);
+      await sareeService.deleteSaree(req.params.id);
       res.json({ success: true });
     } catch (error) {
       res.status(500).json({ message: "Failed to delete saree" });

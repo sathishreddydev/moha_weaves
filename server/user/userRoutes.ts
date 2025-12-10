@@ -3,6 +3,7 @@ import { storage } from "../storage";
 import { createAuthMiddleware } from "../authMiddleware";
 import { orderService } from "server/order/orderStorage";
 import { couponsService } from "server/coupons/couponsStorage";
+import { sareeService } from "server/saree/sareeStorage";
 
 const authUser = createAuthMiddleware(["user"]);
 export const userRoutes = (app: Express) => {
@@ -85,7 +86,7 @@ export const userRoutes = (app: Express) => {
 
         // If exchange, validate and calculate exchange product price
         if (resolutionType === "exchange" && item.exchangeSareeId) {
-          const exchangeSaree = await storage.getSaree(item.exchangeSareeId);
+          const exchangeSaree = await sareeService.getSaree(item.exchangeSareeId);
           if (!exchangeSaree) {
             return res
               .status(400)
