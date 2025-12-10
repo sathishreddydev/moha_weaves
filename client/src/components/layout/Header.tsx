@@ -19,6 +19,7 @@ const navLinks = [
   { href: "/", label: "Home" },
   { href: "/sarees", label: "Shop All" },
   { href: "/sarees?featured=true", label: "Featured" },
+  { href: "/sales", label: "Sales & Offers" },
   { href: "/categories", label: "Categories" },
 ];
 

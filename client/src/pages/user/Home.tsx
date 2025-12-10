@@ -161,6 +161,72 @@ export default function Home() {
         </div>
       </section>
 
+      {/* Active Sales */}
+      <section className="py-16 bg-red-50 dark:bg-red-950/10">
+        <div className="max-w-7xl mx-auto px-4">
+          <div className="flex items-center justify-between mb-8">
+            <div>
+              <h2 className="font-serif text-3xl font-semibold" data-testid="text-sales-title">🔥 Hot Deals</h2>
+              <p className="text-muted-foreground mt-1">Limited time offers on selected items</p>
+            </div>
+            <Link to="/sales">
+              <Button variant="ghost" data-testid="button-view-all-sales">
+                View All Offers <ArrowRight className="ml-2 h-4 w-4" />
+              </Button>
+            </Link>
+          </div>
+
+          {(() => {
+            const { data: activeSales, isLoading: loadingSales } = useQuery<any[]>({
+              queryKey: ["/api/sales?featured=true&current=true&limit=3"],
+            });
+
+            if (loadingSales) {
+              return (
+                <div className="grid md:grid-cols-3 gap-6">
+                  {[...Array(3)].map((_, i) => (
+                    <div key={i} className="space-y-3">
+                      <Skeleton className="aspect-[16/9] rounded-md" />
+                      <Skeleton className="h-4 w-3/4" />
+                      <Skeleton className="h-4 w-1/2" />
+                    </div>
+                  ))}
+                </div>
+              );
+            }
+
+            if (!activeSales || activeSales.length === 0) return null;
+
+            return (
+              <div className="grid md:grid-cols-3 gap-6">
+                {activeSales.map((sale) => (
+                  <Link key={sale.id} to={`/sales/${sale.id}`}>
+                    <Card className="group overflow-hidden hover-elevate cursor-pointer">
+                      <div className="relative aspect-[16/9] overflow-hidden">
+                        <img
+                          src={sale.bannerImage || "https://images.unsplash.com/photo-1610030469983-98e550d6193c?w=400&h=225&fit=crop"}
+                          alt={sale.name}
+                          className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+                        />
+                        <div className="absolute top-2 right-2">
+                          <span className="bg-red-500 text-white px-3 py-1 rounded-full text-sm font-semibold">
+                            {sale.offerType === "percentage" ? `${sale.discountValue}% OFF` : "SALE"}
+                          </span>
+                        </div>
+                      </div>
+                      <div className="p-4">
+                        <h3 className="font-semibold mb-1 line-clamp-1">{sale.name}</h3>
+                        <p className="text-sm text-muted-foreground line-clamp-2">{sale.description}</p>
+                      </div>
+                    </Card>
+                  </Link>
+                ))}
+              </div>
+            );
+          })()}
+        </div>
+      </section>
+
       {/* New Arrivals */}
       <section className="py-16">
         <div className="max-w-7xl mx-auto px-4">

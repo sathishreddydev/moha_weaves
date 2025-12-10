@@ -28,6 +28,10 @@ const UserLogin = lazy(() => import("@/pages/user/Login"));
 const UserRegister = lazy(() => import("@/pages/user/Register"));
 const Addresses = lazy(() => import("@/pages/user/Addresses"));
 
+// Import Sales components
+const Sales = lazy(() => import("@/pages/user/Sales"));
+const SaleDetail = lazy(() => import("@/pages/user/SaleDetail"));
+
 const AdminLogin = lazy(() => import("@/pages/admin/Login"));
 const AdminDashboard = lazy(() => import("@/pages/admin/Dashboard"));
 const AdminSarees = lazy(() => import("@/pages/admin/Sarees"));
@@ -218,7 +222,8 @@ function Router() {
           <Route path="/sarees" element={<Sarees />} />
           <Route path="/sarees/:id" element={<SareeDetail />} />
           <Route path="/categories" element={<Categories />} />
-
+          <Route path="/sales" element={<Sales />} />
+          <Route path="/sales/:id" element={<SaleDetail />} />
           <Route path="/user/login" element={<UserLogin />} />
           <Route path="/user/register" element={<UserRegister />} />
 
