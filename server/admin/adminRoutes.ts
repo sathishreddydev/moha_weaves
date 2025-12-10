@@ -1,10 +1,13 @@
 import type { Express } from "express";
-import { storage } from "./storage";
+import { storage } from "../storage";
 import bcrypt from "bcryptjs";
-import { createAuthMiddleware } from "./authMiddleware";
-import { parsePaginationParams } from "./paginationHelper";
-import { userService } from "./auth/authStorage";
-import { publicStorage } from "./public/publicStorage";
+import { createAuthMiddleware } from "../authMiddleware";
+import { parsePaginationParams } from "../paginationHelper";
+import { userService } from "../auth/authStorage";
+import { publicStorage } from "../public/publicStorage";
+import { storeService } from "server/store/storeStorage";
+import { salesService } from "server/sales&offer/salesStorage";
+import { couponsService } from "server/coupons/couponsStorage";
 
 export const adminRoutes = (app: Express) => {
   const authAdmin = createAuthMiddleware(["admin"]);
@@ -237,7 +240,7 @@ export const adminRoutes = (app: Express) => {
   // Admin store management
   app.get("/api/admin/stores", authAdmin, async (req, res) => {
     try {
-      const stores = await storage.getStores();
+      const stores = await storeService.getStores();
       res.json(stores);
     } catch (error) {
       res.status(500).json({ message: "Failed to fetch stores" });
@@ -246,7 +249,7 @@ export const adminRoutes = (app: Express) => {
 
   app.post("/api/admin/stores", authAdmin, async (req, res) => {
     try {
-      const store = await storage.createStore(req.body);
+      const store = await storeService.createStore(req.body);
       res.json(store);
     } catch (error) {
       res.status(500).json({ message: "Failed to create store" });
@@ -255,7 +258,7 @@ export const adminRoutes = (app: Express) => {
 
   app.patch("/api/admin/stores/:id", authAdmin, async (req, res) => {
     try {
-      const store = await storage.updateStore(req.params.id, req.body);
+      const store = await storeService.updateStore(req.params.id, req.body);
       if (!store) {
         return res.status(404).json({ message: "Store not found" });
       }
@@ -267,7 +270,7 @@ export const adminRoutes = (app: Express) => {
 
   app.delete("/api/admin/stores/:id", authAdmin, async (req, res) => {
     try {
-      const store = await storage.updateStore(req.params.id, {
+      const store = await storeService.updateStore(req.params.id, {
         isActive: false,
       });
       if (!store) {
@@ -318,7 +321,7 @@ export const adminRoutes = (app: Express) => {
   app.get("/api/admin/coupons", authAdmin, async (req, res) => {
     try {
       const { active } = req.query;
-      const coupons = await storage.getCoupons({
+      const coupons = await couponsService.getCoupons({
         isActive:
           active === "true" ? true : active === "false" ? false : undefined,
       });
@@ -362,7 +365,7 @@ export const adminRoutes = (app: Express) => {
       }
 
       // Check if code already exists
-      const existing = await storage.getCouponByCode(code);
+      const existing = await couponsService.getCouponByCode(code);
       if (existing) {
         return res.status(400).json({ message: "Coupon code already exists" });
       }
@@ -372,7 +375,7 @@ export const adminRoutes = (app: Express) => {
       const oneYearLater = new Date(now);
       oneYearLater.setFullYear(oneYearLater.getFullYear() + 1);
 
-      const coupon = await storage.createCoupon({
+      const coupon = await couponsService.createCoupon({
         code: code.toUpperCase(),
         name: code.toUpperCase(),
         type,
@@ -466,7 +469,7 @@ export const adminRoutes = (app: Express) => {
         updateData.validUntil = expiresAt ? new Date(expiresAt) : null;
       if (isActive !== undefined) updateData.isActive = isActive;
 
-      const coupon = await storage.updateCoupon(req.params.id, updateData);
+      const coupon = await couponsService.updateCoupon(req.params.id, updateData);
       if (!coupon) {
         return res.status(404).json({ message: "Coupon not found" });
       }
@@ -480,7 +483,7 @@ export const adminRoutes = (app: Express) => {
   // Admin: Delete (deactivate) coupon
   app.delete("/api/admin/coupons/:id", authAdmin, async (req, res) => {
     try {
-      await storage.deleteCoupon(req.params.id);
+      await couponsService.deleteCoupon(req.params.id);
       res.json({ message: "Coupon deleted" });
     } catch (error) {
       res.status(500).json({ message: "Failed to delete coupon" });
@@ -493,7 +496,7 @@ export const adminRoutes = (app: Express) => {
   app.get("/api/admin/sales", authAdmin, async (req, res) => {
     try {
       const { active, featured, category } = req.query;
-      const sales = await storage.getSales({
+      const sales = await salesService.getSales({
         isActive: active === "true" ? true : active === "false" ? false : undefined,
         isFeatured: featured === "true" ? true : undefined,
         categoryId: category as string,
@@ -508,7 +511,7 @@ export const adminRoutes = (app: Express) => {
   // Admin: Get single sale
   app.get("/api/admin/sales/:id", authAdmin, async (req, res) => {
     try {
-      const sale = await storage.getSale(req.params.id);
+      const sale = await salesService.getSale(req.params.id);
       if (!sale) {
         return res.status(404).json({ message: "Sale not found" });
       }
@@ -542,7 +545,7 @@ export const adminRoutes = (app: Express) => {
         return res.status(400).json({ message: "Missing required fields" });
       }
 
-      const sale = await storage.createSale({
+      const sale = await salesService.createSale({
         name,
         description: description || null,
         offerType,
@@ -559,7 +562,7 @@ export const adminRoutes = (app: Express) => {
 
       // Add products if it's a product-level offer
       if (offerType === 'product' && productIds && Array.isArray(productIds) && productIds.length > 0) {
-        await storage.addProductsToSale(sale.id, productIds);
+        await salesService.addProductsToSale(sale.id, productIds);
       }
 
       res.json(sale);
@@ -602,14 +605,14 @@ export const adminRoutes = (app: Express) => {
       if (isFeatured !== undefined) updateData.isFeatured = isFeatured;
       if (bannerImage !== undefined) updateData.bannerImage = bannerImage || null;
 
-      const sale = await storage.updateSale(req.params.id, updateData);
+      const sale = await salesService.updateSale(req.params.id, updateData);
       if (!sale) {
         return res.status(404).json({ message: "Sale not found" });
       }
 
       // Update products if provided
       if (productIds !== undefined && Array.isArray(productIds)) {
-        await storage.addProductsToSale(req.params.id, productIds);
+        await salesService.addProductsToSale(req.params.id, productIds);
       }
 
       res.json(sale);
@@ -622,7 +625,7 @@ export const adminRoutes = (app: Express) => {
   // Admin: Delete sale
   app.delete("/api/admin/sales/:id", authAdmin, async (req, res) => {
     try {
-      await storage.deleteSale(req.params.id);
+      await salesService.deleteSale(req.params.id);
       res.json({ message: "Sale deleted" });
     } catch (error) {
       console.error("Error deleting sale:", error);

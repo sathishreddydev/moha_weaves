@@ -1,6 +1,8 @@
 import type { Express, Request, Response, NextFunction } from "express";
-import { storage } from "./storage";
-import { createAuthMiddleware } from "./authMiddleware";
+import { storage } from "../storage";
+import { createAuthMiddleware } from "../authMiddleware";
+import { orderService } from "server/order/orderStorage";
+import { couponsService } from "server/coupons/couponsStorage";
 
 const authUser = createAuthMiddleware(["user"]);
 export const userRoutes = (app: Express) => {
@@ -11,7 +13,7 @@ export const userRoutes = (app: Express) => {
     async (req, res) => {
       try {
         const user = (req as any).user;
-        const order = await storage.getOrder(req.params.id);
+        const order = await orderService.getOrder(req.params.id);
 
         if (!order || order.userId !== user.id) {
           return res.status(404).json({ message: "Order not found" });
@@ -61,7 +63,7 @@ export const userRoutes = (app: Express) => {
       const { orderId, reason, description, resolutionType, items } = req.body;
 
       // Validate order and eligibility
-      const order = await storage.getOrder(orderId);
+      const order = await orderService.getOrder(orderId);
       if (!order || order.userId !== user.id) {
         return res.status(404).json({ message: "Order not found" });
       }
@@ -270,7 +272,7 @@ export const userRoutes = (app: Express) => {
       const user = (req as any).user;
       const { code, orderAmount } = req.body;
 
-      const result = await storage.validateCoupon(code, user.id, orderAmount);
+      const result = await couponsService.validateCoupon(code, user.id, orderAmount);
 
       if (!result.valid) {
         return res.status(400).json({ message: result.error });
@@ -306,7 +308,7 @@ export const userRoutes = (app: Express) => {
   app.get("/api/user/orders/:id/history", authUser, async (req, res) => {
     try {
       const user = (req as any).user;
-      const order = await storage.getOrder(req.params.id);
+      const order = await orderService.getOrder(req.params.id);
 
       if (!order || order.userId !== user.id) {
         return res.status(404).json({ message: "Order not found" });

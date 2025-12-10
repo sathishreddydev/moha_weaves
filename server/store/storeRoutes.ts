@@ -1,7 +1,9 @@
 import type { Express, Request, Response, NextFunction } from "express";
-import { storage } from "./storage";
-import { createAuthMiddleware } from "./authMiddleware";
-import { parsePaginationParams, createPaginatedResponse, getOffset } from "./paginationHelper";
+import { storage } from "../storage";
+import { createAuthMiddleware } from "../authMiddleware";
+import { parsePaginationParams, createPaginatedResponse, getOffset } from "../paginationHelper";
+import { storeService } from "./storeStorage";
+import { stores } from "@shared/schema";
 
 export const storeRoutes = (app: Express) => {
   const authStore = createAuthMiddleware(["store"]);
@@ -25,7 +27,7 @@ export const storeRoutes = (app: Express) => {
       if (!user.storeId) {
         return res.status(400).json({ message: "No store assigned" });
       }
-      const inventory = await storage.getStoreInventory(user.storeId);
+      const inventory = await storeService.getStoreInventory(user.storeId);
       res.json(inventory);
     } catch (error) {
       res.status(500).json({ message: "Failed to fetch inventory" });
@@ -38,7 +40,7 @@ export const storeRoutes = (app: Express) => {
       if (!user.storeId) {
         return res.status(400).json({ message: "No store assigned" });
       }
-      const products = await storage.getShopAvailableProducts(user.storeId);
+      const products = await storeService.getShopAvailableProducts(user.storeId);
       res.json(products);
     } catch (error) {
       res.status(500).json({ message: "Failed to fetch products" });
@@ -52,7 +54,7 @@ export const storeRoutes = (app: Express) => {
         return res.status(400).json({ message: "No store assigned" });
       }
       const { limit } = req.query;
-      const sales = await storage.getStoreSales(
+      const sales = await storeService.getStoreSales(
         user.storeId,
         limit ? parseInt(limit as string) : undefined
       );
@@ -72,7 +74,7 @@ export const storeRoutes = (app: Express) => {
       const params = parsePaginationParams(req.query);
       const offset = getOffset(params.page, params.pageSize);
       
-      const result = await storage.getStoreSalesPaginated(
+      const result = await storeService.getStoreSalesPaginated(
         user.storeId,
         {
           limit: params.pageSize,
@@ -219,7 +221,7 @@ export const storeRoutes = (app: Express) => {
 
       // Verify stock availability and deduct from store inventory
       for (const item of items) {
-        const inventory = await storage.getStoreInventoryItem(user.storeId, item.sareeId);
+        const inventory = await storeService.getStoreInventoryItem(user.storeId, item.sareeId);
         if (!inventory || inventory.quantity < item.quantity) {
           return res.status(400).json({ 
             message: `Insufficient stock for item ${item.sareeId}` 
@@ -234,7 +236,7 @@ export const storeRoutes = (app: Express) => {
       }, 0);
 
       // Create the sale and deduct stock
-      const sale = await storage.createStoreSale(
+      const sale = await storeService.createStoreSale(
         {
           storeId: user.storeId,
           soldBy: user.id,
@@ -260,7 +262,7 @@ export const storeRoutes = (app: Express) => {
       if (!user.storeId) {
         return res.status(400).json({ message: "No store assigned" });
       }
-      const sale = await storage.getStoreSaleForExchange(req.params.id);
+      const sale = await storeService.getStoreSaleForExchange(req.params.id);
       if (!sale) {
         return res.status(404).json({ message: "Sale not found" });
       }
@@ -282,7 +284,7 @@ export const storeRoutes = (app: Express) => {
         return res.status(400).json({ message: "No store assigned" });
       }
       const { limit } = req.query;
-      const exchanges = await storage.getStoreExchanges(
+      const exchanges = await storeService.getStoreExchanges(
         user.storeId,
         limit ? parseInt(limit as string) : undefined
       );
@@ -298,7 +300,7 @@ export const storeRoutes = (app: Express) => {
     try {
       const { storeId, limit } = req.query;
       if (storeId) {
-        const exchanges = await storage.getStoreExchanges(
+        const exchanges = await storeService.getStoreExchanges(
           storeId as string,
           limit ? parseInt(limit as string) : undefined
         );
@@ -323,7 +325,7 @@ export const storeRoutes = (app: Express) => {
       if (!user.storeId) {
         return res.status(400).json({ message: "No store assigned" });
       }
-      const exchange = await storage.getStoreExchange(req.params.id);
+      const exchange = await storeService.getStoreExchange(req.params.id);
       if (!exchange) {
         return res.status(404).json({ message: "Exchange not found" });
       }
@@ -356,7 +358,7 @@ export const storeRoutes = (app: Express) => {
       }
 
       // Fetch authoritative sale data
-      const sale = await storage.getStoreSaleForExchange(originalSaleId);
+      const sale = await storeService.getStoreSaleForExchange(originalSaleId);
       if (!sale) {
         return res.status(404).json({ message: "Original sale not found" });
       }
@@ -416,7 +418,7 @@ export const storeRoutes = (app: Express) => {
 
       if (newItems && newItems.length > 0) {
         // Get store inventory to validate - using full inventory for price lookup
-        const inventory = await storage.getStoreInventory(user.storeId);
+        const inventory = await storeService.getStoreInventory(user.storeId);
         const inventoryMap = new Map<string, { quantity: number; price: string }>();
         for (const invItem of inventory) {
           inventoryMap.set(invItem.sareeId, { quantity: invItem.quantity, price: invItem.saree.price });
@@ -461,7 +463,7 @@ export const storeRoutes = (app: Express) => {
         balanceDirection = "due_from_customer";
       }
 
-      const exchange = await storage.createStoreExchange(
+      const exchange = await storeService.createStoreExchange(
         {
           storeId: user.storeId,
           originalSaleId,
