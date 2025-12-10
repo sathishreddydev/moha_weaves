@@ -2,8 +2,10 @@ import { Link } from "react-router-dom";
 import { ArrowRight, Sparkles, Truck, RefreshCw, ShieldCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ProductCard } from "@/components/product/ProductCard";
+import { TrendingSalesBanner } from "./TrendingSales";
 import { useQuery } from "@tanstack/react-query";
 import type { SareeWithDetails, Category } from "@shared/schema";
 
@@ -29,41 +31,82 @@ export default function Home() {
 
   return (
     <div className="min-h-screen">
-      {/* Hero Section */}
-      <section className="relative min-h-[70vh] flex items-center">
-        <div className="absolute inset-0 z-0">
-          <img
-            src="https://images.unsplash.com/photo-1583391733956-3750e0ff4e8b?w=1600&h=900&fit=crop"
-            alt="Elegant saree collection"
-            className="w-full h-full object-cover"
-          />
-          <div className="absolute inset-0 bg-gradient-to-r from-black/70 via-black/50 to-transparent" />
-        </div>
-        
-        <div className="relative z-10 max-w-7xl mx-auto px-4 py-20">
-          <div className="max-w-xl">
-            <h1 className="font-serif text-4xl md:text-5xl lg:text-6xl font-semibold text-white mb-4" data-testid="text-hero-title">
-              Celebrate Tradition with Elegance
-            </h1>
-            <p className="text-lg text-white/90 mb-8 leading-relaxed">
-              Discover our exquisite collection of handcrafted sarees, woven with stories of heritage and artistry.
-            </p>
-            <div className="flex flex-wrap gap-4">
-              <Link to="/sarees">
-                <Button size="lg" className="bg-white text-primary hover:bg-white/90" data-testid="button-shop-now">
-                  Shop Now
-                  <ArrowRight className="ml-2 h-4 w-4" />
-                </Button>
-              </Link>
-              <Link to="/categories">
-                <Button size="lg" variant="outline" className="border-white text-white hover:bg-white/10 backdrop-blur-sm" data-testid="button-explore">
-                  Explore Collections
-                </Button>
-              </Link>
+      {/* Hero Section - Dynamic based on active sales */}
+      {(() => {
+        const { data: heroSale } = useQuery<any>({
+          queryKey: ["/api/sales?featured=true&current=true&limit=1"],
+        });
+
+        const activeSale = heroSale && heroSale.length > 0 ? heroSale[0] : null;
+
+        return (
+          <section className="relative min-h-[70vh] flex items-center">
+            <div className="absolute inset-0 z-0">
+              <img
+                src={activeSale?.bannerImage || "https://images.unsplash.com/photo-1583391733956-3750e0ff4e8b?w=1600&h=900&fit=crop"}
+                alt={activeSale?.name || "Elegant saree collection"}
+                className="w-full h-full object-cover"
+              />
+              <div className="absolute inset-0 bg-gradient-to-r from-black/70 via-black/50 to-transparent" />
             </div>
-          </div>
-        </div>
-      </section>
+            
+            <div className="relative z-10 max-w-7xl mx-auto px-4 py-20">
+              <div className="max-w-xl">
+                {activeSale ? (
+                  <>
+                    <Badge className="mb-4 bg-red-500 text-white text-lg px-4 py-2">
+                      {activeSale.offerType === "percentage" 
+                        ? `${activeSale.discountValue}% OFF` 
+                        : `FLAT ₹${activeSale.discountValue} OFF`}
+                    </Badge>
+                    <h1 className="font-serif text-4xl md:text-5xl lg:text-6xl font-semibold text-white mb-4" data-testid="text-hero-title">
+                      {activeSale.name}
+                    </h1>
+                    <p className="text-lg text-white/90 mb-8 leading-relaxed">
+                      {activeSale.description || "Exclusive deals on our handcrafted collection"}
+                    </p>
+                    <div className="flex flex-wrap gap-4">
+                      <Link to={`/sales/${activeSale.id}`}>
+                        <Button size="lg" className="bg-white text-primary hover:bg-white/90" data-testid="button-shop-now">
+                          Shop Sale
+                          <ArrowRight className="ml-2 h-4 w-4" />
+                        </Button>
+                      </Link>
+                      <Link to="/sales">
+                        <Button size="lg" variant="outline" className="border-white text-white hover:bg-white/10 backdrop-blur-sm" data-testid="button-explore">
+                          View All Offers
+                        </Button>
+                      </Link>
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <h1 className="font-serif text-4xl md:text-5xl lg:text-6xl font-semibold text-white mb-4" data-testid="text-hero-title">
+                      Celebrate Tradition with Elegance
+                    </h1>
+                    <p className="text-lg text-white/90 mb-8 leading-relaxed">
+                      Discover our exquisite collection of handcrafted sarees, woven with stories of heritage and artistry.
+                    </p>
+                    <div className="flex flex-wrap gap-4">
+                      <Link to="/sarees">
+                        <Button size="lg" className="bg-white text-primary hover:bg-white/90" data-testid="button-shop-now">
+                          Shop Now
+                          <ArrowRight className="ml-2 h-4 w-4" />
+                        </Button>
+                      </Link>
+                      <Link to="/categories">
+                        <Button size="lg" variant="outline" className="border-white text-white hover:bg-white/10 backdrop-blur-sm" data-testid="button-explore">
+                          Explore Collections
+                        </Button>
+                      </Link>
+                    </div>
+                  </>
+                )}
+              </div>
+            </div>
+          </section>
+        );
+      })()}
 
       {/* Features */}
       <section className="py-12 bg-muted/50">
@@ -79,6 +122,9 @@ export default function Home() {
           </div>
         </div>
       </section>
+
+      {/* Trending Sales Banner */}
+      <TrendingSalesBanner />
 
       {/* Categories */}
       <section className="py-16">

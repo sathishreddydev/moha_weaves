@@ -1,4 +1,3 @@
-
 import { useParams, Link } from "react-router-dom";
 import { ArrowLeft, Clock, Tag, ShoppingBag } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -7,7 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ProductCard } from "@/components/product/ProductCard";
 import { useQuery } from "@tanstack/react-query";
-import type { SaleWithProducts } from "@shared/schema";
+import type { SaleWithProducts, SareeWithDetails } from "@shared/schema";
 
 export default function SaleDetail() {
   const { id } = useParams<{ id: string }>();
@@ -16,6 +15,12 @@ export default function SaleDetail() {
     queryKey: ["/api/sales", id],
     enabled: !!id,
   });
+
+  const { data: saleProducts, isLoading: loadingProducts } = useQuery<SareeWithDetails[]>({
+    queryKey: [`/api/sales/${id}/products`],
+    enabled: !!sale,
+  });
+
 
   const formatPrice = (price: string | number) => {
     const numPrice = typeof price === "string" ? parseFloat(price) : price;
@@ -36,7 +41,7 @@ export default function SaleDetail() {
 
   const calculateDiscountedPrice = (originalPrice: number) => {
     if (!sale) return originalPrice;
-    
+
     if (sale.offerType === "percentage") {
       const discount = originalPrice * (parseFloat(sale.discountValue) / 100);
       const maxDiscount = sale.maxDiscount ? parseFloat(sale.maxDiscount) : Infinity;
@@ -100,7 +105,7 @@ export default function SaleDetail() {
                 {sale.name}
               </h1>
               <p className="text-muted-foreground text-lg mb-6">{sale.description}</p>
-              
+
               <div className="space-y-3 mb-6">
                 <div className="flex items-center gap-2 text-muted-foreground">
                   <Clock className="h-5 w-5" />
@@ -143,27 +148,24 @@ export default function SaleDetail() {
       </div>
 
       {/* Products */}
-      {sale.products.length > 0 && (
+      {(saleProducts && saleProducts.length > 0) && (
         <section id="products">
           <h2 className="font-serif text-2xl font-semibold mb-6">
-            Sale Items ({sale.products.length})
+            Sale Items ({saleProducts.length})
           </h2>
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-            {sale.products.map((product) => {
-              if (!product.saree) return null;
-              return (
-                <div key={product.id} className="relative">
-                  <ProductCard saree={product.saree} />
-                  {sale.offerType === "percentage" || sale.offerType === "flat" ? (
-                    <div className="absolute top-2 left-2 z-10">
-                      <Badge className="bg-red-500 text-white">
-                        {sale.offerType === "percentage" ? `${sale.discountValue}% OFF` : `Save ${formatPrice(sale.discountValue)}`}
-                      </Badge>
-                    </div>
-                  ) : null}
-                </div>
-              );
-            })}
+            {saleProducts.map((product) => (
+              <div key={product.id} className="relative">
+                <ProductCard saree={product} />
+                {sale.offerType === "percentage" || sale.offerType === "flat" ? (
+                  <div className="absolute top-2 left-2 z-10">
+                    <Badge className="bg-red-500 text-white">
+                      {sale.offerType === "percentage" ? `${sale.discountValue}% OFF` : `Save ${formatPrice(sale.discountValue)}`}
+                    </Badge>
+                  </div>
+                ) : null}
+              </div>
+            ))}
           </div>
         </section>
       )}

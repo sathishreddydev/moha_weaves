@@ -52,9 +52,15 @@ export default function Sales() {
         <h1 className="font-serif text-4xl font-semibold mb-4" data-testid="text-page-title">
           Sales & Offers
         </h1>
-        <p className="text-muted-foreground max-w-2xl mx-auto">
+        <p className="text-muted-foreground max-w-2xl mx-auto mb-6">
           Discover amazing deals on our exquisite collection of sarees. Limited time offers you don't want to miss!
         </p>
+        <Link to="/sarees?onSale=true">
+          <Button size="lg" data-testid="button-shop-all-sale">
+            <Tag className="h-4 w-4 mr-2" />
+            Shop All Sale Products
+          </Button>
+        </Link>
       </section>
 
       {/* Featured Sales */}
