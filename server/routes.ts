@@ -86,7 +86,7 @@ export async function registerRoutes(
               console.error("Cloudinary upload error:", error);
               return res.status(500).json({ error: "Upload failed" });
             }
-            res.json({ url: result!.secure_url });
+            res.json({ url: result!.secure_url, publicId: result!.public_id });
           }
         );
 
@@ -95,6 +95,45 @@ export async function registerRoutes(
     } catch (error) {
       console.error("Cloudinary upload error:", error);
       res.status(500).json({ error: "Failed to upload to Cloudinary" });
+    }
+  });
+
+  // Cloudinary delete endpoint
+  app.delete("/api/uploads/cloudinary", authAny, async (req, res) => {
+    try {
+      const { url } = req.body;
+      if (!url) {
+        return res.status(400).json({ error: "URL is required" });
+      }
+
+      const cloudinary = await import("cloudinary");
+
+      cloudinary.v2.config({
+        cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+        api_key: process.env.CLOUDINARY_API_KEY,
+        api_secret: process.env.CLOUDINARY_API_SECRET,
+      });
+
+      // Extract public_id from Cloudinary URL
+      // Format: https://res.cloudinary.com/{cloud_name}/image/upload/{public_id}.{extension}
+      const urlParts = url.split("/");
+      const uploadIndex = urlParts.indexOf("upload");
+      if (uploadIndex === -1) {
+        return res.status(400).json({ error: "Invalid Cloudinary URL" });
+      }
+
+      const publicIdWithExt = urlParts.slice(uploadIndex + 1).join("/");
+      const publicId = publicIdWithExt.substring(0, publicIdWithExt.lastIndexOf("."));
+
+      // Determine resource type from URL
+      const resourceType = url.includes("/video/") ? "video" : "image";
+
+      await cloudinary.v2.uploader.destroy(publicId, { resource_type: resourceType });
+
+      res.json({ success: true, message: "File deleted successfully" });
+    } catch (error) {
+      console.error("Cloudinary delete error:", error);
+      res.status(500).json({ error: "Failed to delete from Cloudinary" });
     }
   });
 

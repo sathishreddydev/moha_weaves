@@ -1196,14 +1196,25 @@ export default function InventorySarees() {
                         />
                         <button
                           type="button"
-                          onClick={() =>
+                          onClick={async () => {
+                            // Delete from Cloudinary if it's a Cloudinary URL
+                            if (img.includes("cloudinary.com")) {
+                              try {
+                                await apiRequest("DELETE", "/api/uploads/cloudinary", { url: img });
+                                toast({ title: "Success", description: "Image deleted from Cloudinary" });
+                              } catch (error) {
+                                console.error("Failed to delete from Cloudinary:", error);
+                                toast({ title: "Warning", description: "Failed to delete from Cloudinary", variant: "destructive" });
+                              }
+                            }
+                            // Remove from form state
                             setFormData({
                               ...formData,
                               images: formData.images.filter(
                                 (_, i) => i !== index
                               ),
-                            })
-                          }
+                            });
+                          }}
                           className="absolute -top-2 -right-2 bg-destructive text-destructive-foreground rounded-full p-0.5"
                         >
                           <X className="h-3 w-3" />
@@ -1261,9 +1272,19 @@ export default function InventorySarees() {
                       </span>
                       <button
                         type="button"
-                        onClick={() =>
-                          setFormData({ ...formData, videoUrl: "" })
-                        }
+                        onClick={async () => {
+                          // Delete from Cloudinary if it's a Cloudinary URL
+                          if (formData.videoUrl.includes("cloudinary.com")) {
+                            try {
+                              await apiRequest("DELETE", "/api/uploads/cloudinary", { url: formData.videoUrl });
+                              toast({ title: "Success", description: "Video deleted from Cloudinary" });
+                            } catch (error) {
+                              console.error("Failed to delete from Cloudinary:", error);
+                              toast({ title: "Warning", description: "Failed to delete from Cloudinary", variant: "destructive" });
+                            }
+                          }
+                          setFormData({ ...formData, videoUrl: "" });
+                        }}
                         className="text-destructive"
                       >
                         <X className="h-4 w-4" />
