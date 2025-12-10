@@ -13,6 +13,8 @@ import { storeRoutes } from "./store/storeRoutes";
 import { userRoutes } from "./user/userRoutes";
 import { publicRoutes } from "./public/publicRoutes";
 import multer from "multer";
+import { sareeService } from "./sareeService";
+import { salesService } from "./salesService";
 
 const authAny = createAuthMiddleware(["user", "admin", "inventory", "store"]);
 
@@ -256,6 +258,43 @@ export async function registerRoutes(
       }
     }
   );
+
+  // Get single sale with products
+  app.get("/api/sales/:id", async (req, res) => {
+    const sale = await salesService.getSale(req.params.id);
+    if (!sale) {
+      return res.status(404).json({ error: "Sale not found" });
+    }
+    res.json(sale);
+  });
+
+  // Get products for a specific sale
+  app.get("/api/sales/:id/products", async (req, res) => {
+    const sale = await salesService.getSale(req.params.id);
+    if (!sale) {
+      return res.status(404).json({ error: "Sale not found" });
+    }
+
+    let products: any[] = [];
+
+    if (sale.offerType === "category" && sale.categoryId) {
+      // Get all products in this category
+      products = await sareeService.getSarees({ 
+        category: sale.categoryId,
+        onSale: true 
+      });
+    } else if (sale.offerType === "product") {
+      // Get specific products in the sale
+      const sareeIds = sale.products.map(p => p.sareeId).filter(Boolean);
+      if (sareeIds.length > 0) {
+        const allSarees = await sareeService.getSarees({ onSale: true });
+        products = allSarees.filter(s => sareeIds.includes(s.id));
+      }
+    }
+
+    res.json(products);
+  });
+
 
   return httpServer;
 }

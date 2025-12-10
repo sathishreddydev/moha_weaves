@@ -11,13 +11,15 @@ import type { SaleWithProducts, SareeWithDetails } from "@shared/schema";
 export default function SaleDetail() {
   const { id } = useParams<{ id: string }>();
 
-  const { data: sale, isLoading } = useQuery<SaleWithProducts>({
+  const { data: sale, isLoading: loadingSale } = useQuery<SaleWithProducts>({
     queryKey: ["/api/sales", id],
     enabled: !!id,
   });
 
   const { data: saleProducts, isLoading: loadingProducts } = useQuery<SareeWithDetails[]>({
-    queryKey: [`/api/sales/${id}/products`],
+    queryKey: sale?.offerType === "category" && sale?.categoryId
+      ? [`/api/sarees?category=${sale.categoryId}&onSale=true`]
+      : [`/api/sales/${id}/products`],
     enabled: !!sale,
   });
 
@@ -46,11 +48,13 @@ export default function SaleDetail() {
       const discount = originalPrice * (parseFloat(sale.discountValue) / 100);
       const maxDiscount = sale.maxDiscount ? parseFloat(sale.maxDiscount) : Infinity;
       return originalPrice - Math.min(discount, maxDiscount);
+    } else if (sale.offerType === "flat") {
+      return originalPrice - parseFloat(sale.discountValue);
     }
-    return originalPrice - parseFloat(sale.discountValue);
+    return originalPrice; // No discount for other offer types
   };
 
-  if (isLoading) {
+  if (loadingSale) {
     return (
       <div className="max-w-7xl mx-auto px-4 py-8">
         <Skeleton className="h-64 mb-8 rounded-lg" />
@@ -126,7 +130,7 @@ export default function SaleDetail() {
               </div>
 
               <div className="flex gap-4">
-                {sale.products.length > 0 && (
+                {saleProducts && saleProducts.length > 0 && (
                   <a href="#products">
                     <Button size="lg">
                       Shop Sale Items
@@ -156,7 +160,12 @@ export default function SaleDetail() {
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
             {saleProducts.map((product) => (
               <div key={product.id} className="relative">
-                <ProductCard saree={product} />
+                <ProductCard
+                  saree={product}
+                  originalPrice={product.price} // Assuming product has an original price field
+                  discountedPrice={calculateDiscountedPrice(product.price)}
+                  discountPercentage={sale.offerType === "percentage" ? parseFloat(sale.discountValue) : undefined}
+                />
                 {sale.offerType === "percentage" || sale.offerType === "flat" ? (
                   <div className="absolute top-2 left-2 z-10">
                     <Badge className="bg-red-500 text-white">

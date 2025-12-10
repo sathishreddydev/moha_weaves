@@ -100,7 +100,10 @@ export default function Cart() {
   }
 
   const subtotal = cartItems.reduce((sum, item) => {
-    const price = typeof item.saree.price === "string" ? parseFloat(item.saree.price) : item.saree.price;
+    // Use discounted price if available, otherwise use regular price
+    const price = item.saree.discountedPrice 
+      ? (typeof item.saree.discountedPrice === "string" ? parseFloat(item.saree.discountedPrice) : item.saree.discountedPrice)
+      : (typeof item.saree.price === "string" ? parseFloat(item.saree.price) : item.saree.price);
     return sum + price * item.quantity;
   }, 0);
 
@@ -139,9 +142,22 @@ export default function Cart() {
                     {item.saree.category?.name}
                     {item.saree.color && ` • ${item.saree.color.name}`}
                   </div>
-                  <p className="font-semibold text-primary mt-2" data-testid={`text-item-price-${item.id}`}>
-                    {formatPrice(item.saree.price)}
-                  </p>
+                  <div className="mt-2">
+                    {item.saree.activeSale && item.saree.discountedPrice ? (
+                      <div className="flex items-center gap-2">
+                        <p className="font-semibold text-primary" data-testid={`text-item-price-${item.id}`}>
+                          {formatPrice(item.saree.discountedPrice)}
+                        </p>
+                        <p className="text-xs text-muted-foreground line-through">
+                          {formatPrice(item.saree.price)}
+                        </p>
+                      </div>
+                    ) : (
+                      <p className="font-semibold text-primary" data-testid={`text-item-price-${item.id}`}>
+                        {formatPrice(item.saree.price)}
+                      </p>
+                    )}
+                  </div>
 
                   <div className="flex items-center justify-between mt-4">
                     <div className="flex items-center border rounded-md">

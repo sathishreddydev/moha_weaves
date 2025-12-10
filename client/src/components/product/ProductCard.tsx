@@ -78,8 +78,8 @@ export function ProductCard({ saree, isInWishlist = false }: ProductCardProps) {
           {saree.activeSale && (
             <Badge className="bg-red-500 text-white">
               {saree.activeSale.offerType === "percentage" 
-                ? `${saree.activeSale.discountValue}% OFF` 
-                : `SAVE ${formatPrice(saree.activeSale.discountValue)}`}
+                ? `${Math.round(parseFloat(saree.activeSale.discountValue))}% OFF` 
+                : `₹${Math.round(parseFloat(saree.activeSale.discountValue))} OFF`}
             </Badge>
           )}
           {saree.isFeatured && (
@@ -153,10 +153,10 @@ export function ProductCard({ saree, isInWishlist = false }: ProductCardProps) {
           )}
         </div>
         <div className="flex items-center gap-2">
-          {saree.activeSale ? (
+          {saree.activeSale && saree.discountedPrice ? (
             <>
               <p className="font-semibold text-primary" data-testid={`text-price-${saree.id}`}>
-                {formatPrice(saree.discountedPrice || saree.price)}
+                {formatPrice(saree.discountedPrice)}
               </p>
               <p className="text-sm text-muted-foreground line-through">
                 {formatPrice(saree.price)}

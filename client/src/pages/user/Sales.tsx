@@ -127,7 +127,9 @@ export default function Sales() {
                   />
                   <div className="absolute top-4 right-4">
                     <Badge className="bg-red-500 text-white">
-                      {sale.offerType === "percentage" ? `${sale.discountValue}% OFF` : `Save ${formatPrice(sale.discountValue)}`}
+                      {sale.offerType === "percentage" 
+                        ? `${Math.round(parseFloat(sale.discountValue))}% OFF` 
+                        : `₹${Math.round(parseFloat(sale.discountValue))} OFF`}
                     </Badge>
                   </div>
                 </div>
