@@ -6,8 +6,10 @@ import {
   fabrics,
   InsertSaree,
   Saree,
+  sales,
+  saleProducts,
 } from "@shared/schema";
-import { eq, or, ilike, gte, lte, desc, asc, and } from "drizzle-orm";
+import { eq, and, or, ilike, gte, lte, desc, asc, inArray } from "drizzle-orm";
 import { db } from "server/db";
 
 export interface ISareeRepository {
@@ -22,6 +24,7 @@ export interface ISareeRepository {
     distributionChannel?: string;
     sort?: string;
     limit?: number;
+    onSale?: boolean;
   }): Promise<SareeWithDetails[]>;
   getSaree(id: string): Promise<SareeWithDetails | undefined>;
   createSaree(saree: InsertSaree): Promise<Saree>;
@@ -44,6 +47,7 @@ export class SareeRepository {
     distributionChannel?: string;
     sort?: string;
     limit?: number;
+    onSale?: boolean;
   }): Promise<SareeWithDetails[]> {
     const conditions = [eq(sarees.isActive, true)];
 
@@ -110,12 +114,106 @@ export class SareeRepository {
       .orderBy(orderBy)
       .limit(filters?.limit || 100);
 
-    return result.map((row) => ({
+    const sareeResults = result.map((row) => ({
       ...row.sarees,
       category: row.categories,
       color: row.colors,
       fabric: row.fabrics,
     }));
+
+    // Get active sales
+    const now = new Date();
+    const activeSales = await db
+      .select()
+      .from(sales)
+      .where(
+        and(
+          eq(sales.isActive, true),
+          lte(sales.validFrom, now),
+          gte(sales.validUntil, now)
+        )
+      );
+
+    // Get sale products mapping
+    const saleProductMappings = await db
+      .select()
+      .from(saleProducts)
+      .where(
+        inArray(
+          saleProducts.saleId,
+          activeSales.map((s) => s.id)
+        )
+      );
+
+    // Build the results with relationships and sales
+    const results: SareeWithDetails[] = sareeResults.map((saree) => {
+      const category = saree.categoryId
+        ? categories.find((c) => c.id === saree.categoryId) || null
+        : null;
+
+      // Find applicable sale (product-specific first, then category-wide)
+      let applicableSale = null;
+
+      // Check for product-specific sale
+      const productSaleMapping = saleProductMappings.find(
+        (sp) => sp.sareeId === saree.id
+      );
+      if (productSaleMapping) {
+        applicableSale = activeSales.find(
+          (s) => s.id === productSaleMapping.saleId && s.offerType === "product"
+        );
+      }
+
+      // Check for category-wide sale if no product-specific sale
+      if (!applicableSale && saree.categoryId) {
+        applicableSale = activeSales.find(
+          (s) => s.categoryId === saree.categoryId && s.offerType === "category"
+        );
+      }
+
+      // Calculate discounted price
+      let discountedPrice = parseFloat(saree.price);
+      if (applicableSale) {
+        if (applicableSale.offerType === "percentage") {
+          const discount = discountedPrice * (parseFloat(applicableSale.discountValue) / 100);
+          const maxDiscount = applicableSale.maxDiscount 
+            ? parseFloat(applicableSale.maxDiscount) 
+            : Infinity;
+          discountedPrice -= Math.min(discount, maxDiscount);
+        } else if (applicableSale.offerType === "flat") {
+          discountedPrice -= parseFloat(applicableSale.discountValue);
+        }
+        discountedPrice = Math.max(0, discountedPrice);
+      }
+
+      return {
+        ...saree,
+        category,
+        color: saree.colorId
+          ? colors.find((c) => c.id === saree.colorId) || null
+          : null,
+        fabric: saree.fabricId
+          ? fabrics.find((f) => f.id === saree.fabricId) || null
+          : null,
+        activeSale: applicableSale
+          ? {
+              id: applicableSale.id,
+              name: applicableSale.name,
+              offerType: applicableSale.offerType,
+              discountValue: applicableSale.discountValue,
+              maxDiscount: applicableSale.maxDiscount || undefined,
+            }
+          : null,
+        discountedPrice: applicableSale ? discountedPrice : undefined,
+      };
+    });
+
+    // Apply onSale filter if requested
+    const filteredResults = filters?.onSale 
+      ? results.filter(r => r.activeSale !== null)
+      : results;
+
+    return filteredResults;
   }
 
   async getSaree(id: string): Promise<SareeWithDetails | undefined> {

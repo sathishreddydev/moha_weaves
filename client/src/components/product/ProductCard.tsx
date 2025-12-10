@@ -75,6 +75,13 @@ export function ProductCard({ saree, isInWishlist = false }: ProductCardProps) {
 
         {/* Badges */}
         <div className="absolute top-2 left-2 flex flex-col gap-1">
+          {saree.activeSale && (
+            <Badge className="bg-red-500 text-white">
+              {saree.activeSale.offerType === "percentage" 
+                ? `${saree.activeSale.discountValue}% OFF` 
+                : `SAVE ${formatPrice(saree.activeSale.discountValue)}`}
+            </Badge>
+          )}
           {saree.isFeatured && (
             <Badge variant="default" className="bg-primary text-primary-foreground">
               Featured
@@ -145,9 +152,22 @@ export function ProductCard({ saree, isInWishlist = false }: ProductCardProps) {
             </>
           )}
         </div>
-        <p className="font-semibold text-primary" data-testid={`text-price-${saree.id}`}>
-          {formatPrice(saree.price)}
-        </p>
+        <div className="flex items-center gap-2">
+          {saree.activeSale ? (
+            <>
+              <p className="font-semibold text-primary" data-testid={`text-price-${saree.id}`}>
+                {formatPrice(saree.discountedPrice || saree.price)}
+              </p>
+              <p className="text-sm text-muted-foreground line-through">
+                {formatPrice(saree.price)}
+              </p>
+            </>
+          ) : (
+            <p className="font-semibold text-primary" data-testid={`text-price-${saree.id}`}>
+              {formatPrice(saree.price)}
+            </p>
+          )}
+        </div>
         {saree.color && (
           <div className="flex items-center gap-2">
             <span

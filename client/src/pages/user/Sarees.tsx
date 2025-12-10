@@ -34,6 +34,7 @@ export default function Sarees() {
     color: searchParams.get("color") || "",
     fabric: searchParams.get("fabric") || "",
     featured: searchParams.get("featured") === "true",
+    onSale: searchParams.get("onSale") === "true",
     minPrice: searchParams.get("minPrice") || "",
     maxPrice: searchParams.get("maxPrice") || "",
     sort: searchParams.get("sort") || "newest",
@@ -48,6 +49,7 @@ export default function Sarees() {
     if (filters.color) params.append("color", filters.color);
     if (filters.fabric) params.append("fabric", filters.fabric);
     if (filters.featured) params.append("featured", "true");
+    if (filters.onSale) params.append("onSale", "true");
     if (filters.minPrice) params.append("minPrice", filters.minPrice);
     if (filters.maxPrice) params.append("maxPrice", filters.maxPrice);
     if (filters.sort) params.append("sort", filters.sort);
@@ -82,13 +84,14 @@ export default function Sarees() {
       color: "",
       fabric: "",
       featured: false,
+      onSale: false,
       minPrice: "",
       maxPrice: "",
       sort: "newest",
     });
   };
 
-  const hasActiveFilters = filters.category || filters.color || filters.fabric || filters.featured || filters.minPrice || filters.maxPrice;
+  const hasActiveFilters = filters.category || filters.color || filters.fabric || filters.featured || filters.onSale || filters.minPrice || filters.maxPrice;
 
   const FilterContent = () => (
     <div className="space-y-6">
@@ -209,6 +212,19 @@ export default function Sarees() {
         />
         <Label htmlFor="featured" className="text-sm cursor-pointer">
           Featured Only
+        </Label>
+      </div>
+
+      {/* On Sale */}
+      <div className="flex items-center gap-2">
+        <Checkbox
+          id="onSale"
+          checked={filters.onSale}
+          onCheckedChange={(checked) => updateFilter("onSale", !!checked)}
+          data-testid="checkbox-on-sale"
+        />
+        <Label htmlFor="onSale" className="text-sm cursor-pointer">
+          On Sale
         </Label>
       </div>
 

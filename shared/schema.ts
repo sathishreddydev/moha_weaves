@@ -769,6 +769,14 @@ export type SareeWithDetails = Saree & {
     quantity: number;
   }[];
   unallocated?: number;
+  activeSale?: {
+    id: string;
+    name: string;
+    offerType: string;
+    discountValue: string;
+    maxDiscount?: string;
+  } | null;
+  discountedPrice?: number;
 };
 
 export type CartItemWithSaree = CartItem & {
