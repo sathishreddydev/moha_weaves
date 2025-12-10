@@ -1,11 +1,11 @@
 
 import { useQuery } from "@tanstack/react-query";
-import { Link } from "wouter";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tag, Clock, ArrowRight } from "lucide-react";
+import { Link } from "react-router-dom";
 
 interface Sale {
   id: string;
@@ -66,7 +66,7 @@ export function TrendingSalesBanner() {
               Don't miss out on our exclusive deals
             </p>
           </div>
-          <Link href="/sales">
+          <Link to="/sales">
             <Button variant="outline">
               View All <ArrowRight className="ml-2 h-4 w-4" />
             </Button>
@@ -79,7 +79,7 @@ export function TrendingSalesBanner() {
             const daysLeft = Math.ceil(timeRemaining / (1000 * 60 * 60 * 24));
 
             return (
-              <Link key={sale.id} href={`/sales/${sale.id}`}>
+              <Link key={sale.id} to={`/sales/${sale.id}`}>
                 <Card className="group overflow-hidden hover:shadow-lg transition-all cursor-pointer">
                   <div className="aspect-[16/9] relative overflow-hidden bg-gradient-to-br from-primary/20 to-primary/5">
                     {sale.bannerImage ? (
