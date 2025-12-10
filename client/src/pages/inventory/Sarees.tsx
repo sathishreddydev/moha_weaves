@@ -45,7 +45,7 @@ import { useToast } from "@/hooks/use-toast";
 import { DataTable, FilterConfig } from "@/components/ui/data-table";
 import { useDataTable } from "@/hooks/use-data-table";
 import { ColumnDef } from "@tanstack/react-table";
-import { ObjectUploader } from "@/components/ObjectUploader";
+import { CloudinaryUploader } from "@/components/CloudinaryUploader";
 import type {
   SareeWithDetails,
   Category,
@@ -1168,7 +1168,7 @@ export default function InventorySarees() {
                       placeholder="https://... or upload below"
                       data-testid="input-image-url"
                     />
-                    <ObjectUploader
+                    <CloudinaryUploader
                       maxNumberOfFiles={1}
                       maxFileSize={10485760}
                       fileType="image"
@@ -1180,7 +1180,7 @@ export default function InventorySarees() {
                     >
                       <Upload className="h-4 w-4 mr-2" />
                       Upload
-                    </ObjectUploader>
+                    </CloudinaryUploader>
                   </div>
                 </div>
 
@@ -1211,7 +1211,7 @@ export default function InventorySarees() {
                       </div>
                     ))}
                   </div>
-                  <ObjectUploader
+                  <CloudinaryUploader
                     maxNumberOfFiles={5}
                     maxFileSize={10485760}
                     fileType="image"
@@ -1224,7 +1224,7 @@ export default function InventorySarees() {
                   >
                     <ImageIcon className="h-4 w-4 mr-2" />
                     Upload Images (Max 5)
-                  </ObjectUploader>
+                  </CloudinaryUploader>
                 </div>
 
                 <div>
@@ -1239,7 +1239,7 @@ export default function InventorySarees() {
                       placeholder="https://... or upload below"
                       data-testid="input-video-url"
                     />
-                    <ObjectUploader
+                    <CloudinaryUploader
                       maxNumberOfFiles={1}
                       maxFileSize={104857600}
                       fileType="video"
@@ -1251,7 +1251,7 @@ export default function InventorySarees() {
                     >
                       <Video className="h-4 w-4 mr-2" />
                       Upload Video
-                    </ObjectUploader>
+                    </CloudinaryUploader>
                   </div>
                   {formData.videoUrl && (
                     <div className="mt-2 flex items-center gap-2">

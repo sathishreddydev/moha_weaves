@@ -48,6 +48,56 @@ export async function registerRoutes(
     }
   });
 
+  // Cloudinary upload endpoint
+  app.post("/api/uploads/cloudinary", authAny, async (req, res) => {
+    try {
+      const multer = await import("multer");
+      const cloudinary = await import("cloudinary");
+
+      cloudinary.v2.config({
+        cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+        api_key: process.env.CLOUDINARY_API_KEY,
+        api_secret: process.env.CLOUDINARY_API_SECRET,
+      });
+
+      const upload = multer.default({ storage: multer.default.memoryStorage() });
+      const uploadMiddleware = upload.single("file");
+
+      uploadMiddleware(req, res, async (err) => {
+        if (err) {
+          return res.status(400).json({ error: "File upload failed" });
+        }
+
+        const file = (req as any).file;
+        if (!file) {
+          return res.status(400).json({ error: "No file provided" });
+        }
+
+        const fileType = req.body.fileType || "image";
+        const resourceType = fileType === "video" ? "video" : "image";
+
+        const uploadStream = cloudinary.v2.uploader.upload_stream(
+          {
+            resource_type: resourceType,
+            folder: `mohaweaves/${fileType}s`,
+          },
+          (error, result) => {
+            if (error) {
+              console.error("Cloudinary upload error:", error);
+              return res.status(500).json({ error: "Upload failed" });
+            }
+            res.json({ url: result!.secure_url });
+          }
+        );
+
+        uploadStream.end(file.buffer);
+      });
+    } catch (error) {
+      console.error("Cloudinary upload error:", error);
+      res.status(500).json({ error: "Failed to upload to Cloudinary" });
+    }
+  });
+
   // Get presigned upload URL (requires inventory or admin auth)
   app.post("/api/uploads/presigned-url", authAny, async (req, res) => {
     try {
