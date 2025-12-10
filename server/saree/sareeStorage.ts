@@ -150,34 +150,44 @@ export class SareeRepository {
       // Find applicable sale (product-specific first, then category-wide)
       let applicableSale = null;
 
-      // Check for product-specific sale
+      // Check for product-specific sale (sale has this product in saleProducts table)
       const productSaleMapping = saleProductMappings.find(
         (sp) => sp.sareeId === saree.id
       );
       if (productSaleMapping) {
         applicableSale = activeSales.find(
-          (s) => s.id === productSaleMapping.saleId && s.offerType === "product"
+          (s) => s.id === productSaleMapping.saleId
         );
       }
 
       // Check for category-wide sale if no product-specific sale
+      // Category sales have categoryId set and no specific products
       if (!applicableSale && saree.categoryId) {
         applicableSale = activeSales.find(
-          (s) => s.categoryId === saree.categoryId && s.offerType === "category"
+          (s) => s.categoryId === saree.categoryId && 
+          !saleProductMappings.some(sp => sp.saleId === s.id)
         );
       }
 
       // Calculate discounted price
       let discountedPrice = parseFloat(saree.price);
       if (applicableSale) {
-        if (applicableSale.offerType === "percentage") {
+        // Apply discount based on type (percentage or flat)
+        if (applicableSale.offerType === "percentage" || applicableSale.offerType === "category") {
           const discount = discountedPrice * (parseFloat(applicableSale.discountValue) / 100);
           const maxDiscount = applicableSale.maxDiscount 
             ? parseFloat(applicableSale.maxDiscount) 
             : Infinity;
           discountedPrice -= Math.min(discount, maxDiscount);
-        } else if (applicableSale.offerType === "flat") {
+        } else if (applicableSale.offerType === "flat" || applicableSale.offerType === "product") {
           discountedPrice -= parseFloat(applicableSale.discountValue);
+        } else if (applicableSale.offerType === "flash_sale") {
+          // Flash sales use percentage discount
+          const discount = discountedPrice * (parseFloat(applicableSale.discountValue) / 100);
+          const maxDiscount = applicableSale.maxDiscount 
+            ? parseFloat(applicableSale.maxDiscount) 
+            : Infinity;
+          discountedPrice -= Math.min(discount, maxDiscount);
         }
         discountedPrice = Math.max(0, discountedPrice);
       }
