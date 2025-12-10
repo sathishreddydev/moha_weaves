@@ -39,11 +39,14 @@ export const orderRoutes = (app: Express) => {
         return res.status(400).json({ message: "Cart is empty" });
       }
 
+      // Calculate total using sale prices when available
       const totalAmount = cartItems.reduce((sum, item) => {
-        const price =
+        // Use discounted price if available, otherwise original price
+        const originalPrice =
           typeof item.saree.price === "string"
             ? parseFloat(item.saree.price)
             : item.saree.price;
+        const price = (item.saree as any).discountedPrice ?? originalPrice;
         return sum + price * item.quantity;
       }, 0);
 
@@ -82,11 +85,18 @@ export const orderRoutes = (app: Express) => {
           notes,
           status: "pending",
         },
-        cartItems.map((item) => ({
-          sareeId: item.sareeId,
-          quantity: item.quantity,
-          price: item.saree.price,
-        }))
+        cartItems.map((item) => {
+          const originalPrice =
+            typeof item.saree.price === "string"
+              ? parseFloat(item.saree.price)
+              : item.saree.price;
+          const effectivePrice = (item.saree as any).discountedPrice ?? originalPrice;
+          return {
+            sareeId: item.sareeId,
+            quantity: item.quantity,
+            price: effectivePrice.toString(),
+          };
+        })
       );
 
       // Deduct stock from online inventory for each ordered item

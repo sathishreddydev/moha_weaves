@@ -161,34 +161,27 @@ export class SareeRepository {
       }
 
       // Check for category-wide sale if no product-specific sale
-      // Category sales have categoryId set and no specific products
+      // Only exclude category pricing when THIS saree is explicitly mapped to a different sale
       if (!applicableSale && saree.categoryId) {
         applicableSale = activeSales.find(
           (s) => s.categoryId === saree.categoryId && 
-          !saleProductMappings.some(sp => sp.saleId === s.id)
+          !saleProductMappings.some(sp => sp.saleId === s.id && sp.sareeId === saree.id)
         );
       }
 
-      // Calculate discounted price
+      // Calculate discounted price using consistent logic across all flows
       let discountedPrice = parseFloat(saree.price);
       if (applicableSale) {
-        // Apply discount based on type (percentage or flat)
-        if (applicableSale.offerType === "percentage" || applicableSale.offerType === "category") {
-          const discount = discountedPrice * (parseFloat(applicableSale.discountValue) / 100);
+        const originalPrice = discountedPrice;
+        if (applicableSale.offerType === "percentage" || applicableSale.offerType === "category" || applicableSale.offerType === "flash_sale") {
+          const discount = originalPrice * (parseFloat(applicableSale.discountValue) / 100);
           const maxDiscount = applicableSale.maxDiscount 
             ? parseFloat(applicableSale.maxDiscount) 
-            : Infinity;
-          discountedPrice -= Math.min(discount, maxDiscount);
+            : originalPrice; // Cap at price if no maxDiscount
+          discountedPrice = originalPrice - Math.min(discount, maxDiscount, originalPrice);
         } else if (applicableSale.offerType === "flat" || applicableSale.offerType === "product") {
-          const flatDiscount = Math.min(parseFloat(applicableSale.discountValue), discountedPrice);
-          discountedPrice -= flatDiscount;
-        } else if (applicableSale.offerType === "flash_sale") {
-          // Flash sales use percentage discount
-          const discount = discountedPrice * (parseFloat(applicableSale.discountValue) / 100);
-          const maxDiscount = applicableSale.maxDiscount 
-            ? parseFloat(applicableSale.maxDiscount) 
-            : Infinity;
-          discountedPrice -= Math.min(discount, maxDiscount);
+          const flatDiscount = Math.min(parseFloat(applicableSale.discountValue), originalPrice);
+          discountedPrice = originalPrice - flatDiscount;
         }
         discountedPrice = Math.max(0, discountedPrice);
       }
@@ -227,11 +220,78 @@ export class SareeRepository {
 
     if (!result) return undefined;
 
+    const saree = result.sarees;
+    
+    // Fetch active sales
+    const now = new Date();
+    const activeSales = await db
+      .select()
+      .from(sales)
+      .where(
+        and(
+          eq(sales.isActive, true),
+          lte(sales.validFrom, now),
+          gte(sales.validUntil, now)
+        )
+      );
+
+    // Fetch sale product mappings
+    const saleProductMappings = await db.select().from(saleProducts);
+
+    // Find applicable sale (product-specific first, then category-wide)
+    let applicableSale = null;
+
+    // Check for product-specific sale
+    const productSaleMapping = saleProductMappings.find(
+      (sp) => sp.sareeId === saree.id
+    );
+    if (productSaleMapping) {
+      applicableSale = activeSales.find(
+        (s) => s.id === productSaleMapping.saleId
+      );
+    }
+
+    // Check for category-wide sale if no product-specific sale
+    // Only exclude category pricing when THIS saree is explicitly mapped to a different sale
+    if (!applicableSale && saree.categoryId) {
+      applicableSale = activeSales.find(
+        (s) => s.categoryId === saree.categoryId && 
+        !saleProductMappings.some(sp => sp.saleId === s.id && sp.sareeId === saree.id)
+      );
+    }
+
+    // Calculate discounted price using consistent logic across all flows
+    let discountedPrice = parseFloat(saree.price);
+    if (applicableSale) {
+      const originalPrice = discountedPrice;
+      if (applicableSale.offerType === "percentage" || applicableSale.offerType === "category" || applicableSale.offerType === "flash_sale") {
+        const discount = originalPrice * (parseFloat(applicableSale.discountValue) / 100);
+        const maxDiscount = applicableSale.maxDiscount 
+          ? parseFloat(applicableSale.maxDiscount) 
+          : originalPrice; // Cap at price if no maxDiscount
+        discountedPrice = originalPrice - Math.min(discount, maxDiscount, originalPrice);
+      } else if (applicableSale.offerType === "flat" || applicableSale.offerType === "product") {
+        const flatDiscount = Math.min(parseFloat(applicableSale.discountValue), originalPrice);
+        discountedPrice = originalPrice - flatDiscount;
+      }
+      discountedPrice = Math.max(0, discountedPrice);
+    }
+
     return {
-      ...result.sarees,
+      ...saree,
       category: result.categories,
       color: result.colors,
       fabric: result.fabrics,
+      activeSale: applicableSale
+        ? {
+            id: applicableSale.id,
+            name: applicableSale.name,
+            offerType: applicableSale.offerType,
+            discountValue: applicableSale.discountValue,
+            maxDiscount: applicableSale.maxDiscount || undefined,
+          }
+        : null,
+      discountedPrice: applicableSale ? discountedPrice : undefined,
     };
   }
 

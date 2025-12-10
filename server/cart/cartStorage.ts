@@ -1,4 +1,4 @@
-import { eq, sql, and } from "drizzle-orm";
+import { eq, sql, and, lte, gte } from "drizzle-orm";
 import { db } from "server/db";
 import {
   CartItem,
@@ -13,6 +13,8 @@ import {
   categories,
   colors,
   fabrics,
+  sales,
+  saleProducts,
 } from "@shared/schema";
 export interface CartStorage {
   // Cart
@@ -42,15 +44,80 @@ export class CartRepository implements CartStorage {
       .leftJoin(fabrics, eq(sarees.fabricId, fabrics.id))
       .where(eq(cart.userId, userId));
 
-    return result.map((row) => ({
-      ...row.cart,
-      saree: {
-        ...row.sarees,
-        category: row.categories,
-        color: row.colors,
-        fabric: row.fabrics,
-      },
-    }));
+    // Fetch active sales
+    const now = new Date();
+    const activeSales = await db
+      .select()
+      .from(sales)
+      .where(
+        and(
+          eq(sales.isActive, true),
+          lte(sales.validFrom, now),
+          gte(sales.validUntil, now)
+        )
+      );
+
+    // Fetch sale product mappings
+    const saleProductMappings = await db.select().from(saleProducts);
+
+    return result.map((row) => {
+      const saree = row.sarees;
+      
+      // Find applicable sale
+      let applicableSale = null;
+      const productSaleMapping = saleProductMappings.find(
+        (sp) => sp.sareeId === saree.id
+      );
+      if (productSaleMapping) {
+        applicableSale = activeSales.find(
+          (s) => s.id === productSaleMapping.saleId
+        );
+      }
+      // Only exclude category pricing when THIS saree is explicitly mapped to a different sale
+      if (!applicableSale && saree.categoryId) {
+        applicableSale = activeSales.find(
+          (s) => s.categoryId === saree.categoryId && 
+          !saleProductMappings.some(sp => sp.saleId === s.id && sp.sareeId === saree.id)
+        );
+      }
+
+      // Calculate discounted price using consistent logic across all flows
+      let discountedPrice = parseFloat(saree.price);
+      if (applicableSale) {
+        const originalPrice = discountedPrice;
+        if (applicableSale.offerType === "percentage" || applicableSale.offerType === "category" || applicableSale.offerType === "flash_sale") {
+          const discount = originalPrice * (parseFloat(applicableSale.discountValue) / 100);
+          const maxDiscount = applicableSale.maxDiscount 
+            ? parseFloat(applicableSale.maxDiscount) 
+            : originalPrice; // Cap at price if no maxDiscount
+          discountedPrice = originalPrice - Math.min(discount, maxDiscount, originalPrice);
+        } else if (applicableSale.offerType === "flat" || applicableSale.offerType === "product") {
+          const flatDiscount = Math.min(parseFloat(applicableSale.discountValue), originalPrice);
+          discountedPrice = originalPrice - flatDiscount;
+        }
+        discountedPrice = Math.max(0, discountedPrice);
+      }
+
+      return {
+        ...row.cart,
+        saree: {
+          ...saree,
+          category: row.categories,
+          color: row.colors,
+          fabric: row.fabrics,
+          activeSale: applicableSale
+            ? {
+                id: applicableSale.id,
+                name: applicableSale.name,
+                offerType: applicableSale.offerType,
+                discountValue: applicableSale.discountValue,
+                maxDiscount: applicableSale.maxDiscount || undefined,
+              }
+            : null,
+          discountedPrice: applicableSale ? discountedPrice : undefined,
+        },
+      };
+    });
   }
 
   async getCartCount(userId: string): Promise<number> {
