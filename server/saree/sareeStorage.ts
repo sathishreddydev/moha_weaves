@@ -147,10 +147,6 @@ export class SareeRepository {
 
     // Build the results with relationships and sales
     const results: SareeWithDetails[] = sareeResults.map((saree) => {
-      const category = saree.categoryId
-        ? categories.find((c) => c.id === saree.categoryId) || null
-        : null;
-
       // Find applicable sale (product-specific first, then category-wide)
       let applicableSale = null;
 
@@ -188,13 +184,6 @@ export class SareeRepository {
 
       return {
         ...saree,
-        category,
-        color: saree.colorId
-          ? colors.find((c) => c.id === saree.colorId) || null
-          : null,
-        fabric: saree.fabricId
-          ? fabrics.find((f) => f.id === saree.fabricId) || null
-          : null,
         activeSale: applicableSale
           ? {
               id: applicableSale.id,
