@@ -43,15 +43,41 @@ export default function SaleDetail() {
 
   const calculateDiscountedPrice = (originalPrice: number) => {
     if (!sale) return originalPrice;
+    
+    const numPrice = typeof originalPrice === "string" ? parseFloat(originalPrice) : originalPrice;
+    const discountValue = parseFloat(sale.discountValue);
+    const maxDiscount = sale.maxDiscount ? parseFloat(sale.maxDiscount) : Infinity;
 
-    if (sale.offerType === "percentage") {
-      const discount = originalPrice * (parseFloat(sale.discountValue) / 100);
-      const maxDiscount = sale.maxDiscount ? parseFloat(sale.maxDiscount) : Infinity;
-      return originalPrice - Math.min(discount, maxDiscount);
-    } else if (sale.offerType === "flat") {
-      return originalPrice - parseFloat(sale.discountValue);
+    switch (sale.offerType) {
+      case "percentage":
+      case "category":
+      case "flash_sale": {
+        const discount = numPrice * (discountValue / 100);
+        return numPrice - Math.min(discount, maxDiscount);
+      }
+      case "flat":
+      case "product": {
+        return numPrice - Math.min(discountValue, numPrice);
+      }
+      default:
+        return numPrice;
     }
-    return originalPrice; // No discount for other offer types
+  };
+  
+  const getDiscountBadgeText = () => {
+    if (!sale) return "";
+    
+    switch (sale.offerType) {
+      case "percentage":
+      case "category":
+      case "flash_sale":
+        return `${Math.round(parseFloat(sale.discountValue))}% OFF`;
+      case "flat":
+      case "product":
+        return `${formatPrice(sale.discountValue)} OFF`;
+      default:
+        return "";
+    }
   };
 
   if (loadingSale) {
@@ -103,7 +129,7 @@ export default function SaleDetail() {
             </div>
             <div className="p-8 flex flex-col justify-center">
               <Badge className="w-fit mb-4 bg-red-500 text-white">
-                {sale.offerType === "percentage" ? `${sale.discountValue}% OFF` : `Save ${formatPrice(sale.discountValue)}`}
+                {getDiscountBadgeText()}
               </Badge>
               <h1 className="font-serif text-4xl font-semibold mb-4" data-testid="text-sale-name">
                 {sale.name}
@@ -121,7 +147,7 @@ export default function SaleDetail() {
                     <span>Minimum order: {formatPrice(sale.minOrderAmount)}</span>
                   </div>
                 )}
-                {sale.maxDiscount && sale.offerType === "percentage" && (
+                {sale.maxDiscount && (sale.offerType === "percentage" || sale.offerType === "category" || sale.offerType === "flash_sale") && (
                   <div className="flex items-center gap-2 text-muted-foreground">
                     <Tag className="h-5 w-5" />
                     <span>Maximum discount: {formatPrice(sale.maxDiscount)}</span>
@@ -159,21 +185,10 @@ export default function SaleDetail() {
           </h2>
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
             {saleProducts.map((product) => (
-              <div key={product.id} className="relative">
-                <ProductCard
-                  saree={product}
-                  originalPrice={product.price} // Assuming product has an original price field
-                  discountedPrice={calculateDiscountedPrice(product.price)}
-                  discountPercentage={sale.offerType === "percentage" ? parseFloat(sale.discountValue) : undefined}
-                />
-                {sale.offerType === "percentage" || sale.offerType === "flat" ? (
-                  <div className="absolute top-2 left-2 z-10">
-                    <Badge className="bg-red-500 text-white">
-                      {sale.offerType === "percentage" ? `${sale.discountValue}% OFF` : `Save ${formatPrice(sale.discountValue)}`}
-                    </Badge>
-                  </div>
-                ) : null}
-              </div>
+              <ProductCard
+                key={product.id}
+                saree={product}
+              />
             ))}
           </div>
         </section>

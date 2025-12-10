@@ -180,7 +180,8 @@ export class SareeRepository {
             : Infinity;
           discountedPrice -= Math.min(discount, maxDiscount);
         } else if (applicableSale.offerType === "flat" || applicableSale.offerType === "product") {
-          discountedPrice -= parseFloat(applicableSale.discountValue);
+          const flatDiscount = Math.min(parseFloat(applicableSale.discountValue), discountedPrice);
+          discountedPrice -= flatDiscount;
         } else if (applicableSale.offerType === "flash_sale") {
           // Flash sales use percentage discount
           const discount = discountedPrice * (parseFloat(applicableSale.discountValue) / 100);

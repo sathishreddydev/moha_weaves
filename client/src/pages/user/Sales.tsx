@@ -35,10 +35,35 @@ export default function Sales() {
   };
 
   const calculateDiscount = (sale: SaleWithDetails, originalPrice: number) => {
-    if (sale.offerType === "percentage") {
-      return originalPrice * (parseFloat(sale.discountValue) / 100);
+    const discountValue = parseFloat(sale.discountValue);
+    const maxDiscount = sale.maxDiscount ? parseFloat(sale.maxDiscount) : Infinity;
+    
+    switch (sale.offerType) {
+      case "percentage":
+      case "category":
+      case "flash_sale":
+        const discount = originalPrice * (discountValue / 100);
+        return Math.min(discount, maxDiscount);
+      case "flat":
+      case "product":
+        return Math.min(discountValue, originalPrice);
+      default:
+        return 0;
     }
-    return parseFloat(sale.discountValue);
+  };
+  
+  const getDiscountBadgeText = (sale: SaleWithDetails) => {
+    switch (sale.offerType) {
+      case "percentage":
+      case "category":
+      case "flash_sale":
+        return `${Math.round(parseFloat(sale.discountValue))}% OFF`;
+      case "flat":
+      case "product":
+        return `${formatPrice(sale.discountValue)} OFF`;
+      default:
+        return "";
+    }
   };
 
   return (
@@ -127,9 +152,7 @@ export default function Sales() {
                   />
                   <div className="absolute top-4 right-4">
                     <Badge className="bg-red-500 text-white">
-                      {sale.offerType === "percentage" 
-                        ? `${Math.round(parseFloat(sale.discountValue))}% OFF` 
-                        : `₹${Math.round(parseFloat(sale.discountValue))} OFF`}
+                      {getDiscountBadgeText(sale)}
                     </Badge>
                   </div>
                 </div>

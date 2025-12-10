@@ -55,9 +55,9 @@ export default function Home() {
                 {activeSale ? (
                   <>
                     <Badge className="mb-4 bg-red-500 text-white text-lg px-4 py-2">
-                      {activeSale.offerType === "percentage" 
-                        ? `${activeSale.discountValue}% OFF` 
-                        : `FLAT ₹${activeSale.discountValue} OFF`}
+                      {["percentage", "category", "flash_sale"].includes(activeSale.offerType) 
+                        ? `${Math.round(parseFloat(activeSale.discountValue))}% OFF` 
+                        : `FLAT ₹${Math.round(parseFloat(activeSale.discountValue))} OFF`}
                     </Badge>
                     <h1 className="font-serif text-4xl md:text-5xl lg:text-6xl font-semibold text-white mb-4" data-testid="text-hero-title">
                       {activeSale.name}

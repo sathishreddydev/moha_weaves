@@ -77,7 +77,7 @@ export function ProductCard({ saree, isInWishlist = false }: ProductCardProps) {
         <div className="absolute top-2 left-2 flex flex-col gap-1">
           {saree.activeSale && (
             <Badge className="bg-red-500 text-white">
-              {saree.activeSale.offerType === "percentage" 
+              {["percentage", "category", "flash_sale"].includes(saree.activeSale.offerType)
                 ? `${Math.round(parseFloat(saree.activeSale.discountValue))}% OFF` 
                 : `₹${Math.round(parseFloat(saree.activeSale.discountValue))} OFF`}
             </Badge>
