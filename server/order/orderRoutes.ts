@@ -101,11 +101,10 @@ export const orderRoutes = (app: Express) => {
       );
 
       // Deduct stock from online inventory for each ordered item
-      for (const item of cartItems) {
-        await storage.deductOnlineStock(item.sareeId, item.quantity);
-      }
+      // for (const item of cartItems) {
+      //   await storage.deductOnlineStock(item.sareeId, item.quantity);
+      // }
 
-      await cartServices.clearCart(userId);
 
       // Record coupon usage after order is created
       if (validCoupon && discountAmount > 0) {
@@ -116,6 +115,7 @@ export const orderRoutes = (app: Express) => {
           discountAmount.toString()
         );
       }
+      await cartServices.clearCart(userId);
 
       res.json({ orderId: order.id });
     } catch (error) {
