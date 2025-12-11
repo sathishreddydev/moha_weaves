@@ -4,7 +4,7 @@ import bcrypt from "bcryptjs";
 import { createAuthMiddleware } from "../authMiddleware";
 import { parsePaginationParams } from "../paginationHelper";
 import { userService } from "../auth/authStorage";
-import { publicStorage } from "server/public/publicStorage";
+import { publicStorage } from "server/common/publicStorage";
 import { storeService } from "server/store/storeStorage";
 import { salesService } from "server/sales&offer/salesStorage";
 import { couponsService } from "server/coupons/couponsStorage";

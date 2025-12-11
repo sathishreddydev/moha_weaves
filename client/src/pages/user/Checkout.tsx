@@ -1,6 +1,17 @@
 import { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { ArrowLeft, ShoppingBag, CreditCard, CheckCircle, MapPin, Plus, Check, AlertCircle, Tag, X } from "lucide-react";
+import {
+  ArrowLeft,
+  ShoppingBag,
+  CreditCard,
+  CheckCircle,
+  MapPin,
+  Plus,
+  Check,
+  AlertCircle,
+  Tag,
+  X,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -35,7 +46,11 @@ export default function Checkout() {
   const [selectedAddressId, setSelectedAddressId] = useState<string>("");
   const [showNewAddressForm, setShowNewAddressForm] = useState(false);
   const [notes, setNotes] = useState("");
-  const [pincodeStatus, setPincodeStatus] = useState<{ available: boolean; message: string; deliveryDays?: number } | null>(null);
+  const [pincodeStatus, setPincodeStatus] = useState<{
+    available: boolean;
+    message: string;
+    deliveryDays?: number;
+  } | null>(null);
   const [checkingPincode, setCheckingPincode] = useState(false);
   const [couponCode, setCouponCode] = useState("");
   const [appliedCoupon, setAppliedCoupon] = useState<Coupon | null>(null);
@@ -55,7 +70,9 @@ export default function Checkout() {
     enabled: !!user,
   });
 
-  const { data: addresses, isLoading: loadingAddresses } = useQuery<UserAddress[]>({
+  const { data: addresses, isLoading: loadingAddresses } = useQuery<
+    UserAddress[]
+  >({
     queryKey: ["/api/user/addresses"],
     enabled: !!user && user.role === "user",
   });
@@ -90,39 +107,69 @@ export default function Checkout() {
         deliveryDays: data.deliveryDays,
       });
     } catch {
-      setPincodeStatus({ available: false, message: "Unable to check delivery availability" });
+      setPincodeStatus({
+        available: false,
+        message: "Unable to check delivery availability",
+      });
     } finally {
       setCheckingPincode(false);
     }
   };
 
   const createAddressMutation = useMutation({
-    mutationFn: (data: typeof newAddress) => apiRequest("POST", "/api/user/addresses", data),
+    mutationFn: (data: typeof newAddress) =>
+      apiRequest("POST", "/api/user/addresses", data),
     onSuccess: async (response) => {
       const newAddr = await response.json();
       queryClient.invalidateQueries({ queryKey: ["/api/user/addresses"] });
       setSelectedAddressId(newAddr.id);
       setShowNewAddressForm(false);
-      setNewAddress({ name: "", phone: "", locality: "", city: "", pincode: "" });
-      toast({ title: "Address added", description: "New address saved successfully" });
+      setNewAddress({
+        name: "",
+        phone: "",
+        locality: "",
+        city: "",
+        pincode: "",
+      });
+      toast({
+        title: "Address added",
+        description: "New address saved successfully",
+      });
       checkPincodeForAddress(newAddr.pincode);
     },
     onError: (error: Error) => {
-      toast({ title: "Error", description: error.message || "Failed to add address", variant: "destructive" });
+      toast({
+        title: "Error",
+        description: error.message || "Failed to add address",
+        variant: "destructive",
+      });
     },
   });
 
   const applyCouponMutation = useMutation({
     mutationFn: async (code: string) => {
-      const response = await apiRequest("POST", "/api/user/coupons/validate", { code, orderAmount: subtotal });
+      const response = await apiRequest("POST", "/api/user/coupons/validate", {
+        code,
+        orderAmount: subtotal,
+      });
       return response.json();
     },
-    onSuccess: (data: { valid: boolean; coupon?: any; discountAmount?: string; message?: string }) => {
+    onSuccess: (data: {
+      valid: boolean;
+      coupon?: any;
+      discountAmount?: string;
+      message?: string;
+    }) => {
       if (data.valid && data.coupon) {
         setAppliedCoupon(data.coupon);
         setCouponError("");
         setCouponCode("");
-        toast({ title: "Coupon applied!", description: `You saved ${formatPrice(parseFloat(data.discountAmount || "0"))}` });
+        toast({
+          title: "Coupon applied!",
+          description: `You saved ${formatPrice(
+            parseFloat(data.discountAmount || "0")
+          )}`,
+        });
       } else {
         setCouponError(data.message || "Invalid coupon");
       }
@@ -134,7 +181,9 @@ export default function Checkout() {
 
   const placeOrderMutation = useMutation({
     mutationFn: async () => {
-      const selectedAddress = addresses?.find((a) => a.id === selectedAddressId);
+      const selectedAddress = addresses?.find(
+        (a) => a.id === selectedAddressId
+      );
       if (!selectedAddress) {
         throw new Error("Please select a delivery address");
       }
@@ -157,7 +206,11 @@ export default function Checkout() {
       setOrderSuccess(true);
     },
     onError: (error: Error) => {
-      toast({ title: "Order failed", description: error.message || "Failed to place order.", variant: "destructive" });
+      toast({
+        title: "Order failed",
+        description: error.message || "Failed to place order.",
+        variant: "destructive",
+      });
     },
   });
 
@@ -182,7 +235,7 @@ export default function Checkout() {
   const handleNewAddressSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     setFormErrors({});
-    
+
     const result = addressFormSchema.safeParse(newAddress);
     if (!result.success) {
       const errors: Record<string, string> = {};
@@ -194,7 +247,7 @@ export default function Checkout() {
       setFormErrors(errors);
       return;
     }
-    
+
     createAddressMutation.mutate(newAddress);
   };
 
@@ -214,7 +267,9 @@ export default function Checkout() {
     return (
       <div className="max-w-7xl mx-auto px-4 py-16 text-center">
         <ShoppingBag className="h-16 w-16 mx-auto text-muted-foreground mb-4" />
-        <h2 className="text-2xl font-semibold mb-2">Please login to checkout</h2>
+        <h2 className="text-2xl font-semibold mb-2">
+          Please login to checkout
+        </h2>
         <Link to="/user/login">
           <Button data-testid="button-login">Login</Button>
         </Link>
@@ -252,17 +307,33 @@ export default function Checkout() {
         <div className="w-20 h-20 rounded-full bg-green-100 dark:bg-green-900 flex items-center justify-center mx-auto mb-6">
           <CheckCircle className="h-10 w-10 text-green-600 dark:text-green-400" />
         </div>
-        <h2 className="text-2xl font-semibold mb-2" data-testid="text-order-success">Order Placed Successfully!</h2>
-        <p className="text-muted-foreground mb-2">Thank you for shopping with Moha.</p>
+        <h2
+          className="text-2xl font-semibold mb-2"
+          data-testid="text-order-success"
+        >
+          Order Placed Successfully!
+        </h2>
+        <p className="text-muted-foreground mb-2">
+          Thank you for shopping with Moha.
+        </p>
         <p className="text-sm text-muted-foreground mb-6">
-          Order ID: <span className="font-medium" data-testid="text-order-id">#{orderId.slice(0, 8).toUpperCase()}</span>
+          Order ID:{" "}
+          <span className="font-medium" data-testid="text-order-id">
+            #{orderId.slice(0, 8).toUpperCase()}
+          </span>
         </p>
         <div className="flex flex-col gap-3">
           <Link to={`/user/orders/${orderId}`}>
-            <Button className="w-full" data-testid="button-view-order">View Order</Button>
+            <Button className="w-full" data-testid="button-view-order">
+              View Order
+            </Button>
           </Link>
           <Link to="/sarees">
-            <Button variant="outline" className="w-full" data-testid="button-continue-shopping">
+            <Button
+              variant="outline"
+              className="w-full"
+              data-testid="button-continue-shopping"
+            >
               Continue Shopping
             </Button>
           </Link>
@@ -272,7 +343,14 @@ export default function Checkout() {
   }
 
   const subtotal = cartItems.reduce((sum, item) => {
-    const price = typeof item.saree.price === "string" ? parseFloat(item.saree.price) : item.saree.price;
+    const basePrice =
+      item.saree.activeSale && item.saree.discountedPrice
+        ? item.saree.discountedPrice
+        : item.saree.price;
+
+    const price =
+      typeof basePrice === "string" ? parseFloat(basePrice) : basePrice;
+
     return sum + price * item.quantity;
   }, 0);
 
@@ -280,7 +358,9 @@ export default function Checkout() {
     if (!appliedCoupon) return 0;
     if (appliedCoupon.type === "percentage") {
       const discountVal = (subtotal * parseFloat(appliedCoupon.value)) / 100;
-      const maxDiscount = appliedCoupon.maxDiscount ? parseFloat(appliedCoupon.maxDiscount) : Infinity;
+      const maxDiscount = appliedCoupon.maxDiscount
+        ? parseFloat(appliedCoupon.maxDiscount)
+        : Infinity;
       return Math.min(discountVal, maxDiscount);
     }
     return parseFloat(appliedCoupon.value);
@@ -313,7 +393,12 @@ export default function Checkout() {
         </Button>
       </Link>
 
-      <h1 className="font-serif text-3xl font-semibold mb-8" data-testid="text-page-title">Checkout</h1>
+      <h1
+        className="font-serif text-3xl font-semibold mb-8"
+        data-testid="text-page-title"
+      >
+        Checkout
+      </h1>
 
       <div className="grid lg:grid-cols-2 gap-8">
         {/* Shipping Address Selection */}
@@ -323,7 +408,11 @@ export default function Checkout() {
               <CardTitle className="flex items-center justify-between">
                 <span>Delivery Address</span>
                 <Link to="/user/addresses">
-                  <Button variant="ghost" size="sm" data-testid="link-manage-addresses">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    data-testid="link-manage-addresses"
+                  >
                     Manage
                   </Button>
                 </Link>
@@ -347,15 +436,23 @@ export default function Checkout() {
                       onClick={() => handleAddressSelect(address.id)}
                       data-testid={`radio-address-${address.id}`}
                     >
-                      <RadioGroupItem value={address.id} id={address.id} className="mt-1" />
+                      <RadioGroupItem
+                        value={address.id}
+                        id={address.id}
+                        className="mt-1"
+                      />
                       <div className="flex-1">
                         <div className="flex items-center gap-2 mb-1">
                           <span className="font-medium">{address.name}</span>
                           {address.isDefault && (
-                            <Badge variant="secondary" className="text-xs">Default</Badge>
+                            <Badge variant="secondary" className="text-xs">
+                              Default
+                            </Badge>
                           )}
                         </div>
-                        <p className="text-sm text-muted-foreground">{address.phone}</p>
+                        <p className="text-sm text-muted-foreground">
+                          {address.phone}
+                        </p>
                         <p className="text-sm">
                           {address.locality}, {address.city} - {address.pincode}
                         </p>
@@ -366,8 +463,12 @@ export default function Checkout() {
               ) : !showNewAddressForm ? (
                 <div className="text-center py-6">
                   <MapPin className="h-10 w-10 mx-auto text-muted-foreground mb-3" />
-                  <p className="text-muted-foreground mb-2">No saved addresses</p>
-                  <p className="text-sm text-muted-foreground mb-4">Add an address to continue with your order</p>
+                  <p className="text-muted-foreground mb-2">
+                    No saved addresses
+                  </p>
+                  <p className="text-sm text-muted-foreground mb-4">
+                    Add an address to continue with your order
+                  </p>
                   <Button
                     onClick={() => setShowNewAddressForm(true)}
                     data-testid="button-add-first-address"
@@ -390,9 +491,12 @@ export default function Checkout() {
                   Add New Address
                 </Button>
               ) : null}
-              
+
               {showNewAddressForm && (
-                <form onSubmit={handleNewAddressSubmit} className="mt-4 p-4 border rounded-lg space-y-4">
+                <form
+                  onSubmit={handleNewAddressSubmit}
+                  className="mt-4 p-4 border rounded-lg space-y-4"
+                >
                   <h4 className="font-medium">New Delivery Address</h4>
                   <div className="grid grid-cols-2 gap-3">
                     <div>
@@ -400,12 +504,19 @@ export default function Checkout() {
                       <Input
                         id="name"
                         value={newAddress.name}
-                        onChange={(e) => setNewAddress({ ...newAddress, name: e.target.value })}
+                        onChange={(e) =>
+                          setNewAddress({ ...newAddress, name: e.target.value })
+                        }
                         className={formErrors.name ? "border-destructive" : ""}
                         data-testid="input-new-name"
                       />
                       {formErrors.name && (
-                        <p className="text-xs text-destructive mt-1" data-testid="error-name">{formErrors.name}</p>
+                        <p
+                          className="text-xs text-destructive mt-1"
+                          data-testid="error-name"
+                        >
+                          {formErrors.name}
+                        </p>
                       )}
                     </div>
                     <div>
@@ -423,7 +534,12 @@ export default function Checkout() {
                         data-testid="input-new-phone"
                       />
                       {formErrors.phone && (
-                        <p className="text-xs text-destructive mt-1" data-testid="error-phone">{formErrors.phone}</p>
+                        <p
+                          className="text-xs text-destructive mt-1"
+                          data-testid="error-phone"
+                        >
+                          {formErrors.phone}
+                        </p>
                       )}
                     </div>
                   </div>
@@ -432,12 +548,24 @@ export default function Checkout() {
                     <Input
                       id="locality"
                       value={newAddress.locality}
-                      onChange={(e) => setNewAddress({ ...newAddress, locality: e.target.value })}
-                      className={formErrors.locality ? "border-destructive" : ""}
+                      onChange={(e) =>
+                        setNewAddress({
+                          ...newAddress,
+                          locality: e.target.value,
+                        })
+                      }
+                      className={
+                        formErrors.locality ? "border-destructive" : ""
+                      }
                       data-testid="input-new-locality"
                     />
                     {formErrors.locality && (
-                      <p className="text-xs text-destructive mt-1" data-testid="error-locality">{formErrors.locality}</p>
+                      <p
+                        className="text-xs text-destructive mt-1"
+                        data-testid="error-locality"
+                      >
+                        {formErrors.locality}
+                      </p>
                     )}
                   </div>
                   <div className="grid grid-cols-2 gap-3">
@@ -446,12 +574,19 @@ export default function Checkout() {
                       <Input
                         id="city"
                         value={newAddress.city}
-                        onChange={(e) => setNewAddress({ ...newAddress, city: e.target.value })}
+                        onChange={(e) =>
+                          setNewAddress({ ...newAddress, city: e.target.value })
+                        }
                         className={formErrors.city ? "border-destructive" : ""}
                         data-testid="input-new-city"
                       />
                       {formErrors.city && (
-                        <p className="text-xs text-destructive mt-1" data-testid="error-city">{formErrors.city}</p>
+                        <p
+                          className="text-xs text-destructive mt-1"
+                          data-testid="error-city"
+                        >
+                          {formErrors.city}
+                        </p>
                       )}
                     </div>
                     <div>
@@ -464,11 +599,18 @@ export default function Checkout() {
                           const value = e.target.value.replace(/\D/g, "");
                           setNewAddress({ ...newAddress, pincode: value });
                         }}
-                        className={formErrors.pincode ? "border-destructive" : ""}
+                        className={
+                          formErrors.pincode ? "border-destructive" : ""
+                        }
                         data-testid="input-new-pincode"
                       />
                       {formErrors.pincode && (
-                        <p className="text-xs text-destructive mt-1" data-testid="error-pincode">{formErrors.pincode}</p>
+                        <p
+                          className="text-xs text-destructive mt-1"
+                          data-testid="error-pincode"
+                        >
+                          {formErrors.pincode}
+                        </p>
                       )}
                     </div>
                   </div>
@@ -489,7 +631,9 @@ export default function Checkout() {
                       disabled={createAddressMutation.isPending}
                       data-testid="button-save-new-address"
                     >
-                      {createAddressMutation.isPending ? "Saving..." : "Save Address"}
+                      {createAddressMutation.isPending
+                        ? "Saving..."
+                        : "Save Address"}
                     </Button>
                   </div>
                 </form>
@@ -499,15 +643,25 @@ export default function Checkout() {
               {selectedAddressId && (
                 <div className="mt-4 p-3 rounded-lg bg-muted/50">
                   {checkingPincode ? (
-                    <p className="text-sm text-muted-foreground">Checking delivery availability...</p>
+                    <p className="text-sm text-muted-foreground">
+                      Checking delivery availability...
+                    </p>
                   ) : pincodeStatus ? (
-                    <div className={`flex items-center gap-2 text-sm ${pincodeStatus.available ? "text-green-600" : "text-destructive"}`}>
+                    <div
+                      className={`flex items-center gap-2 text-sm ${
+                        pincodeStatus.available
+                          ? "text-green-600"
+                          : "text-destructive"
+                      }`}
+                    >
                       {pincodeStatus.available ? (
                         <Check className="h-4 w-4" />
                       ) : (
                         <AlertCircle className="h-4 w-4" />
                       )}
-                      <span data-testid="text-delivery-status">{pincodeStatus.message}</span>
+                      <span data-testid="text-delivery-status">
+                        {pincodeStatus.message}
+                      </span>
                     </div>
                   ) : null}
                 </div>
@@ -543,15 +697,43 @@ export default function Checkout() {
                   <div key={item.id} className="flex gap-3">
                     <div className="w-16 h-20 rounded-md overflow-hidden bg-muted flex-shrink-0">
                       <img
-                        src={item.saree.imageUrl || "https://images.unsplash.com/photo-1610030469983-98e550d6193c?w=100&h=150&fit=crop"}
+                        src={
+                          item.saree.imageUrl ||
+                          "https://images.unsplash.com/photo-1610030469983-98e550d6193c?w=100&h=150&fit=crop"
+                        }
                         alt={item.saree.name}
                         className="w-full h-full object-cover"
                       />
                     </div>
                     <div className="flex-1 min-w-0">
-                      <h4 className="font-medium text-sm line-clamp-1">{item.saree.name}</h4>
-                      <p className="text-sm text-muted-foreground">Qty: {item.quantity}</p>
-                      <p className="text-sm font-medium text-primary">{formatPrice(item.saree.price)}</p>
+                      <h4 className="font-medium text-sm line-clamp-1">
+                        {item.saree.name}
+                      </h4>
+                      <p className="text-sm text-muted-foreground">
+                        Qty: {item.quantity}
+                      </p>
+                      <div className="mt-2">
+                        {item.saree.activeSale && item.saree.discountedPrice ? (
+                          <div className="flex items-center gap-2">
+                            <p
+                              className="font-semibold text-primary"
+                              data-testid={`text-item-price-${item.id}`}
+                            >
+                              {formatPrice(item.saree.discountedPrice)}
+                            </p>
+                            <p className="text-xs text-muted-foreground line-through">
+                              {formatPrice(item.saree.price)}
+                            </p>
+                          </div>
+                        ) : (
+                          <p
+                            className="font-semibold text-primary"
+                            data-testid={`text-item-price-${item.id}`}
+                          >
+                            {formatPrice(item.saree.price)}
+                          </p>
+                        )}
+                      </div>{" "}
                     </div>
                   </div>
                 ))}
@@ -561,21 +743,25 @@ export default function Checkout() {
 
               {/* Coupon Section */}
               <div className="mb-4">
-                <Label className="text-sm font-medium mb-2 block">Have a coupon?</Label>
+                <Label className="text-sm font-medium mb-2 block">
+                  Have a coupon?
+                </Label>
                 {appliedCoupon ? (
                   <div className="flex items-center justify-between p-3 bg-green-50 dark:bg-green-900/20 rounded-lg border border-green-200 dark:border-green-800">
                     <div className="flex items-center gap-2">
                       <Tag className="h-4 w-4 text-green-600" />
-                      <span className="font-medium text-green-600">{appliedCoupon.code}</span>
+                      <span className="font-medium text-green-600">
+                        {appliedCoupon.code}
+                      </span>
                       <Badge variant="secondary" className="text-xs">
-                        {appliedCoupon.type === "percentage" 
-                          ? `${appliedCoupon.value}% off` 
+                        {appliedCoupon.type === "percentage"
+                          ? `${appliedCoupon.value}% off`
                           : `₹${appliedCoupon.value} off`}
                       </Badge>
                     </div>
-                    <Button 
-                      variant="ghost" 
-                      size="icon" 
+                    <Button
+                      variant="ghost"
+                      size="icon"
                       onClick={handleRemoveCoupon}
                       className="h-8 w-8"
                       data-testid="button-remove-coupon"
@@ -596,8 +782,8 @@ export default function Checkout() {
                         className={couponError ? "border-destructive" : ""}
                         data-testid="input-coupon-code"
                       />
-                      <Button 
-                        variant="outline" 
+                      <Button
+                        variant="outline"
                         onClick={handleApplyCoupon}
                         disabled={applyCouponMutation.isPending}
                         data-testid="button-apply-coupon"
@@ -606,7 +792,12 @@ export default function Checkout() {
                       </Button>
                     </div>
                     {couponError && (
-                      <p className="text-xs text-destructive" data-testid="error-coupon">{couponError}</p>
+                      <p
+                        className="text-xs text-destructive"
+                        data-testid="error-coupon"
+                      >
+                        {couponError}
+                      </p>
                     )}
                   </div>
                 )}
@@ -652,12 +843,18 @@ export default function Checkout() {
 
               <Button
                 className="w-full mt-6"
-                disabled={!selectedAddressId || !pincodeStatus?.available || placeOrderMutation.isPending}
+                disabled={
+                  !selectedAddressId ||
+                  !pincodeStatus?.available ||
+                  placeOrderMutation.isPending
+                }
                 onClick={handlePlaceOrder}
                 data-testid="button-place-order"
               >
                 <CreditCard className="h-4 w-4 mr-2" />
-                {placeOrderMutation.isPending ? "Placing Order..." : `Pay ${formatPrice(total)}`}
+                {placeOrderMutation.isPending
+                  ? "Placing Order..."
+                  : `Pay ${formatPrice(total)}`}
               </Button>
 
               {!pincodeStatus?.available && selectedAddressId && (

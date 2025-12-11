@@ -22,7 +22,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { useState } from "react";
-import type { SareeWithDetails } from "@shared/schema";
+import type { CartItemWithSaree, SareeWithDetails } from "@shared/schema";
 
 export default function SareeDetail() {
   const { id } = useParams();
@@ -44,11 +44,15 @@ export default function SareeDetail() {
     queryKey: [relatedQueryString],
     enabled: !!relatedQueryString,
   });
-
+  const { data: cartItems } = useQuery<CartItemWithSaree[]>({
+    queryKey: ["/api/user/cart"],
+    enabled: !!user,
+  });
   const { data: wishlistItems } = useQuery<{ sareeId: string }[]>({
     queryKey: ["/api/user/wishlist"],
     enabled: !!user && user.role === "user",
   });
+  const isInCart = cartItems?.some((item) => item.saree.id === id);
 
   const isInWishlist = wishlistItems?.some((item) => item.sareeId === id);
 
@@ -199,12 +203,28 @@ export default function SareeDetail() {
             >
               {saree.name}
             </h1>
-            <p
-              className="text-2xl font-semibold text-primary mt-2"
-              data-testid="text-product-price"
-            >
-              {formatPrice(saree.price)}
-            </p>
+            {!saree.activeSale || !saree.discountedPrice ? (
+              // Normal price
+              <p
+                className="text-2xl font-semibold text-primary mt-2"
+                data-testid="text-product-price"
+              >
+                {formatPrice(saree.price)}
+              </p>
+            ) : (
+              // Sale price + original price
+              <div className="flex items-center gap-3 mt-2">
+                <p
+                  className="text-2xl font-semibold text-primary"
+                  data-testid="text-product-price"
+                >
+                  {formatPrice(saree.discountedPrice)}
+                </p>
+                <p className="text-muted-foreground line-through text-lg">
+                  {formatPrice(saree.price)}
+                </p>
+              </div>
+            )}
           </div>
 
           {/* Attributes */}
@@ -258,46 +278,46 @@ export default function SareeDetail() {
             <div className="space-y-4">
               <div className="flex items-center gap-4">
                 <span className="text-sm font-medium">Quantity:</span>
-                <div className="flex items-center border rounded-md">
+                {isInCart ? (
+                  <div className="flex items-center border rounded-md">
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => setQuantity(Math.max(1, quantity - 1))}
+                      disabled={quantity <= 1}
+                      data-testid="button-quantity-minus"
+                    >
+                      <Minus className="h-4 w-4" />
+                    </Button>
+                    <span
+                      className="w-12 text-center"
+                      data-testid="text-quantity"
+                    >
+                      {quantity}
+                    </span>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() =>
+                        setQuantity(Math.min(saree.onlineStock, quantity + 1))
+                      }
+                      disabled={quantity >= saree.onlineStock}
+                      data-testid="button-quantity-plus"
+                    >
+                      <Plus className="h-4 w-4" />
+                    </Button>
+                  </div>
+                ) : (
                   <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => setQuantity(Math.max(1, quantity - 1))}
-                    disabled={quantity <= 1}
-                    data-testid="button-quantity-minus"
+                    className="flex-1"
+                    onClick={() => addToCartMutation.mutate()}
+                    disabled={addToCartMutation.isPending}
+                    data-testid="button-add-to-cart"
                   >
-                    <Minus className="h-4 w-4" />
+                    <ShoppingBag className="h-4 w-4 mr-2" />
+                    Add to Cart
                   </Button>
-                  <span
-                    className="w-12 text-center"
-                    data-testid="text-quantity"
-                  >
-                    {quantity}
-                  </span>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    onClick={() =>
-                      setQuantity(Math.min(saree.onlineStock, quantity + 1))
-                    }
-                    disabled={quantity >= saree.onlineStock}
-                    data-testid="button-quantity-plus"
-                  >
-                    <Plus className="h-4 w-4" />
-                  </Button>
-                </div>
-              </div>
-
-              <div className="flex gap-4">
-                <Button
-                  className="flex-1"
-                  onClick={() => addToCartMutation.mutate()}
-                  disabled={addToCartMutation.isPending}
-                  data-testid="button-add-to-cart"
-                >
-                  <ShoppingBag className="h-4 w-4 mr-2" />
-                  Add to Cart
-                </Button>
+                )}
                 <Button
                   variant="outline"
                   size="icon"

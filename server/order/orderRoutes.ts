@@ -3,6 +3,7 @@ import { storage } from "../storage";
 import { createAuthMiddleware } from "../authMiddleware";
 import { cartServices } from "../cart/cartStorage";
 import { orderService } from "./orderStorage";
+import { couponsService } from "server/coupons/couponsStorage";
 
 export const orderRoutes = (app: Express) => {
   const authUser = createAuthMiddleware(["user"]);
@@ -54,7 +55,7 @@ export const orderRoutes = (app: Express) => {
       let discountAmount = 0;
       let validCoupon = null;
       if (couponId) {
-        const coupon = await storage.getCoupon(couponId);
+        const coupon = await couponsService.getCoupon(couponId);
         if (coupon && coupon.isActive) {
           validCoupon = coupon;
           if (coupon.type === "percentage") {
@@ -108,7 +109,7 @@ export const orderRoutes = (app: Express) => {
 
       // Record coupon usage after order is created
       if (validCoupon && discountAmount > 0) {
-        await storage.applyCoupon(
+        await couponsService.applyCoupon(
           validCoupon.id,
           userId,
           order.id,

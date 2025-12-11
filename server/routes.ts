@@ -11,7 +11,7 @@ import { addressRoutes } from "./address/addressRoutes";
 import { inventoryRoutes } from "./inventory/inventoryRoutes";
 import { storeRoutes } from "./store/storeRoutes";
 import { userRoutes } from "./user/userRoutes";
-import { publicRoutes } from "./public/publicRoutes";
+import { publicRoutes } from "./common/publicRoutes";
 import multer from "multer";
 import { salesService } from "./sales&offer/salesStorage";
 import { sareeService } from "./saree/sareeStorage";

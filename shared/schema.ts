@@ -1,33 +1,151 @@
 import { sql } from "drizzle-orm";
-import { pgTable, text, varchar, integer, decimal, boolean, timestamp, pgEnum } from "drizzle-orm/pg-core";
+import {
+  pgTable,
+  text,
+  varchar,
+  integer,
+  decimal,
+  boolean,
+  timestamp,
+  pgEnum,
+} from "drizzle-orm/pg-core";
 import { relations } from "drizzle-orm";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
 // Enums
-export const userRoleEnum = pgEnum("user_role", ["user", "admin", "inventory", "store"]);
-export const orderStatusEnum = pgEnum("order_status", ["pending", "confirmed", "processing", "shipped", "delivered", "cancelled"]);
-export const distributionChannelEnum = pgEnum("distribution_channel", ["shop", "online", "both"]);
-export const requestStatusEnum = pgEnum("request_status", ["pending", "approved", "dispatched", "received", "rejected"]);
-export const storeSaleTypeEnum = pgEnum("store_sale_type", ["walk_in", "reserved"]);
-export const paymentStatusEnum = pgEnum("payment_status", ["pending", "paid", "failed", "refunded", "partially_refunded"]);
-export const paymentMethodEnum = pgEnum("payment_method", ["cod", "online", "upi", "card", "netbanking"]);
-export const returnStatusEnum = pgEnum("return_status", ["requested", "approved", "rejected", "pickup_scheduled", "picked_up", "in_transit", "received", "inspected", "completed", "cancelled"]);
-export const returnReasonEnum = pgEnum("return_reason", ["defective", "wrong_item", "not_as_described", "size_issue", "color_mismatch", "damaged_in_shipping", "changed_mind", "other"]);
-export const returnResolutionEnum = pgEnum("return_resolution", ["refund", "exchange", "store_credit"]);
-export const refundStatusEnum = pgEnum("refund_status", ["pending", "initiated", "processing", "completed", "failed"]);
-export const couponTypeEnum = pgEnum("coupon_type", ["percentage", "fixed", "free_shipping"]);
-export const offerTypeEnum = pgEnum("offer_type", ["percentage", "flat", "category", "product", "flash_sale"]);
-export const notificationTypeEnum = pgEnum("notification_type", ["order", "return", "refund", "promotion", "system"]);
-export const stockMovementSourceEnum = pgEnum("stock_movement_source", ["online", "store"]);
-export const stockMovementTypeEnum = pgEnum("stock_movement_type", ["sale", "return", "restock", "transfer", "adjustment"]);
-export const transferStatusEnum = pgEnum("transfer_status", ["pending", "approved", "in_transit", "received", "rejected", "cancelled"]);
-export const storeExchangeStatusEnum = pgEnum("store_exchange_status", ["pending", "completed", "cancelled"]);
-export const balanceDirectionEnum = pgEnum("balance_direction", ["refund_to_customer", "due_from_customer", "even"]);
+export const userRoleEnum = pgEnum("user_role", [
+  "user",
+  "admin",
+  "inventory",
+  "store",
+]);
+export const orderStatusEnum = pgEnum("order_status", [
+  "pending",
+  "confirmed",
+  "processing",
+  "shipped",
+  "delivered",
+  "cancelled",
+]);
+export const distributionChannelEnum = pgEnum("distribution_channel", [
+  "shop",
+  "online",
+  "both",
+]);
+export const requestStatusEnum = pgEnum("request_status", [
+  "pending",
+  "approved",
+  "dispatched",
+  "received",
+  "rejected",
+]);
+export const storeSaleTypeEnum = pgEnum("store_sale_type", [
+  "walk_in",
+  "reserved",
+]);
+export const paymentStatusEnum = pgEnum("payment_status", [
+  "pending",
+  "paid",
+  "failed",
+  "refunded",
+  "partially_refunded",
+]);
+export const paymentMethodEnum = pgEnum("payment_method", [
+  "cod",
+  "online",
+  "upi",
+  "card",
+  "netbanking",
+]);
+export const returnStatusEnum = pgEnum("return_status", [
+  "requested",
+  "approved",
+  "rejected",
+  "pickup_scheduled",
+  "picked_up",
+  "in_transit",
+  "received",
+  "inspected",
+  "completed",
+  "cancelled",
+]);
+export const returnReasonEnum = pgEnum("return_reason", [
+  "defective",
+  "wrong_item",
+  "not_as_described",
+  "size_issue",
+  "color_mismatch",
+  "damaged_in_shipping",
+  "changed_mind",
+  "other",
+]);
+export const returnResolutionEnum = pgEnum("return_resolution", [
+  "refund",
+  "exchange",
+  "store_credit",
+]);
+export const refundStatusEnum = pgEnum("refund_status", [
+  "pending",
+  "initiated",
+  "processing",
+  "completed",
+  "failed",
+]);
+export const couponTypeEnum = pgEnum("coupon_type", [
+  "percentage",
+  "fixed",
+  "free_shipping",
+]);
+export const offerTypeEnum = pgEnum("offer_type", [
+  "percentage",
+  "flat",
+  "category",
+  "product",
+  "flash_sale",
+]);
+export const notificationTypeEnum = pgEnum("notification_type", [
+  "order",
+  "return",
+  "refund",
+  "promotion",
+  "system",
+]);
+export const stockMovementSourceEnum = pgEnum("stock_movement_source", [
+  "online",
+  "store",
+]);
+export const stockMovementTypeEnum = pgEnum("stock_movement_type", [
+  "sale",
+  "return",
+  "restock",
+  "transfer",
+  "adjustment",
+]);
+export const transferStatusEnum = pgEnum("transfer_status", [
+  "pending",
+  "approved",
+  "in_transit",
+  "received",
+  "rejected",
+  "cancelled",
+]);
+export const storeExchangeStatusEnum = pgEnum("store_exchange_status", [
+  "pending",
+  "completed",
+  "cancelled",
+]);
+export const balanceDirectionEnum = pgEnum("balance_direction", [
+  "refund_to_customer",
+  "due_from_customer",
+  "even",
+]);
 
 // Users table - supports all roles
 export const users = pgTable("users", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  id: varchar("id")
+    .primaryKey()
+    .default(sql`gen_random_uuid()`),
   email: text("email").notNull().unique(),
   password: text("password").notNull(),
   name: text("name").notNull(),
@@ -41,8 +159,12 @@ export const users = pgTable("users", {
 
 // Refresh tokens for secure session management
 export const refreshTokens = pgTable("refresh_tokens", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  userId: varchar("user_id").references(() => users.id).notNull(),
+  id: varchar("id")
+    .primaryKey()
+    .default(sql`gen_random_uuid()`),
+  userId: varchar("user_id")
+    .references(() => users.id)
+    .notNull(),
   token: text("token").notNull().unique(),
   expiresAt: timestamp("expires_at").notNull(),
   createdAt: timestamp("created_at").notNull().defaultNow(),
@@ -51,7 +173,9 @@ export const refreshTokens = pgTable("refresh_tokens", {
 
 // Categories for sarees
 export const categories = pgTable("categories", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  id: varchar("id")
+    .primaryKey()
+    .default(sql`gen_random_uuid()`),
   name: text("name").notNull().unique(),
   description: text("description"),
   imageUrl: text("image_url"),
@@ -60,7 +184,9 @@ export const categories = pgTable("categories", {
 
 // Colors
 export const colors = pgTable("colors", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  id: varchar("id")
+    .primaryKey()
+    .default(sql`gen_random_uuid()`),
   name: text("name").notNull().unique(),
   hexCode: text("hex_code").notNull(),
   isActive: boolean("is_active").notNull().default(true),
@@ -68,7 +194,9 @@ export const colors = pgTable("colors", {
 
 // Fabrics
 export const fabrics = pgTable("fabrics", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  id: varchar("id")
+    .primaryKey()
+    .default(sql`gen_random_uuid()`),
   name: text("name").notNull().unique(),
   description: text("description"),
   isActive: boolean("is_active").notNull().default(true),
@@ -76,7 +204,9 @@ export const fabrics = pgTable("fabrics", {
 
 // Stores (physical outlets)
 export const stores = pgTable("stores", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  id: varchar("id")
+    .primaryKey()
+    .default(sql`gen_random_uuid()`),
   name: text("name").notNull(),
   address: text("address").notNull(),
   phone: text("phone"),
@@ -87,7 +217,9 @@ export const stores = pgTable("stores", {
 
 // Sarees (products)
 export const sarees = pgTable("sarees", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  id: varchar("id")
+    .primaryKey()
+    .default(sql`gen_random_uuid()`),
   name: text("name").notNull(),
   description: text("description"),
   price: decimal("price", { precision: 10, scale: 2 }).notNull(),
@@ -100,7 +232,9 @@ export const sarees = pgTable("sarees", {
   sku: text("sku").unique(),
   totalStock: integer("total_stock").notNull().default(0),
   onlineStock: integer("online_stock").notNull().default(0),
-  distributionChannel: distributionChannelEnum("distribution_channel").notNull().default("both"),
+  distributionChannel: distributionChannelEnum("distribution_channel")
+    .notNull()
+    .default("both"),
   isActive: boolean("is_active").notNull().default(false),
   isFeatured: boolean("is_featured").notNull().default(false),
   createdAt: timestamp("created_at").notNull().defaultNow(),
@@ -108,39 +242,68 @@ export const sarees = pgTable("sarees", {
 
 // Store inventory (stock per store)
 export const storeInventory = pgTable("store_inventory", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  storeId: varchar("store_id").references(() => stores.id).notNull(),
-  sareeId: varchar("saree_id").references(() => sarees.id).notNull(),
+  id: varchar("id")
+    .primaryKey()
+    .default(sql`gen_random_uuid()`),
+  storeId: varchar("store_id")
+    .references(() => stores.id)
+    .notNull(),
+  sareeId: varchar("saree_id")
+    .references(() => sarees.id)
+    .notNull(),
   quantity: integer("quantity").notNull().default(0),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });
 
 // Wishlist
 export const wishlist = pgTable("wishlist", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  userId: varchar("user_id").references(() => users.id).notNull(),
-  sareeId: varchar("saree_id").references(() => sarees.id).notNull(),
+  id: varchar("id")
+    .primaryKey()
+    .default(sql`gen_random_uuid()`),
+  userId: varchar("user_id")
+    .references(() => users.id)
+    .notNull(),
+  sareeId: varchar("saree_id")
+    .references(() => sarees.id)
+    .notNull(),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
 // Cart
 export const cart = pgTable("cart", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  userId: varchar("user_id").references(() => users.id).notNull(),
-  sareeId: varchar("saree_id").references(() => sarees.id).notNull(),
+  id: varchar("id")
+    .primaryKey()
+    .default(sql`gen_random_uuid()`),
+  userId: varchar("user_id")
+    .references(() => users.id)
+    .notNull(),
+  sareeId: varchar("saree_id")
+    .references(() => sarees.id)
+    .notNull(),
   quantity: integer("quantity").notNull().default(1),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
 // Online Orders
 export const orders = pgTable("orders", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  userId: varchar("user_id").references(() => users.id).notNull(),
+  id: varchar("id")
+    .primaryKey()
+    .default(sql`gen_random_uuid()`),
+  userId: varchar("user_id")
+    .references(() => users.id)
+    .notNull(),
   totalAmount: decimal("total_amount", { precision: 10, scale: 2 }).notNull(),
-  discountAmount: decimal("discount_amount", { precision: 10, scale: 2 }).default("0"),
-  finalAmount: decimal("final_amount", { precision: 10, scale: 2 }).notNull().default("0"),
+  discountAmount: decimal("discount_amount", {
+    precision: 10,
+    scale: 2,
+  }).default("0"),
+  finalAmount: decimal("final_amount", { precision: 10, scale: 2 })
+    .notNull()
+    .default("0"),
   status: orderStatusEnum("status").notNull().default("pending"),
-  paymentStatus: paymentStatusEnum("payment_status").notNull().default("pending"),
+  paymentStatus: paymentStatusEnum("payment_status")
+    .notNull()
+    .default("pending"),
   paymentMethod: paymentMethodEnum("payment_method").default("cod"),
   paymentId: text("payment_id"),
   stripePaymentIntentId: text("stripe_payment_intent_id"),
@@ -158,18 +321,30 @@ export const orders = pgTable("orders", {
 
 // Order items
 export const orderItems = pgTable("order_items", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  orderId: varchar("order_id").references(() => orders.id).notNull(),
-  sareeId: varchar("saree_id").references(() => sarees.id).notNull(),
+  id: varchar("id")
+    .primaryKey()
+    .default(sql`gen_random_uuid()`),
+  orderId: varchar("order_id")
+    .references(() => orders.id)
+    .notNull(),
+  sareeId: varchar("saree_id")
+    .references(() => sarees.id)
+    .notNull(),
   quantity: integer("quantity").notNull(),
   price: decimal("price", { precision: 10, scale: 2 }).notNull(),
 });
 
 // Store sales (in-store transactions)
 export const storeSales = pgTable("store_sales", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  storeId: varchar("store_id").references(() => stores.id).notNull(),
-  soldBy: varchar("sold_by").references(() => users.id).notNull(),
+  id: varchar("id")
+    .primaryKey()
+    .default(sql`gen_random_uuid()`),
+  storeId: varchar("store_id")
+    .references(() => stores.id)
+    .notNull(),
+  soldBy: varchar("sold_by")
+    .references(() => users.id)
+    .notNull(),
   customerName: text("customer_name"),
   customerPhone: text("customer_phone"),
   totalAmount: decimal("total_amount", { precision: 10, scale: 2 }).notNull(),
@@ -179,9 +354,15 @@ export const storeSales = pgTable("store_sales", {
 
 // Store sale items
 export const storeSaleItems = pgTable("store_sale_items", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  saleId: varchar("sale_id").references(() => storeSales.id).notNull(),
-  sareeId: varchar("saree_id").references(() => sarees.id).notNull(),
+  id: varchar("id")
+    .primaryKey()
+    .default(sql`gen_random_uuid()`),
+  saleId: varchar("sale_id")
+    .references(() => storeSales.id)
+    .notNull(),
+  sareeId: varchar("saree_id")
+    .references(() => sarees.id)
+    .notNull(),
   quantity: integer("quantity").notNull(),
   price: decimal("price", { precision: 10, scale: 2 }).notNull(),
   returnedQuantity: integer("returned_quantity").notNull().default(0),
@@ -189,8 +370,12 @@ export const storeSaleItems = pgTable("store_sale_items", {
 
 // User addresses for delivery
 export const userAddresses = pgTable("user_addresses", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  userId: varchar("user_id").references(() => users.id).notNull(),
+  id: varchar("id")
+    .primaryKey()
+    .default(sql`gen_random_uuid()`),
+  userId: varchar("user_id")
+    .references(() => users.id)
+    .notNull(),
   name: text("name").notNull(),
   phone: text("phone").notNull(),
   locality: text("locality").notNull(),
@@ -202,7 +387,9 @@ export const userAddresses = pgTable("user_addresses", {
 
 // Serviceable pincodes for delivery availability check
 export const serviceablePincodes = pgTable("serviceable_pincodes", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  id: varchar("id")
+    .primaryKey()
+    .default(sql`gen_random_uuid()`),
   pincode: text("pincode").notNull().unique(),
   city: text("city").notNull(),
   state: text("state").notNull(),
@@ -213,10 +400,18 @@ export const serviceablePincodes = pgTable("serviceable_pincodes", {
 
 // Stock requests from stores
 export const stockRequests = pgTable("stock_requests", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  storeId: varchar("store_id").references(() => stores.id).notNull(),
-  requestedBy: varchar("requested_by").references(() => users.id).notNull(),
-  sareeId: varchar("saree_id").references(() => sarees.id).notNull(),
+  id: varchar("id")
+    .primaryKey()
+    .default(sql`gen_random_uuid()`),
+  storeId: varchar("store_id")
+    .references(() => stores.id)
+    .notNull(),
+  requestedBy: varchar("requested_by")
+    .references(() => users.id)
+    .notNull(),
+  sareeId: varchar("saree_id")
+    .references(() => sarees.id)
+    .notNull(),
   quantity: integer("quantity").notNull(),
   status: requestStatusEnum("status").notNull().default("pending"),
   approvedBy: varchar("approved_by"),
@@ -227,9 +422,15 @@ export const stockRequests = pgTable("stock_requests", {
 
 // Return requests
 export const returnRequests = pgTable("return_requests", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  orderId: varchar("order_id").references(() => orders.id).notNull(),
-  userId: varchar("user_id").references(() => users.id).notNull(),
+  id: varchar("id")
+    .primaryKey()
+    .default(sql`gen_random_uuid()`),
+  orderId: varchar("order_id")
+    .references(() => orders.id)
+    .notNull(),
+  userId: varchar("user_id")
+    .references(() => users.id)
+    .notNull(),
   status: returnStatusEnum("status").notNull().default("requested"),
   reason: returnReasonEnum("reason").notNull(),
   reasonDetails: text("reason_details"),
@@ -248,9 +449,15 @@ export const returnRequests = pgTable("return_requests", {
 
 // Return items (individual items in a return request)
 export const returnItems = pgTable("return_items", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  returnRequestId: varchar("return_request_id").references(() => returnRequests.id).notNull(),
-  orderItemId: varchar("order_item_id").references(() => orderItems.id).notNull(),
+  id: varchar("id")
+    .primaryKey()
+    .default(sql`gen_random_uuid()`),
+  returnRequestId: varchar("return_request_id")
+    .references(() => returnRequests.id)
+    .notNull(),
+  orderItemId: varchar("order_item_id")
+    .references(() => orderItems.id)
+    .notNull(),
   quantity: integer("quantity").notNull(),
   condition: text("condition"),
   isRestockable: boolean("is_restockable").default(true),
@@ -258,10 +465,18 @@ export const returnItems = pgTable("return_items", {
 
 // Refunds
 export const refunds = pgTable("refunds", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  returnRequestId: varchar("return_request_id").references(() => returnRequests.id),
-  orderId: varchar("order_id").references(() => orders.id).notNull(),
-  userId: varchar("user_id").references(() => users.id).notNull(),
+  id: varchar("id")
+    .primaryKey()
+    .default(sql`gen_random_uuid()`),
+  returnRequestId: varchar("return_request_id").references(
+    () => returnRequests.id
+  ),
+  orderId: varchar("order_id")
+    .references(() => orders.id)
+    .notNull(),
+  userId: varchar("user_id")
+    .references(() => users.id)
+    .notNull(),
   amount: decimal("amount", { precision: 10, scale: 2 }).notNull(),
   status: refundStatusEnum("status").notNull().default("pending"),
   refundMethod: text("refund_method"),
@@ -275,9 +490,15 @@ export const refunds = pgTable("refunds", {
 
 // Product reviews
 export const productReviews = pgTable("product_reviews", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  sareeId: varchar("saree_id").references(() => sarees.id).notNull(),
-  userId: varchar("user_id").references(() => users.id).notNull(),
+  id: varchar("id")
+    .primaryKey()
+    .default(sql`gen_random_uuid()`),
+  sareeId: varchar("saree_id")
+    .references(() => sarees.id)
+    .notNull(),
+  userId: varchar("user_id")
+    .references(() => users.id)
+    .notNull(),
   orderId: varchar("order_id").references(() => orders.id),
   rating: integer("rating").notNull(),
   title: text("title"),
@@ -292,7 +513,9 @@ export const productReviews = pgTable("product_reviews", {
 
 // Coupons
 export const coupons = pgTable("coupons", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  id: varchar("id")
+    .primaryKey()
+    .default(sql`gen_random_uuid()`),
   code: text("code").notNull().unique(),
   name: text("name").notNull(),
   description: text("description"),
@@ -312,11 +535,16 @@ export const coupons = pgTable("coupons", {
 
 // Sales and Offers
 export const sales = pgTable("sales", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  id: varchar("id")
+    .primaryKey()
+    .default(sql`gen_random_uuid()`),
   name: text("name").notNull(),
   description: text("description"),
   offerType: offerTypeEnum("offer_type").notNull(),
-  discountValue: decimal("discount_value", { precision: 10, scale: 2 }).notNull(),
+  discountValue: decimal("discount_value", {
+    precision: 10,
+    scale: 2,
+  }).notNull(),
   categoryId: varchar("category_id").references(() => categories.id),
   minOrderAmount: decimal("min_order_amount", { precision: 10, scale: 2 }),
   maxDiscount: decimal("max_discount", { precision: 10, scale: 2 }),
@@ -331,26 +559,47 @@ export const sales = pgTable("sales", {
 
 // Sale product mapping (for product-level offers)
 export const saleProducts = pgTable("sale_products", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  saleId: varchar("sale_id").references(() => sales.id).notNull(),
-  sareeId: varchar("saree_id").references(() => sarees.id).notNull(),
+  id: varchar("id")
+    .primaryKey()
+    .default(sql`gen_random_uuid()`),
+  saleId: varchar("sale_id")
+    .references(() => sales.id)
+    .notNull(),
+  sareeId: varchar("saree_id")
+    .references(() => sarees.id)
+    .notNull(),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
 // Coupon usage tracking
 export const couponUsage = pgTable("coupon_usage", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  couponId: varchar("coupon_id").references(() => coupons.id).notNull(),
-  userId: varchar("user_id").references(() => users.id).notNull(),
-  orderId: varchar("order_id").references(() => orders.id).notNull(),
-  discountAmount: decimal("discount_amount", { precision: 10, scale: 2 }).notNull(),
+  id: varchar("id")
+    .primaryKey()
+    .default(sql`gen_random_uuid()`),
+  couponId: varchar("coupon_id")
+    .references(() => coupons.id)
+    .notNull(),
+  userId: varchar("user_id")
+    .references(() => users.id)
+    .notNull(),
+  orderId: varchar("order_id")
+    .references(() => orders.id)
+    .notNull(),
+  discountAmount: decimal("discount_amount", {
+    precision: 10,
+    scale: 2,
+  }).notNull(),
   usedAt: timestamp("used_at").notNull().defaultNow(),
 });
 
 // Notifications
 export const notifications = pgTable("notifications", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  userId: varchar("user_id").references(() => users.id).notNull(),
+  id: varchar("id")
+    .primaryKey()
+    .default(sql`gen_random_uuid()`),
+  userId: varchar("user_id")
+    .references(() => users.id)
+    .notNull(),
   type: notificationTypeEnum("type").notNull(),
   title: text("title").notNull(),
   message: text("message").notNull(),
@@ -364,8 +613,12 @@ export const notifications = pgTable("notifications", {
 
 // Order status history for tracking
 export const orderStatusHistory = pgTable("order_status_history", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  orderId: varchar("order_id").references(() => orders.id).notNull(),
+  id: varchar("id")
+    .primaryKey()
+    .default(sql`gen_random_uuid()`),
+  orderId: varchar("order_id")
+    .references(() => orders.id)
+    .notNull(),
   status: orderStatusEnum("status").notNull(),
   newStatus: orderStatusEnum("new_status"),
   note: text("note"),
@@ -384,10 +637,16 @@ export const appSettings = pgTable("app_settings", {
 
 // Stock movements for tracking stock deductions
 export const stockMovements = pgTable("stock_movements", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  sareeId: varchar("saree_id").references(() => sarees.id).notNull(),
+  id: varchar("id")
+    .primaryKey()
+    .default(sql`gen_random_uuid()`),
+  sareeId: varchar("saree_id")
+    .references(() => sarees.id)
+    .notNull(),
   quantity: integer("quantity").notNull(),
-  movementType: stockMovementTypeEnum("movement_type").notNull().default("sale"),
+  movementType: stockMovementTypeEnum("movement_type")
+    .notNull()
+    .default("sale"),
   source: stockMovementSourceEnum("source").notNull(),
   orderRefId: varchar("order_ref_id").notNull(),
   storeId: varchar("store_id").references(() => stores.id),
@@ -397,13 +656,21 @@ export const stockMovements = pgTable("stock_movements", {
 
 // Stock transfers between stores
 export const stockTransfers = pgTable("stock_transfers", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  sareeId: varchar("saree_id").references(() => sarees.id).notNull(),
+  id: varchar("id")
+    .primaryKey()
+    .default(sql`gen_random_uuid()`),
+  sareeId: varchar("saree_id")
+    .references(() => sarees.id)
+    .notNull(),
   fromStoreId: varchar("from_store_id").references(() => stores.id),
-  toStoreId: varchar("to_store_id").references(() => stores.id).notNull(),
+  toStoreId: varchar("to_store_id")
+    .references(() => stores.id)
+    .notNull(),
   quantity: integer("quantity").notNull(),
   status: transferStatusEnum("status").notNull().default("pending"),
-  requestedBy: varchar("requested_by").references(() => users.id).notNull(),
+  requestedBy: varchar("requested_by")
+    .references(() => users.id)
+    .notNull(),
   approvedBy: varchar("approved_by").references(() => users.id),
   notes: text("notes"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
@@ -412,40 +679,70 @@ export const stockTransfers = pgTable("stock_transfers", {
 
 // Inventory adjustments for damaged/lost items
 export const inventoryAdjustments = pgTable("inventory_adjustments", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  sareeId: varchar("saree_id").references(() => sarees.id).notNull(),
+  id: varchar("id")
+    .primaryKey()
+    .default(sql`gen_random_uuid()`),
+  sareeId: varchar("saree_id")
+    .references(() => sarees.id)
+    .notNull(),
   storeId: varchar("store_id").references(() => stores.id),
   quantity: integer("quantity").notNull(),
   reason: text("reason").notNull(),
-  adjustedBy: varchar("adjusted_by").references(() => users.id).notNull(),
+  adjustedBy: varchar("adjusted_by")
+    .references(() => users.id)
+    .notNull(),
   notes: text("notes"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
 // Store exchanges - for in-store item exchanges
 export const storeExchanges = pgTable("store_exchanges", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  storeId: varchar("store_id").references(() => stores.id).notNull(),
-  originalSaleId: varchar("original_sale_id").references(() => storeSales.id).notNull(),
-  processedBy: varchar("processed_by").references(() => users.id).notNull(),
+  id: varchar("id")
+    .primaryKey()
+    .default(sql`gen_random_uuid()`),
+  storeId: varchar("store_id")
+    .references(() => stores.id)
+    .notNull(),
+  originalSaleId: varchar("original_sale_id")
+    .references(() => storeSales.id)
+    .notNull(),
+  processedBy: varchar("processed_by")
+    .references(() => users.id)
+    .notNull(),
   customerName: text("customer_name"),
   customerPhone: text("customer_phone"),
   reason: text("reason"),
   notes: text("notes"),
-  returnAmount: decimal("return_amount", { precision: 10, scale: 2 }).notNull().default("0"),
-  newItemsAmount: decimal("new_items_amount", { precision: 10, scale: 2 }).notNull().default("0"),
-  balanceAmount: decimal("balance_amount", { precision: 10, scale: 2 }).notNull().default("0"),
-  balanceDirection: balanceDirectionEnum("balance_direction").notNull().default("even"),
+  returnAmount: decimal("return_amount", { precision: 10, scale: 2 })
+    .notNull()
+    .default("0"),
+  newItemsAmount: decimal("new_items_amount", { precision: 10, scale: 2 })
+    .notNull()
+    .default("0"),
+  balanceAmount: decimal("balance_amount", { precision: 10, scale: 2 })
+    .notNull()
+    .default("0"),
+  balanceDirection: balanceDirectionEnum("balance_direction")
+    .notNull()
+    .default("even"),
   status: storeExchangeStatusEnum("status").notNull().default("completed"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
 // Store exchange return items - items being returned in the exchange
 export const storeExchangeReturnItems = pgTable("store_exchange_return_items", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  exchangeId: varchar("exchange_id").references(() => storeExchanges.id).notNull(),
-  saleItemId: varchar("sale_item_id").references(() => storeSaleItems.id).notNull(),
-  sareeId: varchar("saree_id").references(() => sarees.id).notNull(),
+  id: varchar("id")
+    .primaryKey()
+    .default(sql`gen_random_uuid()`),
+  exchangeId: varchar("exchange_id")
+    .references(() => storeExchanges.id)
+    .notNull(),
+  saleItemId: varchar("sale_item_id")
+    .references(() => storeSaleItems.id)
+    .notNull(),
+  sareeId: varchar("saree_id")
+    .references(() => sarees.id)
+    .notNull(),
   quantity: integer("quantity").notNull(),
   unitPrice: decimal("unit_price", { precision: 10, scale: 2 }).notNull(),
   returnAmount: decimal("return_amount", { precision: 10, scale: 2 }).notNull(),
@@ -453,9 +750,15 @@ export const storeExchangeReturnItems = pgTable("store_exchange_return_items", {
 
 // Store exchange new items - new items being given in the exchange
 export const storeExchangeNewItems = pgTable("store_exchange_new_items", {
-  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  exchangeId: varchar("exchange_id").references(() => storeExchanges.id).notNull(),
-  sareeId: varchar("saree_id").references(() => sarees.id).notNull(),
+  id: varchar("id")
+    .primaryKey()
+    .default(sql`gen_random_uuid()`),
+  exchangeId: varchar("exchange_id")
+    .references(() => storeExchanges.id)
+    .notNull(),
+  sareeId: varchar("saree_id")
+    .references(() => sarees.id)
+    .notNull(),
   quantity: integer("quantity").notNull(),
   unitPrice: decimal("unit_price", { precision: 10, scale: 2 }).notNull(),
   lineAmount: decimal("line_amount", { precision: 10, scale: 2 }).notNull(),
@@ -500,7 +803,10 @@ export const storesRelations = relations(stores, ({ one, many }) => ({
 }));
 
 export const sareesRelations = relations(sarees, ({ one, many }) => ({
-  category: one(categories, { fields: [sarees.categoryId], references: [categories.id] }),
+  category: one(categories, {
+    fields: [sarees.categoryId],
+    references: [categories.id],
+  }),
   color: one(colors, { fields: [sarees.colorId], references: [colors.id] }),
   fabric: one(fabrics, { fields: [sarees.fabricId], references: [fabrics.id] }),
   wishlistItems: many(wishlist),
@@ -513,8 +819,14 @@ export const sareesRelations = relations(sarees, ({ one, many }) => ({
 }));
 
 export const storeInventoryRelations = relations(storeInventory, ({ one }) => ({
-  store: one(stores, { fields: [storeInventory.storeId], references: [stores.id] }),
-  saree: one(sarees, { fields: [storeInventory.sareeId], references: [sarees.id] }),
+  store: one(stores, {
+    fields: [storeInventory.storeId],
+    references: [stores.id],
+  }),
+  saree: one(sarees, {
+    fields: [storeInventory.sareeId],
+    references: [sarees.id],
+  }),
 }));
 
 export const wishlistRelations = relations(wishlist, ({ one }) => ({
@@ -549,38 +861,77 @@ export const storeSalesRelations = relations(storeSales, ({ one, many }) => ({
 }));
 
 export const storeSaleItemsRelations = relations(storeSaleItems, ({ one }) => ({
-  sale: one(storeSales, { fields: [storeSaleItems.saleId], references: [storeSales.id] }),
-  saree: one(sarees, { fields: [storeSaleItems.sareeId], references: [sarees.id] }),
+  sale: one(storeSales, {
+    fields: [storeSaleItems.saleId],
+    references: [storeSales.id],
+  }),
+  saree: one(sarees, {
+    fields: [storeSaleItems.sareeId],
+    references: [sarees.id],
+  }),
 }));
 
 export const stockRequestsRelations = relations(stockRequests, ({ one }) => ({
-  store: one(stores, { fields: [stockRequests.storeId], references: [stores.id] }),
-  requester: one(users, { fields: [stockRequests.requestedBy], references: [users.id] }),
-  saree: one(sarees, { fields: [stockRequests.sareeId], references: [sarees.id] }),
+  store: one(stores, {
+    fields: [stockRequests.storeId],
+    references: [stores.id],
+  }),
+  requester: one(users, {
+    fields: [stockRequests.requestedBy],
+    references: [users.id],
+  }),
+  saree: one(sarees, {
+    fields: [stockRequests.sareeId],
+    references: [sarees.id],
+  }),
 }));
 
-export const returnRequestsRelations = relations(returnRequests, ({ one, many }) => ({
-  order: one(orders, { fields: [returnRequests.orderId], references: [orders.id] }),
-  user: one(users, { fields: [returnRequests.userId], references: [users.id] }),
-  items: many(returnItems),
-  refund: many(refunds),
-}));
+export const returnRequestsRelations = relations(
+  returnRequests,
+  ({ one, many }) => ({
+    order: one(orders, {
+      fields: [returnRequests.orderId],
+      references: [orders.id],
+    }),
+    user: one(users, {
+      fields: [returnRequests.userId],
+      references: [users.id],
+    }),
+    items: many(returnItems),
+    refund: many(refunds),
+  })
+);
 
 export const returnItemsRelations = relations(returnItems, ({ one }) => ({
-  returnRequest: one(returnRequests, { fields: [returnItems.returnRequestId], references: [returnRequests.id] }),
-  orderItem: one(orderItems, { fields: [returnItems.orderItemId], references: [orderItems.id] }),
+  returnRequest: one(returnRequests, {
+    fields: [returnItems.returnRequestId],
+    references: [returnRequests.id],
+  }),
+  orderItem: one(orderItems, {
+    fields: [returnItems.orderItemId],
+    references: [orderItems.id],
+  }),
 }));
 
 export const refundsRelations = relations(refunds, ({ one }) => ({
-  returnRequest: one(returnRequests, { fields: [refunds.returnRequestId], references: [returnRequests.id] }),
+  returnRequest: one(returnRequests, {
+    fields: [refunds.returnRequestId],
+    references: [returnRequests.id],
+  }),
   order: one(orders, { fields: [refunds.orderId], references: [orders.id] }),
   user: one(users, { fields: [refunds.userId], references: [users.id] }),
 }));
 
 export const productReviewsRelations = relations(productReviews, ({ one }) => ({
-  saree: one(sarees, { fields: [productReviews.sareeId], references: [sarees.id] }),
+  saree: one(sarees, {
+    fields: [productReviews.sareeId],
+    references: [sarees.id],
+  }),
   user: one(users, { fields: [productReviews.userId], references: [users.id] }),
-  order: one(orders, { fields: [productReviews.orderId], references: [orders.id] }),
+  order: one(orders, {
+    fields: [productReviews.orderId],
+    references: [orders.id],
+  }),
 }));
 
 export const couponsRelations = relations(coupons, ({ many }) => ({
@@ -589,104 +940,269 @@ export const couponsRelations = relations(coupons, ({ many }) => ({
 }));
 
 export const salesRelations = relations(sales, ({ one, many }) => ({
-  category: one(categories, { fields: [sales.categoryId], references: [categories.id] }),
+  category: one(categories, {
+    fields: [sales.categoryId],
+    references: [categories.id],
+  }),
   products: many(saleProducts),
 }));
 
 export const saleProductsRelations = relations(saleProducts, ({ one }) => ({
   sale: one(sales, { fields: [saleProducts.saleId], references: [sales.id] }),
-  saree: one(sarees, { fields: [saleProducts.sareeId], references: [sarees.id] }),
+  saree: one(sarees, {
+    fields: [saleProducts.sareeId],
+    references: [sarees.id],
+  }),
 }));
 
 export const couponUsageRelations = relations(couponUsage, ({ one }) => ({
-  coupon: one(coupons, { fields: [couponUsage.couponId], references: [coupons.id] }),
+  coupon: one(coupons, {
+    fields: [couponUsage.couponId],
+    references: [coupons.id],
+  }),
   user: one(users, { fields: [couponUsage.userId], references: [users.id] }),
-  order: one(orders, { fields: [couponUsage.orderId], references: [orders.id] }),
+  order: one(orders, {
+    fields: [couponUsage.orderId],
+    references: [orders.id],
+  }),
 }));
 
 export const notificationsRelations = relations(notifications, ({ one }) => ({
   user: one(users, { fields: [notifications.userId], references: [users.id] }),
 }));
 
-export const orderStatusHistoryRelations = relations(orderStatusHistory, ({ one }) => ({
-  order: one(orders, { fields: [orderStatusHistory.orderId], references: [orders.id] }),
-}));
+export const orderStatusHistoryRelations = relations(
+  orderStatusHistory,
+  ({ one }) => ({
+    order: one(orders, {
+      fields: [orderStatusHistory.orderId],
+      references: [orders.id],
+    }),
+  })
+);
 
 export const stockMovementsRelations = relations(stockMovements, ({ one }) => ({
-  saree: one(sarees, { fields: [stockMovements.sareeId], references: [sarees.id] }),
-  store: one(stores, { fields: [stockMovements.storeId], references: [stores.id] }),
+  saree: one(sarees, {
+    fields: [stockMovements.sareeId],
+    references: [sarees.id],
+  }),
+  store: one(stores, {
+    fields: [stockMovements.storeId],
+    references: [stores.id],
+  }),
 }));
 
 export const stockTransfersRelations = relations(stockTransfers, ({ one }) => ({
-  saree: one(sarees, { fields: [stockTransfers.sareeId], references: [sarees.id] }),
-  fromStore: one(stores, { fields: [stockTransfers.fromStoreId], references: [stores.id] }),
-  toStore: one(stores, { fields: [stockTransfers.toStoreId], references: [stores.id] }),
-  requester: one(users, { fields: [stockTransfers.requestedBy], references: [users.id] }),
+  saree: one(sarees, {
+    fields: [stockTransfers.sareeId],
+    references: [sarees.id],
+  }),
+  fromStore: one(stores, {
+    fields: [stockTransfers.fromStoreId],
+    references: [stores.id],
+  }),
+  toStore: one(stores, {
+    fields: [stockTransfers.toStoreId],
+    references: [stores.id],
+  }),
+  requester: one(users, {
+    fields: [stockTransfers.requestedBy],
+    references: [users.id],
+  }),
 }));
 
-export const inventoryAdjustmentsRelations = relations(inventoryAdjustments, ({ one }) => ({
-  saree: one(sarees, { fields: [inventoryAdjustments.sareeId], references: [sarees.id] }),
-  store: one(stores, { fields: [inventoryAdjustments.storeId], references: [stores.id] }),
-  adjuster: one(users, { fields: [inventoryAdjustments.adjustedBy], references: [users.id] }),
-}));
+export const inventoryAdjustmentsRelations = relations(
+  inventoryAdjustments,
+  ({ one }) => ({
+    saree: one(sarees, {
+      fields: [inventoryAdjustments.sareeId],
+      references: [sarees.id],
+    }),
+    store: one(stores, {
+      fields: [inventoryAdjustments.storeId],
+      references: [stores.id],
+    }),
+    adjuster: one(users, {
+      fields: [inventoryAdjustments.adjustedBy],
+      references: [users.id],
+    }),
+  })
+);
 
-export const storeExchangesRelations = relations(storeExchanges, ({ one, many }) => ({
-  store: one(stores, { fields: [storeExchanges.storeId], references: [stores.id] }),
-  originalSale: one(storeSales, { fields: [storeExchanges.originalSaleId], references: [storeSales.id] }),
-  processor: one(users, { fields: [storeExchanges.processedBy], references: [users.id] }),
-  returnItems: many(storeExchangeReturnItems),
-  newItems: many(storeExchangeNewItems),
-}));
+export const storeExchangesRelations = relations(
+  storeExchanges,
+  ({ one, many }) => ({
+    store: one(stores, {
+      fields: [storeExchanges.storeId],
+      references: [stores.id],
+    }),
+    originalSale: one(storeSales, {
+      fields: [storeExchanges.originalSaleId],
+      references: [storeSales.id],
+    }),
+    processor: one(users, {
+      fields: [storeExchanges.processedBy],
+      references: [users.id],
+    }),
+    returnItems: many(storeExchangeReturnItems),
+    newItems: many(storeExchangeNewItems),
+  })
+);
 
-export const storeExchangeReturnItemsRelations = relations(storeExchangeReturnItems, ({ one }) => ({
-  exchange: one(storeExchanges, { fields: [storeExchangeReturnItems.exchangeId], references: [storeExchanges.id] }),
-  saleItem: one(storeSaleItems, { fields: [storeExchangeReturnItems.saleItemId], references: [storeSaleItems.id] }),
-  saree: one(sarees, { fields: [storeExchangeReturnItems.sareeId], references: [sarees.id] }),
-}));
+export const storeExchangeReturnItemsRelations = relations(
+  storeExchangeReturnItems,
+  ({ one }) => ({
+    exchange: one(storeExchanges, {
+      fields: [storeExchangeReturnItems.exchangeId],
+      references: [storeExchanges.id],
+    }),
+    saleItem: one(storeSaleItems, {
+      fields: [storeExchangeReturnItems.saleItemId],
+      references: [storeSaleItems.id],
+    }),
+    saree: one(sarees, {
+      fields: [storeExchangeReturnItems.sareeId],
+      references: [sarees.id],
+    }),
+  })
+);
 
-export const storeExchangeNewItemsRelations = relations(storeExchangeNewItems, ({ one }) => ({
-  exchange: one(storeExchanges, { fields: [storeExchangeNewItems.exchangeId], references: [storeExchanges.id] }),
-  saree: one(sarees, { fields: [storeExchangeNewItems.sareeId], references: [sarees.id] }),
-}));
+export const storeExchangeNewItemsRelations = relations(
+  storeExchangeNewItems,
+  ({ one }) => ({
+    exchange: one(storeExchanges, {
+      fields: [storeExchangeNewItems.exchangeId],
+      references: [storeExchanges.id],
+    }),
+    saree: one(sarees, {
+      fields: [storeExchangeNewItems.sareeId],
+      references: [sarees.id],
+    }),
+  })
+);
 
 // Insert schemas
-export const insertUserSchema = createInsertSchema(users).omit({ id: true, createdAt: true, tokenVersion: true });
-export const insertRefreshTokenSchema = createInsertSchema(refreshTokens).omit({ id: true, createdAt: true });
-export const insertCategorySchema = createInsertSchema(categories).omit({ id: true });
-export const insertColorSchema = createInsertSchema(colors).omit({ id: true });
-export const insertFabricSchema = createInsertSchema(fabrics).omit({ id: true });
-export const insertStoreSchema = createInsertSchema(stores).omit({ id: true, createdAt: true });
-export const insertSareeSchema = createInsertSchema(sarees).omit({ id: true, createdAt: true });
-export const insertStoreInventorySchema = createInsertSchema(storeInventory).omit({ id: true, updatedAt: true });
-export const insertWishlistSchema = createInsertSchema(wishlist).omit({ id: true, createdAt: true });
-export const insertCartSchema = createInsertSchema(cart).omit({ id: true, createdAt: true });
-export const insertOrderSchema = createInsertSchema(orders).omit({ id: true, createdAt: true, updatedAt: true });
-export const insertOrderItemSchema = createInsertSchema(orderItems).omit({ id: true });
-export const insertStoreSaleSchema = createInsertSchema(storeSales).omit({ id: true, createdAt: true });
-export const insertStoreSaleItemSchema = createInsertSchema(storeSaleItems).omit({ id: true });
-export const insertStockRequestSchema = createInsertSchema(stockRequests).omit({ id: true, createdAt: true, updatedAt: true });
-export const insertUserAddressSchema = createInsertSchema(userAddresses).omit({ id: true, createdAt: true });
-export const insertServiceablePincodeSchema = createInsertSchema(serviceablePincodes).omit({ id: true, createdAt: true });
-export const insertReturnRequestSchema = createInsertSchema(returnRequests).omit({ id: true, createdAt: true, updatedAt: true });
-export const insertReturnItemSchema = createInsertSchema(returnItems).omit({ id: true });
-export const insertRefundSchema = createInsertSchema(refunds).omit({ id: true, createdAt: true });
-export const insertProductReviewSchema = createInsertSchema(productReviews).omit({ id: true, createdAt: true, updatedAt: true });
-export const insertCouponSchema = createInsertSchema(coupons).omit({ id: true, createdAt: true });
-export const insertCouponUsageSchema = createInsertSchema(couponUsage).omit({ id: true, usedAt: true });
-export const insertNotificationSchema = createInsertSchema(notifications).omit({ id: true, createdAt: true });
-export const insertOrderStatusHistorySchema = createInsertSchema(orderStatusHistory).omit({ id: true, createdAt: true });
-export const insertAppSettingSchema = createInsertSchema(appSettings).omit({ updatedAt: true });
-export const insertStockMovementSchema = createInsertSchema(stockMovements).omit({ id: true, createdAt: true });
-export const insertStockTransferSchema = createInsertSchema(stockTransfers).omit({ id: true, createdAt: true, updatedAt: true });
-export const insertInventoryAdjustmentSchema = createInsertSchema(inventoryAdjustments).omit({ id: true, createdAt: true });
-export const insertStoreExchangeSchema = createInsertSchema(storeExchanges).omit({ id: true, createdAt: true });
-export const insertStoreExchangeReturnItemSchema = createInsertSchema(storeExchangeReturnItems).omit({ id: true });
-export const insertStoreExchangeNewItemSchema = createInsertSchema(storeExchangeNewItems).omit({ id: true });
-export const insertSaleSchema = createInsertSchema(sales).omit({ id: true, createdAt: true, updatedAt: true }).extend({
-  validFrom: z.date().or(z.string()),
-  validUntil: z.date().or(z.string()),
+export const insertUserSchema = createInsertSchema(users).omit({
+  id: true,
+  createdAt: true,
+  tokenVersion: true,
 });
-export const insertSaleProductSchema = createInsertSchema(saleProducts).omit({ id: true, createdAt: true });
+export const insertRefreshTokenSchema = createInsertSchema(refreshTokens).omit({
+  id: true,
+  createdAt: true,
+});
+export const insertCategorySchema = createInsertSchema(categories).omit({
+  id: true,
+});
+export const insertColorSchema = createInsertSchema(colors).omit({ id: true });
+export const insertFabricSchema = createInsertSchema(fabrics).omit({
+  id: true,
+});
+export const insertStoreSchema = createInsertSchema(stores).omit({
+  id: true,
+  createdAt: true,
+});
+export const insertSareeSchema = createInsertSchema(sarees).omit({
+  id: true,
+  createdAt: true,
+});
+export const insertStoreInventorySchema = createInsertSchema(
+  storeInventory
+).omit({ id: true, updatedAt: true });
+export const insertWishlistSchema = createInsertSchema(wishlist).omit({
+  id: true,
+  createdAt: true,
+});
+export const insertCartSchema = createInsertSchema(cart).omit({
+  id: true,
+  createdAt: true,
+});
+export const insertOrderSchema = createInsertSchema(orders).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+export const insertOrderItemSchema = createInsertSchema(orderItems).omit({
+  id: true,
+});
+export const insertStoreSaleSchema = createInsertSchema(storeSales).omit({
+  id: true,
+  createdAt: true,
+});
+export const insertStoreSaleItemSchema = createInsertSchema(
+  storeSaleItems
+).omit({ id: true });
+export const insertStockRequestSchema = createInsertSchema(stockRequests).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+export const insertUserAddressSchema = createInsertSchema(userAddresses).omit({
+  id: true,
+  createdAt: true,
+});
+export const insertServiceablePincodeSchema = createInsertSchema(
+  serviceablePincodes
+).omit({ id: true, createdAt: true });
+export const insertReturnRequestSchema = createInsertSchema(
+  returnRequests
+).omit({ id: true, createdAt: true, updatedAt: true });
+export const insertReturnItemSchema = createInsertSchema(returnItems).omit({
+  id: true,
+});
+export const insertRefundSchema = createInsertSchema(refunds).omit({
+  id: true,
+  createdAt: true,
+});
+export const insertProductReviewSchema = createInsertSchema(
+  productReviews
+).omit({ id: true, createdAt: true, updatedAt: true });
+export const insertCouponSchema = createInsertSchema(coupons).omit({
+  id: true,
+  createdAt: true,
+});
+export const insertCouponUsageSchema = createInsertSchema(couponUsage).omit({
+  id: true,
+  usedAt: true,
+});
+export const insertNotificationSchema = createInsertSchema(notifications).omit({
+  id: true,
+  createdAt: true,
+});
+export const insertOrderStatusHistorySchema = createInsertSchema(
+  orderStatusHistory
+).omit({ id: true, createdAt: true });
+export const insertAppSettingSchema = createInsertSchema(appSettings).omit({
+  updatedAt: true,
+});
+export const insertStockMovementSchema = createInsertSchema(
+  stockMovements
+).omit({ id: true, createdAt: true });
+export const insertStockTransferSchema = createInsertSchema(
+  stockTransfers
+).omit({ id: true, createdAt: true, updatedAt: true });
+export const insertInventoryAdjustmentSchema = createInsertSchema(
+  inventoryAdjustments
+).omit({ id: true, createdAt: true });
+export const insertStoreExchangeSchema = createInsertSchema(
+  storeExchanges
+).omit({ id: true, createdAt: true });
+export const insertStoreExchangeReturnItemSchema = createInsertSchema(
+  storeExchangeReturnItems
+).omit({ id: true });
+export const insertStoreExchangeNewItemSchema = createInsertSchema(
+  storeExchangeNewItems
+).omit({ id: true });
+export const insertSaleSchema = createInsertSchema(sales)
+  .omit({ id: true, createdAt: true, updatedAt: true })
+  .extend({
+    validFrom: z.date().or(z.string()),
+    validUntil: z.date().or(z.string()),
+  });
+export const insertSaleProductSchema = createInsertSchema(saleProducts).omit({
+  id: true,
+  createdAt: true,
+});
 
 // Types
 export type User = typeof users.$inferSelect;
@@ -722,7 +1238,9 @@ export type InsertStockRequest = z.infer<typeof insertStockRequestSchema>;
 export type UserAddress = typeof userAddresses.$inferSelect;
 export type InsertUserAddress = z.infer<typeof insertUserAddressSchema>;
 export type ServiceablePincode = typeof serviceablePincodes.$inferSelect;
-export type InsertServiceablePincode = z.infer<typeof insertServiceablePincodeSchema>;
+export type InsertServiceablePincode = z.infer<
+  typeof insertServiceablePincodeSchema
+>;
 export type ReturnRequest = typeof returnRequests.$inferSelect;
 export type InsertReturnRequest = z.infer<typeof insertReturnRequestSchema>;
 export type ReturnItem = typeof returnItems.$inferSelect;
@@ -738,7 +1256,9 @@ export type InsertCouponUsage = z.infer<typeof insertCouponUsageSchema>;
 export type Notification = typeof notifications.$inferSelect;
 export type InsertNotification = z.infer<typeof insertNotificationSchema>;
 export type OrderStatusHistory = typeof orderStatusHistory.$inferSelect;
-export type InsertOrderStatusHistory = z.infer<typeof insertOrderStatusHistorySchema>;
+export type InsertOrderStatusHistory = z.infer<
+  typeof insertOrderStatusHistorySchema
+>;
 export type AppSetting = typeof appSettings.$inferSelect;
 export type InsertAppSetting = z.infer<typeof insertAppSettingSchema>;
 export type StockMovement = typeof stockMovements.$inferSelect;
@@ -746,13 +1266,20 @@ export type InsertStockMovement = z.infer<typeof insertStockMovementSchema>;
 export type StockTransfer = typeof stockTransfers.$inferSelect;
 export type InsertStockTransfer = z.infer<typeof insertStockTransferSchema>;
 export type InventoryAdjustment = typeof inventoryAdjustments.$inferSelect;
-export type InsertInventoryAdjustment = z.infer<typeof insertInventoryAdjustmentSchema>;
+export type InsertInventoryAdjustment = z.infer<
+  typeof insertInventoryAdjustmentSchema
+>;
 export type StoreExchange = typeof storeExchanges.$inferSelect;
 export type InsertStoreExchange = z.infer<typeof insertStoreExchangeSchema>;
-export type StoreExchangeReturnItem = typeof storeExchangeReturnItems.$inferSelect;
-export type InsertStoreExchangeReturnItem = z.infer<typeof insertStoreExchangeReturnItemSchema>;
+export type StoreExchangeReturnItem =
+  typeof storeExchangeReturnItems.$inferSelect;
+export type InsertStoreExchangeReturnItem = z.infer<
+  typeof insertStoreExchangeReturnItemSchema
+>;
 export type StoreExchangeNewItem = typeof storeExchangeNewItems.$inferSelect;
-export type InsertStoreExchangeNewItem = z.infer<typeof insertStoreExchangeNewItemSchema>;
+export type InsertStoreExchangeNewItem = z.infer<
+  typeof insertStoreExchangeNewItemSchema
+>;
 export type Sale = typeof sales.$inferSelect;
 export type InsertSale = z.infer<typeof insertSaleSchema>;
 export type SaleProduct = typeof saleProducts.$inferSelect;
@@ -810,7 +1337,9 @@ export type SareeWithReviews = SareeWithDetails & {
 export type ReturnRequestWithDetails = ReturnRequest & {
   order: OrderWithItems;
   user: User;
-  items: (ReturnItem & { orderItem: OrderItem & { saree: SareeWithDetails } })[];
+  items: (ReturnItem & {
+    orderItem: OrderItem & { saree: SareeWithDetails };
+  })[];
   refund?: Refund;
 };
 
@@ -850,5 +1379,5 @@ export type SaleWithDetails = Sale & {
 };
 
 export type SaleWithProducts = Sale & {
-  products: (SaleProduct & { saree: SareeWithDetails | null })[];
+  products: SaleProduct[];
 };

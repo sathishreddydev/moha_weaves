@@ -73,10 +73,7 @@ export class SalesRepository implements SalesStorage {
 
       result.push({
         ...sale,
-        products: products.map((p) => ({
-          ...p,
-          saree: null, // Placeholder for saree details, to be fetched separately if needed
-        })),
+        products: products,
         productCount: products.length,
       });
     }
@@ -140,10 +137,11 @@ export class SalesRepository implements SalesStorage {
     return result || undefined;
   }
 
-  async deleteSale(id: string): Promise<void> {
-    await db.delete(sales).where(eq(sales.id, id));
-    await db.delete(saleProducts).where(eq(saleProducts.saleId, id));
-  }
+async deleteSale(id: string): Promise<void> {
+  await db.delete(saleProducts).where(eq(saleProducts.saleId, id));
+  await db.delete(sales).where(eq(sales.id, id));
+}
+
 
   async addProductsToSale(saleId: string, sareeIds: string[]): Promise<void> {
     if (!sareeIds || sareeIds.length === 0) return;
