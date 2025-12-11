@@ -84,7 +84,7 @@ export function Footer() {
           </div>
         </div>
 
-        <Separator className="my-8" />
+        {/* <Separator className="my-8" />
 
         <div className="flex flex-col md:flex-row items-center justify-between gap-4 text-sm text-muted-foreground">
           <p>&copy; {new Date().getFullYear()} Moha Sarees. All rights reserved.</p>
@@ -96,7 +96,7 @@ export function Footer() {
               Terms of Service
             </Link>
           </div>
-        </div>
+        </div> */}
       </div>
     </footer>
   );

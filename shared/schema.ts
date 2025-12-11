@@ -57,6 +57,7 @@ export const paymentMethodEnum = pgEnum("payment_method", [
   "upi",
   "card",
   "netbanking",
+  "razorpay",
 ]);
 export const returnStatusEnum = pgEnum("return_status", [
   "requested",
@@ -289,9 +290,7 @@ export const orders = pgTable("orders", {
   id: varchar("id")
     .primaryKey()
     .default(sql`gen_random_uuid()`),
-  userId: varchar("user_id")
-    .references(() => users.id)
-    .notNull(),
+  userId: varchar("user_id").notNull(),
   totalAmount: decimal("total_amount", { precision: 10, scale: 2 }).notNull(),
   discountAmount: decimal("discount_amount", {
     precision: 10,
@@ -307,6 +306,7 @@ export const orders = pgTable("orders", {
   paymentMethod: paymentMethodEnum("payment_method").default("cod"),
   paymentId: text("payment_id"),
   stripePaymentIntentId: text("stripe_payment_intent_id"),
+  razorpayPaymentId: text("razorpay_payment_id"),
   shippingAddress: text("shipping_address").notNull(),
   phone: text("phone").notNull(),
   trackingNumber: text("tracking_number"),
