@@ -84,11 +84,7 @@ export function CloudinaryUploader({
         formData.append("file", file);
         formData.append("fileType", fileType);
 
-        const response = await apiRequest("POST", "/api/uploads/cloudinary", formData, {
-          headers: {
-            // Don't set Content-Type, let browser set it with boundary
-          },
-        });
+        const response = await apiRequest("POST", "/api/uploads/cloudinary", formData);
 
         if (!response.ok) {
           const errorData = await response.json().catch(() => ({}));

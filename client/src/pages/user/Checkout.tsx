@@ -28,6 +28,8 @@ import { useToast } from "@/hooks/use-toast";
 import { z } from "zod";
 import type { CartItemWithSaree, UserAddress, Coupon } from "@shared/schema";
 import { useCartStore } from "@/components/Store/useCartStore";
+import { useAddressStore } from "@/components/Store/useAddressesStore";
+import OrderSuccess from "./OrderSuccess";
 
 const addressFormSchema = z.object({
   name: z.string().min(2, "Name must be at least 2 characters"),
@@ -68,83 +70,27 @@ export default function Checkout() {
   const cartItems = useCartStore((state) => state.cart);
   const isLoadingCart = useCartStore((state) => state.isLoadingCart);
   const clearCart = useCartStore((state) => state.clearCart);
+  const addresses = useAddressStore((state) => state.addresses);
+  const addAddressLoading = useAddressStore((state) => state.addLoading);
+  const getAddresses = useAddressStore((state) => state.fetchAddresses);
+  const createNewAddresses = useAddressStore((state) => state.addAddress);
 
-
-  const { data: addresses, isLoading: loadingAddresses } = useQuery<
-    UserAddress[]
-  >({
-    queryKey: ["/api/user/addresses"],
-    enabled: !!user && user.role === "user",
-  });
+  useEffect(() => {
+    if (user && user.role === "user" && addresses.length === 0) {
+      getAddresses();
+    }
+  }, [user]);
 
   useEffect(() => {
     if (addresses && addresses.length > 0 && !selectedAddressId) {
       const defaultAddress = addresses.find((a) => a.isDefault);
       if (defaultAddress) {
         setSelectedAddressId(defaultAddress.id);
-        checkPincodeForAddress(defaultAddress.pincode);
       } else {
         setSelectedAddressId(addresses[0].id);
-        checkPincodeForAddress(addresses[0].pincode);
       }
     }
   }, [addresses]);
-
-  const checkPincodeForAddress = async (pincode: string) => {
-    if (pincode.length !== 6) {
-      setPincodeStatus(null);
-      return;
-    }
-    setCheckingPincode(true);
-    try {
-      const response = await fetch(`/api/pincodes/${pincode}/check`);
-      const data = await response.json();
-      setPincodeStatus({
-        available: data.available,
-        message: data.available
-          ? `Delivery available in ${data.deliveryDays} days`
-          : "Delivery not available in this area",
-        deliveryDays: data.deliveryDays,
-      });
-    } catch {
-      setPincodeStatus({
-        available: false,
-        message: "Unable to check delivery availability",
-      });
-    } finally {
-      setCheckingPincode(false);
-    }
-  };
-
-  const createAddressMutation = useMutation({
-    mutationFn: (data: typeof newAddress) =>
-      apiRequest("POST", "/api/user/addresses", data),
-    onSuccess: async (response) => {
-      const newAddr = await response.json();
-      queryClient.invalidateQueries({ queryKey: ["/api/user/addresses"] });
-      setSelectedAddressId(newAddr.id);
-      setShowNewAddressForm(false);
-      setNewAddress({
-        name: "",
-        phone: "",
-        locality: "",
-        city: "",
-        pincode: "",
-      });
-      toast({
-        title: "Address added",
-        description: "New address saved successfully",
-      });
-      checkPincodeForAddress(newAddr.pincode);
-    },
-    onError: (error: Error) => {
-      toast({
-        title: "Error",
-        description: error.message || "Failed to add address",
-        variant: "destructive",
-      });
-    },
-  });
 
   const applyCouponMutation = useMutation({
     mutationFn: async (code: string) => {
@@ -179,40 +125,6 @@ export default function Checkout() {
     },
   });
 
-  const placeOrderMutation = useMutation({
-    mutationFn: async () => {
-      const selectedAddress = addresses?.find(
-        (a) => a.id === selectedAddressId
-      );
-      if (!selectedAddress) {
-        throw new Error("Please select a delivery address");
-      }
-
-      const shippingAddress = `${selectedAddress.name}\n${selectedAddress.phone}\n${selectedAddress.locality}\n${selectedAddress.city} - ${selectedAddress.pincode}`;
-
-      const response = await apiRequest("POST", "/api/user/orders", {
-        shippingAddress,
-        phone: selectedAddress.phone,
-        notes,
-        couponId: appliedCoupon?.id,
-      });
-      return response.json();
-    },
-    onSuccess: (data: { orderId: string }) => {
-      clearCart();
-      queryClient.invalidateQueries({ queryKey: ["/api/user/orders"] });
-      setOrderId(data.orderId);
-      setOrderSuccess(true);
-    },
-    onError: (error: Error) => {
-      toast({
-        title: "Order failed",
-        description: error.message || "Failed to place order.",
-        variant: "destructive",
-      });
-    },
-  });
-
   const formatPrice = (price: string | number) => {
     const numPrice = typeof price === "string" ? parseFloat(price) : price;
     return new Intl.NumberFormat("en-IN", {
@@ -225,13 +137,9 @@ export default function Checkout() {
   const handleAddressSelect = (addressId: string) => {
     setSelectedAddressId(addressId);
     setShowNewAddressForm(false);
-    const address = addresses?.find((a) => a.id === addressId);
-    if (address) {
-      checkPincodeForAddress(address.pincode);
-    }
   };
 
-  const handleNewAddressSubmit = (e: React.FormEvent) => {
+  const handleNewAddressSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setFormErrors({});
 
@@ -247,7 +155,52 @@ export default function Checkout() {
       return;
     }
 
-    createAddressMutation.mutate(newAddress);
+    const pincode = newAddress.pincode;
+    if (pincode.length !== 6) {
+      toast({
+        title: "Invalid Pincode",
+        description: "Please enter a valid 6-digit pincode",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    let pincodeData;
+    try {
+      setCheckingPincode(true);
+      const res = await fetch(`/api/pincodes/${pincode}/check`);
+      pincodeData = await res.json();
+      setCheckingPincode(false);
+
+      if (!pincodeData.available) {
+        toast({
+          title: "Delivery Not Available",
+          description: "We do not deliver to this pincode",
+          variant: "destructive",
+        });
+        return;
+      }
+    } catch {
+      setCheckingPincode(false);
+      toast({
+        title: "Pincode Check Failed",
+        description: "Unable to verify delivery availability. Try again later.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      await createNewAddresses({ ...newAddress, userId: user!.id });
+      setShowNewAddressForm(false);
+      setNewAddress({
+        name: "",
+        phone: "",
+        locality: "",
+        city: "",
+        pincode: "",
+      });
+    } catch (err: any) {}
   };
 
   const openRazorpayCheckout = (params: {
@@ -377,7 +330,7 @@ export default function Checkout() {
     );
   }
 
-  if (isLoadingCart || loadingAddresses) {
+  if (isLoadingCart) {
     return (
       <div className="max-w-4xl mx-auto px-4 py-8">
         <Skeleton className="h-8 w-48 mb-8" />
@@ -402,44 +355,7 @@ export default function Checkout() {
   }
 
   if (orderSuccess) {
-    return (
-      <div className="max-w-md mx-auto px-4 py-16 text-center">
-        <div className="w-20 h-20 rounded-full bg-green-100 dark:bg-green-900 flex items-center justify-center mx-auto mb-6">
-          <CheckCircle className="h-10 w-10 text-green-600 dark:text-green-400" />
-        </div>
-        <h2
-          className="text-2xl font-semibold mb-2"
-          data-testid="text-order-success"
-        >
-          Order Placed Successfully!
-        </h2>
-        <p className="text-muted-foreground mb-2">
-          Thank you for shopping with Moha.
-        </p>
-        <p className="text-sm text-muted-foreground mb-6">
-          Order ID:{" "}
-          <span className="font-medium" data-testid="text-order-id">
-            #{orderId.slice(0, 8).toUpperCase()}
-          </span>
-        </p>
-        <div className="flex flex-col gap-3">
-          <Link to={`/user/orders/${orderId}`}>
-            <Button className="w-full" data-testid="button-view-order">
-              View Order
-            </Button>
-          </Link>
-          <Link to="/sarees">
-            <Button
-              variant="outline"
-              className="w-full"
-              data-testid="button-continue-shopping"
-            >
-              Continue Shopping
-            </Button>
-          </Link>
-        </div>
-      </div>
-    );
+    return <OrderSuccess orderId={orderId} />;
   }
 
   const subtotal = cartItems.reduce((sum, item) => {
@@ -728,12 +644,10 @@ export default function Checkout() {
                     </Button>
                     <Button
                       type="submit"
-                      disabled={createAddressMutation.isPending}
+                      disabled={addAddressLoading}
                       data-testid="button-save-new-address"
                     >
-                      {createAddressMutation.isPending
-                        ? "Saving..."
-                        : "Save Address"}
+                      {addAddressLoading ? "Saving..." : "Save Address"}
                     </Button>
                   </div>
                 </form>

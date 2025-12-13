@@ -1,6 +1,7 @@
-import { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
 import { Plus, Edit, Trash2, MapPin, Check, AlertCircle } from "lucide-react";
+
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -8,6 +9,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
+
 import {
   Dialog,
   DialogContent,
@@ -16,6 +18,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+
 import {
   AlertDialog,
   AlertDialogAction,
@@ -26,11 +29,12 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+
 import { useAuth } from "@/lib/auth";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { apiRequest } from "@/lib/queryClient";
-import { useToast } from "@/hooks/use-toast";
 import type { UserAddress } from "@shared/schema";
+import { useAddressStore } from "@/components/Store/useAddressesStore";
+
+/* ---------------- TYPES ---------------- */
 
 type AddressFormData = {
   name: string;
@@ -51,94 +55,40 @@ const defaultFormData: AddressFormData = {
 };
 
 export default function Addresses() {
-  const navigate = useNavigate();
   const { user } = useAuth();
-  const { toast } = useToast();
-  const queryClient = useQueryClient();
+
+  const addresses = useAddressStore((state) => state.addresses);
+  const loadingAddresses = useAddressStore((state) => state.fetchLoading);
+  const getAddresses = useAddressStore((state) => state.fetchAddresses);
+
+  const isAddNewAddress = useAddressStore((state) => state.addLoading);
+  const isUpdateAddresses = useAddressStore((state) => state.updateLoading);
+  const isDeletAddresses = useAddressStore((state) => state.deleteLoading);
+
+  const createNewAddresses = useAddressStore((state) => state.addAddress);
+  const updateAddresses = useAddressStore((state) => state.updateAddress);
+  const deletAddresses = useAddressStore((state) => state.deleteAddress);
+  const setDefaultAddress = useAddressStore((state) => state.setDefaultAddress);
+
+  const pincodeInfo = useAddressStore((state) => state.pincodeInfo);
+  const pincodeLoading = useAddressStore((state) => state.pincodeLoading);
+  const checkPincode = useAddressStore((state) => state.checkPincode);
 
   const [dialogOpen, setDialogOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
-  const [editingAddress, setEditingAddress] = useState<UserAddress | null>(null);
-  const [addressToDelete, setAddressToDelete] = useState<UserAddress | null>(null);
+  const [editingAddress, setEditingAddress] = useState<UserAddress | null>(
+    null
+  );
+  const [addressToDelete, setAddressToDelete] = useState<UserAddress | null>(
+    null
+  );
   const [formData, setFormData] = useState<AddressFormData>(defaultFormData);
-  const [pincodeStatus, setPincodeStatus] = useState<{ available: boolean; message: string } | null>(null);
-  const [checkingPincode, setCheckingPincode] = useState(false);
 
-  const { data: addresses, isLoading } = useQuery<UserAddress[]>({
-    queryKey: ["/api/user/addresses"],
-    enabled: !!user && user.role === "user",
-  });
-
-  const createMutation = useMutation({
-    mutationFn: (data: AddressFormData) => apiRequest("POST", "/api/user/addresses", data),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/user/addresses"] });
-      toast({ title: "Success", description: "Address added successfully" });
-      handleCloseDialog();
-    },
-    onError: () => {
-      toast({ title: "Error", description: "Failed to add address", variant: "destructive" });
-    },
-  });
-
-  const updateMutation = useMutation({
-    mutationFn: ({ id, data }: { id: string; data: AddressFormData }) =>
-      apiRequest("PATCH", `/api/user/addresses/${id}`, data),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/user/addresses"] });
-      toast({ title: "Success", description: "Address updated successfully" });
-      handleCloseDialog();
-    },
-    onError: () => {
-      toast({ title: "Error", description: "Failed to update address", variant: "destructive" });
-    },
-  });
-
-  const deleteMutation = useMutation({
-    mutationFn: (id: string) => apiRequest("DELETE", `/api/user/addresses/${id}`),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/user/addresses"] });
-      toast({ title: "Success", description: "Address deleted successfully" });
-      setDeleteDialogOpen(false);
-      setAddressToDelete(null);
-    },
-    onError: () => {
-      toast({ title: "Error", description: "Failed to delete address", variant: "destructive" });
-    },
-  });
-
-  const setDefaultMutation = useMutation({
-    mutationFn: (id: string) => apiRequest("PATCH", `/api/user/addresses/${id}/default`),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/user/addresses"] });
-      toast({ title: "Success", description: "Default address updated" });
-    },
-    onError: () => {
-      toast({ title: "Error", description: "Failed to set default address", variant: "destructive" });
-    },
-  });
-
-  const checkPincodeAvailability = async (pincode: string) => {
-    if (pincode.length !== 6) {
-      setPincodeStatus(null);
-      return;
+  useEffect(() => {
+    if (user?.role === "user" && addresses.length === 0) {
+      getAddresses();
     }
-    setCheckingPincode(true);
-    try {
-      const response = await fetch(`/api/pincodes/${pincode}/check`);
-      const data = await response.json();
-      setPincodeStatus({
-        available: data.available,
-        message: data.available
-          ? `Delivery available in ${data.deliveryDays} days`
-          : "Delivery not available in this area",
-      });
-    } catch {
-      setPincodeStatus({ available: false, message: "Unable to check pincode" });
-    } finally {
-      setCheckingPincode(false);
-    }
-  };
+  }, [user]);
 
   const handleOpenDialog = (address?: UserAddress) => {
     if (address) {
@@ -155,7 +105,6 @@ export default function Addresses() {
       setEditingAddress(null);
       setFormData(defaultFormData);
     }
-    setPincodeStatus(null);
     setDialogOpen(true);
   };
 
@@ -163,27 +112,39 @@ export default function Addresses() {
     setDialogOpen(false);
     setEditingAddress(null);
     setFormData(defaultFormData);
-    setPincodeStatus(null);
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!user?.id) return;
+
+    const payload = {
+      ...formData,
+      userId: user.id,
+    };
     if (editingAddress) {
-      updateMutation.mutate({ id: editingAddress.id, data: formData });
+      await updateAddresses(editingAddress.id, payload);
     } else {
-      createMutation.mutate(formData);
+      await createNewAddresses(payload);
     }
+
+    handleCloseDialog();
   };
 
-  const handleDelete = (address: UserAddress) => {
-    setAddressToDelete(address);
-    setDeleteDialogOpen(true);
+  const handleDelete = async () => {
+    if (!addressToDelete) return;
+
+    await deletAddresses(addressToDelete.id);
+    setDeleteDialogOpen(false);
+    setAddressToDelete(null);
   };
 
   if (!user || user.role !== "user") {
     return (
       <div className="max-w-4xl mx-auto px-4 py-12 text-center">
-        <h2 className="text-xl font-semibold mb-4">Please log in to manage addresses</h2>
+        <h2 className="text-xl font-semibold mb-4">
+          Please log in to manage addresses
+        </h2>
         <Link to="/user/login">
           <Button>Login</Button>
         </Link>
@@ -191,80 +152,81 @@ export default function Addresses() {
     );
   }
 
+
   return (
     <div className="max-w-4xl mx-auto px-4 py-12">
-      <div className="flex items-center justify-between mb-8">
+      <div className="flex justify-between mb-8">
         <div>
-          <h1 className="font-serif text-3xl font-semibold" data-testid="text-page-title">
-            My Addresses
-          </h1>
-          <p className="text-muted-foreground mt-1">Manage your delivery addresses</p>
+          <h1 className="text-3xl font-semibold">My Addresses</h1>
+          <p className="text-muted-foreground">
+            Manage your delivery addresses
+          </p>
         </div>
-        <Button onClick={() => handleOpenDialog()} data-testid="button-add-address">
+        <Button onClick={() => handleOpenDialog()}>
           <Plus className="h-4 w-4 mr-2" />
           Add Address
         </Button>
       </div>
 
-      {isLoading ? (
+      {loadingAddresses ? (
         <div className="grid gap-4">
           {[...Array(3)].map((_, i) => (
             <Skeleton key={i} className="h-32" />
           ))}
         </div>
-      ) : addresses && addresses.length > 0 ? (
+      ) : addresses.length > 0 ? (
         <div className="grid gap-4">
           {addresses.map((address) => (
-            <Card key={address.id} data-testid={`card-address-${address.id}`}>
-              <CardContent className="p-4">
-                <div className="flex items-start justify-between gap-4">
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2 mb-2">
-                      <MapPin className="h-4 w-4 text-primary" />
-                      <span className="font-medium" data-testid={`text-address-name-${address.id}`}>
-                        {address.name}
-                      </span>
-                      {address.isDefault && (
-                        <Badge variant="secondary" className="text-xs">
-                          Default
-                        </Badge>
-                      )}
-                    </div>
-                    <p className="text-sm text-muted-foreground mb-1">{address.phone}</p>
-                    <p className="text-sm">
-                      {address.locality}, {address.city} - {address.pincode}
-                    </p>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    {!address.isDefault && (
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => setDefaultMutation.mutate(address.id)}
-                        disabled={setDefaultMutation.isPending}
-                        data-testid={`button-set-default-${address.id}`}
-                      >
-                        <Check className="h-4 w-4 mr-1" />
-                        Set Default
-                      </Button>
+            <Card key={address.id}>
+              <CardContent className="p-4 flex justify-between gap-4">
+                <div>
+                  <div className="flex items-center gap-2 mb-1">
+                    <MapPin className="h-4 w-4 text-primary" />
+                    <span className="font-medium">{address.name}</span>
+                    {address.isDefault && (
+                      <Badge variant="secondary">Default</Badge>
                     )}
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => handleOpenDialog(address)}
-                      data-testid={`button-edit-address-${address.id}`}
-                    >
-                      <Edit className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => handleDelete(address)}
-                      data-testid={`button-delete-address-${address.id}`}
-                    >
-                      <Trash2 className="h-4 w-4 text-destructive" />
-                    </Button>
                   </div>
+                  <p className="text-sm text-muted-foreground">
+                    {address.phone}
+                  </p>
+                  <p className="text-sm">
+                    {address.locality}, {address.city} - {address.pincode}
+                  </p>
+                </div>
+
+                <div className="flex gap-2">
+                  {!address.isDefault && (
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      disabled={false}
+                      onClick={() => setDefaultAddress(address.id)}
+                    >
+                      <Check className="h-4 w-4 mr-1" />
+                      Set Default
+                    </Button>
+                  )}
+
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    onClick={() => handleOpenDialog(address)}
+                  >
+                    <Edit className="h-4 w-4" />
+                  </Button>
+
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    disabled={isDeletAddresses}
+                    onClick={() => {
+                      setAddressToDelete(address);
+                      setDeleteDialogOpen(true);
+                    }}
+                  >
+                    <Trash2 className="h-4 w-4 text-destructive" />
+                  </Button>
                 </div>
               </CardContent>
             </Card>
@@ -275,8 +237,10 @@ export default function Addresses() {
           <CardContent className="py-12 text-center">
             <MapPin className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
             <h3 className="font-medium mb-2">No addresses saved</h3>
-            <p className="text-muted-foreground mb-4">Add an address for faster checkout</p>
-            <Button onClick={() => handleOpenDialog()} data-testid="button-add-first-address">
+            <p className="text-muted-foreground mb-4">
+              Add an address for faster checkout
+            </p>
+            <Button onClick={() => handleOpenDialog()}>
               <Plus className="h-4 w-4 mr-2" />
               Add Your First Address
             </Button>
@@ -284,121 +248,119 @@ export default function Addresses() {
         </Card>
       )}
 
-      {/* Add/Edit Address Dialog */}
+      {/* -------- ADD / EDIT DIALOG -------- */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="max-w-md">
+        <DialogContent>
           <DialogHeader>
-            <DialogTitle>{editingAddress ? "Edit Address" : "Add New Address"}</DialogTitle>
+            <DialogTitle>
+              {editingAddress ? "Edit Address" : "Add Address"}
+            </DialogTitle>
             <DialogDescription>
-              {editingAddress ? "Update your delivery address" : "Add a new delivery address"}
+              {editingAddress
+                ? "Update your delivery address"
+                : "Add a new delivery address"}
             </DialogDescription>
           </DialogHeader>
+
           <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="name">Full Name</Label>
-                <Input
-                  id="name"
-                  value={formData.name}
-                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  required
-                  data-testid="input-address-name"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="phone">Phone Number</Label>
-                <Input
-                  id="phone"
-                  type="tel"
-                  value={formData.phone}
-                  onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                  required
-                  data-testid="input-address-phone"
-                />
-              </div>
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="locality">Locality / Street Address</Label>
+            <Input
+              placeholder="Full Name"
+              value={formData.name}
+              onChange={(e) =>
+                setFormData({ ...formData, name: e.target.value })
+              }
+              required
+            />
+
+            <Input
+              placeholder="Phone"
+              value={formData.phone}
+              onChange={(e) =>
+                setFormData({ ...formData, phone: e.target.value })
+              }
+              required
+            />
+
+            <Input
+              placeholder="Locality"
+              value={formData.locality}
+              onChange={(e) =>
+                setFormData({ ...formData, locality: e.target.value })
+              }
+              required
+            />
+
+            <Input
+              placeholder="City"
+              value={formData.city}
+              onChange={(e) =>
+                setFormData({ ...formData, city: e.target.value })
+              }
+              required
+            />
+
+            <div>
               <Input
-                id="locality"
-                value={formData.locality}
-                onChange={(e) => setFormData({ ...formData, locality: e.target.value })}
+                placeholder="Pincode"
+                maxLength={6}
+                value={formData.pincode}
+                onChange={(e) => {
+                  const value = e.target.value.replace(/\D/g, "");
+                  setFormData({ ...formData, pincode: value });
+                  if (value.length === 6) checkPincode(value);
+                }}
                 required
-                data-testid="input-address-locality"
               />
+
+              {pincodeLoading && (
+                <p className="text-xs text-muted-foreground mt-1">
+                  Checking availability...
+                </p>
+              )}
+
+              {pincodeInfo && (
+                <p
+                  className={`text-xs mt-1 flex items-center gap-1 ${
+                    pincodeInfo.available
+                      ? "text-green-600"
+                      : "text-destructive"
+                  }`}
+                >
+                  {pincodeInfo.available ? (
+                    <Check className="h-3 w-3" />
+                  ) : (
+                    <AlertCircle className="h-3 w-3" />
+                  )}
+                  {pincodeInfo.available
+                    ? `Delivery in ${pincodeInfo.deliveryDays} days`
+                    : pincodeInfo.message}
+                </p>
+              )}
             </div>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="city">City</Label>
-                <Input
-                  id="city"
-                  value={formData.city}
-                  onChange={(e) => setFormData({ ...formData, city: e.target.value })}
-                  required
-                  data-testid="input-address-city"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="pincode">Pincode</Label>
-                <Input
-                  id="pincode"
-                  maxLength={6}
-                  value={formData.pincode}
-                  onChange={(e) => {
-                    const value = e.target.value.replace(/\D/g, "");
-                    setFormData({ ...formData, pincode: value });
-                    if (value.length === 6) {
-                      checkPincodeAvailability(value);
-                    } else {
-                      setPincodeStatus(null);
-                    }
-                  }}
-                  required
-                  data-testid="input-address-pincode"
-                />
-                {checkingPincode && (
-                  <p className="text-xs text-muted-foreground">Checking availability...</p>
-                )}
-                {pincodeStatus && (
-                  <p
-                    className={`text-xs flex items-center gap-1 ${
-                      pincodeStatus.available ? "text-green-600" : "text-destructive"
-                    }`}
-                    data-testid="text-pincode-status"
-                  >
-                    {pincodeStatus.available ? (
-                      <Check className="h-3 w-3" />
-                    ) : (
-                      <AlertCircle className="h-3 w-3" />
-                    )}
-                    {pincodeStatus.message}
-                  </p>
-                )}
-              </div>
-            </div>
+
             <div className="flex items-center gap-2">
               <Checkbox
-                id="isDefault"
                 checked={formData.isDefault}
-                onCheckedChange={(checked) =>
-                  setFormData({ ...formData, isDefault: checked === true })
+                onCheckedChange={(v) =>
+                  setFormData({ ...formData, isDefault: v === true })
                 }
-                data-testid="checkbox-is-default"
               />
-              <Label htmlFor="isDefault" className="text-sm font-normal">
-                Set as default address
-              </Label>
+              <Label>Set as default</Label>
             </div>
+
             <DialogFooter>
-              <Button type="button" variant="outline" onClick={handleCloseDialog}>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={handleCloseDialog}
+              >
                 Cancel
               </Button>
               <Button
                 type="submit"
-                disabled={createMutation.isPending || updateMutation.isPending}
-                data-testid="button-save-address"
+                disabled={isAddNewAddress || isUpdateAddresses}
               >
-                {createMutation.isPending || updateMutation.isPending
+                {isAddNewAddress || isUpdateAddresses
                   ? "Saving..."
                   : editingAddress
                   ? "Update Address"
@@ -409,23 +371,22 @@ export default function Addresses() {
         </DialogContent>
       </Dialog>
 
-      {/* Delete Confirmation Dialog */}
+      {/* -------- DELETE CONFIRM -------- */}
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Delete Address</AlertDialogTitle>
             <AlertDialogDescription>
-              Are you sure you want to delete this address? This action cannot be undone.
+              Are you sure you want to delete this address?
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction
-              onClick={() => addressToDelete && deleteMutation.mutate(addressToDelete.id)}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-              data-testid="button-confirm-delete"
+              onClick={handleDelete}
+              className="bg-destructive text-destructive-foreground"
             >
-              {deleteMutation.isPending ? "Deleting..." : "Delete"}
+              {isDeletAddresses ? "Deleting..." : "Delete"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

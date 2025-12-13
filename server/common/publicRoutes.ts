@@ -5,6 +5,20 @@ import { sareeService } from "server/saree/sareeStorage";
 import { salesService } from "server/sales&offer/salesStorage";
 
 export const publicRoutes = (app: Express) => {
+  app.get("/api/filters", async (req, res) => {
+    try {
+      const [categories, colors, fabrics] = await Promise.all([
+        publicStorage.getCategories(),
+        publicStorage.getColors(),
+        publicStorage.getFabrics(),
+      ]);
+
+      res.json({ categories, colors, fabrics });
+    } catch {
+      res.status(500).json({ message: "Failed to fetch filters" });
+    }
+  });
+
   // Categories
   app.get("/api/categories", async (req, res) => {
     try {
@@ -166,12 +180,12 @@ export const publicRoutes = (app: Express) => {
       if (!sale || !sale.isActive) {
         return res.status(404).json({ message: "Sale not found" });
       }
-      
+
       const now = new Date();
       if (now < new Date(sale.validFrom) || now > new Date(sale.validUntil)) {
         return res.status(404).json({ message: "Sale not active" });
       }
-      
+
       res.json(sale);
     } catch (error) {
       console.error("Error fetching sale:", error);

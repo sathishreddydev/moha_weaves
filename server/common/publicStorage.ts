@@ -45,6 +45,7 @@ export interface PublicStorage {
 }
 
 export class PublicRepository implements PublicStorage {
+  
   // Categories
   async getCategories(): Promise<Category[]> {
     return db.select().from(categories).where(eq(categories.isActive, true));
