@@ -58,9 +58,11 @@ export default function Home() {
   const fetchFilters = useFilterStore((state) => state.fetchFilters);
   const loadingCategories = useFilterStore((state) => state.loading);
   useEffect(() => {
-    fetchFilters();
-  }, []);
-
+    if (categories.length === 0) {
+      fetchFilters();
+    }
+  }, [categories]);
+  
   return (
     <div className="min-h-screen">
       {/* Hero Section - Dynamic based on active sales */}

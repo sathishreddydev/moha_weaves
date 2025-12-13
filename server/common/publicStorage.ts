@@ -15,7 +15,6 @@ import { db } from "server/db";
 export interface PublicStorage {
   // Categories
   getCategories(): Promise<Category[]>;
-  getCategory(id: string): Promise<Category | undefined>;
   createCategory(category: InsertCategory): Promise<Category>;
   updateCategory(
     id: string,
@@ -51,13 +50,7 @@ export class PublicRepository implements PublicStorage {
     return db.select().from(categories).where(eq(categories.isActive, true));
   }
 
-  async getCategory(id: string): Promise<Category | undefined> {
-    const [category] = await db
-      .select()
-      .from(categories)
-      .where(eq(categories.id, id));
-    return category || undefined;
-  }
+
 
   async createCategory(category: InsertCategory): Promise<Category> {
     const [result] = await db.insert(categories).values(category).returning();

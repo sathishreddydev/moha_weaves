@@ -7,7 +7,13 @@ import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Separator } from "@/components/ui/separator";
-import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+} from "@/components/ui/sheet";
 import {
   Select,
   SelectContent,
@@ -23,11 +29,12 @@ import {
 import { ProductCard } from "@/components/product/ProductCard";
 import { useQuery } from "@tanstack/react-query";
 import type { SareeWithDetails, Category, Color, Fabric } from "@shared/schema";
+import { useFilterStore } from "@/components/Store/useFilterStore";
 
 export default function Sarees() {
   const location = useLocation();
   const searchParams = new URLSearchParams(location.search);
-  
+
   const [filters, setFilters] = useState({
     search: searchParams.get("search") || "",
     category: searchParams.get("category") || "",
@@ -60,19 +67,15 @@ export default function Sarees() {
   const { data: sarees, isLoading } = useQuery<SareeWithDetails[]>({
     queryKey: [buildQueryString()],
   });
-
-  const { data: categories } = useQuery<Category[]>({
-    queryKey: ["/api/categories"],
-  });
-
-  const { data: colors } = useQuery<Color[]>({
-    queryKey: ["/api/colors"],
-  });
-
-  const { data: fabrics } = useQuery<Fabric[]>({
-    queryKey: ["/api/fabrics"],
-  });
-
+  const categories = useFilterStore((state) => state.categories);
+  const colors = useFilterStore((state) => state.colors);
+  const fabrics = useFilterStore((state) => state.fabrics);
+  const fetchFilters = useFilterStore((state) => state.fetchFilters);
+  useEffect(() => {
+    if (!categories.length || !colors.length || !fabrics.length) {
+      fetchFilters();
+    }
+  }, [categories, colors, fabrics]);
   const updateFilter = (key: string, value: string | boolean) => {
     setFilters((prev) => ({ ...prev, [key]: value }));
   };
@@ -91,7 +94,14 @@ export default function Sarees() {
     });
   };
 
-  const hasActiveFilters = filters.category || filters.color || filters.fabric || filters.featured || filters.onSale || filters.minPrice || filters.maxPrice;
+  const hasActiveFilters =
+    filters.category ||
+    filters.color ||
+    filters.fabric ||
+    filters.featured ||
+    filters.onSale ||
+    filters.minPrice ||
+    filters.maxPrice;
 
   const FilterContent = () => (
     <div className="space-y-6">
@@ -107,10 +117,15 @@ export default function Sarees() {
               <Checkbox
                 id={`cat-${cat.id}`}
                 checked={filters.category === cat.id}
-                onCheckedChange={(checked) => updateFilter("category", checked ? cat.id : "")}
+                onCheckedChange={(checked) =>
+                  updateFilter("category", checked ? cat.id : "")
+                }
                 data-testid={`checkbox-category-${cat.id}`}
               />
-              <Label htmlFor={`cat-${cat.id}`} className="text-sm cursor-pointer">
+              <Label
+                htmlFor={`cat-${cat.id}`}
+                className="text-sm cursor-pointer"
+              >
                 {cat.name}
               </Label>
             </div>
@@ -131,9 +146,16 @@ export default function Sarees() {
             {colors?.map((color) => (
               <button
                 key={color.id}
-                onClick={() => updateFilter("color", filters.color === color.id ? "" : color.id)}
+                onClick={() =>
+                  updateFilter(
+                    "color",
+                    filters.color === color.id ? "" : color.id
+                  )
+                }
                 className={`w-8 h-8 rounded-full border-2 transition-all ${
-                  filters.color === color.id ? "ring-2 ring-primary ring-offset-2" : ""
+                  filters.color === color.id
+                    ? "ring-2 ring-primary ring-offset-2"
+                    : ""
                 }`}
                 style={{ backgroundColor: color.hexCode }}
                 title={color.name}
@@ -158,10 +180,15 @@ export default function Sarees() {
               <Checkbox
                 id={`fab-${fab.id}`}
                 checked={filters.fabric === fab.id}
-                onCheckedChange={(checked) => updateFilter("fabric", checked ? fab.id : "")}
+                onCheckedChange={(checked) =>
+                  updateFilter("fabric", checked ? fab.id : "")
+                }
                 data-testid={`checkbox-fabric-${fab.id}`}
               />
-              <Label htmlFor={`fab-${fab.id}`} className="text-sm cursor-pointer">
+              <Label
+                htmlFor={`fab-${fab.id}`}
+                className="text-sm cursor-pointer"
+              >
                 {fab.name}
               </Label>
             </div>
@@ -229,7 +256,12 @@ export default function Sarees() {
       </div>
 
       {hasActiveFilters && (
-        <Button variant="outline" onClick={clearFilters} className="w-full" data-testid="button-clear-filters">
+        <Button
+          variant="outline"
+          onClick={clearFilters}
+          className="w-full"
+          data-testid="button-clear-filters"
+        >
           <X className="h-4 w-4 mr-2" />
           Clear All Filters
         </Button>
@@ -241,7 +273,10 @@ export default function Sarees() {
     <div className="max-w-7xl mx-auto px-4 py-8">
       {/* Header */}
       <div className="mb-8">
-        <h1 className="font-serif text-3xl font-semibold" data-testid="text-page-title">
+        <h1
+          className="font-serif text-3xl font-semibold"
+          data-testid="text-page-title"
+        >
           {filters.search ? `Search: "${filters.search}"` : "All Sarees"}
         </h1>
         <p className="text-muted-foreground mt-1">
@@ -259,7 +294,12 @@ export default function Sarees() {
                 Filters
               </h2>
               {hasActiveFilters && (
-                <Button variant="ghost" size="sm" onClick={clearFilters} data-testid="button-clear-filters-desktop">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={clearFilters}
+                  data-testid="button-clear-filters-desktop"
+                >
                   Clear
                 </Button>
               )}
@@ -309,7 +349,10 @@ export default function Sarees() {
             />
 
             {/* Sort */}
-            <Select value={filters.sort} onValueChange={(v) => updateFilter("sort", v)}>
+            <Select
+              value={filters.sort}
+              onValueChange={(v) => updateFilter("sort", v)}
+            >
               <SelectTrigger className="w-40" data-testid="select-sort">
                 <SelectValue placeholder="Sort by" />
               </SelectTrigger>
@@ -341,8 +384,14 @@ export default function Sarees() {
             </div>
           ) : (
             <div className="text-center py-16">
-              <p className="text-muted-foreground mb-4">No sarees found matching your criteria.</p>
-              <Button onClick={clearFilters} variant="outline" data-testid="button-clear-search">
+              <p className="text-muted-foreground mb-4">
+                No sarees found matching your criteria.
+              </p>
+              <Button
+                onClick={clearFilters}
+                variant="outline"
+                data-testid="button-clear-search"
+              >
                 Clear filters
               </Button>
             </div>

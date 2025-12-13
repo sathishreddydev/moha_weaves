@@ -3,20 +3,30 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Card } from "@/components/ui/card";
 import { useQuery } from "@tanstack/react-query";
 import type { Category } from "@shared/schema";
+import { useFilterStore } from "@/components/Store/useFilterStore";
+import { useEffect } from "react";
 
 export default function Categories() {
-  const { data: categories, isLoading } = useQuery<Category[]>({
-    queryKey: ["/api/categories"],
-  });
-
+  const categories = useFilterStore((state) => state.categories);
+  const isLoading = useFilterStore((state) => state.loading);
+  const fetchFilters = useFilterStore((state) => state.fetchFilters);
+  useEffect(() => {
+    if (categories.length === 0) {
+      fetchFilters();
+    }
+  }, [categories]);
   return (
     <div className="max-w-7xl mx-auto px-4 py-12">
       <div className="text-center mb-12">
-        <h1 className="font-serif text-4xl font-semibold mb-4" data-testid="text-page-title">
+        <h1
+          className="font-serif text-4xl font-semibold mb-4"
+          data-testid="text-page-title"
+        >
           Shop by Category
         </h1>
         <p className="text-muted-foreground max-w-2xl mx-auto">
-          Explore our curated collections of handcrafted sarees, each category representing a unique tradition and artistry.
+          Explore our curated collections of handcrafted sarees, each category
+          representing a unique tradition and artistry.
         </p>
       </div>
 
@@ -35,13 +45,19 @@ export default function Categories() {
                 data-testid={`card-category-${category.id}`}
               >
                 <img
-                  src={category.imageUrl || "https://images.unsplash.com/photo-1610030469983-98e550d6193c?w=600&h=400&fit=crop"}
+                  src={
+                    category.imageUrl ||
+                    "https://images.unsplash.com/photo-1610030469983-98e550d6193c?w=600&h=400&fit=crop"
+                  }
                   alt={category.name}
                   className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
                 />
                 <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent" />
                 <div className="absolute bottom-0 left-0 right-0 p-6">
-                  <h2 className="font-serif text-2xl font-semibold text-white mb-2" data-testid={`text-category-name-${category.id}`}>
+                  <h2
+                    className="font-serif text-2xl font-semibold text-white mb-2"
+                    data-testid={`text-category-name-${category.id}`}
+                  >
                     {category.name}
                   </h2>
                   {category.description && (
@@ -51,8 +67,18 @@ export default function Categories() {
                   )}
                   <span className="inline-flex items-center text-sm text-white/90 mt-3 group-hover:text-white transition-colors">
                     Explore Collection
-                    <svg className="w-4 h-4 ml-2 transition-transform group-hover:translate-x-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                    <svg
+                      className="w-4 h-4 ml-2 transition-transform group-hover:translate-x-1"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M9 5l7 7-7 7"
+                      />
                     </svg>
                   </span>
                 </div>
