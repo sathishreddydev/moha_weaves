@@ -27,6 +27,7 @@ import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { z } from "zod";
 import type { CartItemWithSaree, UserAddress, Coupon } from "@shared/schema";
+import { useCartStore } from "@/components/Store/useCartStore";
 
 const addressFormSchema = z.object({
   name: z.string().min(2, "Name must be at least 2 characters"),
@@ -64,11 +65,10 @@ export default function Checkout() {
     pincode: "",
   });
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
+  const cartItems = useCartStore((state) => state.cart);
+  const isLoadingCart = useCartStore((state) => state.isLoadingCart);
+  const clearCart = useCartStore((state) => state.clearCart);
 
-  const { data: cartItems, isLoading } = useQuery<CartItemWithSaree[]>({
-    queryKey: ["/api/user/cart"],
-    enabled: !!user,
-  });
 
   const { data: addresses, isLoading: loadingAddresses } = useQuery<
     UserAddress[]
@@ -199,8 +199,7 @@ export default function Checkout() {
       return response.json();
     },
     onSuccess: (data: { orderId: string }) => {
-      queryClient.invalidateQueries({ queryKey: ["/api/user/cart"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/user/cart/count"] });
+      clearCart();
       queryClient.invalidateQueries({ queryKey: ["/api/user/orders"] });
       setOrderId(data.orderId);
       setOrderSuccess(true);
@@ -251,120 +250,118 @@ export default function Checkout() {
     createAddressMutation.mutate(newAddress);
   };
 
-const openRazorpayCheckout = (params: {
-  razorpayOrderId: string;
-  amount: number;
-  currency: string;
-  shippingAddress: string;
-  phone: string;
-  notes?: string;
-  couponId?: string;
-}) => {
+  const openRazorpayCheckout = (params: {
+    razorpayOrderId: string;
+    amount: number;
+    currency: string;
+    shippingAddress: string;
+    phone: string;
+    notes?: string;
+    couponId?: string;
+  }) => {
+    const options = {
+      key: "rzp_test_UxXBzl98ySixq7",
+      amount: params.amount,
+      currency: params.currency,
+      name: "Moha Weaves",
+      description: "Order Payment",
+      order_id: params.razorpayOrderId,
 
-  const options = {
-    key: 'rzp_test_UxXBzl98ySixq7',
-    amount: params.amount,
-    currency: params.currency,
-    name: "Moha Weaves",
-    description: "Order Payment",
-    order_id: params.razorpayOrderId,
+      handler: async function (response: any) {
+        const res = await apiRequest("POST", "/api/user/verify-payment", {
+          razorpayOrderId: response.razorpay_order_id,
+          razorpayPaymentId: response.razorpay_payment_id,
+          razorpaySignature: response.razorpay_signature,
+          shippingAddress: params.shippingAddress,
+          phone: params.phone,
+          notes: params.notes,
+          couponId: params.couponId,
+        });
 
-    handler: async function (response: any) {
-      const res = await apiRequest("POST", "/api/user/verify-payment", {
-        razorpayOrderId: response.razorpay_order_id,
-        razorpayPaymentId: response.razorpay_payment_id,
-        razorpaySignature: response.razorpay_signature,
-        shippingAddress: params.shippingAddress,
-        phone: params.phone,
-        notes: params.notes,
-        couponId: params.couponId,
-      });
+        const data = await res.json();
 
-      const data = await res.json();
+        toast({
+          title: "Payment Success!",
+          description: "Your order has been placed.",
+        });
 
+        // Update UI
+        clearCart();
+        queryClient.invalidateQueries({ queryKey: ["/api/user/orders"] });
+
+        setOrderId(data.orderId);
+        setOrderSuccess(true);
+      },
+
+      theme: {
+        color: "#3399cc",
+      },
+    };
+
+    const rzp = new (window as any).Razorpay(options);
+
+    rzp.on("payment.failed", function (response: any) {
       toast({
-        title: "Payment Success!",
-        description: "Your order has been placed.",
+        title: "Payment Failed",
+        description: "Transaction was cancelled or failed",
+        variant: "destructive",
       });
+    });
 
-      // Update UI
-      queryClient.invalidateQueries({ queryKey: ["/api/user/cart"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/user/orders"] });
-
-      setOrderId(data.orderId);
-      setOrderSuccess(true);
-    },
-
-    theme: {
-      color: "#3399cc",
-    },
+    rzp.open();
   };
 
-  const rzp = new (window as any).Razorpay(options);
+  const initiateRazorpayPayment = async () => {
+    const selectedAddress = addresses?.find((a) => a.id === selectedAddressId);
+    if (!selectedAddress) {
+      toast({
+        title: "No Address Selected",
+        description: "Please select a delivery address",
+        variant: "destructive",
+      });
+      return;
+    }
 
-  rzp.on("payment.failed", function (response: any) {
-    toast({
-      title: "Payment Failed",
-      description: "Transaction was cancelled or failed",
-      variant: "destructive",
-    });
-  });
+    const shippingAddress = `${selectedAddress.name}\n${selectedAddress.phone}\n${selectedAddress.locality}\n${selectedAddress.city} - ${selectedAddress.pincode}`;
 
-  rzp.open();
-};
+    try {
+      // 1️⃣ Create Razorpay order
+      const res = await apiRequest("POST", "/api/user/create-razorpay-order", {
+        couponId: appliedCoupon?.id,
+      });
+      const razorpayOrder = await res.json();
 
-const initiateRazorpayPayment = async () => {
-  const selectedAddress = addresses?.find((a) => a.id === selectedAddressId);
-  if (!selectedAddress) {
-    toast({
-      title: "No Address Selected",
-      description: "Please select a delivery address",
-      variant: "destructive",
-    });
-    return;
-  }
+      // 2️⃣ Open Razorpay Checkout
+      openRazorpayCheckout({
+        razorpayOrderId: razorpayOrder.razorpayOrderId,
+        amount: razorpayOrder.amount,
+        currency: razorpayOrder.currency,
+        shippingAddress,
+        phone: selectedAddress.phone,
+        notes,
+        couponId: appliedCoupon?.id,
+      });
+    } catch (err: any) {
+      toast({
+        title: "Order Failed",
+        description: err.message || "Failed to initiate Razorpay",
+        variant: "destructive",
+      });
+    }
+  };
 
-  const shippingAddress = `${selectedAddress.name}\n${selectedAddress.phone}\n${selectedAddress.locality}\n${selectedAddress.city} - ${selectedAddress.pincode}`;
+  const handlePlaceOrder = () => {
+    if (!pincodeStatus?.available) {
+      toast({
+        title: "Delivery not available",
+        description: "Please select an address with a serviceable pincode",
+        variant: "destructive",
+      });
+      return;
+    }
 
-  try {
-    // 1️⃣ Create Razorpay order
-    const res = await apiRequest("POST", "/api/user/create-razorpay-order", {
-      couponId: appliedCoupon?.id,
-    });
-    const razorpayOrder = await res.json();
-
-    // 2️⃣ Open Razorpay Checkout
-    openRazorpayCheckout({
-      razorpayOrderId: razorpayOrder.razorpayOrderId,
-      amount: razorpayOrder.amount,
-      currency: razorpayOrder.currency,
-      shippingAddress,
-      phone: selectedAddress.phone,
-      notes,
-      couponId: appliedCoupon?.id,
-    });
-  } catch (err: any) {
-    toast({
-      title: "Order Failed",
-      description: err.message || "Failed to initiate Razorpay",
-      variant: "destructive",
-    });
-  }
-};
-
- const handlePlaceOrder = () => {
-  if (!pincodeStatus?.available) {
-    toast({
-      title: "Delivery not available",
-      description: "Please select an address with a serviceable pincode",
-      variant: "destructive",
-    });
-    return;
-  }
-
-  initiateRazorpayPayment();
-};
-
+    initiateRazorpayPayment();
+  };
 
   if (!user) {
     return (
@@ -380,7 +377,7 @@ const initiateRazorpayPayment = async () => {
     );
   }
 
-  if (isLoading || loadingAddresses) {
+  if (isLoadingCart || loadingAddresses) {
     return (
       <div className="max-w-4xl mx-auto px-4 py-8">
         <Skeleton className="h-8 w-48 mb-8" />
@@ -946,18 +943,12 @@ const initiateRazorpayPayment = async () => {
 
               <Button
                 className="w-full mt-6"
-                disabled={
-                  !selectedAddressId ||
-                  !pincodeStatus?.available ||
-                  placeOrderMutation.isPending
-                }
+                disabled={!selectedAddressId || !pincodeStatus?.available}
                 onClick={handlePlaceOrder}
                 data-testid="button-place-order"
               >
                 <CreditCard className="h-4 w-4 mr-2" />
-                {placeOrderMutation.isPending
-                  ? "Placing Order..."
-                  : `Pay ${formatPrice(total)}`}
+                {`Pay ${formatPrice(total)}`}
               </Button>
 
               {!pincodeStatus?.available && selectedAddressId && (

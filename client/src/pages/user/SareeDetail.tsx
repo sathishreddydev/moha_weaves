@@ -23,6 +23,8 @@ import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { useState } from "react";
 import type { CartItemWithSaree, SareeWithDetails } from "@shared/schema";
+import { useCartStore } from "@/components/Store/useCartStore";
+import { useWishlistStore } from "@/components/Store/useWishlistStore";
 
 export default function SareeDetail() {
   const { id } = useParams();
@@ -44,51 +46,21 @@ export default function SareeDetail() {
     queryKey: [relatedQueryString],
     enabled: !!relatedQueryString,
   });
-  const { data: cartItems } = useQuery<CartItemWithSaree[]>({
-    queryKey: ["/api/user/cart"],
-    enabled: !!user,
-  });
-  const { data: wishlistItems } = useQuery<{ sareeId: string }[]>({
-    queryKey: ["/api/user/wishlist"],
-    enabled: !!user && user.role === "user",
-  });
+  const cartItems = useCartStore((state) => state.cart);
+  const updateQuantity = useCartStore((state) => state.updateQuantity);
+  const addCartItem = useCartStore((state) => state.addItem);
+  const isAddingItem = useCartStore((state) => state.isAddingItem);
+  const isUpdatingItem = useCartStore((state) => state.isUpdatingItem);
+  const isRemovingItem = useCartStore((state) => state.isRemovingItem);
+  const wishlistItems = useWishlistStore((state) => state.wishlist);
+  const addWishlistItem = useWishlistStore((state) => state.addItem);
+  const removeWishlistItem = useWishlistStore((state) => state.removeItem);
+  const isAddingWishlistItem = useWishlistStore((state) => state.isAddingItem);
   const isInCart = cartItems?.some((item) => item.saree.id === id);
-
   const isInWishlist = wishlistItems?.some((item) => item.sareeId === id);
-
-  const addToCartMutation = useMutation({
-    mutationFn: () =>
-      apiRequest("POST", "/api/user/cart", { sareeId: id, quantity }),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/user/cart"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/user/cart/count"] });
-      toast({
-        title: "Added to cart",
-        description: `${quantity} item(s) added to your cart.`,
-      });
-    },
-    onError: () => {
-      toast({
-        title: "Error",
-        description: "Failed to add to cart.",
-        variant: "destructive",
-      });
-    },
-  });
-
-  const toggleWishlistMutation = useMutation({
-    mutationFn: () =>
-      isInWishlist
-        ? apiRequest("DELETE", `/api/user/wishlist/${id}`)
-        : apiRequest("POST", "/api/user/wishlist", { sareeId: id }),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/user/wishlist"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/user/wishlist/count"] });
-      toast({
-        title: isInWishlist ? "Removed from wishlist" : "Added to wishlist",
-      });
-    },
-  });
+  const isRemovingWishlistItem = useWishlistStore(
+    (state) => state.isRemovingItem
+  );
 
   const formatPrice = (price: string | number) => {
     const numPrice = typeof price === "string" ? parseFloat(price) : price;
@@ -253,7 +225,6 @@ export default function SareeDetail() {
             )}
           </div>
 
-          {/* Stock status */}
           <div>
             {isOnlineAvailable ? (
               hasStock ? (
@@ -273,45 +244,62 @@ export default function SareeDetail() {
 
           <Separator />
 
-          {/* Add to cart */}
           {user && user.role === "user" && isOnlineAvailable && hasStock && (
             <div className="space-y-4">
               <div className="flex items-center gap-4">
                 <span className="text-sm font-medium">Quantity:</span>
                 {isInCart ? (
-                  <div className="flex items-center border rounded-md">
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => setQuantity(Math.max(1, quantity - 1))}
-                      disabled={quantity <= 1}
-                      data-testid="button-quantity-minus"
-                    >
-                      <Minus className="h-4 w-4" />
-                    </Button>
-                    <span
-                      className="w-12 text-center"
-                      data-testid="text-quantity"
-                    >
-                      {quantity}
-                    </span>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() =>
-                        setQuantity(Math.min(saree.onlineStock, quantity + 1))
-                      }
-                      disabled={quantity >= saree.onlineStock}
-                      data-testid="button-quantity-plus"
-                    >
-                      <Plus className="h-4 w-4" />
-                    </Button>
-                  </div>
+                  (() => {
+                    const item = cartItems.find((c) => c.saree.id === saree.id);
+                    if (!item) return null;
+                    return (
+                      <div className="flex items-center border rounded-md">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8"
+                          onClick={() =>
+                            updateQuantity(item.id, item.quantity - 1)
+                          }
+                          disabled={
+                            item.quantity <= 1 ||
+                            isRemovingItem ||
+                            isUpdatingItem
+                          }
+                          data-testid={`button-quantity-minus-${item.id}`}
+                        >
+                          <Minus className="h-3 w-3" />
+                        </Button>
+                        <span
+                          className="w-8 text-center text-sm"
+                          data-testid={`text-quantity-${item.id}`}
+                        >
+                          {item.quantity}
+                        </span>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8"
+                          onClick={() =>
+                            updateQuantity(item.id, item.quantity + 1)
+                          }
+                          disabled={
+                            item.quantity >= item.saree.onlineStock ||
+                            isUpdatingItem ||
+                            isRemovingItem
+                          }
+                          data-testid={`button-quantity-plus-${item.id}`}
+                        >
+                          <Plus className="h-3 w-3" />
+                        </Button>
+                      </div>
+                    );
+                  })()
                 ) : (
                   <Button
                     className="flex-1"
-                    onClick={() => addToCartMutation.mutate()}
-                    disabled={addToCartMutation.isPending}
+                    onClick={() => addCartItem(saree.id, quantity)}
+                    disabled={isAddingItem}
                     data-testid="button-add-to-cart"
                   >
                     <ShoppingBag className="h-4 w-4 mr-2" />
@@ -319,11 +307,18 @@ export default function SareeDetail() {
                   </Button>
                 )}
                 <Button
-                  variant="outline"
+                  variant="secondary"
                   size="icon"
-                  onClick={() => toggleWishlistMutation.mutate()}
-                  disabled={toggleWishlistMutation.isPending}
-                  data-testid="button-wishlist"
+                  className="h-9 w-9 rounded-full bg-background/90 backdrop-blur-sm"
+                  onClick={() =>
+                    isInWishlist
+                      ? removeWishlistItem(saree.id)
+                      : addWishlistItem(saree.id)
+                  }
+                  disabled={
+                    isInWishlist ? isRemovingWishlistItem : isAddingWishlistItem
+                  }
+                  data-testid={`button-wishlist-${saree.id}`}
                 >
                   <Heart
                     className={`h-4 w-4 ${
@@ -348,7 +343,6 @@ export default function SareeDetail() {
             </div>
           )}
 
-          {/* Features */}
           <div className="grid grid-cols-3 gap-4 pt-4">
             <div className="text-center p-3 rounded-lg bg-muted/50">
               <Truck className="h-5 w-5 mx-auto mb-1 text-primary" />

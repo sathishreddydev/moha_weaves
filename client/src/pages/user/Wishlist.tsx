@@ -4,44 +4,20 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useAuth } from "@/lib/auth";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { apiRequest } from "@/lib/queryClient";
-import { useToast } from "@/hooks/use-toast";
-import type { WishlistItemWithSaree } from "@shared/schema";
+import { useCartStore } from "@/components/Store/useCartStore";
+import { useWishlistStore } from "@/components/Store/useWishlistStore";
 
 export default function Wishlist() {
   const { user } = useAuth();
-  const { toast } = useToast();
-  const queryClient = useQueryClient();
+  const isLoadingCart = useCartStore((state) => state.isLoadingCart);
+  const addCartItem = useCartStore((state) => state.addItem);
+ const wishlistItems = useWishlistStore((state) => state.wishlist);
+  const isLoadingWishlist = useWishlistStore((state) => state.isLoadingWishlist);
+  const removeWishlistItem = useWishlistStore((state) => state.removeItem);
+  const isRemovingWishlistItem = useWishlistStore(
+    (state) => state.isRemovingItem
+  );
 
-  const { data: wishlistItems, isLoading } = useQuery<WishlistItemWithSaree[]>({
-    queryKey: ["/api/user/wishlist"],
-    enabled: !!user,
-  });
-
-  const removeFromWishlistMutation = useMutation({
-    mutationFn: (sareeId: string) => apiRequest("DELETE", `/api/user/wishlist/${sareeId}`),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/user/wishlist"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/user/wishlist/count"] });
-      toast({ title: "Removed", description: "Item removed from wishlist." });
-    },
-    onError: () => {
-      toast({ title: "Error", description: "Failed to remove item.", variant: "destructive" });
-    },
-  });
-
-  const addToCartMutation = useMutation({
-    mutationFn: (sareeId: string) => apiRequest("POST", "/api/user/cart", { sareeId, quantity: 1 }),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/user/cart"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/user/cart/count"] });
-      toast({ title: "Added to cart", description: "Item added to your cart." });
-    },
-    onError: () => {
-      toast({ title: "Error", description: "Failed to add to cart.", variant: "destructive" });
-    },
-  });
 
   const formatPrice = (price: string | number) => {
     const numPrice = typeof price === "string" ? parseFloat(price) : price;
@@ -56,8 +32,12 @@ export default function Wishlist() {
     return (
       <div className="max-w-7xl mx-auto px-4 py-16 text-center">
         <Heart className="h-16 w-16 mx-auto text-muted-foreground mb-4" />
-        <h2 className="text-2xl font-semibold mb-2">Your wishlist is waiting</h2>
-        <p className="text-muted-foreground mb-6">Please login to view your wishlist.</p>
+        <h2 className="text-2xl font-semibold mb-2">
+          Your wishlist is waiting
+        </h2>
+        <p className="text-muted-foreground mb-6">
+          Please login to view your wishlist.
+        </p>
         <Link to="/user/login">
           <Button data-testid="button-login">Login</Button>
         </Link>
@@ -65,7 +45,7 @@ export default function Wishlist() {
     );
   }
 
-  if (isLoading) {
+  if (isLoadingWishlist) {
     return (
       <div className="max-w-7xl mx-auto px-4 py-8">
         <Skeleton className="h-8 w-48 mb-8" />
@@ -87,7 +67,9 @@ export default function Wishlist() {
       <div className="max-w-7xl mx-auto px-4 py-16 text-center">
         <Heart className="h-16 w-16 mx-auto text-muted-foreground mb-4" />
         <h2 className="text-2xl font-semibold mb-2">Your wishlist is empty</h2>
-        <p className="text-muted-foreground mb-6">Start adding items you love to your wishlist.</p>
+        <p className="text-muted-foreground mb-6">
+          Start adding items you love to your wishlist.
+        </p>
         <Link to="/sarees">
           <Button data-testid="button-shop">Browse Sarees</Button>
         </Link>
@@ -97,22 +79,34 @@ export default function Wishlist() {
 
   return (
     <div className="max-w-7xl mx-auto px-4 py-8">
-      <h1 className="font-serif text-3xl font-semibold mb-8" data-testid="text-page-title">
+      <h1
+        className="font-serif text-3xl font-semibold mb-8"
+        data-testid="text-page-title"
+      >
         My Wishlist ({wishlistItems.length} items)
       </h1>
 
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
         {wishlistItems.map((item) => {
           const saree = item.saree;
-          const isOnlineAvailable = saree.distributionChannel === "online" || saree.distributionChannel === "both";
+          const isOnlineAvailable =
+            saree.distributionChannel === "online" ||
+            saree.distributionChannel === "both";
           const hasStock = saree.onlineStock > 0;
 
           return (
-            <Card key={item.id} className="group overflow-visible border-0 shadow-none bg-transparent" data-testid={`card-wishlist-item-${item.id}`}>
+            <Card
+              key={item.id}
+              className="group overflow-visible border-0 shadow-none bg-transparent"
+              data-testid={`card-wishlist-item-${item.id}`}
+            >
               <div className="relative aspect-[3/4] overflow-hidden rounded-md bg-muted">
                 <Link to={`/sarees/${saree.id}`}>
                   <img
-                    src={saree.imageUrl || "https://images.unsplash.com/photo-1610030469983-98e550d6193c?w=400&h=600&fit=crop"}
+                    src={
+                      saree.imageUrl ||
+                      "https://images.unsplash.com/photo-1610030469983-98e550d6193c?w=400&h=600&fit=crop"
+                    }
                     alt={saree.name}
                     className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
                   />
@@ -122,8 +116,8 @@ export default function Wishlist() {
                   variant="secondary"
                   size="icon"
                   className="absolute top-2 right-2 h-9 w-9 rounded-full bg-background/90 backdrop-blur-sm"
-                  onClick={() => removeFromWishlistMutation.mutate(saree.id)}
-                  disabled={removeFromWishlistMutation.isPending}
+                  onClick={() => removeWishlistItem(saree.id)}
+                  disabled={isRemovingWishlistItem}
                   data-testid={`button-remove-${item.id}`}
                 >
                   <Trash2 className="h-4 w-4 text-destructive" />
@@ -133,8 +127,8 @@ export default function Wishlist() {
                   <div className="absolute bottom-0 left-0 right-0 p-2 opacity-0 group-hover:opacity-100 transition-opacity">
                     <Button
                       className="w-full"
-                      onClick={() => addToCartMutation.mutate(saree.id)}
-                      disabled={addToCartMutation.isPending}
+                      onClick={() => addCartItem(saree.id, 1)}
+                      disabled={isLoadingCart}
                       data-testid={`button-add-cart-${item.id}`}
                     >
                       <ShoppingBag className="h-4 w-4 mr-2" />
@@ -152,10 +146,14 @@ export default function Wishlist() {
                 </Link>
                 <div className="flex items-center gap-2">
                   {saree.category && (
-                    <span className="text-xs text-muted-foreground">{saree.category.name}</span>
+                    <span className="text-xs text-muted-foreground">
+                      {saree.category.name}
+                    </span>
                   )}
                 </div>
-                <p className="font-semibold text-primary">{formatPrice(saree.price)}</p>
+                <p className="font-semibold text-primary">
+                  {formatPrice(saree.price)}
+                </p>
                 {!hasStock && isOnlineAvailable && (
                   <p className="text-xs text-muted-foreground">Out of Stock</p>
                 )}

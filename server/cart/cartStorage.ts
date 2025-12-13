@@ -1,51 +1,48 @@
-import { eq, sql, and, lte, gte } from "drizzle-orm";
 import { db } from "server/db";
+import { eq, and, sql, lte, gte } from "drizzle-orm";
+
 import {
-  CartItem,
-  CartItemWithSaree,
-  InsertCartItem,
-  WishlistItem,
-  WishlistItemWithSaree,
-  InsertWishlistItem,
-  cart,
-  wishlist,
   sarees,
   categories,
   colors,
   fabrics,
   sales,
   saleProducts,
+  cart,
+  wishlist,
+  CartItemWithSaree,
+  WishlistItemWithSaree,
+  InsertCartItem,
+  InsertWishlistItem,
 } from "@shared/schema";
-export interface CartStorage {
-  // Cart
-  getCartItems(userId: string): Promise<CartItemWithSaree[]>;
-  getCartCount(userId: string): Promise<number>;
-  addToCart(item: InsertCartItem): Promise<CartItem>;
-  updateCartItem(id: string, quantity: number): Promise<CartItem | undefined>;
-  removeFromCart(id: string): Promise<boolean>;
-  clearCart(userId: string): Promise<boolean>;
 
-  // Wishlist
-  getWishlistItems(userId: string): Promise<WishlistItemWithSaree[]>;
-  getWishlistCount(userId: string): Promise<number>;
-  addToWishlist(item: InsertWishlistItem): Promise<WishlistItem>;
-  removeFromWishlist(userId: string, sareeId: string): Promise<boolean>;
-  isInWishlist(userId: string, sareeId: string): Promise<boolean>;
-}
-export class CartRepository implements CartStorage {
-  // Cart
-  async getCartItems(userId: string): Promise<CartItemWithSaree[]> {
-    const result = await db
-      .select()
-      .from(cart)
-      .innerJoin(sarees, eq(cart.sareeId, sarees.id))
-      .leftJoin(categories, eq(sarees.categoryId, categories.id))
-      .leftJoin(colors, eq(sarees.colorId, colors.id))
-      .leftJoin(fabrics, eq(sarees.fabricId, fabrics.id))
-      .where(eq(cart.userId, userId));
+export class SareeRepository {
+  applySalePricing(price: string, sale: any) {
+    if (!sale) return undefined;
 
-    // Fetch active sales
+    const original = parseFloat(price);
+    let discounted = original;
+
+    if (
+      sale.offerType === "percentage" ||
+      sale.offerType === "category" ||
+      sale.offerType === "flash_sale"
+    ) {
+      const discount = original * (parseFloat(sale.discountValue) / 100);
+      const max = sale.maxDiscount ? parseFloat(sale.maxDiscount) : original;
+
+      discounted = original - Math.min(discount, max, original);
+    } else {
+      const flat = Math.min(parseFloat(sale.discountValue), original);
+      discounted = original - flat;
+    }
+
+    return Math.max(discounted, 0);
+  }
+
+  async loadSaleData() {
     const now = new Date();
+
     const activeSales = await db
       .select()
       .from(sales)
@@ -57,121 +54,166 @@ export class CartRepository implements CartStorage {
         )
       );
 
-    // Fetch sale product mappings
-    const saleProductMappings = await db.select().from(saleProducts);
+    const mappings = await db.select().from(saleProducts);
 
-    return result.map((row) => {
-      const saree = row.sarees;
-      
-      // Find applicable sale
-      let applicableSale = null;
-      const productSaleMapping = saleProductMappings.find(
-        (sp) => sp.sareeId === saree.id
-      );
-      if (productSaleMapping) {
-        applicableSale = activeSales.find(
-          (s) => s.id === productSaleMapping.saleId
-        );
-      }
-      // Only exclude category pricing when THIS saree is explicitly mapped to a different sale
-      if (!applicableSale && saree.categoryId) {
-        applicableSale = activeSales.find(
-          (s) => s.categoryId === saree.categoryId && 
-          !saleProductMappings.some(sp => sp.saleId === s.id && sp.sareeId === saree.id)
-        );
-      }
-
-      // Calculate discounted price using consistent logic across all flows
-      let discountedPrice = parseFloat(saree.price);
-      if (applicableSale) {
-        const originalPrice = discountedPrice;
-        if (applicableSale.offerType === "percentage" || applicableSale.offerType === "category" || applicableSale.offerType === "flash_sale") {
-          const discount = originalPrice * (parseFloat(applicableSale.discountValue) / 100);
-          const maxDiscount = applicableSale.maxDiscount 
-            ? parseFloat(applicableSale.maxDiscount) 
-            : originalPrice; // Cap at price if no maxDiscount
-          discountedPrice = originalPrice - Math.min(discount, maxDiscount, originalPrice);
-        } else if (applicableSale.offerType === "flat" || applicableSale.offerType === "product") {
-          const flatDiscount = Math.min(parseFloat(applicableSale.discountValue), originalPrice);
-          discountedPrice = originalPrice - flatDiscount;
-        }
-        discountedPrice = Math.max(0, discountedPrice);
-      }
-
-      return {
-        ...row.cart,
-        saree: {
-          ...saree,
-          category: row.categories,
-          color: row.colors,
-          fabric: row.fabrics,
-          activeSale: applicableSale
-            ? {
-                id: applicableSale.id,
-                name: applicableSale.name,
-                offerType: applicableSale.offerType,
-                discountValue: applicableSale.discountValue,
-                maxDiscount: applicableSale.maxDiscount || undefined,
-              }
-            : null,
-          discountedPrice: applicableSale ? discountedPrice : undefined,
-        },
-      };
-    });
+    return { activeSales, mappings };
   }
 
-  async getCartCount(userId: string): Promise<number> {
-    const [result] = await db
-      .select({ count: sql<number>`count(*)::int` })
+  async buildSaree(row: any, activeSales: any[], mappings: any[]) {
+    const saree = row.sarees;
+
+    let applicableSale: any = null;
+
+    const productMapping = mappings.find((m) => m.sareeId === saree.id);
+    if (productMapping) {
+      applicableSale = activeSales.find((s) => s.id === productMapping.saleId);
+    }
+
+    if (!applicableSale && saree.categoryId) {
+      applicableSale = activeSales.find(
+        (s) => s.categoryId === saree.categoryId
+      );
+    }
+
+    const discountedPrice = this.applySalePricing(saree.price, applicableSale);
+
+    return {
+      ...saree,
+      category: row.categories,
+      color: row.colors,
+      fabric: row.fabrics,
+      activeSale: applicableSale
+        ? {
+            id: applicableSale.id,
+            name: applicableSale.name,
+            offerType: applicableSale.offerType,
+            discountValue: applicableSale.discountValue,
+            maxDiscount: applicableSale.maxDiscount ?? undefined,
+          }
+        : null,
+      discountedPrice,
+    };
+  }
+
+  async getSaree(id: string) {
+    const rows = await db
+      .select()
+      .from(sarees)
+      .leftJoin(categories, eq(sarees.categoryId, categories.id))
+      .leftJoin(colors, eq(sarees.colorId, colors.id))
+      .leftJoin(fabrics, eq(sarees.fabricId, fabrics.id))
+      .where(eq(sarees.id, id));
+
+    if (!rows.length) return null;
+
+    const { activeSales, mappings } = await this.loadSaleData();
+
+    return await this.buildSaree(rows[0], activeSales, mappings);
+  }
+}
+
+export const sareeRepo = new SareeRepository();
+
+export class CartRepository {
+  async buildCart(userId: string): Promise<{
+    cart: CartItemWithSaree[];
+    count: number;
+  }> {
+    const rows = await db
+      .select()
+      .from(cart)
+      .innerJoin(sarees, eq(cart.sareeId, sarees.id))
+      .leftJoin(categories, eq(sarees.categoryId, categories.id))
+      .leftJoin(colors, eq(sarees.colorId, colors.id))
+      .leftJoin(fabrics, eq(sarees.fabricId, fabrics.id))
+      .where(eq(cart.userId, userId));
+
+    const { activeSales, mappings } = await sareeRepo.loadSaleData();
+
+    const cartItems: CartItemWithSaree[] = await Promise.all(
+      rows.map(async (row) => {
+        const saree = await sareeRepo.buildSaree(row, activeSales, mappings);
+
+        return {
+          id: row.cart.id,
+          createdAt: row.cart.createdAt,
+          userId: row.cart.userId,
+          sareeId: row.cart.sareeId,
+          quantity: row.cart.quantity,
+          saree,
+        };
+      })
+    );
+
+    const [countRow] = await db
+      .select({
+        total: sql<number>`COALESCE(SUM(${cart.quantity}), 0)`,
+      })
       .from(cart)
       .where(eq(cart.userId, userId));
-    return result?.count || 0;
+
+    return {
+      cart: cartItems,
+      count: countRow?.total || 0,
+    };
   }
 
-  async addToCart(item: InsertCartItem): Promise<CartItem> {
+  async getCartItems(userId: string) {
+    return await this.buildCart(userId);
+  }
+
+  async addToCart(item: InsertCartItem) {
     const [existing] = await db
       .select()
       .from(cart)
       .where(and(eq(cart.userId, item.userId), eq(cart.sareeId, item.sareeId)));
 
     if (existing) {
-      const [updated] = await db
+      await db
         .update(cart)
         .set({ quantity: existing.quantity + (item.quantity || 1) })
-        .where(eq(cart.id, existing.id))
-        .returning();
-      return updated;
+        .where(eq(cart.id, existing.id));
+    } else {
+      await db.insert(cart).values(item);
     }
 
-    const [result] = await db.insert(cart).values(item).returning();
-    return result;
+    return await this.buildCart(item.userId);
   }
 
-  async updateCartItem(
-    id: string,
-    quantity: number
-  ): Promise<CartItem | undefined> {
-    const [result] = await db
-      .update(cart)
-      .set({ quantity })
-      .where(eq(cart.id, id))
-      .returning();
-    return result || undefined;
+  async updateCartItem(id: string, quantity: number, userId: string) {
+    await db.update(cart).set({ quantity }).where(eq(cart.id, id));
+    return await this.buildCart(userId);
   }
 
-  async removeFromCart(id: string): Promise<boolean> {
-    const [result] = await db.delete(cart).where(eq(cart.id, id)).returning();
-    return !!result;
+  async removeFromCart(id: string, userId: string) {
+    await db.delete(cart).where(eq(cart.id, id));
+    return await this.buildCart(userId);
   }
 
-  async clearCart(userId: string): Promise<boolean> {
+  async clearCart(userId: string) {
     await db.delete(cart).where(eq(cart.userId, userId));
-    return true;
+    return { cart: [], count: 0 };
   }
+  async getCartCount(userId: string): Promise<number> {
+    const [result] = await db
+      .select({
+        total: sql<number>`COALESCE(SUM(${cart.quantity}), 0)`,
+      })
+      .from(cart)
+      .where(eq(cart.userId, userId));
 
-  // Wishlist
-  async getWishlistItems(userId: string): Promise<WishlistItemWithSaree[]> {
-    const result = await db
+    return result?.total ?? 0;
+  }
+}
+
+export const cartServices = new CartRepository();
+
+export class WishlistRepository {
+  async buildWishlist(userId: string): Promise<{
+    wishlist: WishlistItemWithSaree[];
+    count: number;
+  }> {
+    const rows = await db
       .select()
       .from(wishlist)
       .innerJoin(sarees, eq(wishlist.sareeId, sarees.id))
@@ -180,26 +222,33 @@ export class CartRepository implements CartStorage {
       .leftJoin(fabrics, eq(sarees.fabricId, fabrics.id))
       .where(eq(wishlist.userId, userId));
 
-    return result.map((row) => ({
-      ...row.wishlist,
-      saree: {
-        ...row.sarees,
-        category: row.categories,
-        color: row.colors,
-        fabric: row.fabrics,
-      },
-    }));
+    const { activeSales, mappings } = await sareeRepo.loadSaleData();
+
+    const wishlistItems: WishlistItemWithSaree[] = await Promise.all(
+      rows.map(async (row) => {
+        const saree = await sareeRepo.buildSaree(row, activeSales, mappings);
+
+        return {
+          id: row.wishlist.id,
+          createdAt: row.wishlist.createdAt,
+          userId: row.wishlist.userId,
+          sareeId: row.wishlist.sareeId,
+          saree,
+        };
+      })
+    );
+
+    return {
+      wishlist: wishlistItems,
+      count: wishlistItems.length,
+    };
   }
 
-  async getWishlistCount(userId: string): Promise<number> {
-    const [result] = await db
-      .select({ count: sql<number>`count(*)::int` })
-      .from(wishlist)
-      .where(eq(wishlist.userId, userId));
-    return result?.count || 0;
+  async getWishlistItems(userId: string) {
+    return await this.buildWishlist(userId);
   }
 
-  async addToWishlist(item: InsertWishlistItem): Promise<WishlistItem> {
+  async addToWishlist(item: InsertWishlistItem) {
     const [existing] = await db
       .select()
       .from(wishlist)
@@ -210,27 +259,39 @@ export class CartRepository implements CartStorage {
         )
       );
 
-    if (existing) return existing;
+    if (!existing) {
+      await db.insert(wishlist).values(item);
+    }
 
-    const [result] = await db.insert(wishlist).values(item).returning();
-    return result;
+    return await this.buildWishlist(item.userId);
   }
 
-  async removeFromWishlist(userId: string, sareeId: string): Promise<boolean> {
-    const [result] = await db
+  async removeFromWishlist(userId: string, sareeId: string) {
+    await db
       .delete(wishlist)
-      .where(and(eq(wishlist.userId, userId), eq(wishlist.sareeId, sareeId)))
-      .returning();
-    return !!result;
+      .where(and(eq(wishlist.userId, userId), eq(wishlist.sareeId, sareeId)));
+
+    return await this.buildWishlist(userId);
   }
 
-  async isInWishlist(userId: string, sareeId: string): Promise<boolean> {
+  async isInWishlist(userId: string, sareeId: string) {
     const [result] = await db
       .select()
       .from(wishlist)
       .where(and(eq(wishlist.userId, userId), eq(wishlist.sareeId, sareeId)));
+
     return !!result;
+  }
+  async getWishlistCount(userId: string): Promise<number> {
+    const [result] = await db
+      .select({
+        count: sql<number>`count(*)::int`,
+      })
+      .from(wishlist)
+      .where(eq(wishlist.userId, userId));
+
+    return result?.count ?? 0;
   }
 }
 
-export const cartServices = new CartRepository();
+export const wishlistServices = new WishlistRepository();

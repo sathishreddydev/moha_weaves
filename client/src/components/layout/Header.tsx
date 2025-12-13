@@ -1,9 +1,26 @@
 import { Link, useNavigate } from "react-router-dom";
-import { Heart, ShoppingBag, User, Menu, Search, X, LogOut, LayoutDashboard, MapPin, Package, RotateCcw } from "lucide-react";
+import {
+  Heart,
+  ShoppingBag,
+  User,
+  Menu,
+  Search,
+  X,
+  LogOut,
+  LayoutDashboard,
+  MapPin,
+  Package,
+  RotateCcw,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Separator } from "@/components/ui/separator";
-import { Sheet, SheetContent, SheetTrigger, SheetClose } from "@/components/ui/sheet";
+import {
+  Sheet,
+  SheetContent,
+  SheetTrigger,
+  SheetClose,
+} from "@/components/ui/sheet";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -13,7 +30,9 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { useAuth } from "@/lib/auth";
 import { useQuery } from "@tanstack/react-query";
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { useCartStore } from "../Store/useCartStore";
+import { useWishlistStore } from "../Store/useWishlistStore";
 
 const navLinks = [
   { href: "/", label: "Home" },
@@ -28,16 +47,17 @@ export function Header() {
   const { user, logout } = useAuth();
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  const getCart = useCartStore((state) => state.getCart);
+  const cartCount = useCartStore((state) => state.count);
+  const wishlistCount = useWishlistStore((state) => state.count);
+  const getWishlist = useWishlistStore((state) => state.getWishlist);
 
-  const { data: cartCount } = useQuery<{ count: number }>({
-    queryKey: ["/api/user/cart/count"],
-    enabled: !!user && user.role === "user",
-  });
-
-  const { data: wishlistCount } = useQuery<{ count: number }>({
-    queryKey: ["/api/user/wishlist/count"],
-    enabled: !!user && user.role === "user",
-  });
+  useEffect(() => {
+    if (user && cartCount === 0) {
+      getCart();
+      getWishlist();
+    }
+  }, [user]);
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
@@ -56,10 +76,14 @@ export function Header() {
   const getDashboardLink = () => {
     if (!user) return null;
     switch (user.role) {
-      case "admin": return "/admin/dashboard";
-      case "inventory": return "/inventory/dashboard";
-      case "store": return "/store/dashboard";
-      default: return "/user/orders";
+      case "admin":
+        return "/admin/dashboard";
+      case "inventory":
+        return "/inventory/dashboard";
+      case "store":
+        return "/store/dashboard";
+      default:
+        return "/user/orders";
     }
   };
 
@@ -78,13 +102,20 @@ export function Header() {
           {/* Mobile menu */}
           <Sheet>
             <SheetTrigger asChild className="lg:hidden">
-              <Button variant="ghost" size="icon" data-testid="button-mobile-menu">
+              <Button
+                variant="ghost"
+                size="icon"
+                data-testid="button-mobile-menu"
+              >
                 <Menu className="h-5 w-5" />
               </Button>
             </SheetTrigger>
             <SheetContent side="left" className="w-72">
               <div className="flex flex-col gap-6 mt-8">
-                <Link to="/" className="font-serif text-2xl font-semibold text-primary">
+                <Link
+                  to="/"
+                  className="font-serif text-2xl font-semibold text-primary"
+                >
                   Moha
                 </Link>
                 <nav className="flex flex-col gap-4">
@@ -93,7 +124,9 @@ export function Header() {
                       <Link
                         to={link.href}
                         className="text-lg hover:text-primary transition-colors"
-                        data-testid={`link-nav-${link.label.toLowerCase().replace(/\s/g, "-")}`}
+                        data-testid={`link-nav-${link.label
+                          .toLowerCase()
+                          .replace(/\s/g, "-")}`}
                       >
                         {link.label}
                       </Link>
@@ -104,27 +137,41 @@ export function Header() {
                   <>
                     <Separator />
                     <div className="flex flex-col gap-3">
-                      <p className="text-sm font-medium text-muted-foreground">My Account</p>
+                      <p className="text-sm font-medium text-muted-foreground">
+                        My Account
+                      </p>
                       <SheetClose asChild>
-                        <Link to="/user/orders" className="flex items-center gap-2 text-base hover:text-primary transition-colors">
+                        <Link
+                          to="/user/orders"
+                          className="flex items-center gap-2 text-base hover:text-primary transition-colors"
+                        >
                           <Package className="h-4 w-4" />
                           My Orders
                         </Link>
                       </SheetClose>
                       <SheetClose asChild>
-                        <Link to="/user/wishlist" className="flex items-center gap-2 text-base hover:text-primary transition-colors">
+                        <Link
+                          to="/user/wishlist"
+                          className="flex items-center gap-2 text-base hover:text-primary transition-colors"
+                        >
                           <Heart className="h-4 w-4" />
                           Wishlist
                         </Link>
                       </SheetClose>
                       <SheetClose asChild>
-                        <Link to="/user/addresses" className="flex items-center gap-2 text-base hover:text-primary transition-colors">
+                        <Link
+                          to="/user/addresses"
+                          className="flex items-center gap-2 text-base hover:text-primary transition-colors"
+                        >
                           <MapPin className="h-4 w-4" />
                           My Addresses
                         </Link>
                       </SheetClose>
                       <SheetClose asChild>
-                        <Link to="/user/returns" className="flex items-center gap-2 text-base hover:text-primary transition-colors">
+                        <Link
+                          to="/user/returns"
+                          className="flex items-center gap-2 text-base hover:text-primary transition-colors"
+                        >
                           <RotateCcw className="h-4 w-4" />
                           Returns
                         </Link>
@@ -137,7 +184,11 @@ export function Header() {
           </Sheet>
 
           {/* Logo */}
-          <Link to="/" className="font-serif text-2xl md:text-3xl font-semibold text-primary" data-testid="link-logo">
+          <Link
+            to="/"
+            className="font-serif text-2xl md:text-3xl font-semibold text-primary"
+            data-testid="link-logo"
+          >
             Moha
           </Link>
 
@@ -148,7 +199,9 @@ export function Header() {
                 key={link.href}
                 to={link.href}
                 className="text-sm font-medium hover:text-primary transition-colors"
-                data-testid={`link-nav-${link.label.toLowerCase().replace(/\s/g, "-")}`}
+                data-testid={`link-nav-${link.label
+                  .toLowerCase()
+                  .replace(/\s/g, "-")}`}
               >
                 {link.label}
               </Link>
@@ -164,18 +217,27 @@ export function Header() {
               onClick={() => setSearchOpen(!searchOpen)}
               data-testid="button-search-toggle"
             >
-              {searchOpen ? <X className="h-5 w-5" /> : <Search className="h-5 w-5" />}
+              {searchOpen ? (
+                <X className="h-5 w-5" />
+              ) : (
+                <Search className="h-5 w-5" />
+              )}
             </Button>
 
             {user && user.role === "user" && (
               <>
                 {/* Wishlist */}
                 <Link to="/user/wishlist">
-                  <Button variant="ghost" size="icon" className="relative" data-testid="link-wishlist">
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="relative"
+                    data-testid="link-wishlist"
+                  >
                     <Heart className="h-5 w-5" />
-                    {wishlistCount && wishlistCount.count > 0 && (
+                    {wishlistCount && wishlistCount > 0 && (
                       <span className="absolute -top-1 -right-1 h-4 w-4 rounded-full bg-primary text-primary-foreground text-xs flex items-center justify-center">
-                        {wishlistCount.count}
+                        {wishlistCount}
                       </span>
                     )}
                   </Button>
@@ -183,11 +245,16 @@ export function Header() {
 
                 {/* Cart */}
                 <Link to="/user/cart">
-                  <Button variant="ghost" size="icon" className="relative" data-testid="link-cart">
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="relative"
+                    data-testid="link-cart"
+                  >
                     <ShoppingBag className="h-5 w-5" />
-                    {cartCount && cartCount.count > 0 && (
+                    {cartCount && cartCount > 0 && (
                       <span className="absolute -top-1 -right-1 h-4 w-4 rounded-full bg-primary text-primary-foreground text-xs flex items-center justify-center">
-                        {cartCount.count}
+                        {cartCount}
                       </span>
                     )}
                   </Button>
@@ -199,19 +266,29 @@ export function Header() {
             {user ? (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" size="icon" data-testid="button-user-menu">
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    data-testid="button-user-menu"
+                  >
                     <User className="h-5 w-5" />
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="w-48">
                   <div className="px-2 py-1.5">
                     <p className="text-sm font-medium">{user.name}</p>
-                    <p className="text-xs text-muted-foreground">{user.email}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {user.email}
+                    </p>
                   </div>
                   <DropdownMenuSeparator />
                   {user.role !== "user" && getDashboardLink() && (
                     <DropdownMenuItem asChild>
-                      <Link to={getDashboardLink()!} className="cursor-pointer" data-testid="link-dashboard">
+                      <Link
+                        to={getDashboardLink()!}
+                        className="cursor-pointer"
+                        data-testid="link-dashboard"
+                      >
                         <LayoutDashboard className="mr-2 h-4 w-4" />
                         Dashboard
                       </Link>
@@ -220,25 +297,41 @@ export function Header() {
                   {user.role === "user" && (
                     <>
                       <DropdownMenuItem asChild>
-                        <Link to="/user/orders" className="cursor-pointer" data-testid="link-orders">
+                        <Link
+                          to="/user/orders"
+                          className="cursor-pointer"
+                          data-testid="link-orders"
+                        >
                           <Package className="mr-2 h-4 w-4" />
                           My Orders
                         </Link>
                       </DropdownMenuItem>
                       <DropdownMenuItem asChild>
-                        <Link to="/user/wishlist" className="cursor-pointer" data-testid="link-wishlist-menu">
+                        <Link
+                          to="/user/wishlist"
+                          className="cursor-pointer"
+                          data-testid="link-wishlist-menu"
+                        >
                           <Heart className="mr-2 h-4 w-4" />
                           Wishlist
                         </Link>
                       </DropdownMenuItem>
                       <DropdownMenuItem asChild>
-                        <Link to="/user/addresses" className="cursor-pointer" data-testid="link-addresses">
+                        <Link
+                          to="/user/addresses"
+                          className="cursor-pointer"
+                          data-testid="link-addresses"
+                        >
                           <MapPin className="mr-2 h-4 w-4" />
                           My Addresses
                         </Link>
                       </DropdownMenuItem>
                       <DropdownMenuItem asChild>
-                        <Link to="/user/returns" className="cursor-pointer" data-testid="link-returns">
+                        <Link
+                          to="/user/returns"
+                          className="cursor-pointer"
+                          data-testid="link-returns"
+                        >
                           <RotateCcw className="mr-2 h-4 w-4" />
                           Returns
                         </Link>
@@ -246,7 +339,11 @@ export function Header() {
                       <DropdownMenuSeparator />
                     </>
                   )}
-                  <DropdownMenuItem onClick={handleLogout} className="cursor-pointer text-destructive" data-testid="button-logout">
+                  <DropdownMenuItem
+                    onClick={handleLogout}
+                    className="cursor-pointer text-destructive"
+                    data-testid="button-logout"
+                  >
                     <LogOut className="mr-2 h-4 w-4" />
                     Logout
                   </DropdownMenuItem>
