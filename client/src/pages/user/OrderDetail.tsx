@@ -258,7 +258,7 @@ export default function OrderDetail() {
             <div className="text-sm space-y-1">
               <p><span className="text-muted-foreground">Method:</span> {order.paymentMethod?.toUpperCase() || "COD"}</p>
               <p><span className="text-muted-foreground">Status:</span>{" "}
-                <Badge variant={order.paymentStatus === "completed" ? "default" : "secondary"}>
+                <Badge variant={order.paymentStatus === "paid" ? "default" : "secondary"}>
                   {order.paymentStatus}
                 </Badge>
               </p>
