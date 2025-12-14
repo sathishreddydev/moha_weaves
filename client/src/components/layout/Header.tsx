@@ -90,11 +90,11 @@ export function Header() {
   return (
     <header className="sticky top-0 z-50 bg-background border-b">
       {/* Top bar */}
-      <div className="bg-primary text-primary-foreground">
+      {/* <div className="bg-primary text-primary-foreground">
         <div className="max-w-7xl mx-auto px-4 py-2 text-center text-sm">
           Free shipping on orders above ₹2,999
         </div>
-      </div>
+      </div> */}
 
       {/* Main header */}
       <div className="max-w-7xl mx-auto px-4">
