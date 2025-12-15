@@ -29,7 +29,6 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useAuth } from "@/lib/auth";
-import { useQuery } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { useCartStore } from "../Store/useCartStore";
 import { useWishlistStore } from "../Store/useWishlistStore";
@@ -47,10 +46,11 @@ export function Header() {
   const { user, logout } = useAuth();
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
-  const getCart = useCartStore((state) => state.getCart);
-  const cartCount = useCartStore((state) => state.count);
-  const wishlistCount = useWishlistStore((state) => state.count);
-  const getWishlist = useWishlistStore((state) => state.getWishlist);
+
+  const getCart = useCartStore((s) => s.getCart);
+  const cartCount = useCartStore((s) => s.count);
+  const wishlistCount = useWishlistStore((s) => s.count);
+  const getWishlist = useWishlistStore((s) => s.getWishlist);
 
   useEffect(() => {
     if (user && cartCount === 0) {
@@ -88,154 +88,78 @@ export function Header() {
   };
 
   return (
-    <header className="sticky top-0 z-50 bg-background border-b">
-      {/* Top bar */}
-      {/* <div className="bg-primary text-primary-foreground">
-        <div className="max-w-7xl mx-auto px-4 py-2 text-center text-sm">
-          Free shipping on orders above ₹2,999
-        </div>
-      </div> */}
-
-      {/* Main header */}
+    <header className="sticky top-0 z-50 bg-background">
       <div className="max-w-7xl mx-auto px-4">
-        <div className="flex items-center justify-between h-16 gap-4">
-          {/* Mobile menu */}
-          <Sheet>
-            <SheetTrigger asChild className="lg:hidden">
-              <Button
-                variant="ghost"
-                size="icon"
-                data-testid="button-mobile-menu"
-              >
-                <Menu className="h-5 w-5" />
-              </Button>
-            </SheetTrigger>
-            <SheetContent side="left" className="w-72">
-              <div className="flex flex-col gap-6 mt-8">
-                <Link
-                  to="/"
-                  className="font-serif text-2xl font-semibold text-primary"
-                >
-                  Moha
-                </Link>
-                <nav className="flex flex-col gap-4">
-                  {navLinks.map((link) => (
-                    <SheetClose asChild key={link.href}>
-                      <Link
-                        to={link.href}
-                        className="text-lg hover:text-primary transition-colors"
-                        data-testid={`link-nav-${link.label
-                          .toLowerCase()
-                          .replace(/\s/g, "-")}`}
-                      >
-                        {link.label}
-                      </Link>
-                    </SheetClose>
-                  ))}
-                </nav>
-                {user && user.role === "user" && (
-                  <>
-                    <Separator />
-                    <div className="flex flex-col gap-3">
-                      <p className="text-sm font-medium text-muted-foreground">
-                        My Account
-                      </p>
-                      <SheetClose asChild>
+        <div className="flex items-center h-16">
+          <div className="flex items-center gap-2">
+            <Sheet>
+              <SheetTrigger asChild className="lg:hidden">
+                <Button variant="ghost" size="icon">
+                  <Menu className="h-5 w-5" />
+                </Button>
+              </SheetTrigger>
+              <SheetContent side="left" className="w-72">
+                <div className="flex flex-col gap-6 mt-8">
+                  <Link
+                    to="/"
+                    className="font-serif text-2xl font-semibold text-primary"
+                  >
+                    Moha
+                  </Link>
+                  <nav className="flex flex-col gap-4">
+                    {navLinks.map((link) => (
+                      <SheetClose asChild key={link.href}>
                         <Link
-                          to="/user/orders"
-                          className="flex items-center gap-2 text-base hover:text-primary transition-colors"
+                          to={link.href}
+                          className="text-lg hover:text-primary"
                         >
-                          <Package className="h-4 w-4" />
-                          My Orders
+                          {link.label}
                         </Link>
                       </SheetClose>
-                      <SheetClose asChild>
-                        <Link
-                          to="/user/wishlist"
-                          className="flex items-center gap-2 text-base hover:text-primary transition-colors"
-                        >
-                          <Heart className="h-4 w-4" />
-                          Wishlist
-                        </Link>
-                      </SheetClose>
-                      <SheetClose asChild>
-                        <Link
-                          to="/user/addresses"
-                          className="flex items-center gap-2 text-base hover:text-primary transition-colors"
-                        >
-                          <MapPin className="h-4 w-4" />
-                          My Addresses
-                        </Link>
-                      </SheetClose>
-                      <SheetClose asChild>
-                        <Link
-                          to="/user/returns"
-                          className="flex items-center gap-2 text-base hover:text-primary transition-colors"
-                        >
-                          <RotateCcw className="h-4 w-4" />
-                          Returns
-                        </Link>
-                      </SheetClose>
-                    </div>
-                  </>
-                )}
-              </div>
-            </SheetContent>
-          </Sheet>
+                    ))}
+                  </nav>
+                </div>
+              </SheetContent>
+            </Sheet>
 
-          {/* Logo */}
-          <Link
-            to="/"
-            className="font-serif text-2xl md:text-3xl font-semibold text-primary"
-            data-testid="link-logo"
-          >
-            Moha
-          </Link>
+            <Link
+              to="/"
+              className="font-serif text-2xl md:text-3xl font-semibold text-primary"
+            >
+              Moha
+            </Link>
+          </div>
 
-          {/* Desktop nav */}
-          <nav className="hidden lg:flex items-center gap-8">
+          <nav className="hidden lg:flex flex-1 justify-center gap-8">
             {navLinks.map((link) => (
               <Link
                 key={link.href}
                 to={link.href}
                 className="text-sm font-medium hover:text-primary transition-colors"
-                data-testid={`link-nav-${link.label
-                  .toLowerCase()
-                  .replace(/\s/g, "-")}`}
               >
                 {link.label}
               </Link>
             ))}
           </nav>
 
-          {/* Actions */}
-          <div className="flex items-center gap-2">
-            {/* Search toggle */}
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => setSearchOpen(!searchOpen)}
-              data-testid="button-search-toggle"
-            >
-              {searchOpen ? (
-                <X className="h-5 w-5" />
-              ) : (
+          <div className="flex items-center gap-2 ml-auto">
+            {!searchOpen && (
+              <Button
+                className="hidden md:flex"
+                variant="ghost"
+                size="icon"
+                onClick={() => setSearchOpen(true)}
+              >
                 <Search className="h-5 w-5" />
-              )}
-            </Button>
+              </Button>
+            )}
 
             {user && user.role === "user" && (
               <>
-                {/* Wishlist */}
                 <Link to="/user/wishlist">
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="relative"
-                    data-testid="link-wishlist"
-                  >
+                  <Button variant="ghost" size="icon" className="relative">
                     <Heart className="h-5 w-5" />
-                    {wishlistCount && wishlistCount > 0 && (
+                    {wishlistCount > 0 && (
                       <span className="absolute -top-1 -right-1 h-4 w-4 rounded-full bg-primary text-primary-foreground text-xs flex items-center justify-center">
                         {wishlistCount}
                       </span>
@@ -243,16 +167,10 @@ export function Header() {
                   </Button>
                 </Link>
 
-                {/* Cart */}
                 <Link to="/user/cart">
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="relative"
-                    data-testid="link-cart"
-                  >
+                  <Button variant="ghost" size="icon" className="relative">
                     <ShoppingBag className="h-5 w-5" />
-                    {cartCount && cartCount > 0 && (
+                    {cartCount > 0 && (
                       <span className="absolute -top-1 -right-1 h-4 w-4 rounded-full bg-primary text-primary-foreground text-xs flex items-center justify-center">
                         {cartCount}
                       </span>
@@ -262,15 +180,10 @@ export function Header() {
               </>
             )}
 
-            {/* User menu */}
             {user ? (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    data-testid="button-user-menu"
-                  >
+                  <Button variant="ghost" size="icon">
                     <User className="h-5 w-5" />
                   </Button>
                 </DropdownMenuTrigger>
@@ -284,65 +197,15 @@ export function Header() {
                   <DropdownMenuSeparator />
                   {user.role !== "user" && getDashboardLink() && (
                     <DropdownMenuItem asChild>
-                      <Link
-                        to={getDashboardLink()!}
-                        className="cursor-pointer"
-                        data-testid="link-dashboard"
-                      >
+                      <Link to={getDashboardLink()!}>
                         <LayoutDashboard className="mr-2 h-4 w-4" />
                         Dashboard
                       </Link>
                     </DropdownMenuItem>
                   )}
-                  {user.role === "user" && (
-                    <>
-                      <DropdownMenuItem asChild>
-                        <Link
-                          to="/user/orders"
-                          className="cursor-pointer"
-                          data-testid="link-orders"
-                        >
-                          <Package className="mr-2 h-4 w-4" />
-                          My Orders
-                        </Link>
-                      </DropdownMenuItem>
-                      <DropdownMenuItem asChild>
-                        <Link
-                          to="/user/wishlist"
-                          className="cursor-pointer"
-                          data-testid="link-wishlist-menu"
-                        >
-                          <Heart className="mr-2 h-4 w-4" />
-                          Wishlist
-                        </Link>
-                      </DropdownMenuItem>
-                      <DropdownMenuItem asChild>
-                        <Link
-                          to="/user/addresses"
-                          className="cursor-pointer"
-                          data-testid="link-addresses"
-                        >
-                          <MapPin className="mr-2 h-4 w-4" />
-                          My Addresses
-                        </Link>
-                      </DropdownMenuItem>
-                      <DropdownMenuItem asChild>
-                        <Link
-                          to="/user/returns"
-                          className="cursor-pointer"
-                          data-testid="link-returns"
-                        >
-                          <RotateCcw className="mr-2 h-4 w-4" />
-                          Returns
-                        </Link>
-                      </DropdownMenuItem>
-                      <DropdownMenuSeparator />
-                    </>
-                  )}
                   <DropdownMenuItem
                     onClick={handleLogout}
-                    className="cursor-pointer text-destructive"
-                    data-testid="button-logout"
+                    className="text-destructive"
                   >
                     <LogOut className="mr-2 h-4 w-4" />
                     Logout
@@ -351,7 +214,7 @@ export function Header() {
               </DropdownMenu>
             ) : (
               <Link to="/user/login">
-                <Button variant="ghost" size="icon" data-testid="link-login">
+                <Button variant="ghost" size="icon">
                   <User className="h-5 w-5" />
                 </Button>
               </Link>
@@ -359,7 +222,6 @@ export function Header() {
           </div>
         </div>
 
-        {/* Search bar */}
         {searchOpen && (
           <div className="pb-4">
             <form onSubmit={handleSearch} className="flex gap-2">
@@ -369,11 +231,20 @@ export function Header() {
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="flex-1"
-                data-testid="input-search"
                 autoFocus
               />
-              <Button type="submit" data-testid="button-search-submit">
-                Search
+
+              <Button type="submit">Search</Button>
+
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => {
+                  setSearchOpen(false);
+                  setSearchQuery("");
+                }}
+              >
+                Cancel
               </Button>
             </form>
           </div>
