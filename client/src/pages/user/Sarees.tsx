@@ -148,11 +148,11 @@ export default function Sarees() {
               }
               label={
                 <span className="flex items-center gap-1">
+                  {color.name.charAt(0).toUpperCase() + color.name.slice(1)}
                   <span
-                    className="h-3.5 w-3.5 rounded-full border"
+                    className="h-2 w-5 rounded-lg border"
                     style={{ backgroundColor: color.hexCode }}
                   />
-                  {color.name.charAt(0).toUpperCase() + color.name.slice(1)}
                 </span>
               }
             />
@@ -219,9 +219,9 @@ export default function Sarees() {
 
   return (
     <div className="max-w-7xl mx-auto">
-      <div className="flex gap-6">
+      <div className="flex">
         <aside className="hidden lg:block w-64 flex-shrink-0 pb-8 pl-6 border-r border-gray-200">
-          <div className="sticky top-16 pr-4">
+          <div className="sticky top-16 pr-4 pt-4">
             <FilterContent />
           </div>
         </aside>
@@ -293,7 +293,7 @@ export default function Sarees() {
           </div>
 
           {isLoading ? (
-            <div className="grid grid-cols-2 md:grid-cols-3 gap-6">
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 px-6">
               {[...Array(9)].map((_, i) => (
                 <div key={i} className="space-y-3">
                   <Skeleton className="aspect-[3/4] rounded-md" />
@@ -303,7 +303,7 @@ export default function Sarees() {
               ))}
             </div>
           ) : sarees && sarees.length > 0 ? (
-            <div className="grid grid-cols-2 md:grid-cols-3 md:grid-cols-4 gap-3 px-6">
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 px-6">
               {sarees.map((saree) => (
                 <ProductCard key={saree.id} saree={saree} />
               ))}

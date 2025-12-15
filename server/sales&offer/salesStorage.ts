@@ -9,7 +9,6 @@ import { eq, lte, gte, and, desc, sql } from "drizzle-orm";
 import { db } from "server/db";
 
 export interface SalesStorage {
-  // ==================== SALES & OFFERS ====================
   getSales(filters?: {
     isActive?: boolean;
     isFeatured?: boolean;
@@ -29,7 +28,6 @@ export interface SalesStorage {
   ): Promise<SaleWithProducts[]>;
 }
 export class SalesRepository implements SalesStorage {
-  // ==================== SALES & OFFERS ====================
   async getSales(filters?: {
     isActive?: boolean;
     isFeatured?: boolean;

@@ -66,7 +66,7 @@ export function ProductCard({ saree }: ProductCardProps) {
 
         <div
           className="
-absolute top-2 right-2 hidden md:flex flex-col gap-2
+    absolute top-2 right-2 hidden md:flex flex-col gap-2
     opacity-0 md:group-hover:opacity-100
     transition-opacity
           "
@@ -75,7 +75,7 @@ absolute top-2 right-2 hidden md:flex flex-col gap-2
             <Button
               variant="secondary"
               size="icon"
-              className="h-9 w-9 rounded-full bg-background/90 backdrop-blur-sm"
+              className="h-7 w-7 rounded-full bg-background/90 backdrop-blur-sm"
               onClick={() =>
                 isInWishlist
                   ? removeWishlistItem(saree.id)
@@ -84,7 +84,7 @@ absolute top-2 right-2 hidden md:flex flex-col gap-2
               disabled={isAddingWishlistItem}
             >
               <Heart
-                className={`h-4 w-4 ${
+                className={`h-3 w-3 ${
                   isInWishlist ? "fill-primary text-primary" : ""
                 }`}
               />
@@ -95,9 +95,9 @@ absolute top-2 right-2 hidden md:flex flex-col gap-2
             <Button
               variant="secondary"
               size="icon"
-              className="h-9 w-9 rounded-full bg-background/90 backdrop-blur-sm"
+              className="h-7 w-7 rounded-full bg-background/90 backdrop-blur-sm"
             >
-              <Eye className="h-4 w-4" />
+              <Eye className="h-3 w-3" />
             </Button>
           </Link>
         </div>
