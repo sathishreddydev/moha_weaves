@@ -303,7 +303,7 @@ export default function Sarees() {
               ))}
             </div>
           ) : sarees && sarees.length > 0 ? (
-            <div className="grid grid-cols-2 md:grid-cols-3 md:grid-cols-4 gap-6">
+            <div className="grid grid-cols-2 md:grid-cols-3 md:grid-cols-4 gap-3 px-6">
               {sarees.map((saree) => (
                 <ProductCard key={saree.id} saree={saree} />
               ))}
