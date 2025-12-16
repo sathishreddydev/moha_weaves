@@ -154,7 +154,7 @@ export default function Addresses() {
 
   return (
     <div className="max-w-4xl mx-auto px-4 py-12">
-      <div className="">
+      <div className="pb-4">
         <div className="flex items-center justify-between">
           <h1 className="text-lg font-semibold">
             My Addresses
@@ -202,9 +202,10 @@ export default function Addresses() {
                 </div>
 
                 <div className="flex gap-2">
-                  {!address.isDefault && (
+                  {/* {!address.isDefault && (
                     <Button
-                      size="sm"
+                      className="pr-6"
+                      size="icon"
                       variant="ghost"
                       disabled={false}
                       onClick={() => setDefaultAddress(address.id)}
@@ -212,7 +213,7 @@ export default function Addresses() {
                       <Check className="h-4 w-4 mr-1" />
                       Set Default
                     </Button>
-                  )}
+                  )} */}
 
                   <Button
                     size="icon"
