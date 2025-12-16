@@ -25,6 +25,7 @@ const allowlist = [
   "openai",
   "passport",
   "passport-local",
+  "postalcodes-india",
   "stripe",
   "uuid",
   "ws",
