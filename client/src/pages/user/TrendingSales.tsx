@@ -31,7 +31,7 @@ interface Sale {
 
 export function TrendingSalesBanner() {
   const { data: sales, isLoading } = useQuery<Sale[]>({
-    queryKey: ["/api/sales?featured=true&limit=3"],
+    queryKey: ["/api/sales?sort=featured&limit=3"],
   });
 
   if (isLoading) {
@@ -54,7 +54,7 @@ export function TrendingSalesBanner() {
   }
 
   return (
-    <section className="py-12 bg-gradient-to-b from-primary/5 to-transparent">
+    <section className="py-4 bg-gradient-to-b from-primary/5 to-transparent">
       <div className="max-w-7xl mx-auto px-4">
         <div className="flex items-center justify-between mb-8">
           <div>

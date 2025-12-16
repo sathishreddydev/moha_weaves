@@ -1,6 +1,6 @@
-import { useState, useEffect } from "react";
-import { useLocation } from "react-router-dom";
-import { Filter, SlidersHorizontal, X, ChevronDown } from "lucide-react";
+import { useState, useEffect, useMemo } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
+import { Filter, SlidersHorizontal } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -24,6 +24,7 @@ import { useQuery } from "@tanstack/react-query";
 import type { SareeWithDetails } from "@shared/schema";
 import { useFilterStore } from "@/components/Store/useFilterStore";
 import { CheckedState } from "@radix-ui/react-checkbox";
+import PriceRangeSlider from "@/components/product/PriceRangeSlider";
 
 type FilterItemProps = {
   id: string;
@@ -31,167 +32,153 @@ type FilterItemProps = {
   onChange: (checked: CheckedState) => void;
   label: React.ReactNode;
 };
+const parseFiltersFromURL = (search: string) => {
+  const params = new URLSearchParams(search);
+
+  return {
+    search: params.get("search") || "",
+    category: params.get("category")?.split(",").filter(Boolean) || [],
+    color: params.get("color")?.split(",").filter(Boolean) || [],
+    fabric: params.get("fabric")?.split(",").filter(Boolean) || [],
+    featured: params.get("featured") === "true",
+    onSale: params.get("onSale") === "true",
+    priceRange: {
+      min: Number(params.get("minPrice")) || 0,
+      max: Number(params.get("maxPrice")) || 100000,
+    },
+    sort: params.get("sort") || "newest",
+  };
+};
+
+const serializeFiltersToURL = (filters: any) => {
+  const params = new URLSearchParams();
+
+  if (filters.search) params.set("search", filters.search);
+  if (filters.category.length)
+    params.set("category", filters.category.join(","));
+  if (filters.color.length) params.set("color", filters.color.join(","));
+  if (filters.fabric.length) params.set("fabric", filters.fabric.join(","));
+
+  if (filters.priceRange.min)
+    params.set("minPrice", String(filters.priceRange.min));
+  if (filters.priceRange.max)
+    params.set("maxPrice", String(filters.priceRange.max));
+
+  if (filters.featured) params.set("featured", "true");
+  if (filters.onSale) params.set("onSale", "true");
+  if (filters.sort) params.set("sort", filters.sort);
+
+  return params.toString();
+};
 export default function Sarees() {
   const location = useLocation();
-  const searchParams = new URLSearchParams(location.search);
+  const navigate = useNavigate();
 
-  const [filters, setFilters] = useState({
-    search: searchParams.get("search") || "",
-    category: searchParams.get("category") || "",
-    color: searchParams.get("color") || "",
-    fabric: searchParams.get("fabric") || "",
-    featured: searchParams.get("featured") === "true",
-    onSale: searchParams.get("onSale") === "true",
-    minPrice: searchParams.get("minPrice") || "",
-    maxPrice: searchParams.get("maxPrice") || "",
-    sort: searchParams.get("sort") || "newest",
-  });
+  const initialFilters = useMemo(
+    () => parseFiltersFromURL(location.search),
+    [location.search]
+  );
+
+  const [filters, setFilters] = useState(initialFilters);
+
+  useEffect(() => {
+    const query = serializeFiltersToURL(filters);
+
+    navigate(
+      {
+        pathname: location.pathname,
+        search: query,
+      },
+      { replace: true }
+    );
+  }, [filters, navigate, location.pathname]);
+  // const [filters, setFilters] = useState({
+  //   search: "",
+  //   category: [] as string[],
+  //   color: [] as string[],
+  //   fabric: [] as string[],
+  //   featured: false,
+  //   onSale: false,
+  //   priceRange: { min: 0, max: 100000 },
+  //   sort: "newest",
+  // });
 
   const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
 
-  const buildQueryString = () => {
-    const params = new URLSearchParams();
-    if (filters.search) params.append("search", filters.search);
-    if (filters.category) params.append("category", filters.category);
-    if (filters.color) params.append("color", filters.color);
-    if (filters.fabric) params.append("fabric", filters.fabric);
-    if (filters.featured) params.append("featured", "true");
-    if (filters.onSale) params.append("onSale", "true");
-    if (filters.minPrice) params.append("minPrice", filters.minPrice);
-    if (filters.maxPrice) params.append("maxPrice", filters.maxPrice);
-    if (filters.sort) params.append("sort", filters.sort);
-    const qs = params.toString();
-    return qs ? `/api/sarees?${qs}` : "/api/sarees";
+  const updateFilter = (
+    key: string,
+    value: string | { min: number; max: number },
+    checked?: boolean
+  ) => {
+    if (key === "priceRange" && typeof value !== "string") {
+      setFilters((prev) => ({ ...prev, priceRange: value }));
+    } else if (
+      ["category", "color", "fabric"].includes(key) &&
+      typeof value === "string"
+    ) {
+      setFilters((prev) => {
+        const prevArray = (prev as any)[key] as string[];
+        if (checked) {
+          return { ...prev, [key]: [...prevArray, value] };
+        } else {
+          return { ...prev, [key]: prevArray.filter((v) => v !== value) };
+        }
+      });
+    } else if (typeof value === "boolean" || typeof value === "string") {
+      setFilters((prev) => ({ ...prev, [key]: value }));
+    }
   };
 
+  const clearFilters = () => {
+    const params = new URLSearchParams(location.search);
+
+    params.delete("category");
+    params.delete("color");
+    params.delete("fabric");
+    params.delete("minPrice");
+    params.delete("maxPrice");
+
+    navigate(
+      {
+        pathname: location.pathname,
+        search: params.toString(),
+      },
+      { replace: true }
+    );
+  };
+
+  const hasActiveFilters =
+    filters.category.length > 0 ||
+    filters.color.length > 0 ||
+    filters.fabric.length > 0 ||
+    filters.featured ||
+    filters.onSale ||
+    filters.priceRange.min !== 0 ||
+    filters.priceRange.max !== 100000;
+
   const { data: sarees, isLoading } = useQuery<SareeWithDetails[]>({
-    queryKey: [buildQueryString()],
+    queryKey: ["sarees", filters],
+    queryFn: async () => {
+      const res = await fetch("/api/getSarees", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(filters),
+      });
+      return res.json();
+    },
+    placeholderData: (previousData) => previousData,
   });
+
   const categories = useFilterStore((state) => state.categories);
   const colors = useFilterStore((state) => state.colors);
   const fabrics = useFilterStore((state) => state.fabrics);
   const fetchFilters = useFilterStore((state) => state.fetchFilters);
+
   useEffect(() => {
     if (!categories.length || !colors.length || !fabrics.length) {
       fetchFilters();
     }
   }, [categories, colors, fabrics]);
-  const updateFilter = (key: string, value: string | boolean) => {
-    setFilters((prev) => ({ ...prev, [key]: value }));
-  };
-
-  const clearFilters = () => {
-    setFilters({
-      search: "",
-      category: "",
-      color: "",
-      fabric: "",
-      featured: false,
-      onSale: false,
-      minPrice: "",
-      maxPrice: "",
-      sort: "newest",
-    });
-  };
-
-  const hasActiveFilters =
-    filters.category ||
-    filters.color ||
-    filters.fabric ||
-    filters.featured ||
-    filters.onSale ||
-    filters.minPrice ||
-    filters.maxPrice;
-
-  const FilterContent = () => (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <span className="flex items-center gap-1 text-sm font-semibold">
-          <Filter className="h-4 w-4" />
-          Filters
-        </span>
-
-        {hasActiveFilters && (
-          <span
-            onClick={clearFilters}
-            className="text-xs cursor-pointer"
-            data-testid="text-clear-filters-desktop"
-          >
-            Reset
-          </span>
-        )}
-      </div>
-
-      <div className="space-y-6">
-        <FilterSection title="Categories">
-          {categories?.map((cat) => (
-            <FilterItem
-              key={cat.id}
-              id={`cat-${cat.id}`}
-              checked={filters.category === cat.id}
-              onChange={(checked) =>
-                updateFilter("category", checked ? cat.id : "")
-              }
-              label={cat.name}
-            />
-          ))}
-        </FilterSection>
-
-        <FilterSection title="Colors">
-          {colors?.map((color) => (
-            <FilterItem
-              key={color.id}
-              id={`color-${color.id}`}
-              checked={filters.color === color.id}
-              onChange={(checked) =>
-                updateFilter("color", checked ? color.id : "")
-              }
-              label={
-                <span className="flex items-center gap-1">
-                  {color.name.charAt(0).toUpperCase() + color.name.slice(1)}
-                  <span
-                    className="h-2 w-5 rounded-lg border"
-                    style={{ backgroundColor: color.hexCode }}
-                  />
-                </span>
-              }
-            />
-          ))}
-        </FilterSection>
-
-        <FilterSection title="Fabrics">
-          {fabrics?.map((fab) => (
-            <FilterItem
-              key={fab.id}
-              id={`fab-${fab.id}`}
-              checked={filters.fabric === fab.id}
-              onChange={(checked) =>
-                updateFilter("fabric", checked ? fab.id : "")
-              }
-              label={fab.name}
-            />
-          ))}
-        </FilterSection>
-
-        <FilterSection title="Price Range">
-          <div className="grid grid-cols-2 gap-3">
-            <Input
-              type="number"
-              placeholder="Min ₹"
-              value={filters.minPrice}
-              onChange={(e) => updateFilter("minPrice", e.target.value)}
-            />
-            <Input
-              type="number"
-              placeholder="Max ₹"
-              value={filters.maxPrice}
-              onChange={(e) => updateFilter("maxPrice", e.target.value)}
-            />
-          </div>
-        </FilterSection>
-      </div>
-    </div>
-  );
 
   const FilterSection = ({ title, children }: any) => (
     <div className="space-y-1">
@@ -217,6 +204,87 @@ export default function Sarees() {
     </label>
   );
 
+  const FilterContent = () => (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <span className="flex items-center gap-1 text-sm font-semibold">
+          <Filter className="h-4 w-4" />
+          Filters
+        </span>
+
+        {hasActiveFilters && (
+          <span onClick={clearFilters} className="text-xs cursor-pointer">
+            Reset
+          </span>
+        )}
+      </div>
+
+      <div className="space-y-6">
+        <FilterSection title="Categories">
+          {categories?.map((cat) => (
+            <FilterItem
+              key={cat.id}
+              id={`cat-${cat.id}`}
+              checked={filters.category.includes(cat.id)}
+              onChange={(checked) =>
+                updateFilter("category", cat.id, checked === true)
+              }
+              label={cat.name}
+            />
+          ))}
+        </FilterSection>
+
+        <FilterSection title="Colors">
+          {colors?.map((color) => (
+            <FilterItem
+              key={color.id}
+              id={`color-${color.id}`}
+              checked={filters.color.includes(color.id)}
+              onChange={(checked) =>
+                updateFilter("color", color.id, checked === true)
+              }
+              label={
+                <span className="flex items-center gap-1">
+                  {color.name.charAt(0).toUpperCase() + color.name.slice(1)}
+                  <span
+                    className="h-2 w-5 rounded-lg border"
+                    style={{ backgroundColor: color.hexCode }}
+                  />
+                </span>
+              }
+            />
+          ))}
+        </FilterSection>
+
+        <FilterSection title="Fabrics">
+          {fabrics?.map((fab) => (
+            <FilterItem
+              key={fab.id}
+              id={`fab-${fab.id}`}
+              checked={filters.fabric.includes(fab.id)}
+              onChange={(checked) =>
+                updateFilter("fabric", fab.id, checked === true)
+              }
+              label={fab.name}
+            />
+          ))}
+        </FilterSection>
+
+        <FilterSection title="Price Range">
+          <PriceRangeSlider
+            min={0}
+            max={100000}
+            step={500}
+            value={[filters.priceRange.min, filters.priceRange.max]}
+            onChange={({ min, max }) =>
+              updateFilter("priceRange", { min, max })
+            }
+          />
+        </FilterSection>
+      </div>
+    </div>
+  );
+
   return (
     <div className="max-w-7xl mx-auto">
       <div className="flex">
@@ -234,7 +302,6 @@ export default function Sarees() {
                 placeholder="Search sarees..."
                 value={filters.search}
                 onChange={(e) => updateFilter("search", e.target.value)}
-                data-testid="input-search-mobile"
               />
             </div>
             <div className="flex px-6">
@@ -243,7 +310,7 @@ export default function Sarees() {
                   value={filters.sort}
                   onValueChange={(v) => updateFilter("sort", v)}
                 >
-                  <SelectTrigger className="w-40" data-testid="select-sort">
+                  <SelectTrigger className="w-40">
                     <SelectValue placeholder="Sort by" />
                   </SelectTrigger>
 
@@ -261,12 +328,13 @@ export default function Sarees() {
                   </SelectContent>
                 </Select>
               </div>
+
               <Sheet
                 open={mobileFiltersOpen}
                 onOpenChange={setMobileFiltersOpen}
               >
                 <SheetTrigger asChild className="lg:hidden ml-auto">
-                  <Button variant="outline" data-testid="button-mobile-filters">
+                  <Button variant="outline">
                     <SlidersHorizontal className="h-4 w-4 mr-2" />
                     {hasActiveFilters && (
                       <span className="ml-2 h-5 w-5 rounded-full bg-primary text-primary-foreground text-xs flex items-center justify-center">
@@ -294,7 +362,7 @@ export default function Sarees() {
 
           {isLoading ? (
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 px-6">
-              {[...Array(9)].map((_, i) => (
+              {[...Array(8)].map((_, i) => (
                 <div key={i} className="space-y-3">
                   <Skeleton className="aspect-[3/4] rounded-md" />
                   <Skeleton className="h-4 w-3/4" />
@@ -313,11 +381,7 @@ export default function Sarees() {
               <p className="text-muted-foreground mb-4">
                 No sarees found matching your criteria.
               </p>
-              <Button
-                onClick={clearFilters}
-                variant="outline"
-                data-testid="button-clear-search"
-              >
+              <Button onClick={clearFilters} variant="outline">
                 Clear filters
               </Button>
             </div>

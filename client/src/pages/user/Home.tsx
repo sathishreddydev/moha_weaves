@@ -45,7 +45,7 @@ export default function Home() {
   const { data: featuredSarees, isLoading: loadingFeatured } = useQuery<
     SareeWithDetails[]
   >({
-    queryKey: ["/api/sarees?featured=true&limit=8"],
+    queryKey: ["/api/sarees?sort=featured&limit=8"],
   });
 
   const { data: newArrivals, isLoading: loadingNew } = useQuery<
@@ -62,7 +62,7 @@ export default function Home() {
       fetchFilters();
     }
   }, [categories]);
-  
+
   return (
     <div className="min-h-screen">
       {/* Hero Section - Dynamic based on active sales */}
@@ -177,13 +177,11 @@ export default function Home() {
         );
       })()}
 
-
-
       {/* Trending Sales Banner */}
       <TrendingSalesBanner />
 
       {/* Categories */}
-      <section className="py-16">
+      <section className="py-4">
         <div className="max-w-7xl mx-auto px-4">
           <div className="flex items-center justify-between mb-8">
             <div>
@@ -240,50 +238,50 @@ export default function Home() {
         </div>
       </section>
 
-      {/* Featured Products */}
-      <section className="py-16 bg-muted/30">
-        <div className="max-w-7xl mx-auto px-4">
-          <div className="flex items-center justify-between mb-8">
-            <div>
-              <h2
-                className="font-serif text-3xl font-semibold"
-                data-testid="text-featured-title"
-              >
-                Featured Collection
-              </h2>
-              <p className="text-muted-foreground mt-1">
-                Handpicked favorites from our collection
-              </p>
+      {(featuredSarees?.length ?? 0) > 0 && (
+        <section className="py-4 bg-muted/30">
+          <div className="max-w-7xl mx-auto px-4">
+            <div className="flex items-center justify-between mb-8">
+              <div>
+                <h2
+                  className="font-serif text-3xl font-semibold"
+                  data-testid="text-featured-title"
+                >
+                  Featured Collection
+                </h2>
+                <p className="text-muted-foreground mt-1">
+                  Handpicked favorites from our collection
+                </p>
+              </div>
+              <Link to="/sarees?sort=featured">
+                <Button variant="ghost" data-testid="button-view-all-featured">
+                  View All <ArrowRight className="ml-2 h-4 w-4" />
+                </Button>
+              </Link>
             </div>
-            <Link to="/sarees?featured=true">
-              <Button variant="ghost" data-testid="button-view-all-featured">
-                View All <ArrowRight className="ml-2 h-4 w-4" />
-              </Button>
-            </Link>
+
+            {loadingFeatured ? (
+              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+                {[...Array(8)].map((_, i) => (
+                  <div key={i} className="space-y-3">
+                    <Skeleton className="aspect-[3/4] rounded-md" />
+                    <Skeleton className="h-4 w-3/4" />
+                    <Skeleton className="h-4 w-1/2" />
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+                {featuredSarees?.map((saree) => (
+                  <ProductCard key={saree.id} saree={saree} />
+                ))}
+              </div>
+            )}
           </div>
+        </section>
+      )}
 
-          {loadingFeatured ? (
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-              {[...Array(8)].map((_, i) => (
-                <div key={i} className="space-y-3">
-                  <Skeleton className="aspect-[3/4] rounded-md" />
-                  <Skeleton className="h-4 w-3/4" />
-                  <Skeleton className="h-4 w-1/2" />
-                </div>
-              ))}
-            </div>
-          ) : (
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-              {featuredSarees?.map((saree) => (
-                <ProductCard key={saree.id} saree={saree} />
-              ))}
-            </div>
-          )}
-        </div>
-      </section>
-
-
-      <section className="py-16">
+      <section className="py-4">
         <div className="max-w-7xl mx-auto px-4">
           <div className="flex items-center justify-between mb-8">
             <div>
@@ -323,8 +321,6 @@ export default function Home() {
           )}
         </div>
       </section>
-
-      
     </div>
   );
 }

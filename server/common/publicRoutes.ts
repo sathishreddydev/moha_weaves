@@ -83,6 +83,41 @@ export const publicRoutes = (app: Express) => {
       res.status(500).json({ message: "Failed to fetch sarees" });
     }
   });
+app.post("/api/getSarees", async (req, res) => {
+  try {
+    const {
+      search,
+      category,
+      color,
+      fabric,
+      featured,
+      minPrice,
+      maxPrice,
+      sort,
+      limit,
+      onSale,
+    } = req.body; 
+
+    const sarees = await sareeService.getNewSarees({
+      search,
+      category, 
+      color,  
+      fabric,   
+      featured: featured === true,
+      minPrice,
+      maxPrice,
+      sort,
+      limit,
+      onSale: onSale === true,
+      distributionChannel: "online",
+    });
+
+    res.json(sarees);
+  } catch (error) {
+    console.error("Sarees fetch error:", error);
+    res.status(500).json({ message: "Failed to fetch sarees" });
+  }
+});
 
   app.get("/api/sarees/:id", async (req, res) => {
     try {

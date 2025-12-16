@@ -68,7 +68,7 @@ export class SareeRepository {
     if (filters?.fabric) {
       conditions.push(eq(sarees.fabricId, filters.fabric));
     }
-    if (filters?.featured) {
+    if (filters?.sort === "featured") {
       conditions.push(eq(sarees.isFeatured, true));
     }
     if (filters?.minPrice) {
@@ -208,6 +208,191 @@ export class SareeRepository {
 
     return filteredResults;
   }
+async getNewSarees(filters?: {
+  search?: string;
+  category?: string[]; 
+  color?: string[];    
+  fabric?: string[]; 
+  featured?: boolean;
+  minPrice?: number;
+  maxPrice?: number;
+  distributionChannel?: string;
+  sort?: string;
+  limit?: number;
+  onSale?: boolean;
+}): Promise<SareeWithDetails[]> {
+  const conditions = [eq(sarees.isActive, true)];
+
+  if (filters?.search) {
+    conditions.push(
+      or(
+        ilike(sarees.name, `%${filters.search}%`),
+        ilike(sarees.description, `%${filters.search}%`)
+      ) as any
+    );
+  }
+
+  if (filters?.category && filters.category.length > 0) {
+    conditions.push(inArray(sarees.categoryId, filters.category));
+  }
+
+  if (filters?.color && filters.color.length > 0) {
+    conditions.push(inArray(sarees.colorId, filters.color));
+  }
+
+  if (filters?.fabric && filters.fabric.length > 0) {
+    conditions.push(inArray(sarees.fabricId, filters.fabric));
+  }
+
+  if (filters?.featured) {
+    conditions.push(eq(sarees.isFeatured, true));
+  }
+
+  if (filters?.minPrice) {
+    conditions.push(gte(sarees.price, filters.minPrice.toString()));
+  }
+
+  if (filters?.maxPrice) {
+    conditions.push(lte(sarees.price, filters.maxPrice.toString()));
+  }
+
+  if (filters?.distributionChannel) {
+    if (filters.distributionChannel === "online") {
+      conditions.push(
+        or(
+          eq(sarees.distributionChannel, "online"),
+          eq(sarees.distributionChannel, "both")
+        ) as any
+      );
+    } else if (filters.distributionChannel === "shop") {
+      conditions.push(
+        or(
+          eq(sarees.distributionChannel, "shop"),
+          eq(sarees.distributionChannel, "both")
+        ) as any
+      );
+    }
+  }
+
+  // Sorting
+  let orderBy: any = desc(sarees.createdAt);
+  if (filters?.sort === "price-low") orderBy = asc(sarees.price);
+  else if (filters?.sort === "price-high") orderBy = desc(sarees.price);
+  else if (filters?.sort === "name") orderBy = asc(sarees.name);
+
+  // Query
+  const result = await db
+    .select()
+    .from(sarees)
+    .leftJoin(categories, eq(sarees.categoryId, categories.id))
+    .leftJoin(colors, eq(sarees.colorId, colors.id))
+    .leftJoin(fabrics, eq(sarees.fabricId, fabrics.id))
+    .where(and(...conditions))
+    .orderBy(orderBy)
+    .limit(filters?.limit || 100);
+
+  const sareeResults = result.map((row) => ({
+    ...row.sarees,
+    category: row.categories,
+    color: row.colors,
+    fabric: row.fabrics,
+  }));
+
+  // --- handle sales as before ---
+  const now = new Date();
+  const activeSales = await db
+    .select()
+    .from(sales)
+    .where(
+      and(
+        eq(sales.isActive, true),
+        lte(sales.validFrom, now),
+        gte(sales.validUntil, now)
+      )
+    );
+
+  const saleProductMappings = await db
+    .select()
+    .from(saleProducts)
+    .where(
+      inArray(
+        saleProducts.saleId,
+        activeSales.map((s) => s.id)
+      )
+    );
+
+  const results: SareeWithDetails[] = sareeResults.map((saree) => {
+    let applicableSale = null;
+
+    const productSaleMapping = saleProductMappings.find(
+      (sp) => sp.sareeId === saree.id
+    );
+    if (productSaleMapping) {
+      applicableSale = activeSales.find(
+        (s) => s.id === productSaleMapping.saleId
+      );
+    }
+
+    if (!applicableSale && saree.categoryId) {
+      applicableSale = activeSales.find(
+        (s) =>
+          s.categoryId === saree.categoryId &&
+          !saleProductMappings.some(
+            (sp) => sp.saleId === s.id && sp.sareeId === saree.id
+          )
+      );
+    }
+
+    let discountedPrice = parseFloat(saree.price);
+    if (applicableSale) {
+      const originalPrice = discountedPrice;
+      if (
+        applicableSale.offerType === "percentage" ||
+        applicableSale.offerType === "category" ||
+        applicableSale.offerType === "flash_sale"
+      ) {
+        const discount =
+          originalPrice * (parseFloat(applicableSale.discountValue) / 100);
+        const maxDiscount = applicableSale.maxDiscount
+          ? parseFloat(applicableSale.maxDiscount)
+          : originalPrice;
+        discountedPrice =
+          originalPrice - Math.min(discount, maxDiscount, originalPrice);
+      } else if (
+        applicableSale.offerType === "flat" ||
+        applicableSale.offerType === "product"
+      ) {
+        const flatDiscount = Math.min(
+          parseFloat(applicableSale.discountValue),
+          originalPrice
+        );
+        discountedPrice = originalPrice - flatDiscount;
+      }
+      discountedPrice = Math.max(0, discountedPrice);
+    }
+
+    return {
+      ...saree,
+      activeSale: applicableSale
+        ? {
+            id: applicableSale.id,
+            name: applicableSale.name,
+            offerType: applicableSale.offerType,
+            discountValue: applicableSale.discountValue,
+            maxDiscount: applicableSale.maxDiscount || undefined,
+          }
+        : null,
+      discountedPrice: applicableSale ? discountedPrice : undefined,
+    };
+  });
+
+  // Apply onSale filter
+  const filteredResults = filters?.sort === "onSale"
+    ? results.filter((r) => r.activeSale !== null)
+    : results;
+
+  return filteredResults;
+}
 
   async getSaree(id: string): Promise<SareeWithDetails | undefined> {
     const [result] = await db
