@@ -108,7 +108,7 @@ export default function Home() {
                     >
                       {activeSale.name}
                     </h1>
-                    <p className="text-lg text-white/90 mb-8 leading-relaxed">
+                    <p className="text-lg text-white/90 mb-4 leading-relaxed">
                       {activeSale.description ||
                         "Exclusive deals on our handcrafted collection"}
                     </p>
@@ -143,7 +143,7 @@ export default function Home() {
                     >
                       Celebrate Tradition with Elegance
                     </h1>
-                    <p className="text-lg text-white/90 mb-8 leading-relaxed">
+                    <p className="text-lg text-white/90 mb-4 leading-relaxed">
                       Discover our exquisite collection of handcrafted sarees,
                       woven with stories of heritage and artistry.
                     </p>
@@ -177,24 +177,28 @@ export default function Home() {
         );
       })()}
 
-      {/* Trending Sales Banner */}
       <TrendingSalesBanner />
 
-      {/* Categories */}
       <section className="py-4">
         <div className="max-w-7xl mx-auto px-4">
-          <div className="flex items-center justify-between mb-8">
+          <div className="flex items-center justify-between mb-4">
             <div>
-              <h2
-                className="font-serif text-3xl font-semibold"
+              <p
+                className="font-serif font-semibold
+               text-xl sm:text-2xl lg:text-3xl"
                 data-testid="text-categories-title"
               >
                 Shop by Category
-              </h2>
-              <p className="text-muted-foreground mt-1">
+              </p>
+
+              <p
+                className="text-muted-foreground
+               text-sm sm:text-base"
+              >
                 Explore our curated collections
               </p>
             </div>
+
             <Link to="/categories">
               <Button variant="ghost" data-testid="button-view-all-categories">
                 View All <ArrowRight className="ml-2 h-4 w-4" />
@@ -241,15 +245,19 @@ export default function Home() {
       {(featuredSarees?.length ?? 0) > 0 && (
         <section className="py-4 bg-muted/30">
           <div className="max-w-7xl mx-auto px-4">
-            <div className="flex items-center justify-between mb-8">
+            <div className="flex items-center justify-between mb-4">
               <div>
-                <h2
-                  className="font-serif text-3xl font-semibold"
+                <p
+                  className="font-serif font-semibold
+               text-xl sm:text-2xl lg:text-3xl"
                   data-testid="text-featured-title"
                 >
                   Featured Collection
-                </h2>
-                <p className="text-muted-foreground mt-1">
+                </p>
+                <p
+                  className="text-muted-foreground
+               text-sm sm:text-base"
+                >
                   Handpicked favorites from our collection
                 </p>
               </div>
@@ -283,15 +291,19 @@ export default function Home() {
 
       <section className="py-4">
         <div className="max-w-7xl mx-auto px-4">
-          <div className="flex items-center justify-between mb-8">
+          <div className="flex items-center justify-between mb-4">
             <div>
-              <h2
-                className="font-serif text-3xl font-semibold"
+              <p
+                className="font-serif font-semibold
+               text-xl sm:text-2xl lg:text-3xl"
                 data-testid="text-new-arrivals-title"
               >
                 New Arrivals
-              </h2>
-              <p className="text-muted-foreground mt-1">
+              </p>
+              <p
+                className="text-muted-foreground
+               text-sm sm:text-base"
+              >
                 Fresh additions to our collection
               </p>
             </div>

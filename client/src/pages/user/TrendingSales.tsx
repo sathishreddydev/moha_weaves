@@ -1,4 +1,3 @@
-
 import { useQuery } from "@tanstack/react-query";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -54,15 +53,21 @@ export function TrendingSalesBanner() {
   }
 
   return (
-    <section className="py-4 bg-gradient-to-b from-primary/5 to-transparent">
+    <section className="py-4 pt-6 bg-gradient-to-b from-primary/5 to-transparent">
       <div className="max-w-7xl mx-auto px-4">
-        <div className="flex items-center justify-between mb-8">
+        <div className="flex items-center justify-between mb-4">
           <div>
-            <h2 className="font-serif text-3xl font-semibold flex items-center gap-2">
+            <p
+              className="font-serif font-semibold
+               text-xl sm:text-2xl lg:text-3xl flex items-center gap-1"
+            >
               <Tag className="h-6 w-6 text-primary" />
               Trending Sales & Offers
-            </h2>
-            <p className="text-muted-foreground mt-2">
+            </p>
+            <p
+              className="text-muted-foreground
+               text-sm sm:text-base"
+            >
               Don't miss out on our exclusive deals
             </p>
           </div>
@@ -75,7 +80,8 @@ export function TrendingSalesBanner() {
 
         <div className="grid md:grid-cols-3 gap-6">
           {sales.map((sale) => {
-            const timeRemaining = new Date(sale.validUntil).getTime() - Date.now();
+            const timeRemaining =
+              new Date(sale.validUntil).getTime() - Date.now();
             const daysLeft = Math.ceil(timeRemaining / (1000 * 60 * 60 * 24));
 
             return (
@@ -94,7 +100,10 @@ export function TrendingSalesBanner() {
                       </div>
                     )}
                     <div className="absolute top-4 right-4">
-                      <Badge variant="secondary" className="bg-white/90 backdrop-blur-sm">
+                      <Badge
+                        variant="secondary"
+                        className="bg-white/90 backdrop-blur-sm"
+                      >
                         <Clock className="h-3 w-3 mr-1" />
                         {daysLeft > 0 ? `${daysLeft} days left` : "Ending soon"}
                       </Badge>
@@ -108,7 +117,10 @@ export function TrendingSalesBanner() {
                       {sale.description}
                     </p>
                     <div className="flex items-center justify-between">
-                      <Badge variant="outline" className="text-primary border-primary">
+                      <Badge
+                        variant="outline"
+                        className="text-primary border-primary"
+                      >
                         {sale.offerType === "percentage"
                           ? `${sale.discountValue}% OFF`
                           : `₹${sale.discountValue} OFF`}
