@@ -49,11 +49,6 @@ export default function Checkout() {
   const [selectedAddressId, setSelectedAddressId] = useState<string>("");
   const [showNewAddressForm, setShowNewAddressForm] = useState(false);
   const [notes, setNotes] = useState("");
-  const [pincodeStatus, setPincodeStatus] = useState<{
-    available: boolean;
-    message: string;
-    deliveryDays?: number;
-  } | null>(null);
   const [checkingPincode, setCheckingPincode] = useState(false);
   const [couponCode, setCouponCode] = useState("");
   const [appliedCoupon, setAppliedCoupon] = useState<Coupon | null>(null);
@@ -304,15 +299,6 @@ export default function Checkout() {
   };
 
   const handlePlaceOrder = () => {
-    if (!pincodeStatus?.available) {
-      toast({
-        title: "Delivery not available",
-        description: "Please select an address with a serviceable pincode",
-        variant: "destructive",
-      });
-      return;
-    }
-
     initiateRazorpayPayment();
   };
 
@@ -399,7 +385,7 @@ export default function Checkout() {
     setCouponCode("");
     setCouponError("");
   };
-
+  console.log(selectedAddressId);
   return (
     <div className="max-w-4xl mx-auto px-4 py-8">
       <Link to="/user/cart">
@@ -652,34 +638,6 @@ export default function Checkout() {
                   </div>
                 </form>
               )}
-
-              {/* Pincode Status */}
-              {selectedAddressId && (
-                <div className="mt-4 p-3 rounded-lg bg-muted/50">
-                  {checkingPincode ? (
-                    <p className="text-sm text-muted-foreground">
-                      Checking delivery availability...
-                    </p>
-                  ) : pincodeStatus ? (
-                    <div
-                      className={`flex items-center gap-2 text-sm ${
-                        pincodeStatus.available
-                          ? "text-green-600"
-                          : "text-destructive"
-                      }`}
-                    >
-                      {pincodeStatus.available ? (
-                        <Check className="h-4 w-4" />
-                      ) : (
-                        <AlertCircle className="h-4 w-4" />
-                      )}
-                      <span data-testid="text-delivery-status">
-                        {pincodeStatus.message}
-                      </span>
-                    </div>
-                  ) : null}
-                </div>
-              )}
             </CardContent>
           </Card>
 
@@ -840,12 +798,7 @@ export default function Checkout() {
                     )}
                   </span>
                 </div>
-                {pincodeStatus?.available && pincodeStatus.deliveryDays && (
-                  <div className="flex justify-between text-muted-foreground">
-                    <span>Estimated Delivery</span>
-                    <span>{pincodeStatus.deliveryDays} days</span>
-                  </div>
-                )}
+                
               </div>
 
               <Separator className="my-4" />
@@ -857,7 +810,7 @@ export default function Checkout() {
 
               <Button
                 className="w-full mt-6"
-                disabled={!selectedAddressId || !pincodeStatus?.available}
+                disabled={!selectedAddressId}
                 onClick={handlePlaceOrder}
                 data-testid="button-place-order"
               >
@@ -865,11 +818,7 @@ export default function Checkout() {
                 {`Pay ${formatPrice(total)}`}
               </Button>
 
-              {!pincodeStatus?.available && selectedAddressId && (
-                <p className="text-sm text-destructive text-center mt-2">
-                  Delivery is not available to the selected address
-                </p>
-              )}
+             
             </CardContent>
           </Card>
         </div>

@@ -65,7 +65,6 @@ export default function Home() {
 
   return (
     <div className="min-h-screen">
-      {/* Hero Section - Dynamic based on active sales */}
       {(() => {
         const { data: heroSale } = useQuery<any>({
           queryKey: ["/api/sales?current=true&limit=1"],
