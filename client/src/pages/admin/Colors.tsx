@@ -4,6 +4,7 @@ import {
   Package,
   Plus,
   Edit,
+  Trash2,
   LayoutDashboard,
   Tags,
   Palette,
@@ -39,6 +40,16 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
@@ -70,6 +81,8 @@ export default function AdminColors() {
   const queryClient = useQueryClient();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [colorToDelete, setColorToDelete] = useState<Color | null>(null);
   const [editingColor, setEditingColor] = useState<Color | null>(null);
   const [formData, setFormData] = useState({
     name: "",
@@ -100,6 +113,45 @@ export default function AdminColors() {
     },
   });
 
+  const updateMutation = useMutation({
+    mutationFn: async ({ id, data }: { id: string; data: typeof formData }) => {
+      const response = await apiRequest("PATCH", `/api/admin/colors/${id}`, data);
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/colors"] });
+      toast({ title: "Success", description: "Color updated successfully" });
+      handleCloseDialog();
+    },
+    onError: () => {
+      toast({
+        title: "Error",
+        description: "Failed to update color",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const response = await apiRequest("DELETE", `/api/admin/colors/${id}`);
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/colors"] });
+      toast({ title: "Success", description: "Color deleted successfully" });
+      setDeleteDialogOpen(false);
+      setColorToDelete(null);
+    },
+    onError: () => {
+      toast({
+        title: "Error",
+        description: "Failed to delete color",
+        variant: "destructive",
+      });
+    },
+  });
+
   const handleLogout = async () => {
     await logout();
     navigate("/admin/login");
@@ -111,6 +163,27 @@ export default function AdminColors() {
     setDialogOpen(true);
   };
 
+  const handleOpenEdit = (color: Color) => {
+    setEditingColor(color);
+    setFormData({
+      name: color.name,
+      hexCode: color.hexCode,
+      isActive: color.isActive,
+    });
+    setDialogOpen(true);
+  };
+
+  const handleOpenDelete = (color: Color) => {
+    setColorToDelete(color);
+    setDeleteDialogOpen(true);
+  };
+
+  const handleConfirmDelete = () => {
+    if (colorToDelete) {
+      deleteMutation.mutate(colorToDelete.id);
+    }
+  };
+
   const handleCloseDialog = () => {
     setDialogOpen(false);
     setEditingColor(null);
@@ -118,10 +191,12 @@ export default function AdminColors() {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    createMutation.mutate(formData);
+    if (editingColor) {
+      updateMutation.mutate({ id: editingColor.id, data: formData });
+    } else {
+      createMutation.mutate(formData);
+    }
   };
-
-
 
   return (
     <div>
@@ -158,6 +233,7 @@ export default function AdminColors() {
                     <TableHead>Name</TableHead>
                     <TableHead>Hex Code</TableHead>
                     <TableHead>Status</TableHead>
+                    <TableHead className="text-right">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -185,6 +261,24 @@ export default function AdminColors() {
                           {color.isActive ? "Active" : "Inactive"}
                         </Badge>
                       </TableCell>
+                      <TableCell className="text-right">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => handleOpenEdit(color)}
+                          data-testid={`button-edit-${color.id}`}
+                        >
+                          <Edit className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => handleOpenDelete(color)}
+                          data-testid={`button-delete-${color.id}`}
+                        >
+                          <Trash2 className="h-4 w-4 text-destructive" />
+                        </Button>
+                      </TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
@@ -197,8 +291,12 @@ export default function AdminColors() {
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Add Color</DialogTitle>
-            <DialogDescription>Create a new color option</DialogDescription>
+            <DialogTitle>
+              {editingColor ? "Edit Color" : "Add Color"}
+            </DialogTitle>
+            <DialogDescription>
+              {editingColor ? "Update color details" : "Create a new color option"}
+            </DialogDescription>
           </DialogHeader>
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
@@ -258,15 +356,39 @@ export default function AdminColors() {
               </Button>
               <Button
                 type="submit"
-                disabled={createMutation.isPending}
+                disabled={createMutation.isPending || updateMutation.isPending}
                 data-testid="button-submit"
               >
-                {createMutation.isPending ? "Saving..." : "Create"}
+                {createMutation.isPending || updateMutation.isPending
+                  ? "Saving..."
+                  : editingColor
+                  ? "Update"
+                  : "Create"}
               </Button>
             </DialogFooter>
           </form>
         </DialogContent>
       </Dialog>
+
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Color</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete "{colorToDelete?.name}"? This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleConfirmDelete}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {deleteMutation.isPending ? "Deleting..." : "Delete"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

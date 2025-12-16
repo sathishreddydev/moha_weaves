@@ -18,6 +18,7 @@ import {
   Ticket,
   Star,
   Settings,
+  Upload,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -40,6 +41,16 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
@@ -48,6 +59,7 @@ import { useAuth } from "@/lib/auth";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+import { CloudinaryUploader } from "@/components/CloudinaryUploader";
 import type { Category } from "@shared/schema";
 
 const navItems = [
@@ -72,6 +84,8 @@ export default function AdminCategories() {
   const queryClient = useQueryClient();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [categoryToDelete, setCategoryToDelete] = useState<Category | null>(null);
   const [editingCategory, setEditingCategory] = useState<Category | null>(null);
   const [formData, setFormData] = useState({
     name: "",
@@ -126,6 +140,26 @@ export default function AdminCategories() {
     },
   });
 
+  const deleteMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const response = await apiRequest("DELETE", `/api/admin/categories/${id}`);
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/categories"] });
+      toast({ title: "Success", description: "Category deleted successfully" });
+      setDeleteDialogOpen(false);
+      setCategoryToDelete(null);
+    },
+    onError: () => {
+      toast({
+        title: "Error",
+        description: "Failed to delete category",
+        variant: "destructive",
+      });
+    },
+  });
+
   const handleLogout = async () => {
     await logout();
     navigate("/admin/login");
@@ -148,6 +182,17 @@ export default function AdminCategories() {
     setDialogOpen(true);
   };
 
+  const handleOpenDelete = (category: Category) => {
+    setCategoryToDelete(category);
+    setDeleteDialogOpen(true);
+  };
+
+  const handleConfirmDelete = () => {
+    if (categoryToDelete) {
+      deleteMutation.mutate(categoryToDelete.id);
+    }
+  };
+
   const handleCloseDialog = () => {
     setDialogOpen(false);
     setEditingCategory(null);
@@ -159,6 +204,12 @@ export default function AdminCategories() {
       updateMutation.mutate({ id: editingCategory.id, data: formData });
     } else {
       createMutation.mutate(formData);
+    }
+  };
+
+  const handleImageUpload = (urls: string[]) => {
+    if (urls.length > 0) {
+      setFormData({ ...formData, imageUrl: urls[0] });
     }
   };
 
@@ -193,6 +244,7 @@ export default function AdminCategories() {
               <Table>
                 <TableHeader>
                   <TableRow>
+                    <TableHead>Image</TableHead>
                     <TableHead>Name</TableHead>
                     <TableHead>Description</TableHead>
                     <TableHead>Status</TableHead>
@@ -205,6 +257,19 @@ export default function AdminCategories() {
                       key={category.id}
                       data-testid={`row-category-${category.id}`}
                     >
+                      <TableCell>
+                        {category.imageUrl ? (
+                          <img
+                            src={category.imageUrl}
+                            alt={category.name}
+                            className="w-12 h-12 object-cover rounded"
+                          />
+                        ) : (
+                          <div className="w-12 h-12 bg-muted rounded flex items-center justify-center">
+                            <Tags className="h-6 w-6 text-muted-foreground" />
+                          </div>
+                        )}
+                      </TableCell>
                       <TableCell className="font-medium">
                         {category.name}
                       </TableCell>
@@ -226,6 +291,14 @@ export default function AdminCategories() {
                           data-testid={`button-edit-${category.id}`}
                         >
                           <Edit className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => handleOpenDelete(category)}
+                          data-testid={`button-delete-${category.id}`}
+                        >
+                          <Trash2 className="h-4 w-4 text-destructive" />
                         </Button>
                       </TableCell>
                     </TableRow>
@@ -274,16 +347,35 @@ export default function AdminCategories() {
               />
             </div>
             <div>
-              <Label htmlFor="imageUrl">Image URL</Label>
-              <Input
-                id="imageUrl"
-                value={formData.imageUrl}
-                onChange={(e) =>
-                  setFormData({ ...formData, imageUrl: e.target.value })
-                }
-                placeholder="https://..."
-                data-testid="input-image-url"
-              />
+              <Label>Category Image</Label>
+              <div className="space-y-2">
+                {formData.imageUrl && (
+                  <div className="relative w-24 h-24">
+                    <img
+                      src={formData.imageUrl}
+                      alt="Category preview"
+                      className="w-full h-full object-cover rounded"
+                    />
+                    <Button
+                      type="button"
+                      variant="destructive"
+                      size="icon"
+                      className="absolute -top-2 -right-2 h-6 w-6"
+                      onClick={() => setFormData({ ...formData, imageUrl: "" })}
+                    >
+                      <Trash2 className="h-3 w-3" />
+                    </Button>
+                  </div>
+                )}
+                <CloudinaryUploader
+                  maxNumberOfFiles={1}
+                  onComplete={handleImageUpload}
+                  buttonVariant="outline"
+                >
+                  <Upload className="h-4 w-4 mr-2" />
+                  {formData.imageUrl ? "Change Image" : "Upload Image"}
+                </CloudinaryUploader>
+              </div>
             </div>
             <div className="flex items-center gap-2">
               <Switch
@@ -319,6 +411,26 @@ export default function AdminCategories() {
           </form>
         </DialogContent>
       </Dialog>
+
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Category</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete "{categoryToDelete?.name}"? This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleConfirmDelete}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {deleteMutation.isPending ? "Deleting..." : "Delete"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

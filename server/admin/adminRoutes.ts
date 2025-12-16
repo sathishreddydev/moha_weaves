@@ -218,6 +218,15 @@ export const adminRoutes = (app: Express) => {
     }
   });
 
+  app.delete("/api/admin/categories/:id", authAdmin, async (req, res) => {
+    try {
+      await publicStorage.deleteCategory(req.params.id);
+      res.json({ success: true });
+    } catch (error) {
+      res.status(500).json({ message: "Failed to delete category" });
+    }
+  });
+
   // Admin color management
   app.post("/api/admin/colors", authAdmin, async (req, res) => {
     try {
@@ -228,6 +237,24 @@ export const adminRoutes = (app: Express) => {
     }
   });
 
+  app.patch("/api/admin/colors/:id", authAdmin, async (req, res) => {
+    try {
+      const color = await publicStorage.updateColor(req.params.id, req.body);
+      res.json(color);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to update color" });
+    }
+  });
+
+  app.delete("/api/admin/colors/:id", authAdmin, async (req, res) => {
+    try {
+      await publicStorage.deleteColor(req.params.id);
+      res.json({ success: true });
+    } catch (error) {
+      res.status(500).json({ message: "Failed to delete color" });
+    }
+  });
+
   // Admin fabric management
   app.post("/api/admin/fabrics", authAdmin, async (req, res) => {
     try {
@@ -235,6 +262,24 @@ export const adminRoutes = (app: Express) => {
       res.json(fabric);
     } catch (error) {
       res.status(500).json({ message: "Failed to create fabric" });
+    }
+  });
+
+  app.patch("/api/admin/fabrics/:id", authAdmin, async (req, res) => {
+    try {
+      const fabric = await publicStorage.updateFabric(req.params.id, req.body);
+      res.json(fabric);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to update fabric" });
+    }
+  });
+
+  app.delete("/api/admin/fabrics/:id", authAdmin, async (req, res) => {
+    try {
+      await publicStorage.deleteFabric(req.params.id);
+      res.json({ success: true });
+    } catch (error) {
+      res.status(500).json({ message: "Failed to delete fabric" });
     }
   });
 

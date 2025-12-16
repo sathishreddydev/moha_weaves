@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { Plus } from "lucide-react";
+import { Plus, Edit, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -21,6 +21,16 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
@@ -38,6 +48,9 @@ export default function AdminFabrics() {
   const queryClient = useQueryClient();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [fabricToDelete, setFabricToDelete] = useState<Fabric | null>(null);
+  const [editingFabric, setEditingFabric] = useState<Fabric | null>(null);
   const [formData, setFormData] = useState({
     name: "",
     description: "",
@@ -67,23 +80,89 @@ export default function AdminFabrics() {
     },
   });
 
+  const updateMutation = useMutation({
+    mutationFn: async ({ id, data }: { id: string; data: typeof formData }) => {
+      const response = await apiRequest("PATCH", `/api/admin/fabrics/${id}`, data);
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/fabrics"] });
+      toast({ title: "Success", description: "Fabric updated successfully" });
+      handleCloseDialog();
+    },
+    onError: () => {
+      toast({
+        title: "Error",
+        description: "Failed to update fabric",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const response = await apiRequest("DELETE", `/api/admin/fabrics/${id}`);
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/fabrics"] });
+      toast({ title: "Success", description: "Fabric deleted successfully" });
+      setDeleteDialogOpen(false);
+      setFabricToDelete(null);
+    },
+    onError: () => {
+      toast({
+        title: "Error",
+        description: "Failed to delete fabric",
+        variant: "destructive",
+      });
+    },
+  });
+
   const handleLogout = async () => {
     await logout();
     navigate("/admin/login");
   };
 
   const handleOpenCreate = () => {
+    setEditingFabric(null);
     setFormData({ name: "", description: "", isActive: true });
     setDialogOpen(true);
   };
 
+  const handleOpenEdit = (fabric: Fabric) => {
+    setEditingFabric(fabric);
+    setFormData({
+      name: fabric.name,
+      description: fabric.description || "",
+      isActive: fabric.isActive,
+    });
+    setDialogOpen(true);
+  };
+
+  const handleOpenDelete = (fabric: Fabric) => {
+    setFabricToDelete(fabric);
+    setDeleteDialogOpen(true);
+  };
+
+  const handleConfirmDelete = () => {
+    if (fabricToDelete) {
+      deleteMutation.mutate(fabricToDelete.id);
+    }
+  };
+
   const handleCloseDialog = () => {
     setDialogOpen(false);
+    setEditingFabric(null);
   };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    createMutation.mutate(formData);
+    if (editingFabric) {
+      updateMutation.mutate({ id: editingFabric.id, data: formData });
+    } else {
+      createMutation.mutate(formData);
+    }
   };
 
   return (
@@ -120,6 +199,7 @@ export default function AdminFabrics() {
                     <TableHead>Name</TableHead>
                     <TableHead>Description</TableHead>
                     <TableHead>Status</TableHead>
+                    <TableHead className="text-right">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -141,6 +221,24 @@ export default function AdminFabrics() {
                           {fabric.isActive ? "Active" : "Inactive"}
                         </Badge>
                       </TableCell>
+                      <TableCell className="text-right">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => handleOpenEdit(fabric)}
+                          data-testid={`button-edit-${fabric.id}`}
+                        >
+                          <Edit className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => handleOpenDelete(fabric)}
+                          data-testid={`button-delete-${fabric.id}`}
+                        >
+                          <Trash2 className="h-4 w-4 text-destructive" />
+                        </Button>
+                      </TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
@@ -153,8 +251,12 @@ export default function AdminFabrics() {
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Add Fabric</DialogTitle>
-            <DialogDescription>Create a new fabric type</DialogDescription>
+            <DialogTitle>
+              {editingFabric ? "Edit Fabric" : "Add Fabric"}
+            </DialogTitle>
+            <DialogDescription>
+              {editingFabric ? "Update fabric details" : "Create a new fabric type"}
+            </DialogDescription>
           </DialogHeader>
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
@@ -201,15 +303,39 @@ export default function AdminFabrics() {
               </Button>
               <Button
                 type="submit"
-                disabled={createMutation.isPending}
+                disabled={createMutation.isPending || updateMutation.isPending}
                 data-testid="button-submit"
               >
-                {createMutation.isPending ? "Saving..." : "Create"}
+                {createMutation.isPending || updateMutation.isPending
+                  ? "Saving..."
+                  : editingFabric
+                  ? "Update"
+                  : "Create"}
               </Button>
             </DialogFooter>
           </form>
         </DialogContent>
       </Dialog>
+
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Fabric</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete "{fabricToDelete?.name}"? This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleConfirmDelete}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {deleteMutation.isPending ? "Deleting..." : "Delete"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
