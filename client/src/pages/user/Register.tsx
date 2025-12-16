@@ -3,24 +3,41 @@ import { Link, useNavigate } from "react-router-dom";
 import { Eye, EyeOff, Mail, Lock, User, Phone } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { useAuth } from "@/lib/auth";
 import { useToast } from "@/hooks/use-toast";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form";
+import { TextField } from "@/components/ui/TextField";
 
-const registerSchema = z.object({
-  name: z.string().min(2, "Name must be at least 2 characters"),
-  email: z.string().email("Please enter a valid email"),
-  phone: z.string().optional(),
-  password: z.string().min(6, "Password must be at least 6 characters"),
-  confirmPassword: z.string(),
-}).refine((data) => data.password === data.confirmPassword, {
-  message: "Passwords don't match",
-  path: ["confirmPassword"],
-});
+const registerSchema = z
+  .object({
+    name: z.string().min(2, "Name must be at least 2 characters"),
+    email: z.string().email("Please enter a valid email"),
+    phone: z.string().optional(),
+    password: z.string().min(6, "Password must be at least 6 characters"),
+    confirmPassword: z.string(),
+  })
+  .refine((data) => data.password === data.confirmPassword, {
+    message: "Passwords don't match",
+    path: ["confirmPassword"],
+  });
 
 type RegisterFormValues = z.infer<typeof registerSchema>;
 
@@ -52,10 +69,17 @@ export default function UserRegister() {
         password: values.password,
       });
       if (result.success) {
-        toast({ title: "Welcome to Moha!", description: "Your account has been created successfully." });
+        toast({
+          title: "Welcome to Moha!",
+          description: "Your account has been created successfully.",
+        });
         navigate("/");
       } else {
-        toast({ title: "Registration failed", description: result.error, variant: "destructive" });
+        toast({
+          title: "Registration failed",
+          description: result.error,
+          variant: "destructive",
+        });
       }
     } finally {
       setIsLoading(false);
@@ -66,20 +90,30 @@ export default function UserRegister() {
     <div className="min-h-[80vh] flex items-center justify-center px-4 py-12">
       <div className="w-full max-w-md">
         <div className="text-center mb-8">
-          <Link to="/" className="font-serif text-3xl font-semibold text-primary">
+          <Link
+            to="/"
+            className="font-serif text-3xl font-semibold text-primary"
+          >
             Moha
           </Link>
-          <p className="text-muted-foreground mt-2">Begin your saree journey with us</p>
+          <p className="text-muted-foreground mt-2">
+            Begin your saree journey with us
+          </p>
         </div>
 
         <Card>
           <CardHeader>
             <CardTitle data-testid="text-page-title">Create Account</CardTitle>
-            <CardDescription>Join Moha for exclusive access to our collection</CardDescription>
+            <CardDescription>
+              Join Moha for exclusive access to our collection
+            </CardDescription>
           </CardHeader>
           <CardContent>
             <Form {...form}>
-              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+              <form
+                onSubmit={form.handleSubmit(onSubmit)}
+                className="space-y-4"
+              >
                 <FormField
                   control={form.control}
                   name="name"
@@ -154,29 +188,27 @@ export default function UserRegister() {
                     <FormItem>
                       <FormLabel>Password</FormLabel>
                       <FormControl>
-                        <div className="relative">
-                          <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                          <Input
-                            type={showPassword ? "text" : "password"}
-                            placeholder="Create a password"
-                            className="pl-10 pr-10"
-                            data-testid="input-password"
-                            {...field}
-                          />
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="icon"
-                            className="absolute right-0 top-0 h-full px-3 hover:bg-transparent"
-                            onClick={() => setShowPassword(!showPassword)}
-                          >
-                            {showPassword ? (
-                              <EyeOff className="h-4 w-4 text-muted-foreground" />
+                        <TextField
+                          type={showPassword ? "text" : "password"}
+                          placeholder="Password"
+                          startAdornment={
+                            <Lock className="h-4 w-4 text-gray-500" />
+                          }
+                          endAdornment={
+                            showPassword ? (
+                              <EyeOff
+                                className="h-4 w-4 text-gray-500 cursor-pointer"
+                                onClick={() => setShowPassword(false)}
+                              />
                             ) : (
-                              <Eye className="h-4 w-4 text-muted-foreground" />
-                            )}
-                          </Button>
-                        </div>
+                              <Eye
+                                className="h-4 w-4 text-gray-500 cursor-pointer"
+                                onClick={() => setShowPassword(true)}
+                              />
+                            )
+                          }
+                          {...field}
+                        />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -206,7 +238,12 @@ export default function UserRegister() {
                   )}
                 />
 
-                <Button type="submit" className="w-full" disabled={isLoading} data-testid="button-submit">
+                <Button
+                  type="submit"
+                  className="w-full"
+                  disabled={isLoading}
+                  data-testid="button-submit"
+                >
                   {isLoading ? "Creating account..." : "Create Account"}
                 </Button>
               </form>
@@ -215,7 +252,11 @@ export default function UserRegister() {
           <CardFooter>
             <p className="text-sm text-center text-muted-foreground w-full">
               Already have an account?{" "}
-              <Link to="/user/login" className="text-primary hover:underline" data-testid="link-login">
+              <Link
+                to="/user/login"
+                className="text-primary hover:underline"
+                data-testid="link-login"
+              >
                 Sign in
               </Link>
             </p>

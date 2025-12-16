@@ -202,6 +202,35 @@ export function Header() {
                       </Link>
                     </DropdownMenuItem>
                   )}
+                  {user.role === "user" && (
+                    <>
+                      <DropdownMenuItem asChild>
+                        <Link to="/user/orders" className="cursor-pointer" data-testid="link-orders">
+                          <Package className="mr-2 h-4 w-4" />
+                          My Orders
+                        </Link>
+                      </DropdownMenuItem>
+                      <DropdownMenuItem asChild>
+                        <Link to="/user/wishlist" className="cursor-pointer" data-testid="link-wishlist-menu">
+                          <Heart className="mr-2 h-4 w-4" />
+                          Wishlist
+                        </Link>
+                      </DropdownMenuItem>
+                      <DropdownMenuItem asChild>
+                        <Link to="/user/addresses" className="cursor-pointer" data-testid="link-addresses">
+                          <MapPin className="mr-2 h-4 w-4" />
+                          My Addresses
+                        </Link>
+                      </DropdownMenuItem>
+                      <DropdownMenuItem asChild>
+                        <Link to="/user/returns" className="cursor-pointer" data-testid="link-returns">
+                          <RotateCcw className="mr-2 h-4 w-4" />
+                          Returns
+                        </Link>
+                      </DropdownMenuItem>
+                      <DropdownMenuSeparator />
+                    </>
+                  )}
                   <DropdownMenuItem
                     onClick={handleLogout}
                     className="text-destructive"

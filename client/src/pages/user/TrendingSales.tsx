@@ -72,7 +72,7 @@ export function TrendingSalesBanner() {
             </p>
           </div>
           <Link to="/sales">
-            <Button variant="outline">
+            <Button variant="ghost">
               View All <ArrowRight className="ml-2 h-4 w-4" />
             </Button>
           </Link>

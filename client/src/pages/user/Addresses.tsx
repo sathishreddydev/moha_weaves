@@ -152,20 +152,26 @@ export default function Addresses() {
     );
   }
 
-
   return (
     <div className="max-w-4xl mx-auto px-4 py-12">
-      <div className="flex justify-between mb-8">
-        <div>
-          <h1 className="text-3xl font-semibold">My Addresses</h1>
-          <p className="text-muted-foreground">
-            Manage your delivery addresses
-          </p>
+      <div className="">
+        <div className="flex items-center justify-between">
+          <h1 className="text-lg font-semibold">
+            My Addresses
+          </h1>
+          <Button
+            variant="ghost"
+            onClick={() => handleOpenDialog()}
+            className="text-sm"
+          >
+            <Plus className="h-4 w-4 mr-2" />
+            Add Address
+          </Button>
         </div>
-        <Button onClick={() => handleOpenDialog()}>
-          <Plus className="h-4 w-4 mr-2" />
-          Add Address
-        </Button>
+
+        <p className="text-muted-foreground text-sm sm:text-base">
+          Manage your delivery addresses
+        </p>
       </div>
 
       {loadingAddresses ? (

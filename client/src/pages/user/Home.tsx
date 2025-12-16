@@ -65,116 +65,56 @@ export default function Home() {
 
   return (
     <div className="min-h-screen">
-      {(() => {
-        const { data: heroSale } = useQuery<any>({
-          queryKey: ["/api/sales?current=true&limit=1"],
-        });
+      <section className="relative flex items-center justify-center min-h-[40vh] sm:min-h-[55vh] lg:min-h-[75vh] px-4 sm:px-6 lg:px-12">
+        <div className="absolute inset-0 z-0">
+          <img
+            src="/banner1.png"
+            alt="Elegant saree collection"
+            className="w-full h-full object-cover"
+          />
+          <div className="absolute inset-0 bg-gradient-to-r from-black/80 via-black/60 to-transparent" />
+        </div>
 
-        const activeSale = heroSale && heroSale.length > 0 ? heroSale[0] : null;
+        <div className="relative z-10 max-w-7xl w-full mx-auto py-12 sm:py-16 lg:py-24">
+          <div className="max-w-xl text-center sm:text-left">
+            <h1
+              className="font-serif text-xl sm:text-2xl md:text-3xl lg:text-4xl font-semibold text-white"
+              data-testid="text-hero-title"
+            >
+              Celebrate Tradition with Elegance
+            </h1>
 
-        return (
-          <section className="relative min-h-[70vh] flex items-center">
-            <div className="absolute inset-0 z-0">
-              <img
-                src={
-                  activeSale?.bannerImage ||
-                  "https://images.unsplash.com/photo-1583391733956-3750e0ff4e8b?w=1600&h=900&fit=crop"
-                }
-                alt={activeSale?.name || "Elegant saree collection"}
-                className="w-full h-full object-cover"
-              />
-              <div className="absolute inset-0 bg-gradient-to-r from-black/70 via-black/50 to-transparent" />
+            <p className="text-sm sm:text-base text-white/90 mb-6 leading-relaxed">
+              Discover our exquisite collection of handcrafted sarees, woven
+              with stories of heritage and artistry.
+            </p>
+
+            <div className="flex gap-4 sm:gap-6">
+              <Link to="/sarees" className="w-full sm:w-auto">
+                <Button
+                  size="lg"
+                  className="w-full sm:w-auto bg-white text-primary hover:bg-white/90"
+                  data-testid="button-shop-now"
+                >
+                  Shop Now
+                  <ArrowRight className="ml-2 h-4 w-4" />
+                </Button>
+              </Link>
+
+              <Link to="/categories" className="w-full sm:w-auto">
+                <Button
+                  size="lg"
+                  variant="ghost"
+                  className="w-full sm:w-auto text-white backdrop-blur-sm"
+                  data-testid="button-explore"
+                >
+                  Explore Collections
+                </Button>
+              </Link>
             </div>
-
-            <div className="relative z-10 max-w-7xl mx-auto px-4 py-20">
-              <div className="max-w-xl">
-                {activeSale ? (
-                  <>
-                    <Badge className="mb-4 bg-red-500 text-white text-lg px-4 py-2">
-                      {["percentage", "category", "flash_sale"].includes(
-                        activeSale.offerType
-                      )
-                        ? `${Math.round(
-                            parseFloat(activeSale.discountValue)
-                          )}% OFF`
-                        : `FLAT ₹${Math.round(
-                            parseFloat(activeSale.discountValue)
-                          )} OFF`}
-                    </Badge>
-                    <h1
-                      className="font-serif text-4xl md:text-5xl lg:text-6xl font-semibold text-white mb-4"
-                      data-testid="text-hero-title"
-                    >
-                      {activeSale.name}
-                    </h1>
-                    <p className="text-lg text-white/90 mb-4 leading-relaxed">
-                      {activeSale.description ||
-                        "Exclusive deals on our handcrafted collection"}
-                    </p>
-                    <div className="flex flex-wrap gap-4">
-                      <Link to={`/sales/${activeSale.id}`}>
-                        <Button
-                          size="lg"
-                          className="bg-white text-primary hover:bg-white/90"
-                          data-testid="button-shop-now"
-                        >
-                          Shop Sale
-                          <ArrowRight className="ml-2 h-4 w-4" />
-                        </Button>
-                      </Link>
-                      <Link to="/sales">
-                        <Button
-                          size="lg"
-                          variant="outline"
-                          className="border-white text-white hover:bg-white/10 backdrop-blur-sm"
-                          data-testid="button-explore"
-                        >
-                          View All Offers
-                        </Button>
-                      </Link>
-                    </div>
-                  </>
-                ) : (
-                  <>
-                    <h1
-                      className="font-serif text-4xl md:text-5xl lg:text-6xl font-semibold text-white mb-4"
-                      data-testid="text-hero-title"
-                    >
-                      Celebrate Tradition with Elegance
-                    </h1>
-                    <p className="text-lg text-white/90 mb-4 leading-relaxed">
-                      Discover our exquisite collection of handcrafted sarees,
-                      woven with stories of heritage and artistry.
-                    </p>
-                    <div className="flex flex-wrap gap-4">
-                      <Link to="/sarees">
-                        <Button
-                          size="lg"
-                          className="bg-white text-primary hover:bg-white/90"
-                          data-testid="button-shop-now"
-                        >
-                          Shop Now
-                          <ArrowRight className="ml-2 h-4 w-4" />
-                        </Button>
-                      </Link>
-                      <Link to="/categories">
-                        <Button
-                          size="lg"
-                          variant="outline"
-                          className="border-white text-white hover:bg-white/10 backdrop-blur-sm"
-                          data-testid="button-explore"
-                        >
-                          Explore Collections
-                        </Button>
-                      </Link>
-                    </div>
-                  </>
-                )}
-              </div>
-            </div>
-          </section>
-        );
-      })()}
+          </div>
+        </div>
+      </section>
 
       <TrendingSalesBanner />
 
