@@ -232,16 +232,40 @@ async getNewSarees(filters?: {
     );
   }
 
+  // Filter by category names - look up IDs from names
   if (filters?.category && filters.category.length > 0) {
-    conditions.push(inArray(sarees.categoryId, filters.category));
+    const matchingCategories = await db
+      .select({ id: categories.id })
+      .from(categories)
+      .where(inArray(categories.name, filters.category));
+    const categoryIds = matchingCategories.map((c) => c.id);
+    if (categoryIds.length > 0) {
+      conditions.push(inArray(sarees.categoryId, categoryIds));
+    }
   }
 
+  // Filter by color names - look up IDs from names
   if (filters?.color && filters.color.length > 0) {
-    conditions.push(inArray(sarees.colorId, filters.color));
+    const matchingColors = await db
+      .select({ id: colors.id })
+      .from(colors)
+      .where(inArray(colors.name, filters.color));
+    const colorIds = matchingColors.map((c) => c.id);
+    if (colorIds.length > 0) {
+      conditions.push(inArray(sarees.colorId, colorIds));
+    }
   }
 
+  // Filter by fabric names - look up IDs from names
   if (filters?.fabric && filters.fabric.length > 0) {
-    conditions.push(inArray(sarees.fabricId, filters.fabric));
+    const matchingFabrics = await db
+      .select({ id: fabrics.id })
+      .from(fabrics)
+      .where(inArray(fabrics.name, filters.fabric));
+    const fabricIds = matchingFabrics.map((f) => f.id);
+    if (fabricIds.length > 0) {
+      conditions.push(inArray(sarees.fabricId, fabricIds));
+    }
   }
 
   if (filters?.featured) {
