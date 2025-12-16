@@ -225,9 +225,9 @@ export default function Sarees() {
             <FilterItem
               key={cat.id}
               id={`cat-${cat.id}`}
-              checked={filters.category.includes(cat.id)}
+              checked={filters.category.includes(cat.name)}
               onChange={(checked) =>
-                updateFilter("category", cat.id, checked === true)
+                updateFilter("category", cat.name, checked === true)
               }
               label={cat.name}
             />
@@ -239,9 +239,9 @@ export default function Sarees() {
             <FilterItem
               key={color.id}
               id={`color-${color.id}`}
-              checked={filters.color.includes(color.id)}
+              checked={filters.color.includes(color.name)}
               onChange={(checked) =>
-                updateFilter("color", color.id, checked === true)
+                updateFilter("color", color.name, checked === true)
               }
               label={
                 <span className="flex items-center gap-1">
@@ -261,9 +261,9 @@ export default function Sarees() {
             <FilterItem
               key={fab.id}
               id={`fab-${fab.id}`}
-              checked={filters.fabric.includes(fab.id)}
+              checked={filters.fabric.includes(fab.name)}
               onChange={(checked) =>
-                updateFilter("fabric", fab.id, checked === true)
+                updateFilter("fabric", fab.name, checked === true)
               }
               label={fab.name}
             />
