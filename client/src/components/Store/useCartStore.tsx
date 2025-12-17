@@ -1,16 +1,16 @@
 import { create } from "zustand";
 import { produce } from "immer";
 import { apiRequest } from "@/lib/queryClient";
-import { toast } from "@/hooks/use-toast";
 import type { CartItemWithSaree } from "@shared/schema";
+import { toast } from "@/hooks/use-toast";
 
 interface CartState {
   cart: CartItemWithSaree[];
   count: number;
   isLoadingCart: boolean;
-  isAddingItem: Record<string, boolean>;    // key = sareeId
-  isUpdatingItem: Record<string, boolean>;  // key = cartItemId
-  isRemovingItem: Record<string, boolean>;  // key = cartItemId
+  isAddingItem: Record<string, boolean>; // key = sareeId
+  isUpdatingItem: Record<string, boolean>; // key = cartItemId
+  isRemovingItem: Record<string, boolean>; // key = cartItemId
   getCart: () => Promise<void>;
   addItem: (sareeId: string, quantity: number) => Promise<void>;
   updateQuantity: (id: string, quantity: number) => Promise<void>;
@@ -32,7 +32,7 @@ export const useCartStore = create<CartState>((set, get) => ({
       const res = await apiRequest("GET", "/api/user/cart");
       const data = await res.json();
       set({ cart: data.cart, count: data.count });
-    } catch (err) {
+    } catch {
       toast({
         title: "Error",
         description: "Failed to fetch cart.",
@@ -44,17 +44,36 @@ export const useCartStore = create<CartState>((set, get) => ({
   },
 
   addItem: async (sareeId, quantity) => {
-    // set loading only for this saree
     set((state) => ({
       isAddingItem: { ...state.isAddingItem, [sareeId]: true },
     }));
 
     try {
-      const res = await apiRequest("POST", "/api/user/cart", { sareeId, quantity });
+      const res = await apiRequest("POST", "/api/user/cart", {
+        sareeId,
+        quantity,
+      });
       const data = await res.json();
       set({ cart: data.cart, count: data.count });
-      toast({ title: "Added", description: "Item added to cart." });
-    } catch (err) {
+
+      const addedItem = data.cart.find(
+        (c: CartItemWithSaree) => c.saree.id === sareeId
+      );
+
+      toast({
+        title: "Added to Cart",
+        description: (
+          <div className="flex items-center gap-2">
+            <img
+              src={addedItem?.saree.imageUrl}
+              alt={addedItem?.saree.name}
+              className="h-12 w-12 rounded-md object-cover"
+            />
+            <span className="text-sm font-medium">{addedItem?.saree.name}</span>
+          </div>
+        ),
+      });
+    } catch {
       toast({
         title: "Error",
         description: "Failed to add item.",
@@ -68,7 +87,6 @@ export const useCartStore = create<CartState>((set, get) => ({
   },
 
   updateQuantity: async (id, quantity) => {
-    // set loading only for this cart item
     set((state) => ({
       isUpdatingItem: { ...state.isUpdatingItem, [id]: true },
     }));
@@ -77,16 +95,16 @@ export const useCartStore = create<CartState>((set, get) => ({
       const cartItem = get().cart.find((c) => c.id === id);
       if (!cartItem) return;
 
-      // Remove item if quantity <= 0 or out of stock
       if (quantity <= 0 || cartItem.saree.onlineStock <= 0) {
         await get().removeItem(id);
         return;
       }
 
-      // Prevent updating beyond stock
       if (quantity > cartItem.saree.onlineStock) return;
 
-      const res = await apiRequest("PATCH", `/api/user/cart/${id}`, { quantity });
+      const res = await apiRequest("PATCH", `/api/user/cart/${id}`, {
+        quantity,
+      });
       const data = await res.json();
 
       set(
@@ -97,8 +115,20 @@ export const useCartStore = create<CartState>((set, get) => ({
         })
       );
 
-      toast({ title: "Updated", description: "Cart updated successfully." });
-    } catch (err) {
+      toast({
+        title: "Updated",
+        description: (
+          <div className="flex items-center gap-2">
+            <img
+              src={cartItem.saree.imageUrl ?? ""}
+              alt={cartItem.saree.name}
+              className="h-12 w-12 rounded-md object-cover"
+            />
+            <span className="text-sm font-medium">{cartItem.saree.name}</span>
+          </div>
+        ),
+      });
+    } catch {
       toast({
         title: "Error",
         description: "Failed to update item.",
@@ -117,6 +147,8 @@ export const useCartStore = create<CartState>((set, get) => ({
     }));
 
     try {
+      const cartItem = get().cart.find((c) => c.id === id);
+
       const res = await apiRequest("DELETE", `/api/user/cart/${id}`);
       const data = await res.json();
 
@@ -127,8 +159,22 @@ export const useCartStore = create<CartState>((set, get) => ({
         })
       );
 
-      toast({ title: "Removed", description: "Item removed from cart." });
-    } catch (err) {
+      toast({
+        title: "Removed",
+        description: cartItem ? (
+          <div className="flex items-center gap-2">
+            <img
+              src={cartItem.saree.imageUrl ?? ""}
+              alt={cartItem.saree.name}
+              className="h-12 w-12 rounded-md object-cover"
+            />
+            <span className="text-sm font-medium">{cartItem.saree.name}</span>
+          </div>
+        ) : (
+          "Item removed"
+        ),
+      });
+    } catch {
       toast({
         title: "Error",
         description: "Failed to remove item.",
@@ -142,6 +188,12 @@ export const useCartStore = create<CartState>((set, get) => ({
   },
 
   clearCart: () => {
-    set({ cart: [], count: 0, isAddingItem: {}, isUpdatingItem: {}, isRemovingItem: {} });
+    set({
+      cart: [],
+      count: 0,
+      isAddingItem: {},
+      isUpdatingItem: {},
+      isRemovingItem: {},
+    });
   },
 }));
