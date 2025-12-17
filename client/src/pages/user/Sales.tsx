@@ -74,7 +74,7 @@ export default function Sales() {
           <Tag className="h-4 w-4" />
           <span className="text-sm font-medium">Special Offers</span>
         </div>
-        <h1 className="font-serif text-4xl font-semibold mb-4" data-testid="text-page-title">
+        <h1 className="font-serif text-xl font-semibold mb-4" data-testid="text-page-title">
           Sales & Offers
         </h1>
         <p className="text-muted-foreground max-w-2xl mx-auto mb-6">

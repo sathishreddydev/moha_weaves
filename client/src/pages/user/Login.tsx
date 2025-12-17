@@ -81,7 +81,7 @@ export default function UserLogin() {
         <div className="text-center mb-8">
           <Link
             to="/"
-            className="font-serif text-3xl font-semibold text-primary"
+            className="font-serif text-xl font-semibold text-primary"
           >
             Moha
           </Link>

@@ -19,7 +19,7 @@ export default function Categories() {
     <div className="max-w-7xl mx-auto px-4 py-12">
       <div className="text-center mb-12">
         <h1
-          className="font-serif text-4xl font-semibold mb-4"
+          className="font-serif text-xl font-semibold mb-4"
           data-testid="text-page-title"
         >
           Shop by Category

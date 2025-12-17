@@ -131,7 +131,7 @@ export default function SaleDetail() {
               <Badge className="w-fit mb-4 bg-red-500 text-white">
                 {getDiscountBadgeText()}
               </Badge>
-              <h1 className="font-serif text-4xl font-semibold mb-4" data-testid="text-sale-name">
+              <h1 className="font-serif text-xl font-semibold mb-4" data-testid="text-sale-name">
                 {sale.name}
               </h1>
               <p className="text-muted-foreground text-lg mb-6">{sale.description}</p>

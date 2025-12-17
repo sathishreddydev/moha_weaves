@@ -19,9 +19,9 @@ export default function Cart() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const cartItems = useCartStore((state) => state.cart);
-  const isUpdatingItem = useCartStore((state) => state.isLoadingCart);
-  const isRemovingItem = useCartStore((state) => state.isUpdatingItem);
-  const isLoading = useCartStore((state) => state.isRemovingItem);
+  const isUpdatingItem = useCartStore((state) => state.isUpdatingItem);
+  const isRemovingItem = useCartStore((state) => state.isRemovingItem);
+  const isLoading = useCartStore((state) => state.isLoadingCart);
 
   const updateQuantity = useCartStore((state) => state.updateQuantity);
   const removeItem = useCartStore((state) => state.removeItem);
@@ -98,11 +98,11 @@ export default function Cart() {
 
   const shipping = subtotal >= 2999 ? 0 : 199;
   const total = subtotal + shipping;
-
+  const disabledButton = isUpdatingItem || isRemovingItem || isLoading
   return (
     <div className="max-w-7xl mx-auto px-4 py-8">
       <h1
-        className="font-serif text-3xl font-semibold mb-8"
+        className="font-serif text-xl font-semibold mb-4"
         data-testid="text-page-title"
       >
         Shopping Cart ({cartItems.length} items)
@@ -176,7 +176,7 @@ export default function Cart() {
                         onClick={() =>
                           updateQuantity(item.id, item.quantity - 1)
                         }
-                        disabled={item.quantity <= 1 || isRemovingItem}
+                        disabled={item.quantity <= 1 || disabledButton}
                         data-testid={`button-quantity-minus-${item.id}`}
                       >
                         <Minus className="h-3 w-3" />
@@ -194,7 +194,7 @@ export default function Cart() {
                         onClick={() =>
                           updateQuantity(item.id, item.quantity + 1)
                         }
-                        disabled={item.quantity >= item.saree.onlineStock || isUpdatingItem}
+                        disabled={item.quantity >= item.saree.onlineStock || disabledButton}
                         data-testid={`button-quantity-plus-${item.id}`}
                       >
                         <Plus className="h-3 w-3" />
@@ -207,6 +207,7 @@ export default function Cart() {
                       className="text-destructive hover:text-destructive"
                       onClick={() => removeItem(item.id)}
                       data-testid={`button-remove-${item.id}`}
+                      disabled={disabledButton}
                     >
                       <Trash2 className="h-4 w-4" />
                     </Button>
@@ -255,6 +256,7 @@ export default function Cart() {
               className="w-full mt-6"
               onClick={() => navigate("/user/checkout")}
               data-testid="button-checkout"
+              disabled={disabledButton}
             >
               Proceed to Checkout
               <ArrowRight className="h-4 w-4 ml-2" />

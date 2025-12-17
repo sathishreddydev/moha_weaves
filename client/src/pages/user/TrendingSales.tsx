@@ -59,14 +59,14 @@ export function TrendingSalesBanner() {
           <div>
             <p
               className="font-serif font-semibold
-               text-xl sm:text-2xl lg:text-3xl flex items-center gap-1"
+               text-xl flex items-center gap-1"
             >
               <Tag className="h-6 w-6 text-primary" />
               Trending Sales & Offers
             </p>
             <p
               className="text-muted-foreground
-               text-sm sm:text-base"
+               text-base"
             >
               Don't miss out on our exclusive deals
             </p>

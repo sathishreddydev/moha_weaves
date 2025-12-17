@@ -80,7 +80,7 @@ export default function Wishlist() {
   return (
     <div className="max-w-7xl mx-auto px-4 py-8">
       <h1
-        className="font-serif text-3xl font-semibold mb-8"
+        className="font-serif text-xl font-semibold mb-8"
         data-testid="text-page-title"
       >
         My Wishlist ({wishlistItems.length} items)

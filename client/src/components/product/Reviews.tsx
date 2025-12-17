@@ -10,7 +10,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/lib/auth";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
-import type { ReviewWithUser } from "@shared/schema";
+import { ProductReview } from "@shared/schema";
 
 interface ReviewsProps {
   sareeId: string;
@@ -24,7 +24,7 @@ export function Reviews({ sareeId }: ReviewsProps) {
   const [comment, setComment] = useState("");
   const [hoverRating, setHoverRating] = useState(0);
 
-  const { data: reviews, isLoading } = useQuery<ReviewWithUser[]>({
+  const { data: reviews, isLoading } = useQuery<ProductReview[]>({
     queryKey: ["/api/sarees", sareeId, "reviews"],
   });
 
@@ -38,24 +38,38 @@ export function Reviews({ sareeId }: ReviewsProps) {
 
   const createReviewMutation = useMutation({
     mutationFn: async (data: { rating: number; comment: string }) => {
-      const response = await apiRequest("POST", `/api/sarees/${sareeId}/reviews`, data);
+      const response = await apiRequest(
+        "POST",
+        `/api/sarees/${sareeId}/reviews`,
+        data
+      );
       return response.json();
     },
     onSuccess: () => {
       toast({ title: "Review submitted successfully" });
-      queryClient.invalidateQueries({ queryKey: ["/api/sarees", sareeId, "reviews"] });
+      queryClient.invalidateQueries({
+        queryKey: ["/api/sarees", sareeId, "reviews"],
+      });
       setShowForm(false);
       setRating(5);
       setComment("");
     },
     onError: (error: any) => {
-      toast({ title: "Failed to submit review", description: error.message, variant: "destructive" });
+      toast({
+        title: "Failed to submit review",
+        description: error.message,
+        variant: "destructive",
+      });
     },
   });
 
   const handleSubmitReview = () => {
     if (comment.trim().length < 10) {
-      toast({ title: "Review too short", description: "Please write at least 10 characters.", variant: "destructive" });
+      toast({
+        title: "Review too short",
+        description: "Please write at least 10 characters.",
+        variant: "destructive",
+      });
       return;
     }
     createReviewMutation.mutate({ rating, comment });
@@ -104,7 +118,7 @@ export function Reviews({ sareeId }: ReviewsProps) {
       <div className="grid md:grid-cols-3 gap-6">
         <div className="space-y-4">
           <div className="text-center p-6 bg-muted/50 rounded-lg">
-            <div className="text-4xl font-bold text-primary">
+            <div className="text-xl font-bold text-primary">
               {reviewStats?.averageRating?.toFixed(1) || "0.0"}
             </div>
             <div className="flex justify-center my-2">
@@ -118,13 +132,16 @@ export function Reviews({ sareeId }: ReviewsProps) {
           <div className="space-y-2">
             {[5, 4, 3, 2, 1].map((stars) => {
               const count = ratingDistribution[stars] || 0;
-              const percentage = totalReviews > 0 ? (count / totalReviews) * 100 : 0;
+              const percentage =
+                totalReviews > 0 ? (count / totalReviews) * 100 : 0;
               return (
                 <div key={stars} className="flex items-center gap-2 text-sm">
                   <span className="w-8">{stars}</span>
                   <Star className="h-3 w-3 fill-yellow-400 text-yellow-400" />
                   <Progress value={percentage} className="flex-1 h-2" />
-                  <span className="w-8 text-right text-muted-foreground">{count}</span>
+                  <span className="w-8 text-right text-muted-foreground">
+                    {count}
+                  </span>
                 </div>
               );
             })}
@@ -133,7 +150,10 @@ export function Reviews({ sareeId }: ReviewsProps) {
 
         <div className="md:col-span-2 space-y-4">
           {user && user.role === "user" && !showForm && (
-            <Button onClick={() => setShowForm(true)} data-testid="button-write-review">
+            <Button
+              onClick={() => setShowForm(true)}
+              data-testid="button-write-review"
+            >
               Write a Review
             </Button>
           )}
@@ -143,11 +163,15 @@ export function Reviews({ sareeId }: ReviewsProps) {
               <h3 className="font-semibold mb-4">Write Your Review</h3>
               <div className="space-y-4">
                 <div>
-                  <label className="text-sm font-medium mb-2 block">Your Rating</label>
+                  <label className="text-sm font-medium mb-2 block">
+                    Your Rating
+                  </label>
                   {renderStars(rating, true)}
                 </div>
                 <div>
-                  <label className="text-sm font-medium mb-2 block">Your Review</label>
+                  <label className="text-sm font-medium mb-2 block">
+                    Your Review
+                  </label>
                   <Textarea
                     value={comment}
                     onChange={(e) => setComment(e.target.value)}
@@ -162,7 +186,9 @@ export function Reviews({ sareeId }: ReviewsProps) {
                     disabled={createReviewMutation.isPending}
                     data-testid="button-submit-review"
                   >
-                    {createReviewMutation.isPending ? "Submitting..." : "Submit Review"}
+                    {createReviewMutation.isPending
+                      ? "Submitting..."
+                      : "Submit Review"}
                   </Button>
                   <Button variant="outline" onClick={() => setShowForm(false)}>
                     Cancel
@@ -173,11 +199,17 @@ export function Reviews({ sareeId }: ReviewsProps) {
           )}
 
           {isLoading ? (
-            <div className="text-center py-8 text-muted-foreground">Loading reviews...</div>
+            <div className="text-center py-8 text-muted-foreground">
+              Loading reviews...
+            </div>
           ) : reviews && reviews.length > 0 ? (
             <div className="space-y-4">
               {reviews.map((review) => (
-                <Card key={review.id} className="p-4" data-testid={`review-${review.id}`}>
+                <Card
+                  key={review.id}
+                  className="p-4"
+                  data-testid={`review-${review.id}`}
+                >
                   <div className="flex items-start gap-4">
                     <Avatar>
                       <AvatarFallback>
@@ -187,7 +219,9 @@ export function Reviews({ sareeId }: ReviewsProps) {
                     <div className="flex-1">
                       <div className="flex flex-wrap items-center justify-between gap-2">
                         <div>
-                          <p className="font-medium">{review.user?.name || "Anonymous"}</p>
+                          <p className="font-medium">
+                            {review.userId || "Anonymous"}
+                          </p>
                           <div className="flex items-center gap-2">
                             {renderStars(review.rating)}
                             <span className="text-xs text-muted-foreground">
@@ -202,7 +236,7 @@ export function Reviews({ sareeId }: ReviewsProps) {
                         )}
                       </div>
                       <p className="mt-2 text-sm">{review.comment}</p>
-                      {review.helpfulCount > 0 && (
+                      {(review?.helpfulCount ?? 0) > 0 && (
                         <div className="flex items-center gap-1 mt-2 text-xs text-muted-foreground">
                           <ThumbsUp className="h-3 w-3" />
                           <span>{review.helpfulCount} found this helpful</span>

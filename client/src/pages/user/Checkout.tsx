@@ -273,13 +273,11 @@ export default function Checkout() {
     const shippingAddress = `${selectedAddress.name}\n${selectedAddress.phone}\n${selectedAddress.locality}\n${selectedAddress.city} - ${selectedAddress.pincode}`;
 
     try {
-      // 1️⃣ Create Razorpay order
       const res = await apiRequest("POST", "/api/user/create-razorpay-order", {
         couponId: appliedCoupon?.id,
       });
       const razorpayOrder = await res.json();
 
-      // 2️⃣ Open Razorpay Checkout
       openRazorpayCheckout({
         razorpayOrderId: razorpayOrder.razorpayOrderId,
         amount: razorpayOrder.amount,
@@ -396,7 +394,7 @@ export default function Checkout() {
       </Link>
 
       <h1
-        className="font-serif text-3xl font-semibold mb-8"
+        className="font-serif text-xl font-semibold mb-8"
         data-testid="text-page-title"
       >
         Checkout

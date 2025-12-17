@@ -114,7 +114,7 @@ export const useCartStore = create<CartState>((set, get) => ({
         variant: "destructive",
       });
     } finally {
-      set({ isAddingItem: false });
+      set({ isRemovingItem: false });
     }
   },
 

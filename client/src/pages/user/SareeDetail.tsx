@@ -90,7 +90,7 @@ export default function SareeDetail() {
   if (!saree) {
     return (
       <div className="max-w-7xl mx-auto px-4 py-16 text-center">
-        <h2 className="text-2xl font-semibold mb-4">Product not found</h2>
+        <h2 className="text-xl font-semibold mb-4">Product not found</h2>
         <Link to="/sarees">
           <Button variant="outline" data-testid="button-back-to-shop">
             <ArrowLeft className="h-4 w-4 mr-2" />
@@ -170,7 +170,7 @@ export default function SareeDetail() {
           <div>
             {saree.isFeatured && <Badge className="mb-2">Featured</Badge>}
             <h1
-              className="font-serif text-2xl md:text-3xl font-semibold"
+              className="font-serif text-xl font-semibold"
               data-testid="text-product-name"
             >
               {saree.name}
@@ -178,7 +178,7 @@ export default function SareeDetail() {
             {!saree.activeSale || !saree.discountedPrice ? (
               // Normal price
               <p
-                className="text-2xl font-semibold text-primary mt-2"
+                className="text-xl font-semibold text-primary mt-2"
                 data-testid="text-product-price"
               >
                 {formatPrice(saree.price)}
@@ -187,7 +187,7 @@ export default function SareeDetail() {
               // Sale price + original price
               <div className="flex items-center gap-3 mt-2">
                 <p
-                  className="text-2xl font-semibold text-primary"
+                  className="text-xl font-semibold text-primary"
                   data-testid="text-product-price"
                 >
                   {formatPrice(saree.discountedPrice)}
@@ -416,7 +416,7 @@ export default function SareeDetail() {
 
       {relatedSarees && relatedSarees.length > 0 && (
         <section className="mt-16">
-          <h2 className="font-serif text-2xl font-semibold mb-6">
+          <h2 className="font-serif text-xl font-semibold mb-6">
             You May Also Like
           </h2>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-6">

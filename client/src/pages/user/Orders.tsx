@@ -126,7 +126,7 @@ export default function Orders() {
   return (
     <div className="max-w-4xl mx-auto px-4 py-8">
       <h1
-        className="font-serif text-3xl font-semibold mb-8"
+        className="font-serif text-xl font-semibold mb-4"
         data-testid="text-page-title"
       >
         My Orders

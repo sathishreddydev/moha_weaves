@@ -123,7 +123,7 @@ export function Header() {
 
             <Link
               to="/"
-              className="font-serif text-2xl md:text-3xl font-semibold text-primary"
+              className="font-serif text-xl font-semibold text-primary"
             >
               Moha
             </Link>

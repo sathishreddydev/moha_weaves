@@ -132,7 +132,7 @@ export default function Returns() {
 
   return (
     <div className="max-w-4xl mx-auto px-4 py-8">
-      <h1 className="font-serif text-3xl font-semibold mb-8" data-testid="text-page-title">
+      <h1 className="font-serif text-xl font-semibold mb-4" data-testid="text-page-title">
         Returns & Exchanges
       </h1>
 

@@ -6,7 +6,7 @@ const Unauthorized: FC = () => {
   return (
     <div className="min-h-screen flex items-center justify-center bg-muted/20">
       <div className="text-center space-y-4">
-        <h1 className="text-3xl font-bold">Unauthorized</h1>
+        <h1 className="text-xl font-bold">Unauthorized</h1>
         <p className="text-muted-foreground">
           You don't have permission to access this page.
         </p>

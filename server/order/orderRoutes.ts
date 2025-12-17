@@ -39,13 +39,11 @@ export const orderRoutes = (app: Express) => {
       const userId = (req as any).user.id;
 
       const cartItems = await cartServices.getCartItems(userId);
-      if (cartItems.length === 0) {
+      if (cartItems.cart.length === 0) {
         return res.status(400).json({ message: "Cart is empty" });
       }
 
-      // Calculate total using sale prices when available
-      const totalAmount = cartItems.reduce((sum, item) => {
-        // Use discounted price if available, otherwise original price
+      const totalAmount = cartItems.cart.reduce((sum, item) => {
         const originalPrice =
           typeof item.saree.price === "string"
             ? parseFloat(item.saree.price)
@@ -89,7 +87,7 @@ export const orderRoutes = (app: Express) => {
           notes,
           status: "pending",
         },
-        cartItems.map((item) => {
+        cartItems.cart.map((item) => {
           const originalPrice =
             typeof item.saree.price === "string"
               ? parseFloat(item.saree.price)
@@ -133,11 +131,11 @@ export const orderRoutes = (app: Express) => {
       const userId = (req as any).user.id;
 
       const cartItems = await cartServices.getCartItems(userId);
-      if (cartItems.length === 0) {
+      if (cartItems.cart.length === 0) {
         return res.status(400).json({ message: "Cart is empty" });
       }
       // 1️⃣ Calculate total
-      const totalAmount = cartItems.reduce((sum, item) => {
+      const totalAmount = cartItems.cart.reduce((sum, item) => {
         const price = (item.saree as any).discountedPrice ?? item.saree.price;
         return sum + price * item.quantity;
       }, 0);
@@ -194,7 +192,7 @@ receipt: `r${Date.now()}`,
 
       const userId = (req as any).user.id;
       const cartItems = await cartServices.getCartItems(userId);
-      if (cartItems.length === 0) {
+      if (  cartItems.cart.length === 0) {
         return res.status(400).json({ message: "Cart is empty" });
       }
       // 1️⃣ Verify Razorpay signature
@@ -208,7 +206,7 @@ receipt: `r${Date.now()}`,
       }
 
       // 2️⃣ Calculate totals
-      const totalAmount = cartItems.reduce((sum, item) => {
+      const totalAmount = cartItems.cart.reduce((sum, item) => {
         const price = (item.saree as any).discountedPrice ?? item.saree.price;
         return sum + price * item.quantity;
       }, 0);
@@ -248,9 +246,9 @@ receipt: `r${Date.now()}`,
           status: "pending",
           paymentStatus: "paid",
           paymentMethod: "razorpay",
-          razorpayPaymentId, // store Razorpay payment ID
+          razorpayPaymentId, 
         },
-        cartItems.map((item) => ({
+        cartItems.cart.map((item) => ({
           sareeId: item.sareeId,
           quantity: item.quantity,
           price: (
@@ -259,7 +257,6 @@ receipt: `r${Date.now()}`,
         }))
       );
 
-      // 4️⃣ Apply coupon
       if (validCoupon && discountAmount > 0) {
         await couponsService.applyCoupon(
           validCoupon.id,

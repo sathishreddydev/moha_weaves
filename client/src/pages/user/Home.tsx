@@ -78,7 +78,7 @@ export default function Home() {
         <div className="relative z-10 max-w-7xl w-full mx-auto py-12 sm:py-16 lg:py-24">
           <div className="max-w-xl text-center sm:text-left">
             <h1
-              className="font-serif text-xl sm:text-2xl md:text-3xl lg:text-4xl font-semibold text-white"
+              className="font-serif text-xl font-semibold text-white"
               data-testid="text-hero-title"
             >
               Celebrate Tradition with Elegance
@@ -124,7 +124,7 @@ export default function Home() {
             <div>
               <p
                 className="font-serif font-semibold
-               text-xl sm:text-2xl lg:text-3xl"
+               text-xl"
                 data-testid="text-categories-title"
               >
                 Shop by Category
@@ -188,7 +188,7 @@ export default function Home() {
               <div>
                 <p
                   className="font-serif font-semibold
-               text-xl sm:text-2xl lg:text-3xl"
+               text-xl"
                   data-testid="text-featured-title"
                 >
                   Featured Collection
@@ -234,7 +234,7 @@ export default function Home() {
             <div>
               <p
                 className="font-serif font-semibold
-               text-xl sm:text-2xl lg:text-3xl"
+               text-xl"
                 data-testid="text-new-arrivals-title"
               >
                 New Arrivals
