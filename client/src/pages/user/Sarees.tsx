@@ -345,13 +345,6 @@ export default function Sarees() {
                 </SheetTrigger>
 
                 <SheetContent side="right" className="w-80">
-                  <SheetHeader>
-                    <SheetTitle className="flex items-center gap-2">
-                      <Filter className="h-4 w-4" />
-                      Filters
-                    </SheetTitle>
-                  </SheetHeader>
-
                   <div className="mt-6">
                     <FilterContent />
                   </div>

@@ -15,9 +15,9 @@ interface ProductCardProps {
 export function ProductCard({ saree }: ProductCardProps) {
   const { user } = useAuth();
   const {
+    cart: cartItems,
     addItem,
     updateQuantity,
-    cart: cartItems,
     isAddingItem,
     isUpdatingItem,
     isRemovingItem,
@@ -31,9 +31,10 @@ export function ProductCard({ saree }: ProductCardProps) {
     isAddingItem: isAddingWishlistItem,
   } = useWishlistStore();
 
-  const isInCart = cartItems.some((i) => i.saree.id === saree.id);
-  const cartItem = cartItems.find((i) => i.saree.id === saree.id);
-  const isInWishlist = wishlist?.some((i) => i.sareeId === saree.id);
+  const cartItem = cartItems.find((item) => item.saree.id === saree.id);
+  const isInCart = !!cartItem;
+
+  const isInWishlist = wishlist?.some((item) => item.sareeId === saree.id);
 
   const isOnlineAvailable =
     saree.distributionChannel === "online" ||
@@ -53,9 +54,9 @@ export function ProductCard({ saree }: ProductCardProps) {
     }).format(Number(price));
 
   const handleUpdateQuantity = (newQuantity: number) => {
-    if (!cartItem) return;
+    if (!cartItem || disabledButton) return;
 
-    if (newQuantity <= 0 || cartItem.saree.onlineStock <= 0) {
+    if (newQuantity <= 0) {
       updateQuantity(cartItem.id, 0);
       return;
     }
@@ -70,17 +71,17 @@ export function ProductCard({ saree }: ProductCardProps) {
       <div className="relative aspect-[3/4] overflow-hidden rounded-md bg-muted">
         <Link to={`/sarees/${saree.id}`}>
           <img
-            src={saree.imageUrl || ""}
+            src={saree.imageUrl ?? "/placeholder.png"}
             alt={saree.name}
+            loading="lazy"
             className="w-full h-full object-cover transition-transform duration-500 md:group-hover:scale-105"
           />
         </Link>
 
-        {/* Badges */}
         <div className="absolute top-2 left-2 flex flex-col gap-1">
           {saree.activeSale && (
             <Badge className="bg-red-500 text-white">
-              {`${Math.round(parseFloat(saree.activeSale.discountValue))}% OFF`}
+              {Math.round(Number(saree.activeSale.discountValue))}% OFF
             </Badge>
           )}
           {saree.isFeatured && (
@@ -102,6 +103,7 @@ export function ProductCard({ saree }: ProductCardProps) {
                   : addWishlistItem(saree.id)
               }
               disabled={isAddingWishlistItem}
+              aria-label="Wishlist"
             >
               <Heart
                 className={`h-3 w-3 ${
@@ -111,15 +113,16 @@ export function ProductCard({ saree }: ProductCardProps) {
             </Button>
           )}
 
-          <Link to={`/sarees/${saree.id}`}>
-            <Button
-              variant="secondary"
-              size="icon"
-              className="h-7 w-7 rounded-full bg-background/90"
-            >
+          <Button
+            asChild
+            variant="secondary"
+            size="icon"
+            className="h-7 w-7 rounded-full bg-background/90"
+          >
+            <Link to={`/sarees/${saree.id}`} aria-label="View product">
               <Eye className="h-3 w-3" />
-            </Button>
-          </Link>
+            </Link>
+          </Button>
         </div>
 
         {user?.role === "user" && isOnlineAvailable && (
@@ -135,6 +138,7 @@ export function ProductCard({ saree }: ProductCardProps) {
                   className="h-8 w-8"
                   onClick={() => handleUpdateQuantity(cartItem.quantity - 1)}
                   disabled={disabledButton}
+                  aria-label="Decrease quantity"
                 >
                   <Minus className="h-3 w-3" />
                 </Button>
@@ -148,10 +152,10 @@ export function ProductCard({ saree }: ProductCardProps) {
                   className="h-8 w-8"
                   onClick={() => handleUpdateQuantity(cartItem.quantity + 1)}
                   disabled={
-                    cartItem.quantity >= cartItem.saree.onlineStock ||
-                    cartItem.saree.onlineStock === 0 ||
-                    disabledButton
+                    disabledButton ||
+                    cartItem.quantity >= cartItem.saree.onlineStock
                   }
+                  aria-label="Increase quantity"
                 >
                   <Plus className="h-3 w-3" />
                 </Button>
@@ -160,7 +164,7 @@ export function ProductCard({ saree }: ProductCardProps) {
               <Button
                 size="sm"
                 className="px-4 h-9 shadow"
-                onClick={() => addItem(saree.id, 1)}
+                onClick={() => !disabledButton && addItem(saree.id, 1)}
                 disabled={!hasStock || disabledButton}
               >
                 {hasStock ? (
@@ -185,7 +189,6 @@ export function ProductCard({ saree }: ProductCardProps) {
             </h3>
           </Link>
 
-          {/* Mobile Wishlist */}
           {user?.role === "user" && (
             <Button
               variant="ghost"
@@ -197,6 +200,7 @@ export function ProductCard({ saree }: ProductCardProps) {
                   : addWishlistItem(saree.id)
               }
               disabled={isAddingWishlistItem}
+              aria-label="Wishlist"
             >
               <Heart
                 className={`h-4 w-4 ${
