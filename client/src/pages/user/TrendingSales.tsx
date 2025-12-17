@@ -113,9 +113,9 @@ export function TrendingSalesBanner() {
                     <h3 className="font-semibold text-lg mb-2 group-hover:text-primary transition-colors">
                       {sale.name}
                     </h3>
-                    <p className="text-sm text-muted-foreground line-clamp-2 mb-4">
+                    {/* <p className="text-sm text-muted-foreground line-clamp-2 mb-4">
                       {sale.description}
-                    </p>
+                    </p> */}
                     <div className="flex items-center justify-between">
                       <Badge
                         variant="outline"
