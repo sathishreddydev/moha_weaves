@@ -1,4 +1,4 @@
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { Heart, ShoppingBag, Eye, Minus, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -14,6 +14,9 @@ interface ProductCardProps {
 
 export function ProductCard({ saree }: ProductCardProps) {
   const { user } = useAuth();
+  const guestUser = ["admin", "inventory", "store"]?.includes(user?.role ?? "");
+  const navigate = useNavigate();
+
   const {
     cart: cartItems,
     addItem,
@@ -31,7 +34,7 @@ export function ProductCard({ saree }: ProductCardProps) {
     isAddingItem: isAddingWishlistItem,
   } = useWishlistStore();
 
-  const cartItem = cartItems.find((item) => item.saree.id === saree.id);
+  const cartItem = cartItems?.find((item) => item.saree.id === saree.id);
   const isInCart = !!cartItem;
 
   const isInWishlist = wishlist?.some((item) => item.sareeId === saree.id);
@@ -92,16 +95,20 @@ export function ProductCard({ saree }: ProductCardProps) {
         </div>
 
         <div className="absolute top-2 right-2 hidden md:flex flex-col gap-2 opacity-0 md:group-hover:opacity-100 transition-opacity">
-          {user?.role === "user" && (
+          {!guestUser && (
             <Button
               variant="secondary"
               size="icon"
               className="h-7 w-7 rounded-full bg-background/90"
-              onClick={() =>
+              onClick={() => {
+                if (!user) {
+                  navigate("/user/login");
+                  return;
+                }
                 isInWishlist
                   ? removeWishlistItem(saree.id)
-                  : addWishlistItem(saree.id)
-              }
+                  : addWishlistItem(saree.id);
+              }}
               disabled={isAddingWishlistItem}
               aria-label="Wishlist"
             >
@@ -125,7 +132,7 @@ export function ProductCard({ saree }: ProductCardProps) {
           </Button>
         </div>
 
-        {user?.role === "user" && isOnlineAvailable && (
+        {!guestUser && isOnlineAvailable && (
           <div
             className="absolute bottom-3 right-3 z-10
               opacity-100 md:opacity-0 md:group-hover:opacity-100
@@ -164,7 +171,13 @@ export function ProductCard({ saree }: ProductCardProps) {
               <Button
                 size="sm"
                 className="px-4 h-9 shadow"
-                onClick={() => !disabledButton && addItem(saree.id, 1)}
+                onClick={() => {
+                  if (!user) {
+                    navigate("/user/login");
+                    return;
+                  }
+                  !disabledButton && addItem(saree.id, 1);
+                }}
                 disabled={!hasStock || disabledButton}
               >
                 {hasStock ? (
@@ -189,7 +202,7 @@ export function ProductCard({ saree }: ProductCardProps) {
             </h3>
           </Link>
 
-          {user?.role === "user" && (
+          {!guestUser && (
             <Button
               variant="ghost"
               size="icon"
