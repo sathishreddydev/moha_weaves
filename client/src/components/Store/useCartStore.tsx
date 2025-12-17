@@ -62,15 +62,24 @@ export const useCartStore = create<CartState>((set, get) => ({
 
       toast({
         title: "Added to Cart",
-        description: (
-          <div className="flex items-center gap-2">
+        description: addedItem ? (
+          <div className="flex items-center gap-3">
             <img
-              src={addedItem?.saree.imageUrl}
-              alt={addedItem?.saree.name}
-              className="h-12 w-12 rounded-md object-cover"
+              src={addedItem.saree.imageUrl ?? ""}
+              alt={addedItem.saree.name}
+              className="h-14 w-14 rounded-lg object-cover border border-gray-200"
             />
-            <span className="text-sm font-medium">{addedItem?.saree.name}</span>
+            <div className="flex flex-col">
+              <span className="text-sm font-semibold">
+                {addedItem.saree.name}
+              </span>
+              <span className="text-xs text-gray-500">
+                Successfully added to your cart
+              </span>
+            </div>
           </div>
+        ) : (
+          <span className="text-sm">Item added to cart</span>
         ),
       });
     } catch {
@@ -116,16 +125,23 @@ export const useCartStore = create<CartState>((set, get) => ({
       );
 
       toast({
-        title: "Updated",
-        description: (
-          <div className="flex items-center gap-2">
+        title: "Cart Updated",
+        description: cartItem ? (
+          <div className="flex items-center gap-3">
             <img
               src={cartItem.saree.imageUrl ?? ""}
               alt={cartItem.saree.name}
-              className="h-12 w-12 rounded-md object-cover"
+              className="h-14 w-14 rounded-lg object-cover border border-gray-200"
             />
-            <span className="text-sm font-medium">{cartItem.saree.name}</span>
+            <div className="flex flex-col">
+              <span className="text-sm font-semibold">
+                {cartItem.saree.name}
+              </span>
+              <span className="text-xs text-gray-500">Quantity updated</span>
+            </div>
           </div>
+        ) : (
+          <span className="text-sm">Cart item updated</span>
         ),
       });
     } catch {
@@ -160,18 +176,25 @@ export const useCartStore = create<CartState>((set, get) => ({
       );
 
       toast({
-        title: "Removed",
+        title: "Removed from cart",
         description: cartItem ? (
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-3">
             <img
               src={cartItem.saree.imageUrl ?? ""}
               alt={cartItem.saree.name}
-              className="h-12 w-12 rounded-md object-cover"
+              className="h-14 w-14 rounded-lg object-cover border border-gray-200"
             />
-            <span className="text-sm font-medium">{cartItem.saree.name}</span>
+            <div className="flex flex-col">
+              <span className="text-sm font-semibold">
+                {cartItem.saree.name}
+              </span>
+              <span className="text-xs text-gray-500">
+                Successfully removed
+              </span>
+            </div>
           </div>
         ) : (
-          "Item removed"
+          <span className="text-sm">Item removed</span>
         ),
       });
     } catch {

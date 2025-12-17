@@ -23,7 +23,7 @@ export function ProductCard({ saree }: ProductCardProps) {
     isRemovingItem,
     isLoadingCart,
   } = useCartStore();
-console.log(cartItems)
+
   const {
     wishlist,
     addItem: addWishlistItem,
@@ -40,8 +40,11 @@ console.log(cartItems)
     saree.distributionChannel === "both";
 
   const hasStock = saree.onlineStock > 0;
-  const disabledButton = isAddingItem[saree.id] || isUpdatingItem[saree.id] || isRemovingItem[saree.id]  || isLoadingCart ;
-console.log(cartItem)
+  const disabledButton =
+    isAddingItem[saree.id] ||
+    isUpdatingItem[saree.id] ||
+    isRemovingItem[saree.id] ||
+    isLoadingCart;
   const formatPrice = (price: number | string) =>
     new Intl.NumberFormat("en-IN", {
       style: "currency",
@@ -73,12 +76,11 @@ console.log(cartItem)
           />
         </Link>
 
+        {/* Badges */}
         <div className="absolute top-2 left-2 flex flex-col gap-1">
           {saree.activeSale && (
             <Badge className="bg-red-500 text-white">
-              {`${Math.round(
-                parseFloat(saree.activeSale.discountValue)
-              )}% OFF`}
+              {`${Math.round(parseFloat(saree.activeSale.discountValue))}% OFF`}
             </Badge>
           )}
           {saree.isFeatured && (
@@ -121,30 +123,30 @@ console.log(cartItem)
         </div>
 
         {user?.role === "user" && isOnlineAvailable && (
-          <div className="absolute bottom-0 left-0 right-0 p-2 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
+          <div
+            className="absolute bottom-3 right-3 z-10
+              opacity-100 md:opacity-0 md:group-hover:opacity-100
+              transition-opacity"
+          >
             {isInCart && cartItem ? (
-              <div className="flex items-center border rounded-md">
+              <div className="flex items-center bg-primary rounded-md shadow">
                 <Button
                   size="icon"
                   className="h-8 w-8"
-                  onClick={() =>
-                    handleUpdateQuantity(cartItem.quantity - 1)
-                  }
+                  onClick={() => handleUpdateQuantity(cartItem.quantity - 1)}
                   disabled={disabledButton}
                 >
                   <Minus className="h-3 w-3" />
                 </Button>
 
-                <span className="w-8 text-white text-center text-sm">
+                <span className="w-8 text-center text-white text-sm">
                   {cartItem.quantity}
                 </span>
 
                 <Button
                   size="icon"
                   className="h-8 w-8"
-                  onClick={() =>
-                    handleUpdateQuantity(cartItem.quantity + 1)
-                  }
+                  onClick={() => handleUpdateQuantity(cartItem.quantity + 1)}
                   disabled={
                     cartItem.quantity >= cartItem.saree.onlineStock ||
                     cartItem.saree.onlineStock === 0 ||
@@ -156,17 +158,18 @@ console.log(cartItem)
               </div>
             ) : (
               <Button
-                className="w-full"
+                size="sm"
+                className="px-4 h-9 shadow"
                 onClick={() => addItem(saree.id, 1)}
                 disabled={!hasStock || disabledButton}
               >
                 {hasStock ? (
                   <>
-                    <ShoppingBag className="h-4 w-4 mr-2" />
-                    Add to Cart
+                    <ShoppingBag className="h-4 w-4 mr-1" />
+                    Add
                   </>
                 ) : (
-                  "Out of Stock"
+                  "Out"
                 )}
               </Button>
             )}
@@ -175,11 +178,34 @@ console.log(cartItem)
       </div>
 
       <div className="pt-4 space-y-1">
-        <Link to={`/sarees/${saree.id}`}>
-          <h3 className="font-medium text-sm line-clamp-2 hover:text-primary">
-            {saree.name}
-          </h3>
-        </Link>
+        <div className="flex items-start justify-between gap-2">
+          <Link to={`/sarees/${saree.id}`} className="flex-1">
+            <h3 className="font-medium text-sm line-clamp-2 hover:text-primary">
+              {saree.name}
+            </h3>
+          </Link>
+
+          {/* Mobile Wishlist */}
+          {user?.role === "user" && (
+            <Button
+              variant="ghost"
+              size="icon"
+              className="md:hidden h-8 w-8 shrink-0"
+              onClick={() =>
+                isInWishlist
+                  ? removeWishlistItem(saree.id)
+                  : addWishlistItem(saree.id)
+              }
+              disabled={isAddingWishlistItem}
+            >
+              <Heart
+                className={`h-4 w-4 ${
+                  isInWishlist ? "fill-primary text-primary" : ""
+                }`}
+              />
+            </Button>
+          )}
+        </div>
 
         <div className="flex items-center gap-2">
           {saree.activeSale && saree.discountedPrice ? (
