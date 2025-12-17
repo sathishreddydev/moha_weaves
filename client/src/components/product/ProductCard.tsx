@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom";
-import { Heart, ShoppingBag, Eye } from "lucide-react";
+import { Heart, ShoppingBag, Eye, Minus, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -14,33 +14,56 @@ interface ProductCardProps {
 
 export function ProductCard({ saree }: ProductCardProps) {
   const { user } = useAuth();
+  const {
+    addItem,
+    updateQuantity,
+    cart: cartItems,
+    isAddingItem,
+    isUpdatingItem,
+    isRemovingItem,
+    isLoadingCart,
+  } = useCartStore();
+console.log(cartItems)
+  const {
+    wishlist,
+    addItem: addWishlistItem,
+    removeItem: removeWishlistItem,
+    isAddingItem: isAddingWishlistItem,
+  } = useWishlistStore();
 
-  const addItem = useCartStore((s) => s.addItem);
-  const isAddingItem = useCartStore((s) => s.isAddingItem);
-
-  const wishlist = useWishlistStore((s) => s.wishlist);
-  const addWishlistItem = useWishlistStore((s) => s.addItem);
-  const removeWishlistItem = useWishlistStore((s) => s.removeItem);
-  const isAddingWishlistItem = useWishlistStore((s) => s.isAddingItem);
-
-  const isInWishlist = wishlist?.some((item) => item.sareeId === saree.id);
-
-  const formatPrice = (price: string | number) =>
-    new Intl.NumberFormat("en-IN", {
-      style: "currency",
-      currency: "INR",
-      maximumFractionDigits: 0,
-    }).format(typeof price === "string" ? Number(price) : price);
+  const isInCart = cartItems.some((i) => i.saree.id === saree.id);
+  const cartItem = cartItems.find((i) => i.saree.id === saree.id);
+  const isInWishlist = wishlist?.some((i) => i.sareeId === saree.id);
 
   const isOnlineAvailable =
     saree.distributionChannel === "online" ||
     saree.distributionChannel === "both";
 
   const hasStock = saree.onlineStock > 0;
+  const disabledButton = isAddingItem[saree.id] || isUpdatingItem[saree.id] || isRemovingItem[saree.id]  || isLoadingCart ;
+console.log(cartItem)
+  const formatPrice = (price: number | string) =>
+    new Intl.NumberFormat("en-IN", {
+      style: "currency",
+      currency: "INR",
+      maximumFractionDigits: 0,
+    }).format(Number(price));
+
+  const handleUpdateQuantity = (newQuantity: number) => {
+    if (!cartItem) return;
+
+    if (newQuantity <= 0 || cartItem.saree.onlineStock <= 0) {
+      updateQuantity(cartItem.id, 0);
+      return;
+    }
+
+    if (newQuantity > cartItem.saree.onlineStock) return;
+
+    updateQuantity(cartItem.id, newQuantity);
+  };
 
   return (
     <Card className="group border-0 shadow-none bg-transparent">
-      {/* IMAGE */}
       <div className="relative aspect-[3/4] overflow-hidden rounded-md bg-muted">
         <Link to={`/sarees/${saree.id}`}>
           <img
@@ -50,11 +73,12 @@ export function ProductCard({ saree }: ProductCardProps) {
           />
         </Link>
 
-        {/* BADGES */}
         <div className="absolute top-2 left-2 flex flex-col gap-1">
           {saree.activeSale && (
             <Badge className="bg-red-500 text-white">
-              {`${Math.round(parseFloat(saree.activeSale.discountValue))}% OFF`}
+              {`${Math.round(
+                parseFloat(saree.activeSale.discountValue)
+              )}% OFF`}
             </Badge>
           )}
           {saree.isFeatured && (
@@ -64,18 +88,12 @@ export function ProductCard({ saree }: ProductCardProps) {
           )}
         </div>
 
-        <div
-          className="
-    absolute top-2 right-2 hidden md:flex flex-col gap-2
-    opacity-0 md:group-hover:opacity-100
-    transition-opacity
-          "
-        >
+        <div className="absolute top-2 right-2 hidden md:flex flex-col gap-2 opacity-0 md:group-hover:opacity-100 transition-opacity">
           {user?.role === "user" && (
             <Button
               variant="secondary"
               size="icon"
-              className="h-7 w-7 rounded-full bg-background/90 backdrop-blur-sm"
+              className="h-7 w-7 rounded-full bg-background/90"
               onClick={() =>
                 isInWishlist
                   ? removeWishlistItem(saree.id)
@@ -95,36 +113,61 @@ export function ProductCard({ saree }: ProductCardProps) {
             <Button
               variant="secondary"
               size="icon"
-              className="h-7 w-7 rounded-full bg-background/90 backdrop-blur-sm"
+              className="h-7 w-7 rounded-full bg-background/90"
             >
               <Eye className="h-3 w-3" />
             </Button>
           </Link>
         </div>
 
-        {/* ADD TO CART */}
         {user?.role === "user" && isOnlineAvailable && (
-          <div
-            className="
-              absolute bottom-0 left-0 right-0 p-2
-              opacity-100
-              md:opacity-0
-              md:group-hover:opacity-100
-              transition-opacity
-            "
-          >
-            {hasStock ? (
+          <div className="absolute bottom-0 left-0 right-0 p-2 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
+            {isInCart && cartItem ? (
+              <div className="flex items-center border rounded-md">
+                <Button
+                  size="icon"
+                  className="h-8 w-8"
+                  onClick={() =>
+                    handleUpdateQuantity(cartItem.quantity - 1)
+                  }
+                  disabled={disabledButton}
+                >
+                  <Minus className="h-3 w-3" />
+                </Button>
+
+                <span className="w-8 text-white text-center text-sm">
+                  {cartItem.quantity}
+                </span>
+
+                <Button
+                  size="icon"
+                  className="h-8 w-8"
+                  onClick={() =>
+                    handleUpdateQuantity(cartItem.quantity + 1)
+                  }
+                  disabled={
+                    cartItem.quantity >= cartItem.saree.onlineStock ||
+                    cartItem.saree.onlineStock === 0 ||
+                    disabledButton
+                  }
+                >
+                  <Plus className="h-3 w-3" />
+                </Button>
+              </div>
+            ) : (
               <Button
                 className="w-full"
                 onClick={() => addItem(saree.id, 1)}
-                disabled={isAddingItem}
+                disabled={!hasStock || disabledButton}
               >
-                <ShoppingBag className="h-4 w-4 mr-2" />
-                Add to Cart
-              </Button>
-            ) : (
-              <Button className="w-full bg-primary text-white">
-                Out of Stock
+                {hasStock ? (
+                  <>
+                    <ShoppingBag className="h-4 w-4 mr-2" />
+                    Add to Cart
+                  </>
+                ) : (
+                  "Out of Stock"
+                )}
               </Button>
             )}
           </div>
@@ -132,33 +175,11 @@ export function ProductCard({ saree }: ProductCardProps) {
       </div>
 
       <div className="pt-4 space-y-1">
-        <div className="flex items-start justify-between gap-2">
-          <Link to={`/sarees/${saree.id}`} className="flex-1">
-            <h3 className="font-medium text-sm line-clamp-2 hover:text-primary transition-colors">
-              {saree.name}
-            </h3>
-          </Link>
-
-          {user?.role === "user" && (
-            <button
-              className="md:hidden shrink-0"
-              onClick={() =>
-                isInWishlist
-                  ? removeWishlistItem(saree.id)
-                  : addWishlistItem(saree.id)
-              }
-              disabled={isAddingWishlistItem}
-            >
-              <Heart
-                className={`h-5 w-5 ${
-                  isInWishlist
-                    ? "fill-primary text-primary"
-                    : "text-muted-foreground"
-                }`}
-              />
-            </button>
-          )}
-        </div>
+        <Link to={`/sarees/${saree.id}`}>
+          <h3 className="font-medium text-sm line-clamp-2 hover:text-primary">
+            {saree.name}
+          </h3>
+        </Link>
 
         <div className="flex items-center gap-2">
           {saree.activeSale && saree.discountedPrice ? (

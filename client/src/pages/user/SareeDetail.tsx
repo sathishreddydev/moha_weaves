@@ -18,22 +18,17 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ProductCard } from "@/components/product/ProductCard";
 import { Reviews } from "@/components/product/Reviews";
 import { useAuth } from "@/lib/auth";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { apiRequest } from "@/lib/queryClient";
-import { useToast } from "@/hooks/use-toast";
+import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
-import type { CartItemWithSaree, SareeWithDetails } from "@shared/schema";
+import type { SareeWithDetails } from "@shared/schema";
 import { useCartStore } from "@/components/Store/useCartStore";
 import { useWishlistStore } from "@/components/Store/useWishlistStore";
+import { CartQuantity } from "./common/CartQuantity";
 
 export default function SareeDetail() {
   const { id } = useParams();
   const { user } = useAuth();
-  const { toast } = useToast();
-  const queryClient = useQueryClient();
-  const [quantity, setQuantity] = useState(1);
   const [selectedImage, setSelectedImage] = useState(0);
-
   const { data: saree, isLoading } = useQuery<SareeWithDetails>({
     queryKey: ["/api/sarees", id],
   });
@@ -105,16 +100,18 @@ export default function SareeDetail() {
     Boolean
   ) as string[];
   if (images.length === 0) {
-    images.push(
-      "https://images.unsplash.com/photo-1610030469983-98e550d6193c?w=600&h=800&fit=crop"
-    );
+    images.push("/banner.png");
   }
 
   const isOnlineAvailable =
     saree.distributionChannel === "online" ||
     saree.distributionChannel === "both";
   const hasStock = saree.onlineStock > 0;
-
+  const isButtonDisabled = (id: string) => {
+    return Boolean(
+      isAddingItem[id] || isUpdatingItem[id] || isRemovingItem[id]
+    );
+  };
   return (
     <div className="max-w-7xl mx-auto px-4 py-8">
       {/* Breadcrumb */}
@@ -244,68 +241,30 @@ export default function SareeDetail() {
 
           <Separator />
 
-          {user && user.role === "user" && isOnlineAvailable && hasStock && (
+          {user?.role === "user" && isOnlineAvailable && hasStock && (
             <div className="space-y-4">
               <div className="flex items-center gap-4">
                 <span className="text-sm font-medium">Quantity:</span>
+
                 {isInCart ? (
-                  (() => {
-                    const item = cartItems.find((c) => c.saree.id === saree.id);
-                    if (!item) return null;
-                    return (
-                      <div className="flex items-center border rounded-md">
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-8 w-8"
-                          onClick={() =>
-                            updateQuantity(item.id, item.quantity - 1)
-                          }
-                          disabled={
-                            item.quantity <= 1 ||
-                            isRemovingItem ||
-                            isUpdatingItem
-                          }
-                          data-testid={`button-quantity-minus-${item.id}`}
-                        >
-                          <Minus className="h-3 w-3" />
-                        </Button>
-                        <span
-                          className="w-8 text-center text-sm"
-                          data-testid={`text-quantity-${item.id}`}
-                        >
-                          {item.quantity}
-                        </span>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-8 w-8"
-                          onClick={() =>
-                            updateQuantity(item.id, item.quantity + 1)
-                          }
-                          disabled={
-                            item.quantity >= item.saree.onlineStock ||
-                            isUpdatingItem ||
-                            isRemovingItem
-                          }
-                          data-testid={`button-quantity-plus-${item.id}`}
-                        >
-                          <Plus className="h-3 w-3" />
-                        </Button>
-                      </div>
-                    );
-                  })()
+                  <CartQuantity
+                    saree={saree}
+                    cartItems={cartItems}
+                    updateQuantity={updateQuantity}
+                    isButtonDisabled={isButtonDisabled}
+                  />
                 ) : (
                   <Button
                     className="flex-1"
-                    onClick={() => addCartItem(saree.id, quantity)}
-                    disabled={isAddingItem}
+                    onClick={() => addCartItem(saree.id, 1)}
+                    disabled={isButtonDisabled(saree.id)}
                     data-testid="button-add-to-cart"
                   >
                     <ShoppingBag className="h-4 w-4 mr-2" />
                     Add to Cart
                   </Button>
                 )}
+
                 <Button
                   variant="secondary"
                   size="icon"

@@ -169,19 +169,27 @@ export class CartRepository {
       .where(and(eq(cart.userId, item.userId), eq(cart.sareeId, item.sareeId)));
 
     if (existing) {
-      await db
-        .update(cart)
-        .set({ quantity: existing.quantity + (item.quantity || 1) })
-        .where(eq(cart.id, existing.id));
+      const newQuantity = existing.quantity + (item.quantity || 1);
+      if (newQuantity <= 0) {
+        await db.delete(cart).where(eq(cart.id, existing.id));
+      } else {
+        await db.update(cart).set({ quantity: newQuantity }).where(eq(cart.id, existing.id));
+      }
     } else {
-      await db.insert(cart).values(item);
+      if ((item.quantity || 1) > 0) {
+        await db.insert(cart).values(item);
+      }
     }
 
     return await this.buildCart(item.userId);
   }
 
   async updateCartItem(id: string, quantity: number, userId: string) {
-    await db.update(cart).set({ quantity }).where(eq(cart.id, id));
+    if (quantity <= 0) {
+      await db.delete(cart).where(eq(cart.id, id));
+    } else {
+      await db.update(cart).set({ quantity }).where(eq(cart.id, id));
+    }
     return await this.buildCart(userId);
   }
 

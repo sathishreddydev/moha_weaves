@@ -98,7 +98,10 @@ export default function Cart() {
 
   const shipping = subtotal >= 2999 ? 0 : 199;
   const total = subtotal + shipping;
-  const disabledButton = isUpdatingItem || isRemovingItem || isLoading
+  const isButtonDisabled = (id: string) => {
+    return Boolean(isLoading || isUpdatingItem[id] || isRemovingItem[id]);
+  };
+
   return (
     <div className="max-w-7xl mx-auto px-4 py-8">
       <h1
@@ -176,7 +179,7 @@ export default function Cart() {
                         onClick={() =>
                           updateQuantity(item.id, item.quantity - 1)
                         }
-                        disabled={item.quantity <= 1 || disabledButton}
+                        disabled={isButtonDisabled(item.id)}
                         data-testid={`button-quantity-minus-${item.id}`}
                       >
                         <Minus className="h-3 w-3" />
@@ -194,7 +197,10 @@ export default function Cart() {
                         onClick={() =>
                           updateQuantity(item.id, item.quantity + 1)
                         }
-                        disabled={item.quantity >= item.saree.onlineStock || disabledButton}
+                        disabled={
+                          item.quantity >= item.saree.onlineStock ||
+                          isButtonDisabled(item.id)
+                        }
                         data-testid={`button-quantity-plus-${item.id}`}
                       >
                         <Plus className="h-3 w-3" />
@@ -207,7 +213,7 @@ export default function Cart() {
                       className="text-destructive hover:text-destructive"
                       onClick={() => removeItem(item.id)}
                       data-testid={`button-remove-${item.id}`}
-                      disabled={disabledButton}
+                      disabled={isButtonDisabled(item.id)}
                     >
                       <Trash2 className="h-4 w-4" />
                     </Button>
@@ -256,7 +262,6 @@ export default function Cart() {
               className="w-full mt-6"
               onClick={() => navigate("/user/checkout")}
               data-testid="button-checkout"
-              disabled={disabledButton}
             >
               Proceed to Checkout
               <ArrowRight className="h-4 w-4 ml-2" />
