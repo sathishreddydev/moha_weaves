@@ -25,6 +25,7 @@ import type { SareeWithDetails } from "@shared/schema";
 import { useFilterStore } from "@/components/Store/useFilterStore";
 import { CheckedState } from "@radix-ui/react-checkbox";
 import PriceRangeSlider from "@/components/product/PriceRangeSlider";
+import { ReusableDrawer } from "@/components/common/ReusableDrawer";
 
 type FilterItemProps = {
   id: string;
@@ -205,7 +206,7 @@ export default function Sarees() {
   );
 
   const FilterContent = () => (
-    <div className="space-y-6">
+    <div className="space-y-6 pb-8 pt-4">
       <div className="flex items-center justify-between">
         <span className="flex items-center gap-1 text-sm font-semibold">
           <Filter className="h-4 w-4" />
@@ -328,31 +329,27 @@ export default function Sarees() {
                   </SelectContent>
                 </Select>
               </div>
+              <div className="lg:hidden ml-auto">
+                <Button
+                  variant="ghost"
+                  onClick={() => setMobileFiltersOpen(true)}
+                  className="relative"
+                >
+                  <SlidersHorizontal className="h-4 w-4 mr-2" />
 
-              <Sheet
-                open={mobileFiltersOpen}
-                onOpenChange={setMobileFiltersOpen}
-              >
-                <SheetTrigger asChild className="lg:hidden ml-auto">
-                  <Button variant="outline">
-                    <SlidersHorizontal className="h-4 w-4 mr-2" />
-                    {hasActiveFilters && (
-                      <span className="ml-2 h-5 w-5 rounded-full bg-primary text-primary-foreground text-xs flex items-center justify-center">
-                        !
-                      </span>
-                    )}
-                  </Button>
-                </SheetTrigger>
-
-                <SheetContent side="right" className="w-80">
-                  <div className="mt-6">
-                    <FilterContent />
-                  </div>
-                </SheetContent>
-              </Sheet>
+                  {hasActiveFilters && (
+                    <span className="absolute top-1 right-3 h-2 w-2 rounded-full bg-primary ring-2 ring-background" />
+                  )}
+                </Button>
+              </div>
             </div>
           </div>
-
+          <ReusableDrawer
+            open={mobileFiltersOpen}
+            onOpenChange={setMobileFiltersOpen}
+          >
+            <FilterContent />
+          </ReusableDrawer>
           {isLoading ? (
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 px-6">
               {[...Array(8)].map((_, i) => (

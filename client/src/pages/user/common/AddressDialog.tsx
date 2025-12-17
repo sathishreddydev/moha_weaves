@@ -4,7 +4,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { AddressDialogProps } from "./Type";
-import { ReusableDialog } from "./ReusableDialog";
+import { AdaptiveModal } from "./AdaptiveModal";
 
 export const AddressDialog = ({
   formData,
@@ -22,7 +22,7 @@ export const AddressDialog = ({
 }: AddressDialogProps) => {
   return (
     <>
-      <ReusableDialog
+      <AdaptiveModal
         open={dialogOpen}
         onOpenChange={setDialogOpen}
         title={editingAddress ? "Edit Address" : "Add Address"}
@@ -125,7 +125,7 @@ export const AddressDialog = ({
             <Label>Set as default</Label>
           </div>
         </form>
-      </ReusableDialog>
+      </AdaptiveModal>
     </>
   );
 };
