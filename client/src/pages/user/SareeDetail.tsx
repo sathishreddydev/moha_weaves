@@ -1,4 +1,4 @@
-import { useParams, Link, useNavigate } from "react-router-dom";
+import { useParams, Link } from "react-router-dom";
 import {
   Heart,
   ShoppingBag,
@@ -28,8 +28,6 @@ import { CartQuantity } from "./common/CartQuantity";
 export default function SareeDetail() {
   const { id } = useParams();
   const { user } = useAuth();
-  const guestUser = ["admin", "inventory", "store"].includes(user?.role ?? "");
-  const navigate = useNavigate();
   const [selectedImage, setSelectedImage] = useState(0);
   const { data: saree, isLoading } = useQuery<SareeWithDetails>({
     queryKey: ["/api/sarees", id],
@@ -243,7 +241,7 @@ export default function SareeDetail() {
 
           <Separator />
 
-          {!guestUser && isOnlineAvailable && hasStock && (
+          {user?.role === "user" && isOnlineAvailable && hasStock && (
             <div className="space-y-4">
               <div className="flex items-center gap-4">
                 <span className="text-sm font-medium">Quantity:</span>
@@ -258,13 +256,7 @@ export default function SareeDetail() {
                 ) : (
                   <Button
                     className="flex-1"
-                    onClick={() => {
-                      if (!user) {
-                        navigate("/user/login");
-                        return;
-                      }
-                      addCartItem(saree.id, 1);
-                    }}
+                    onClick={() => addCartItem(saree.id, 1)}
                     disabled={isButtonDisabled(saree.id)}
                     data-testid="button-add-to-cart"
                   >
@@ -277,15 +269,11 @@ export default function SareeDetail() {
                   variant="secondary"
                   size="icon"
                   className="h-9 w-9 rounded-full bg-background/90 backdrop-blur-sm"
-                  onClick={() => {
-                    if (!user) {
-                      navigate("/user/login");
-                      return;
-                    }
+                  onClick={() =>
                     isInWishlist
                       ? removeWishlistItem(saree.id)
-                      : addWishlistItem(saree.id);
-                  }}
+                      : addWishlistItem(saree.id)
+                  }
                   disabled={
                     isInWishlist ? isRemovingWishlistItem : isAddingWishlistItem
                   }
