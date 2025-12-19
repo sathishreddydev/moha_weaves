@@ -24,8 +24,9 @@ export const adminRoutes = (app: Express) => {
 
   app.get("/api/admin/orders", authAdmin, async (req, res) => {
     try {
-      const { status, limit, page, pageSize, search, dateFrom, dateTo } = req.query;
-      
+      const { status, limit, page, pageSize, search, dateFrom, dateTo } =
+        req.query;
+
       if (page && pageSize) {
         const params = parsePaginationParams(req.query);
         const result = await storage.getOrdersPaginated({
@@ -38,7 +39,7 @@ export const adminRoutes = (app: Express) => {
         });
         return res.json(result);
       }
-      
+
       const orders = await storage.getAllOrders({
         status: status as string,
         limit: limit ? parseInt(limit as string) : undefined,
@@ -62,7 +63,7 @@ export const adminRoutes = (app: Express) => {
   app.get("/api/admin/users", authAdmin, async (req, res) => {
     try {
       const { role, page, pageSize, search, dateFrom, dateTo } = req.query;
-      
+
       if (page && pageSize) {
         const params = parsePaginationParams(req.query);
         const result = await storage.getUsersPaginated({
@@ -75,7 +76,7 @@ export const adminRoutes = (app: Express) => {
         });
         return res.json(result);
       }
-      
+
       const users = await userService.getUsers({ role: role as string });
       res.json(users.map(({ password, ...u }) => u));
     } catch (error) {
@@ -136,7 +137,9 @@ export const adminRoutes = (app: Express) => {
 
   app.delete("/api/admin/users/:id", authAdmin, async (req, res) => {
     try {
-      const user = await userService.updateUser(req.params.id, { isActive: false });
+      const user = await userService.updateUser(req.params.id, {
+        isActive: false,
+      });
       if (!user) {
         return res.status(404).json({ message: "User not found" });
       }
@@ -149,8 +152,9 @@ export const adminRoutes = (app: Express) => {
   // Admin saree management
   app.get("/api/admin/sarees", authAdmin, async (req, res) => {
     try {
-      const { page, pageSize, search, category, status, dateFrom, dateTo } = req.query;
-      
+      const { page, pageSize, search, category, status, dateFrom, dateTo } =
+        req.query;
+
       if (page && pageSize) {
         const params = parsePaginationParams(req.query);
         const result = await storage.getSareesPaginated({
@@ -164,7 +168,7 @@ export const adminRoutes = (app: Express) => {
         });
         return res.json(result);
       }
-      
+
       const sarees = await sareeService.getSarees({});
       res.json(sarees);
     } catch (error) {
@@ -211,7 +215,10 @@ export const adminRoutes = (app: Express) => {
 
   app.patch("/api/admin/categories/:id", authAdmin, async (req, res) => {
     try {
-      const category = await publicStorage.updateCategory(req.params.id, req.body);
+      const category = await publicStorage.updateCategory(
+        req.params.id,
+        req.body
+      );
       res.json(category);
     } catch (error) {
       res.status(500).json({ message: "Failed to update category" });
@@ -328,13 +335,9 @@ export const adminRoutes = (app: Express) => {
     }
   });
 
-  // Admin: Get all reviews (for moderation)
   app.get("/api/admin/reviews", authAdmin, async (req, res) => {
     try {
-      const { approved } = req.query;
-      const reviews = await storage.getAllReviews({
-        approved: approved === "true" ? true : approved === "false" ? false : undefined,
-      });
+      const reviews = await storage.getAllReviews();
       res.json(reviews);
     } catch (error) {
       res.status(500).json({ message: "Failed to fetch reviews" });
@@ -347,10 +350,15 @@ export const adminRoutes = (app: Express) => {
       const { isApproved } = req.body;
 
       if (typeof isApproved !== "boolean") {
-        return res.status(400).json({ message: "isApproved must be a boolean" });
+        return res
+          .status(400)
+          .json({ message: "isApproved must be a boolean" });
       }
 
-      const review = await storage.updateReviewApproval(req.params.id, isApproved);
+      const review = await storage.updateReviewApproval(
+        req.params.id,
+        isApproved
+      );
       if (!review) {
         return res.status(404).json({ message: "Review not found" });
       }
@@ -402,12 +410,9 @@ export const adminRoutes = (app: Express) => {
         (type === "percentage" || type === "fixed") &&
         (value === undefined || value === null || value === "")
       ) {
-        return res
-          .status(400)
-          .json({
-            message:
-              "Value is required for percentage and fixed discount types",
-          });
+        return res.status(400).json({
+          message: "Value is required for percentage and fixed discount types",
+        });
       }
 
       // Check if code already exists
@@ -515,7 +520,10 @@ export const adminRoutes = (app: Express) => {
         updateData.validUntil = expiresAt ? new Date(expiresAt) : null;
       if (isActive !== undefined) updateData.isActive = isActive;
 
-      const coupon = await couponsService.updateCoupon(req.params.id, updateData);
+      const coupon = await couponsService.updateCoupon(
+        req.params.id,
+        updateData
+      );
       if (!coupon) {
         return res.status(404).json({ message: "Coupon not found" });
       }
@@ -543,7 +551,8 @@ export const adminRoutes = (app: Express) => {
     try {
       const { active, featured, category } = req.query;
       const sales = await salesService.getSales({
-        isActive: active === "true" ? true : active === "false" ? false : undefined,
+        isActive:
+          active === "true" ? true : active === "false" ? false : undefined,
         isFeatured: featured === "true" ? true : undefined,
         categoryId: category as string,
       });
@@ -607,14 +616,24 @@ export const adminRoutes = (app: Express) => {
       });
 
       // Add products if it's a product-level offer
-      if (offerType === 'product' && productIds && Array.isArray(productIds) && productIds.length > 0) {
+      if (
+        offerType === "product" &&
+        productIds &&
+        Array.isArray(productIds) &&
+        productIds.length > 0
+      ) {
         await salesService.addProductsToSale(sale.id, productIds);
       }
 
       res.json(sale);
     } catch (error) {
       console.error("Error creating sale:", error);
-      res.status(500).json({ message: "Failed to create sale", error: error instanceof Error ? error.message : String(error) });
+      res
+        .status(500)
+        .json({
+          message: "Failed to create sale",
+          error: error instanceof Error ? error.message : String(error),
+        });
     }
   });
 
@@ -641,15 +660,21 @@ export const adminRoutes = (app: Express) => {
       if (name !== undefined) updateData.name = name;
       if (description !== undefined) updateData.description = description;
       if (offerType !== undefined) updateData.offerType = offerType;
-      if (discountValue !== undefined) updateData.discountValue = String(discountValue);
+      if (discountValue !== undefined)
+        updateData.discountValue = String(discountValue);
       if (categoryId !== undefined) updateData.categoryId = categoryId || null;
-      if (minOrderAmount !== undefined) updateData.minOrderAmount = minOrderAmount ? String(minOrderAmount) : null;
-      if (maxDiscount !== undefined) updateData.maxDiscount = maxDiscount ? String(maxDiscount) : null;
+      if (minOrderAmount !== undefined)
+        updateData.minOrderAmount = minOrderAmount
+          ? String(minOrderAmount)
+          : null;
+      if (maxDiscount !== undefined)
+        updateData.maxDiscount = maxDiscount ? String(maxDiscount) : null;
       if (startDate !== undefined) updateData.validFrom = new Date(startDate);
       if (endDate !== undefined) updateData.validUntil = new Date(endDate);
       if (isActive !== undefined) updateData.isActive = isActive;
       if (isFeatured !== undefined) updateData.isFeatured = isFeatured;
-      if (bannerImage !== undefined) updateData.bannerImage = bannerImage || null;
+      if (bannerImage !== undefined)
+        updateData.bannerImage = bannerImage || null;
 
       const sale = await salesService.updateSale(req.params.id, updateData);
       if (!sale) {
@@ -678,92 +703,96 @@ export const adminRoutes = (app: Express) => {
       res.status(500).json({ message: "Failed to delete sale" });
     }
   });
-    // Admin: Get all settings
-    app.get("/api/admin/settings", authAdmin, async (req, res) => {
-      try {
-        const settings = await storage.getAllSettings();
-        
-        // Add default values for known settings if not set
-        const settingsMap = new Map(settings.map(s => [s.key, s]));
-        
-        const allSettings = [
-          {
-            key: "return_window_days",
-            value: settingsMap.get("return_window_days")?.value || "7",
-            description: settingsMap.get("return_window_days")?.description || "Number of days customers have to initiate a return after delivery",
-            updatedAt: settingsMap.get("return_window_days")?.updatedAt || null,
-          },
-        ];
-        
-        res.json(allSettings);
-      } catch (error) {
-        console.error("Error fetching settings:", error);
-        res.status(500).json({ message: "Failed to fetch settings" });
-      }
-    });
-  
-    // Admin: Update a setting
-    app.put("/api/admin/settings/:key", authAdmin, async (req, res) => {
-      try {
-        const user = (req as any).user;
-        const { key } = req.params;
-        const { value, description } = req.body;
-        
-        // Validate known settings
-        if (key === "return_window_days") {
-          const days = parseInt(value);
-          if (isNaN(days) || days < 0 || days > 60) {
-            return res.status(400).json({ message: "Return window must be between 0 and 60 days" });
-          }
+  // Admin: Get all settings
+  app.get("/api/admin/settings", authAdmin, async (req, res) => {
+    try {
+      const settings = await storage.getAllSettings();
+
+      // Add default values for known settings if not set
+      const settingsMap = new Map(settings.map((s) => [s.key, s]));
+
+      const allSettings = [
+        {
+          key: "return_window_days",
+          value: settingsMap.get("return_window_days")?.value || "7",
+          description:
+            settingsMap.get("return_window_days")?.description ||
+            "Number of days customers have to initiate a return after delivery",
+          updatedAt: settingsMap.get("return_window_days")?.updatedAt || null,
+        },
+      ];
+
+      res.json(allSettings);
+    } catch (error) {
+      console.error("Error fetching settings:", error);
+      res.status(500).json({ message: "Failed to fetch settings" });
+    }
+  });
+
+  // Admin: Update a setting
+  app.put("/api/admin/settings/:key", authAdmin, async (req, res) => {
+    try {
+      const user = (req as any).user;
+      const { key } = req.params;
+      const { value, description } = req.body;
+
+      // Validate known settings
+      if (key === "return_window_days") {
+        const days = parseInt(value);
+        if (isNaN(days) || days < 0 || days > 60) {
+          return res
+            .status(400)
+            .json({ message: "Return window must be between 0 and 60 days" });
         }
-        
-        await storage.setSetting(key, value.toString(), description, user.id);
-        
-        res.json({ 
-          key, 
-          value: value.toString(), 
-          description, 
-          updatedAt: new Date() 
-        });
-      } catch (error) {
-        console.error("Error updating setting:", error);
-        res.status(500).json({ message: "Failed to update setting" });
       }
-    });
 
-    // Admin: Stock Movement Endpoints
-    app.get("/api/admin/stock-movements", authAdmin, async (req, res) => {
-      try {
-        const { source, sareeId, limit } = req.query;
-        const movements = await storage.getStockMovements({
-          source: source as string,
-          sareeId: sareeId as string,
-          limit: limit ? parseInt(limit as string) : undefined,
-        });
-        res.json(movements);
-      } catch (error) {
-        console.error("Error fetching stock movements:", error);
-        res.status(500).json({ message: "Failed to fetch stock movements" });
-      }
-    });
+      await storage.setSetting(key, value.toString(), description, user.id);
 
-    app.get("/api/admin/stock-stats", authAdmin, async (req, res) => {
-      try {
-        const stats = await storage.getStockMovementStats();
-        res.json(stats);
-      } catch (error) {
-        console.error("Error fetching stock stats:", error);
-        res.status(500).json({ message: "Failed to fetch stock stats" });
-      }
-    });
+      res.json({
+        key,
+        value: value.toString(),
+        description,
+        updatedAt: new Date(),
+      });
+    } catch (error) {
+      console.error("Error updating setting:", error);
+      res.status(500).json({ message: "Failed to update setting" });
+    }
+  });
 
-    app.get("/api/admin/inventory-overview", authAdmin, async (req, res) => {
-      try {
-        const overview = await storage.getInventoryOverview();
-        res.json(overview);
-      } catch (error) {
-        console.error("Error fetching inventory overview:", error);
-        res.status(500).json({ message: "Failed to fetch inventory overview" });
-      }
-    });
+  // Admin: Stock Movement Endpoints
+  app.get("/api/admin/stock-movements", authAdmin, async (req, res) => {
+    try {
+      const { source, sareeId, limit } = req.query;
+      const movements = await storage.getStockMovements({
+        source: source as string,
+        sareeId: sareeId as string,
+        limit: limit ? parseInt(limit as string) : undefined,
+      });
+      res.json(movements);
+    } catch (error) {
+      console.error("Error fetching stock movements:", error);
+      res.status(500).json({ message: "Failed to fetch stock movements" });
+    }
+  });
+
+  app.get("/api/admin/stock-stats", authAdmin, async (req, res) => {
+    try {
+      const stats = await storage.getStockMovementStats();
+      res.json(stats);
+    } catch (error) {
+      console.error("Error fetching stock stats:", error);
+      res.status(500).json({ message: "Failed to fetch stock stats" });
+    }
+  });
+
+  app.get("/api/admin/inventory-overview", authAdmin, async (req, res) => {
+    try {
+      const overview = await storage.getInventoryOverview();
+      res.json(overview);
+    } catch (error) {
+      console.error("Error fetching inventory overview:", error);
+      res.status(500).json({ message: "Failed to fetch inventory overview" });
+    }
+  });
 };

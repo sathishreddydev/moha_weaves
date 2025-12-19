@@ -24,6 +24,7 @@ import type { SareeWithDetails } from "@shared/schema";
 import { useCartStore } from "@/components/Store/useCartStore";
 import { useWishlistStore } from "@/components/Store/useWishlistStore";
 import { CartQuantity } from "./common/CartQuantity";
+import { ProductSharePopover } from "@/components/common/ProductSharePopover";
 
 export default function SareeDetail() {
   const { id } = useParams();
@@ -244,8 +245,6 @@ export default function SareeDetail() {
           {user?.role === "user" && isOnlineAvailable && hasStock && (
             <div className="space-y-4">
               <div className="flex items-center gap-4">
-                <span className="text-sm font-medium">Quantity:</span>
-
                 {isInCart ? (
                   <CartQuantity
                     saree={saree}
@@ -285,6 +284,10 @@ export default function SareeDetail() {
                     }`}
                   />
                 </Button>
+                <ProductSharePopover
+                  name={saree.name}
+                  price={formatPrice(saree.discountedPrice || saree.price)}
+                />
               </div>
             </div>
           )}

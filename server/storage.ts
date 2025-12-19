@@ -85,11 +85,17 @@ import { userService } from "./auth/authStorage";
 import { orderService } from "./order/orderStorage";
 import { storeService } from "./store/storeStorage";
 import { sareeService } from "./saree/sareeStorage";
+export type ReviewWithUser = Omit<
+  typeof productReviews.$inferSelect,
+  "userId"
+> & {
+  user: {
+    id: string;
+    name: string;
+  };
+};
 
 export interface IStorage {
-
-  // Orders
-
   getAllOrders(filters?: {
     status?: string;
     limit?: number;
@@ -249,7 +255,7 @@ export interface IStorage {
     filters?: { approved?: boolean }
   ): Promise<ProductReview[]>;
   getReview(id: string): Promise<ProductReview | undefined>;
-  createReview(review: InsertProductReview): Promise<ProductReview>;
+  createReview(review: InsertProductReview): Promise<ReviewWithUser>;
   updateReviewApproval(
     id: string,
     isApproved: boolean
@@ -371,12 +377,6 @@ export interface IStorage {
 }
 
 export class DatabaseStorage implements IStorage {
-
-
- 
-
-  // Orders
-
   async getAllOrders(filters?: {
     status?: string;
     limit?: number;
@@ -1540,19 +1540,21 @@ export class DatabaseStorage implements IStorage {
   }
 
   // Product Reviews
-  async getProductReviews(
-    sareeId: string,
-    filters?: { approved?: boolean }
-  ): Promise<ProductReview[]> {
-    const conditions = [eq(productReviews.sareeId, sareeId)];
-    if (filters?.approved !== undefined)
-      conditions.push(eq(productReviews.isApproved, filters.approved));
-
-    return db
+  async getProductReviews(sareeId: string): Promise<ProductReview[]> {
+    const rows = await db
       .select()
       .from(productReviews)
-      .where(and(...conditions))
+      .innerJoin(users, eq(users.id, productReviews.userId))
+      .where(eq(productReviews.sareeId, sareeId))
       .orderBy(desc(productReviews.createdAt));
+
+    return rows.map((row) => ({
+      ...row.product_reviews,
+      user: {
+        id: row.users.id,
+        name: row.users.name,
+      },
+    }));
   }
 
   async getReview(id: string): Promise<ProductReview | undefined> {
@@ -1563,9 +1565,28 @@ export class DatabaseStorage implements IStorage {
     return result || undefined;
   }
 
-  async createReview(review: InsertProductReview): Promise<ProductReview> {
-    const [result] = await db.insert(productReviews).values(review).returning();
-    return result;
+  async createReview(review: InsertProductReview): Promise<ReviewWithUser> {
+    // Step 1: Insert review
+    const [inserted] = await db
+      .insert(productReviews)
+      .values(review)
+      .returning({ id: productReviews.id });
+
+    const [row] = await db
+      .select()
+      .from(productReviews)
+      .innerJoin(users, eq(users.id, productReviews.userId))
+      .where(eq(productReviews.id, inserted.id));
+
+    if (!row) throw new Error("Inserted review not found");
+
+    return {
+      ...row.product_reviews,
+      user: {
+        id: row.users.id,
+        name: row.users.name,
+      },
+    };
   }
 
   async updateReviewApproval(
@@ -1594,7 +1615,7 @@ export class DatabaseStorage implements IStorage {
     const saree = await sareeService.getSaree(sareeId);
     if (!saree) return undefined;
 
-    const reviews = await this.getProductReviews(sareeId, { approved: true });
+    const reviews = await this.getProductReviews(sareeId);
     const avgRating =
       reviews.length > 0
         ? reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length
@@ -1640,26 +1661,30 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getAllReviews(filters?: {
-    approved?: boolean;
     limit?: number;
-  }): Promise<(ProductReview & { saree: SareeWithDetails })[]> {
-    const conditions: any[] = [];
-    if (filters?.approved !== undefined)
-      conditions.push(eq(productReviews.isApproved, filters.approved));
-
+  }): Promise<
+    (ProductReview & {
+      saree: SareeWithDetails;
+      user: { id: string; name: string };
+    })[]
+  > {
     const reviews = await db
       .select()
       .from(productReviews)
+      .innerJoin(users, eq(users.id, productReviews.userId))
       .innerJoin(sarees, eq(productReviews.sareeId, sarees.id))
       .leftJoin(categories, eq(sarees.categoryId, categories.id))
       .leftJoin(colors, eq(sarees.colorId, colors.id))
       .leftJoin(fabrics, eq(sarees.fabricId, fabrics.id))
-      .where(conditions.length > 0 ? and(...conditions) : undefined)
       .orderBy(desc(productReviews.createdAt))
       .limit(filters?.limit || 100);
 
     return reviews.map((row) => ({
       ...row.product_reviews,
+      user: {
+        id: row.users.id,
+        name: row.users.name,
+      },
       saree: {
         ...row.sarees,
         category: row.categories,
@@ -2208,7 +2233,7 @@ export class DatabaseStorage implements IStorage {
 
     const data = allSarees.map((row) => {
       const saree = row.sarees;
-      
+
       // Find applicable sale
       let applicableSale = null;
       const productSaleMapping = saleProductMappings.find(
@@ -2222,8 +2247,11 @@ export class DatabaseStorage implements IStorage {
       // Only exclude category pricing when THIS saree is explicitly mapped to a different sale
       if (!applicableSale && saree.categoryId) {
         applicableSale = activeSales.find(
-          (s) => s.categoryId === saree.categoryId && 
-          !saleProductMappings.some(sp => sp.saleId === s.id && sp.sareeId === saree.id)
+          (s) =>
+            s.categoryId === saree.categoryId &&
+            !saleProductMappings.some(
+              (sp) => sp.saleId === s.id && sp.sareeId === saree.id
+            )
         );
       }
 
@@ -2231,14 +2259,26 @@ export class DatabaseStorage implements IStorage {
       let discountedPrice = parseFloat(saree.price);
       if (applicableSale) {
         const originalPrice = discountedPrice;
-        if (applicableSale.offerType === "percentage" || applicableSale.offerType === "category" || applicableSale.offerType === "flash_sale") {
-          const discount = originalPrice * (parseFloat(applicableSale.discountValue) / 100);
-          const maxDiscount = applicableSale.maxDiscount 
-            ? parseFloat(applicableSale.maxDiscount) 
+        if (
+          applicableSale.offerType === "percentage" ||
+          applicableSale.offerType === "category" ||
+          applicableSale.offerType === "flash_sale"
+        ) {
+          const discount =
+            originalPrice * (parseFloat(applicableSale.discountValue) / 100);
+          const maxDiscount = applicableSale.maxDiscount
+            ? parseFloat(applicableSale.maxDiscount)
             : originalPrice; // Cap at price if no maxDiscount
-          discountedPrice = originalPrice - Math.min(discount, maxDiscount, originalPrice);
-        } else if (applicableSale.offerType === "flat" || applicableSale.offerType === "product") {
-          const flatDiscount = Math.min(parseFloat(applicableSale.discountValue), originalPrice);
+          discountedPrice =
+            originalPrice - Math.min(discount, maxDiscount, originalPrice);
+        } else if (
+          applicableSale.offerType === "flat" ||
+          applicableSale.offerType === "product"
+        ) {
+          const flatDiscount = Math.min(
+            parseFloat(applicableSale.discountValue),
+            originalPrice
+          );
           discountedPrice = originalPrice - flatDiscount;
         }
         discountedPrice = Math.max(0, discountedPrice);

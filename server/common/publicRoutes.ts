@@ -83,41 +83,41 @@ export const publicRoutes = (app: Express) => {
       res.status(500).json({ message: "Failed to fetch sarees" });
     }
   });
-app.post("/api/getSarees", async (req, res) => {
-  try {
-    const {
-      search,
-      category,
-      color,
-      fabric,
-      featured,
-      minPrice,
-      maxPrice,
-      sort,
-      limit,
-      onSale,
-    } = req.body; 
+  app.post("/api/getSarees", async (req, res) => {
+    try {
+      const {
+        search,
+        category,
+        color,
+        fabric,
+        featured,
+        minPrice,
+        maxPrice,
+        sort,
+        limit,
+        onSale,
+      } = req.body;
 
-    const sarees = await sareeService.getNewSarees({
-      search,
-      category, 
-      color,  
-      fabric,   
-      featured: featured === true,
-      minPrice,
-      maxPrice,
-      sort,
-      limit,
-      onSale: onSale === true,
-      distributionChannel: "online",
-    });
+      const sarees = await sareeService.getNewSarees({
+        search,
+        category,
+        color,
+        fabric,
+        featured: featured === true,
+        minPrice,
+        maxPrice,
+        sort,
+        limit,
+        onSale: onSale === true,
+        distributionChannel: "online",
+      });
 
-    res.json(sarees);
-  } catch (error) {
-    console.error("Sarees fetch error:", error);
-    res.status(500).json({ message: "Failed to fetch sarees" });
-  }
-});
+      res.json(sarees);
+    } catch (error) {
+      console.error("Sarees fetch error:", error);
+      res.status(500).json({ message: "Failed to fetch sarees" });
+    }
+  });
 
   app.get("/api/sarees/:id", async (req, res) => {
     try {
@@ -133,9 +133,7 @@ app.post("/api/getSarees", async (req, res) => {
   // Public: Get reviews for a saree
   app.get("/api/sarees/:id/reviews", async (req, res) => {
     try {
-      const reviews = await storage.getProductReviews(req.params.id, {
-        approved: true,
-      });
+      const reviews = await storage.getProductReviews(req.params.id);
       res.json(reviews);
     } catch (error) {
       res.status(500).json({ message: "Failed to fetch reviews" });
@@ -145,10 +143,7 @@ app.post("/api/getSarees", async (req, res) => {
   // Public: Get review stats for a saree
   app.get("/api/sarees/:id/reviews/stats", async (req, res) => {
     try {
-      const reviews = await storage.getProductReviews(req.params.id, {
-        approved: true,
-      });
-
+      const reviews = await storage.getProductReviews(req.params.id);
       const totalReviews = reviews.length;
       const averageRating =
         totalReviews > 0
