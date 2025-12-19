@@ -335,40 +335,6 @@ export const adminRoutes = (app: Express) => {
     }
   });
 
-  app.get("/api/admin/reviews", authAdmin, async (req, res) => {
-    try {
-      const reviews = await storage.getAllReviews();
-      res.json(reviews);
-    } catch (error) {
-      res.status(500).json({ message: "Failed to fetch reviews" });
-    }
-  });
-
-  // Admin: Update review approval status
-  app.patch("/api/admin/reviews/:id/status", authAdmin, async (req, res) => {
-    try {
-      const { isApproved } = req.body;
-
-      if (typeof isApproved !== "boolean") {
-        return res
-          .status(400)
-          .json({ message: "isApproved must be a boolean" });
-      }
-
-      const review = await storage.updateReviewApproval(
-        req.params.id,
-        isApproved
-      );
-      if (!review) {
-        return res.status(404).json({ message: "Review not found" });
-      }
-
-      res.json(review);
-    } catch (error) {
-      res.status(500).json({ message: "Failed to update review status" });
-    }
-  });
-
   // ==================== COUPON ROUTES ====================
 
   // Admin: Get all coupons
@@ -628,12 +594,10 @@ export const adminRoutes = (app: Express) => {
       res.json(sale);
     } catch (error) {
       console.error("Error creating sale:", error);
-      res
-        .status(500)
-        .json({
-          message: "Failed to create sale",
-          error: error instanceof Error ? error.message : String(error),
-        });
+      res.status(500).json({
+        message: "Failed to create sale",
+        error: error instanceof Error ? error.message : String(error),
+      });
     }
   });
 

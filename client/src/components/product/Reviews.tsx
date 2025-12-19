@@ -220,7 +220,7 @@ export function Reviews({ sareeId }: ReviewsProps) {
                       <div className="flex flex-wrap items-center justify-between gap-2">
                         <div>
                           <p className="font-medium">
-                            {review.userId || "Anonymous"}
+                            {review?.user?.name || "Anonymous"}
                           </p>
                           <div className="flex items-center gap-2">
                             {renderStars(review.rating)}
