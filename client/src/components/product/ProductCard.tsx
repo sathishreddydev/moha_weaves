@@ -207,11 +207,15 @@ export function ProductCard({ saree }: ProductCardProps) {
               variant="ghost"
               size="icon"
               className="md:hidden h-8 w-8 shrink-0"
-              onClick={() =>
+              onClick={() => {
+                if (!user) {
+                  navigate("/user/login");
+                  return;
+                }
                 isInWishlist
                   ? removeWishlistItem(saree.id)
-                  : addWishlistItem(saree.id)
-              }
+                  : addWishlistItem(saree.id);
+              }}
               disabled={isAddingWishlistItem}
               aria-label="Wishlist"
             >
