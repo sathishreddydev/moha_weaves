@@ -1,3 +1,4 @@
+import { useMemo, useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import {
   Package,
@@ -15,6 +16,8 @@ import { Separator } from "@/components/ui/separator";
 import { useAuth } from "@/lib/auth";
 import { useQuery } from "@tanstack/react-query";
 import type { OrderWithItems } from "@shared/schema";
+import { WriteReview } from "@/components/product/WriteReview";
+import { useDebounce } from "@/components/common/useDebounceHook";
 
 const statusConfig: Record<
   string,
@@ -57,6 +60,12 @@ const statusConfig: Record<
 
 export default function Orders() {
   const { user } = useAuth();
+  const [search, setSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [timeFilter, setTimeFilter] = useState("any");
+  const [currentPage, setCurrentPage] = useState(1); // Pagination state
+  const ordersPerPage = 5;
+  const debouncedSearch = useDebounce(search, 300);
 
   const { data: orders, isLoading } = useQuery<OrderWithItems[]>({
     queryKey: ["/api/user/orders"],
@@ -72,13 +81,51 @@ export default function Orders() {
     }).format(numPrice);
   };
 
-  const formatDate = (date: string | Date) => {
-    return new Date(date).toLocaleDateString("en-IN", {
+  const formatDate = (date: string | Date) =>
+    new Date(date).toLocaleDateString("en-IN", {
       day: "numeric",
       month: "short",
       year: "numeric",
     });
+
+  const isWithinTimeRange = (date: string | Date) => {
+    if (timeFilter === "any") return true;
+    const orderDate = new Date(date);
+    const now = new Date();
+    const diffInDays =
+      (now.getTime() - orderDate.getTime()) / (1000 * 60 * 60 * 24);
+
+    if (timeFilter === "30") return diffInDays <= 30;
+    if (timeFilter === "180") return diffInDays <= 180;
+    if (timeFilter === "365") return diffInDays <= 365;
+
+    return true;
   };
+
+  const filteredOrders = useMemo(() => {
+    if (!orders) return [];
+    return orders.filter((order) => {
+      if (statusFilter !== "all" && order.status !== statusFilter) return false;
+      if (!isWithinTimeRange(order.createdAt)) return false;
+
+      if (debouncedSearch.trim()) {
+        const s = debouncedSearch.toLowerCase();
+        const matchesOrderId = order.id.toLowerCase().includes(s);
+        const matchesProduct = order.items.some((item) =>
+          item.saree.name.toLowerCase().includes(s)
+        );
+        if (!matchesOrderId && !matchesProduct) return false;
+      }
+
+      return true;
+    });
+  }, [orders, debouncedSearch, statusFilter, timeFilter]);
+
+  const totalPages = Math.ceil(filteredOrders.length / ordersPerPage);
+  const paginatedOrders = filteredOrders.slice(
+    (currentPage - 1) * ordersPerPage,
+    currentPage * ordersPerPage
+  );
 
   if (!user) {
     return (
@@ -132,8 +179,59 @@ export default function Orders() {
         My Orders
       </h1>
 
+      {/* Search & Filters */}
+      <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <input
+          type="text"
+          placeholder="Search by Order ID or Product name"
+          value={search}
+          onChange={(e) => {
+            setSearch(e.target.value);
+            setCurrentPage(1); // Reset page when search changes
+          }}
+          className="w-full sm:w-80 rounded-md border px-3 py-2 text-sm"
+        />
+        <div className="flex gap-2 sm:gap-3 flex-wrap">
+          <select
+            value={statusFilter}
+            onChange={(e) => {
+              setStatusFilter(e.target.value);
+              setCurrentPage(1); // Reset page when filter changes
+            }}
+            className="rounded-md border px-3 py-2 text-sm"
+          >
+            <option value="all">All Status</option>
+            <option value="pending">Pending</option>
+            <option value="confirmed">Confirmed</option>
+            <option value="processing">Processing</option>
+            <option value="shipped">Shipped</option>
+            <option value="delivered">Delivered</option>
+            <option value="cancelled">Cancelled</option>
+          </select>
+          <select
+            value={timeFilter}
+            onChange={(e) => {
+              setTimeFilter(e.target.value);
+              setCurrentPage(1); // Reset page when filter changes
+            }}
+            className="rounded-md border px-3 py-2 text-sm"
+          >
+            <option value="any">Any time</option>
+            <option value="30">Last 30 days</option>
+            <option value="180">Last 6 months</option>
+            <option value="365">Last 1 year</option>
+          </select>
+        </div>
+      </div>
+
+      {filteredOrders.length === 0 && (
+        <p className="text-center text-muted-foreground py-12">
+          No orders match your search or filters.
+        </p>
+      )}
+
       <div className="space-y-6">
-        {orders.map((order) => {
+        {paginatedOrders.map((order) => {
           const status = statusConfig[order.status] || statusConfig.pending;
           const StatusIcon = status.icon;
 
@@ -171,7 +269,10 @@ export default function Orders() {
               <div className="p-4">
                 <div className="space-y-4">
                   {order.items.slice(0, 3).map((item) => (
-                    <div key={item.id} className="flex gap-4">
+                    <div
+                      key={item.id}
+                      className="flex gap-4 flex-wrap sm:flex-nowrap"
+                    >
                       <Link to={`/sarees/${item.saree.id}`}>
                         <div className="w-16 h-20 rounded-md overflow-hidden bg-muted flex-shrink-0">
                           <img
@@ -197,9 +298,11 @@ export default function Orders() {
                           {formatPrice(item.price)}
                         </p>
                       </div>
+                      {order.status === "delivered" && (
+                        <WriteReview saree={item.saree} />
+                      )}
                     </div>
                   ))}
-
                   {order.items.length > 3 && (
                     <p className="text-sm text-muted-foreground">
                       +{order.items.length - 3} more item(s)
@@ -209,7 +312,7 @@ export default function Orders() {
 
                 <Separator className="my-4" />
 
-                <div className="flex items-center justify-between">
+                <div className="flex items-center justify-between flex-wrap gap-2 sm:gap-0">
                   <div>
                     <span className="text-muted-foreground text-sm">
                       Total:
@@ -221,6 +324,7 @@ export default function Orders() {
                       {formatPrice(order.totalAmount)}
                     </span>
                   </div>
+
                   <Link to={`/user/orders/${order.id}`}>
                     <Button
                       variant="ghost"
@@ -237,6 +341,35 @@ export default function Orders() {
           );
         })}
       </div>
+
+      {totalPages > 1 && (
+        <div className="mt-6 flex justify-center gap-2">
+          <Button
+            size="sm"
+            disabled={currentPage === 1}
+            onClick={() => setCurrentPage((prev) => prev - 1)}
+          >
+            Previous
+          </Button>
+          {[...Array(totalPages)].map((_, i) => (
+            <Button
+              key={i}
+              size="sm"
+              variant={currentPage === i + 1 ? "default" : "outline"}
+              onClick={() => setCurrentPage(i + 1)}
+            >
+              {i + 1}
+            </Button>
+          ))}
+          <Button
+            size="sm"
+            disabled={currentPage === totalPages}
+            onClick={() => setCurrentPage((prev) => prev + 1)}
+          >
+            Next
+          </Button>
+        </div>
+      )}
     </div>
   );
 }

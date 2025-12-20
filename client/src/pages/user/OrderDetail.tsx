@@ -1,29 +1,83 @@
 import { useState } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
-import { ArrowLeft, Package, Clock, CheckCircle, Truck, XCircle, RotateCcw, Star, ArrowLeftRight } from "lucide-react";
+import {
+  ArrowLeft,
+  Package,
+  Clock,
+  CheckCircle,
+  Truck,
+  XCircle,
+  RotateCcw,
+  Star,
+  ArrowLeftRight,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Separator } from "@/components/ui/separator";
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/lib/auth";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import type { OrderWithItems, OrderStatusHistory } from "@shared/schema";
+import { WriteReview } from "@/components/product/WriteReview";
 
-const statusConfig: Record<string, { icon: typeof Clock; label: string; color: string }> = {
-  pending: { icon: Clock, label: "Pending", color: "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-100" },
-  confirmed: { icon: CheckCircle, label: "Confirmed", color: "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-100" },
-  processing: { icon: Package, label: "Processing", color: "bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-100" },
-  shipped: { icon: Truck, label: "Shipped", color: "bg-indigo-100 text-indigo-800 dark:bg-indigo-900 dark:text-indigo-100" },
-  delivered: { icon: CheckCircle, label: "Delivered", color: "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-100" },
-  cancelled: { icon: XCircle, label: "Cancelled", color: "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-100" },
+const statusConfig: Record<
+  string,
+  { icon: typeof Clock; label: string; color: string }
+> = {
+  pending: {
+    icon: Clock,
+    label: "Pending",
+    color:
+      "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-100",
+  },
+  confirmed: {
+    icon: CheckCircle,
+    label: "Confirmed",
+    color: "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-100",
+  },
+  processing: {
+    icon: Package,
+    label: "Processing",
+    color:
+      "bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-100",
+  },
+  shipped: {
+    icon: Truck,
+    label: "Shipped",
+    color:
+      "bg-indigo-100 text-indigo-800 dark:bg-indigo-900 dark:text-indigo-100",
+  },
+  delivered: {
+    icon: CheckCircle,
+    label: "Delivered",
+    color: "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-100",
+  },
+  cancelled: {
+    icon: XCircle,
+    label: "Cancelled",
+    color: "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-100",
+  },
 };
 
 const returnReasons = [
@@ -45,8 +99,12 @@ export default function OrderDetail() {
   const [showReturnDialog, setShowReturnDialog] = useState(false);
   const [returnReason, setReturnReason] = useState("");
   const [returnDescription, setReturnDescription] = useState("");
-  const [resolutionType, setResolutionType] = useState<"refund" | "exchange">("refund");
-  const [selectedItems, setSelectedItems] = useState<Record<string, { selected: boolean; quantity: number }>>({});
+  const [resolutionType, setResolutionType] = useState<"refund" | "exchange">(
+    "refund"
+  );
+  const [selectedItems, setSelectedItems] = useState<
+    Record<string, { selected: boolean; quantity: number }>
+  >({});
 
   const { data: order, isLoading } = useQuery<OrderWithItems>({
     queryKey: ["/api/user/orders", id],
@@ -58,7 +116,10 @@ export default function OrderDetail() {
     enabled: !!user && !!id,
   });
 
-  const { data: eligibility } = useQuery<{ eligible: boolean; reason?: string }>({
+  const { data: eligibility } = useQuery<{
+    eligible: boolean;
+    reason?: string;
+  }>({
     queryKey: ["/api/user/orders", id, "return-eligibility"],
     enabled: !!user && !!id && order?.status === "delivered",
   });
@@ -75,17 +136,31 @@ export default function OrderDetail() {
       navigate("/user/returns");
     },
     onError: (error: any) => {
-      toast({ title: "Failed to submit return request", description: error.message, variant: "destructive" });
+      toast({
+        title: "Failed to submit return request",
+        description: error.message,
+        variant: "destructive",
+      });
     },
   });
 
   const formatPrice = (price: string | number) => {
     const numPrice = typeof price === "string" ? parseFloat(price) : price;
-    return new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR", maximumFractionDigits: 0 }).format(numPrice);
+    return new Intl.NumberFormat("en-IN", {
+      style: "currency",
+      currency: "INR",
+      maximumFractionDigits: 0,
+    }).format(numPrice);
   };
 
   const formatDate = (date: string | Date) => {
-    return new Date(date).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" });
+    return new Date(date).toLocaleDateString("en-IN", {
+      day: "numeric",
+      month: "short",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
   };
 
   const handleReturnSubmit = () => {
@@ -98,7 +173,10 @@ export default function OrderDetail() {
       }));
 
     if (items.length === 0) {
-      toast({ title: "Please select at least one item to return", variant: "destructive" });
+      toast({
+        title: "Please select at least one item to return",
+        variant: "destructive",
+      });
       return;
     }
 
@@ -125,8 +203,12 @@ export default function OrderDetail() {
       <div className="max-w-7xl mx-auto px-4 py-16 text-center">
         <Package className="h-16 w-16 mx-auto text-muted-foreground mb-4" />
         <h2 className="text-2xl font-semibold mb-2">View order details</h2>
-        <p className="text-muted-foreground mb-6">Please login to view this order.</p>
-        <Link to="/user/login"><Button data-testid="button-login">Login</Button></Link>
+        <p className="text-muted-foreground mb-6">
+          Please login to view this order.
+        </p>
+        <Link to="/user/login">
+          <Button data-testid="button-login">Login</Button>
+        </Link>
       </div>
     );
   }
@@ -145,7 +227,9 @@ export default function OrderDetail() {
       <div className="max-w-7xl mx-auto px-4 py-16 text-center">
         <Package className="h-16 w-16 mx-auto text-muted-foreground mb-4" />
         <h2 className="text-2xl font-semibold mb-2">Order not found</h2>
-        <Link to="/user/orders"><Button data-testid="button-back-orders">Back to Orders</Button></Link>
+        <Link to="/user/orders">
+          <Button data-testid="button-back-orders">Back to Orders</Button>
+        </Link>
       </div>
     );
   }
@@ -155,17 +239,25 @@ export default function OrderDetail() {
 
   return (
     <div className="max-w-4xl mx-auto px-4 py-8">
-      <Link to="/user/orders" className="inline-flex items-center text-sm text-muted-foreground hover:text-foreground mb-6">
+      <Link
+        to="/user/orders"
+        className="inline-flex items-center text-sm text-muted-foreground hover:text-foreground mb-6"
+      >
         <ArrowLeft className="h-4 w-4 mr-1" />
         Back to Orders
       </Link>
 
       <div className="flex flex-wrap items-start justify-between gap-4 mb-6">
         <div>
-          <h1 className="font-serif text-2xl font-semibold" data-testid="text-order-id">
+          <h1
+            className="font-serif text-2xl font-semibold"
+            data-testid="text-order-id"
+          >
             Order #{order.id.slice(0, 8).toUpperCase()}
           </h1>
-          <p className="text-muted-foreground text-sm mt-1">Placed on {formatDate(order.createdAt)}</p>
+          <p className="text-muted-foreground text-sm mt-1">
+            Placed on {formatDate(order.createdAt)}
+          </p>
         </div>
         <Badge className={status.color}>
           <StatusIcon className="h-3 w-3 mr-1" />
@@ -183,7 +275,10 @@ export default function OrderDetail() {
                   <Link to={`/sarees/${item.saree.id}`}>
                     <div className="w-20 h-24 rounded-md overflow-hidden bg-muted flex-shrink-0">
                       <img
-                        src={item.saree.imageUrl || "https://images.unsplash.com/photo-1610030469983-98e550d6193c?w=100&h=150&fit=crop"}
+                        src={
+                          item.saree.imageUrl ||
+                          "https://images.unsplash.com/photo-1610030469983-98e550d6193c?w=100&h=150&fit=crop"
+                        }
                         alt={item.saree.name}
                         className="w-full h-full object-cover"
                       />
@@ -191,14 +286,25 @@ export default function OrderDetail() {
                   </Link>
                   <div className="flex-1">
                     <Link to={`/sarees/${item.saree.id}`}>
-                      <h4 className="font-medium hover:text-primary">{item.saree.name}</h4>
+                      <h4 className="font-medium hover:text-primary">
+                        {item.saree.name}
+                      </h4>
                     </Link>
                     {item.saree.color && (
-                      <p className="text-sm text-muted-foreground">Color: {item.saree.color.name}</p>
+                      <p className="text-sm text-muted-foreground">
+                        Color: {item.saree.color.name}
+                      </p>
                     )}
-                    <p className="text-sm text-muted-foreground">Qty: {item.quantity}</p>
-                    <p className="font-medium text-primary mt-1">{formatPrice(item.price)}</p>
+                    <p className="text-sm text-muted-foreground">
+                      Qty: {item.quantity}
+                    </p>
+                    <p className="font-medium text-primary mt-1">
+                      {formatPrice(item.price)}
+                    </p>
                   </div>
+                  {order.status === "delivered" && (
+                    <WriteReview saree={item.saree} />
+                  )}
                 </div>
               ))}
             </div>
@@ -211,13 +317,27 @@ export default function OrderDetail() {
                 {orderHistory.map((entry, index) => (
                   <div key={entry.id} className="flex gap-4">
                     <div className="flex flex-col items-center">
-                      <div className={`w-3 h-3 rounded-full ${index === orderHistory.length - 1 ? "bg-primary" : "bg-muted-foreground"}`} />
-                      {index < orderHistory.length - 1 && <div className="w-0.5 h-full bg-muted" />}
+                      <div
+                        className={`w-3 h-3 rounded-full ${
+                          index === orderHistory.length - 1
+                            ? "bg-primary"
+                            : "bg-muted-foreground"
+                        }`}
+                      />
+                      {index < orderHistory.length - 1 && (
+                        <div className="w-0.5 h-full bg-muted" />
+                      )}
                     </div>
                     <div className="flex-1 pb-4">
-                      <p className="font-medium capitalize">{(entry.newStatus || entry.status).replace(/_/g, " ")}</p>
-                      <p className="text-sm text-muted-foreground">{formatDate(entry.createdAt)}</p>
-                      {entry.note && <p className="text-sm mt-1">{entry.note}</p>}
+                      <p className="font-medium capitalize">
+                        {(entry.newStatus || entry.status).replace(/_/g, " ")}
+                      </p>
+                      <p className="text-sm text-muted-foreground">
+                        {formatDate(entry.createdAt)}
+                      </p>
+                      {entry.note && (
+                        <p className="text-sm mt-1">{entry.note}</p>
+                      )}
                     </div>
                   </div>
                 ))}
@@ -243,7 +363,9 @@ export default function OrderDetail() {
               <Separator />
               <div className="flex justify-between font-semibold">
                 <span>Total</span>
-                <span className="text-primary">{formatPrice(order.finalAmount || order.totalAmount)}</span>
+                <span className="text-primary">
+                  {formatPrice(order.finalAmount || order.totalAmount)}
+                </span>
               </div>
             </div>
           </Card>
@@ -256,9 +378,17 @@ export default function OrderDetail() {
           <Card className="p-4">
             <h3 className="font-semibold mb-4">Payment</h3>
             <div className="text-sm space-y-1">
-              <p><span className="text-muted-foreground">Method:</span> {order.paymentMethod?.toUpperCase() || "COD"}</p>
-              <p><span className="text-muted-foreground">Status:</span>{" "}
-                <Badge variant={order.paymentStatus === "paid" ? "default" : "secondary"}>
+              <p>
+                <span className="text-muted-foreground">Method:</span>{" "}
+                {order.paymentMethod?.toUpperCase() || "COD"}
+              </p>
+              <p>
+                <span className="text-muted-foreground">Status:</span>{" "}
+                <Badge
+                  variant={
+                    order.paymentStatus === "paid" ? "default" : "secondary"
+                  }
+                >
                   {order.paymentStatus}
                 </Badge>
               </p>
@@ -273,29 +403,21 @@ export default function OrderDetail() {
                   <p className="text-sm text-muted-foreground mb-4">
                     You can return or exchange items within the return window.
                   </p>
-                  <Button onClick={() => setShowReturnDialog(true)} className="w-full" data-testid="button-return-exchange">
+                  <Button
+                    onClick={() => setShowReturnDialog(true)}
+                    className="w-full"
+                    data-testid="button-return-exchange"
+                  >
                     <RotateCcw className="h-4 w-4 mr-2" />
                     Return / Exchange
                   </Button>
                 </>
               ) : (
                 <p className="text-sm text-muted-foreground">
-                  {eligibility?.reason || "Return window has expired for this order."}
+                  {eligibility?.reason ||
+                    "Return window has expired for this order."}
                 </p>
               )}
-            </Card>
-          )}
-
-          {order.status === "delivered" && (
-            <Card className="p-4">
-              <h3 className="font-semibold mb-2">Rate your purchase</h3>
-              <p className="text-sm text-muted-foreground mb-4">Share your experience with others.</p>
-              <Link to={`/sarees/${order.items[0]?.saree.id}`}>
-                <Button variant="outline" className="w-full" data-testid="button-write-review">
-                  <Star className="h-4 w-4 mr-2" />
-                  Write a Review
-                </Button>
-              </Link>
             </Card>
           )}
         </div>
@@ -313,7 +435,10 @@ export default function OrderDetail() {
           <div className="space-y-4">
             <div>
               <Label>Resolution Type</Label>
-              <Select value={resolutionType} onValueChange={(v) => setResolutionType(v as any)}>
+              <Select
+                value={resolutionType}
+                onValueChange={(v) => setResolutionType(v as any)}
+              >
                 <SelectTrigger data-testid="select-resolution-type">
                   <SelectValue />
                 </SelectTrigger>
@@ -364,22 +489,34 @@ export default function OrderDetail() {
               <Label className="mb-2 block">Select Items</Label>
               <div className="space-y-2">
                 {order.items.map((item) => (
-                  <div key={item.id} className="flex items-center gap-3 p-2 border rounded-md">
+                  <div
+                    key={item.id}
+                    className="flex items-center gap-3 p-2 border rounded-md"
+                  >
                     <Checkbox
                       checked={selectedItems[item.id]?.selected || false}
-                      onCheckedChange={() => toggleItemSelection(item.id, item.quantity)}
+                      onCheckedChange={() =>
+                        toggleItemSelection(item.id, item.quantity)
+                      }
                       data-testid={`checkbox-item-${item.id}`}
                     />
                     <div className="w-10 h-12 rounded overflow-hidden bg-muted flex-shrink-0">
                       <img
-                        src={item.saree.imageUrl || "https://images.unsplash.com/photo-1610030469983-98e550d6193c?w=50&h=60&fit=crop"}
+                        src={
+                          item.saree.imageUrl ||
+                          "https://images.unsplash.com/photo-1610030469983-98e550d6193c?w=50&h=60&fit=crop"
+                        }
                         alt={item.saree.name}
                         className="w-full h-full object-cover"
                       />
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium line-clamp-1">{item.saree.name}</p>
-                      <p className="text-xs text-muted-foreground">Qty: {item.quantity}</p>
+                      <p className="text-sm font-medium line-clamp-1">
+                        {item.saree.name}
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        Qty: {item.quantity}
+                      </p>
                     </div>
                   </div>
                 ))}
@@ -388,7 +525,10 @@ export default function OrderDetail() {
           </div>
 
           <DialogFooter>
-            <Button variant="outline" onClick={() => setShowReturnDialog(false)}>
+            <Button
+              variant="outline"
+              onClick={() => setShowReturnDialog(false)}
+            >
               Cancel
             </Button>
             <Button
@@ -396,7 +536,9 @@ export default function OrderDetail() {
               disabled={!returnReason || createReturnMutation.isPending}
               data-testid="button-submit-return"
             >
-              {createReturnMutation.isPending ? "Submitting..." : "Submit Request"}
+              {createReturnMutation.isPending
+                ? "Submitting..."
+                : "Submit Request"}
             </Button>
           </DialogFooter>
         </DialogContent>

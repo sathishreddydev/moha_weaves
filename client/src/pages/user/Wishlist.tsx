@@ -6,18 +6,21 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useAuth } from "@/lib/auth";
 import { useCartStore } from "@/components/Store/useCartStore";
 import { useWishlistStore } from "@/components/Store/useWishlistStore";
+import { ProductCard } from "@/components/product/ProductCard";
 
 export default function Wishlist() {
   const { user } = useAuth();
   const isLoadingCart = useCartStore((state) => state.isLoadingCart);
   const addCartItem = useCartStore((state) => state.addItem);
- const wishlistItems = useWishlistStore((state) => state.wishlist);
-  const isLoadingWishlist = useWishlistStore((state) => state.isLoadingWishlist);
+  const wishlistItems = useWishlistStore((state) => state.wishlist);
+  const isLoadingWishlist = useWishlistStore(
+    (state) => state.isLoadingWishlist
+  );
   const removeWishlistItem = useWishlistStore((state) => state.removeItem);
   const isRemovingWishlistItem = useWishlistStore(
     (state) => state.isRemovingItem
   );
-
+  console.log(wishlistItems);
 
   const formatPrice = (price: string | number) => {
     const numPrice = typeof price === "string" ? parseFloat(price) : price;
@@ -87,80 +90,9 @@ export default function Wishlist() {
       </h1>
 
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-        {wishlistItems.map((item) => {
-          const saree = item.saree;
-          const isOnlineAvailable =
-            saree.distributionChannel === "online" ||
-            saree.distributionChannel === "both";
-          const hasStock = saree.onlineStock > 0;
-
-          return (
-            <Card
-              key={item.id}
-              className="group overflow-visible border-0 shadow-none bg-transparent"
-              data-testid={`card-wishlist-item-${item.id}`}
-            >
-              <div className="relative aspect-[3/4] overflow-hidden rounded-md bg-muted">
-                <Link to={`/sarees/${saree.id}`}>
-                  <img
-                    src={
-                      saree.imageUrl ||
-                      "https://images.unsplash.com/photo-1610030469983-98e550d6193c?w=400&h=600&fit=crop"
-                    }
-                    alt={saree.name}
-                    className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
-                  />
-                </Link>
-
-                <Button
-                  variant="secondary"
-                  size="icon"
-                  className="absolute top-2 right-2 h-9 w-9 rounded-full bg-background/90 backdrop-blur-sm"
-                  onClick={() => removeWishlistItem(saree.id)}
-                  disabled={isRemovingWishlistItem}
-                  data-testid={`button-remove-${item.id}`}
-                >
-                  <Trash2 className="h-4 w-4 text-destructive" />
-                </Button>
-
-                {isOnlineAvailable && hasStock && (
-                  <div className="absolute bottom-0 left-0 right-0 p-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                    <Button
-                      className="w-full"
-                      onClick={() => addCartItem(saree.id, 1)}
-                      disabled={isLoadingCart}
-                      data-testid={`button-add-cart-${item.id}`}
-                    >
-                      <ShoppingBag className="h-4 w-4 mr-2" />
-                      Add to Cart
-                    </Button>
-                  </div>
-                )}
-              </div>
-
-              <div className="pt-4 space-y-1">
-                <Link to={`/sarees/${saree.id}`}>
-                  <h3 className="font-medium text-sm line-clamp-2 hover:text-primary transition-colors">
-                    {saree.name}
-                  </h3>
-                </Link>
-                <div className="flex items-center gap-2">
-                  {saree.category && (
-                    <span className="text-xs text-muted-foreground">
-                      {saree.category.name}
-                    </span>
-                  )}
-                </div>
-                <p className="font-semibold text-primary">
-                  {formatPrice(saree.price)}
-                </p>
-                {!hasStock && isOnlineAvailable && (
-                  <p className="text-xs text-muted-foreground">Out of Stock</p>
-                )}
-              </div>
-            </Card>
-          );
-        })}
+        {wishlistItems.map((item) => (
+          <ProductCard key={item.id} saree={item.saree} />
+        ))}
       </div>
     </div>
   );

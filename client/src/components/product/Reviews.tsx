@@ -11,6 +11,7 @@ import { useAuth } from "@/lib/auth";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { ProductReview } from "@shared/schema";
+import { ReviewWithUser } from "server/storage";
 
 interface ReviewsProps {
   sareeId: string;
@@ -24,56 +25,24 @@ export function Reviews({ sareeId }: ReviewsProps) {
   const [comment, setComment] = useState("");
   const [hoverRating, setHoverRating] = useState(0);
 
-  const { data: reviews, isLoading } = useQuery<ProductReview[]>({
-    queryKey: ["/api/sarees", sareeId, "reviews"],
-  });
-
-  const { data: reviewStats } = useQuery<{
-    averageRating: number;
-    totalReviews: number;
-    ratingDistribution: Record<number, number>;
+  const { data: reviewsData, isLoading } = useQuery<{
+    reviews: ReviewWithUser[];
+    stats: {
+      averageRating: number;
+      totalReviews: number;
+      ratingDistribution: Record<number, number>;
+    };
   }>({
-    queryKey: ["/api/sarees", sareeId, "reviews", "stats"],
-  });
-
-  const createReviewMutation = useMutation({
-    mutationFn: async (data: { rating: number; comment: string }) => {
-      const response = await apiRequest(
-        "POST",
-        `/api/sarees/${sareeId}/reviews`,
-        data
-      );
-      return response.json();
-    },
-    onSuccess: () => {
-      toast({ title: "Review submitted successfully" });
-      queryClient.invalidateQueries({
-        queryKey: ["/api/sarees", sareeId, "reviews"],
-      });
-      setShowForm(false);
-      setRating(5);
-      setComment("");
-    },
-    onError: (error: any) => {
-      toast({
-        title: "Failed to submit review",
-        description: error.message,
-        variant: "destructive",
-      });
+    queryKey: ["/api/sarees", sareeId, "reviews"],
+    queryFn: async () => {
+      const res = await fetch(`/api/sarees/${sareeId}/reviews`);
+      if (!res.ok) throw new Error("Failed to fetch reviews");
+      return res.json();
     },
   });
 
-  const handleSubmitReview = () => {
-    if (comment.trim().length < 10) {
-      toast({
-        title: "Review too short",
-        description: "Please write at least 10 characters.",
-        variant: "destructive",
-      });
-      return;
-    }
-    createReviewMutation.mutate({ rating, comment });
-  };
+  const reviews = reviewsData?.reviews;
+  const reviewStats = reviewsData?.stats;
 
   const formatDate = (date: string | Date) => {
     return new Date(date).toLocaleDateString("en-IN", {
@@ -149,55 +118,6 @@ export function Reviews({ sareeId }: ReviewsProps) {
         </div>
 
         <div className="md:col-span-2 space-y-4">
-          {user && user.role === "user" && !showForm && (
-            <Button
-              onClick={() => setShowForm(true)}
-              data-testid="button-write-review"
-            >
-              Write a Review
-            </Button>
-          )}
-
-          {showForm && (
-            <Card className="p-4">
-              <h3 className="font-semibold mb-4">Write Your Review</h3>
-              <div className="space-y-4">
-                <div>
-                  <label className="text-sm font-medium mb-2 block">
-                    Your Rating
-                  </label>
-                  {renderStars(rating, true)}
-                </div>
-                <div>
-                  <label className="text-sm font-medium mb-2 block">
-                    Your Review
-                  </label>
-                  <Textarea
-                    value={comment}
-                    onChange={(e) => setComment(e.target.value)}
-                    placeholder="Share your experience with this product..."
-                    rows={4}
-                    data-testid="input-review-comment"
-                  />
-                </div>
-                <div className="flex gap-2">
-                  <Button
-                    onClick={handleSubmitReview}
-                    disabled={createReviewMutation.isPending}
-                    data-testid="button-submit-review"
-                  >
-                    {createReviewMutation.isPending
-                      ? "Submitting..."
-                      : "Submit Review"}
-                  </Button>
-                  <Button variant="outline" onClick={() => setShowForm(false)}>
-                    Cancel
-                  </Button>
-                </div>
-              </div>
-            </Card>
-          )}
-
           {isLoading ? (
             <div className="text-center py-8 text-muted-foreground">
               Loading reviews...

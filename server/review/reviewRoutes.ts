@@ -55,7 +55,7 @@ export const reviewRoutes = (app: Express) => {
           .status(403)
           .json({ message: `Review flagged: ${spamCheck.reason}` });
       }
-      const review = await reviewService.createReview({
+      const reviews = await reviewService.createReview({
         sareeId,
         userId: user.id,
         rating,
@@ -64,7 +64,29 @@ export const reviewRoutes = (app: Express) => {
         images: images || [],
       });
 
-      res.json(review);
+      const totalReviews = reviews.length;
+      const averageRating =
+        totalReviews > 0
+          ? reviews.reduce((sum, r) => sum + r.rating, 0) / totalReviews
+          : 0;
+
+      const ratingDistribution: Record<number, number> = {
+        1: 0,
+        2: 0,
+        3: 0,
+        4: 0,
+        5: 0,
+      };
+      reviews.forEach((r) => {
+        if (ratingDistribution[r.rating] !== undefined) {
+          ratingDistribution[r.rating]++;
+        }
+      });
+      const response = {
+        reviews: reviews,
+        stats: { averageRating, totalReviews, ratingDistribution },
+      };
+      res.json(response);
     } catch (error) {
       console.error("Error creating review:", error);
       res.status(500).json({ message: "Failed to create review" });

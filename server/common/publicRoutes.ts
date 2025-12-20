@@ -3,6 +3,7 @@ import { publicStorage } from "./publicStorage";
 import { storage } from "../storage";
 import { sareeService } from "server/saree/sareeStorage";
 import { salesService } from "server/sales&offer/salesStorage";
+import { reviewService } from "server/review/reviewStorage";
 
 export const publicRoutes = (app: Express) => {
   app.get("/api/filters", async (req, res) => {
@@ -133,17 +134,7 @@ export const publicRoutes = (app: Express) => {
   // Public: Get reviews for a saree
   app.get("/api/sarees/:id/reviews", async (req, res) => {
     try {
-      const reviews = await storage.getProductReviews(req.params.id);
-      res.json(reviews);
-    } catch (error) {
-      res.status(500).json({ message: "Failed to fetch reviews" });
-    }
-  });
-
-  // Public: Get review stats for a saree
-  app.get("/api/sarees/:id/reviews/stats", async (req, res) => {
-    try {
-      const reviews = await storage.getProductReviews(req.params.id);
+      const reviews = await reviewService.getProductReviews(req.params.id);
       const totalReviews = reviews.length;
       const averageRating =
         totalReviews > 0
@@ -162,21 +153,20 @@ export const publicRoutes = (app: Express) => {
           ratingDistribution[r.rating]++;
         }
       });
-
-      res.json({
-        averageRating,
-        totalReviews,
-        ratingDistribution,
-      });
+      const response = {
+        reviews: reviews,
+        stats: { averageRating, totalReviews, ratingDistribution },
+      };
+      res.json(response);
     } catch (error) {
-      res.status(500).json({ message: "Failed to fetch review stats" });
+      res.status(500).json({ message: "Failed to fetch reviews" });
     }
   });
 
   // Public: Get saree with reviews and ratings
   app.get("/api/sarees/:id/with-reviews", async (req, res) => {
     try {
-      const saree = await storage.getSareeWithReviews(req.params.id);
+      const saree = await reviewService.getSareeWithReviews(req.params.id);
       if (!saree) {
         return res.status(404).json({ message: "Saree not found" });
       }
