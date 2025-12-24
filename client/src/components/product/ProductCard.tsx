@@ -170,15 +170,18 @@ export function ProductCard({ saree }: ProductCardProps) {
             ) : (
               <Button
                 size="sm"
-                className="px-4 h-9 shadow"
+                className={`px-4 h-9 shadow ${
+                  !hasStock ? "cursor-default" : ""
+                }`}
                 onClick={() => {
                   if (!user) {
                     navigate("/user/login");
                     return;
                   }
+                  if (!hasStock) return;
                   !disabledButton && addItem(saree.id, 1);
                 }}
-                disabled={!hasStock || disabledButton}
+                disabled={disabledButton}
               >
                 {hasStock ? (
                   <>
@@ -186,7 +189,7 @@ export function ProductCard({ saree }: ProductCardProps) {
                     Add
                   </>
                 ) : (
-                  "Out"
+                  "Sold Out"
                 )}
               </Button>
             )}
