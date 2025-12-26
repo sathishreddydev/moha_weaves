@@ -12,6 +12,7 @@ import {
   Star,
   Settings,
   Zap,
+  Store,
 } from "lucide-react";
 
 export const AdminNavItems = [
@@ -24,6 +25,7 @@ export const AdminNavItems = [
   { icon: UserCog, label: "Staff", href: "/admin/staff" },
   { icon: Building2, label: "Stores", href: "/admin/stores" },
   { icon: ShoppingCart, label: "Orders", href: "/admin/orders" },
+  { icon: Store, label: "Store Orders", href: "/admin/store-orders" },
   { icon: Zap, label: "Sales & Offers", href: "/admin/sales" },
   { icon: Ticket, label: "Coupons", href: "/admin/coupons" },
   { icon: Star, label: "Reviews", href: "/admin/reviews" },

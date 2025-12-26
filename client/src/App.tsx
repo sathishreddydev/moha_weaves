@@ -146,6 +146,7 @@ function Router() {
                 <Route path="staff" element={<AdminStaff />} />
                 <Route path="stores" element={<AdminStores />} />
                 <Route path="orders" element={<AdminOrders />} />
+                <Route path="store-orders" element={<InventoryStoreOrders />} />
                 <Route path="coupons" element={<AdminCoupons />} />
                 <Route path="sales" element={<AdminSales />} />
                 <Route path="reviews" element={<AdminReviews />} />

@@ -9,13 +9,14 @@ import { storeService } from "server/store/storeStorage";
 import { salesService } from "server/sales&offer/salesStorage";
 import { couponsService } from "server/coupons/couponsStorage";
 import { sareeService } from "server/saree/sareeStorage";
+import { AdminServices } from "./adminStorage";
 
 export const adminRoutes = (app: Express) => {
   const authAdmin = createAuthMiddleware(["admin"]);
 
   app.get("/api/admin/stats", authAdmin, async (req, res) => {
     try {
-      const stats = await storage.getAdminStats();
+      const stats = await AdminServices.getAdminStats();
       res.json(stats);
     } catch (error) {
       res.status(500).json({ message: "Failed to fetch stats" });

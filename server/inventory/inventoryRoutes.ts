@@ -6,6 +6,8 @@ import { z } from "zod";
 import { orderService } from "../order/orderStorage";
 import { storeService } from "server/store/storeStorage";
 import { sareeService } from "server/saree/sareeStorage";
+import { inventoryService } from "./inventoryStorage";
+import { returnService } from "./returnServices";
 const storeAllocationSchema = z.object({
   storeId: z.string().min(1, "Store ID is required"),
   quantity: z.number().int().min(0, "Quantity must be a non-negative integer"),
@@ -77,7 +79,7 @@ const sareeWithAllocationsSchema = sareeBaseSchema.refine(
 const sareeUpdateSchema = sareeBaseSchema.partial();
 
 export const inventoryRoutes = (app: Express) => {
-  const authInventory = createAuthMiddleware(["inventory"]);
+  const authInventory = createAuthMiddleware(["inventory", "admin"]);
 
   app.get("/api/inventory/low-stock", authInventory, async (req, res) => {
     try {
@@ -261,7 +263,9 @@ export const inventoryRoutes = (app: Express) => {
     authInventory,
     async (req, res) => {
       try {
-        const allocations = await storage.getSareeAllocations(req.params.id);
+        const allocations = await inventoryService.getSareeAllocations(
+          req.params.id
+        );
         res.json(allocations);
       } catch (error) {
         res.status(500).json({ message: "Failed to fetch allocations" });
@@ -273,18 +277,19 @@ export const inventoryRoutes = (app: Express) => {
     try {
       const validation = sareeWithAllocationsSchema.safeParse(req.body);
       if (!validation.success) {
-        return res
-          .status(400)
-          .json({
-            message: validation.error.errors[0]?.message || "Invalid input",
-          });
+        return res.status(400).json({
+          message: validation.error.errors[0]?.message || "Invalid input",
+        });
       }
 
       const { storeAllocations, ...sareeData } = validation.data;
 
       if (sareeData.distributionChannel === "online") {
         sareeData.onlineStock = sareeData.totalStock;
-        const saree = await storage.createSareeWithAllocations(sareeData, []);
+        const saree = await inventoryService.createSareeWithAllocations(
+          sareeData,
+          []
+        );
         res.json(saree);
       } else if (sareeData.distributionChannel === "shop") {
         sareeData.onlineStock = 0;
@@ -294,13 +299,11 @@ export const inventoryRoutes = (app: Express) => {
           0
         );
         if (totalAllocated !== sareeData.totalStock) {
-          return res
-            .status(400)
-            .json({
-              message: `Store allocations (${totalAllocated}) must equal total stock (${sareeData.totalStock})`,
-            });
+          return res.status(400).json({
+            message: `Store allocations (${totalAllocated}) must equal total stock (${sareeData.totalStock})`,
+          });
         }
-        const saree = await storage.createSareeWithAllocations(
+        const saree = await inventoryService.createSareeWithAllocations(
           sareeData,
           allocations
         );
@@ -314,7 +317,7 @@ export const inventoryRoutes = (app: Express) => {
             message: `Online (${onlineStock}) + Store allocations (${storeTotal}) must equal total stock (${sareeData.totalStock})`,
           });
         }
-        const saree = await storage.createSareeWithAllocations(
+        const saree = await inventoryService.createSareeWithAllocations(
           sareeData,
           allocations
         );
@@ -330,11 +333,9 @@ export const inventoryRoutes = (app: Express) => {
     try {
       const validation = sareeUpdateSchema.safeParse(req.body);
       if (!validation.success) {
-        return res
-          .status(400)
-          .json({
-            message: validation.error.errors[0]?.message || "Invalid input",
-          });
+        return res.status(400).json({
+          message: validation.error.errors[0]?.message || "Invalid input",
+        });
       }
 
       const { storeAllocations, ...sareeData } = validation.data;
@@ -342,7 +343,7 @@ export const inventoryRoutes = (app: Express) => {
 
       if (sareeData.distributionChannel === "online") {
         sareeData.onlineStock = sareeData.totalStock;
-        const saree = await storage.updateSareeWithAllocations(
+        const saree = await inventoryService.updateSareeWithAllocations(
           req.params.id,
           sareeData,
           []
@@ -358,13 +359,11 @@ export const inventoryRoutes = (app: Express) => {
           sareeData.totalStock !== undefined &&
           totalAllocated !== sareeData.totalStock
         ) {
-          return res
-            .status(400)
-            .json({
-              message: `Store allocations (${totalAllocated}) must equal total stock (${sareeData.totalStock})`,
-            });
+          return res.status(400).json({
+            message: `Store allocations (${totalAllocated}) must equal total stock (${sareeData.totalStock})`,
+          });
         }
-        const saree = await storage.updateSareeWithAllocations(
+        const saree = await inventoryService.updateSareeWithAllocations(
           req.params.id,
           sareeData,
           allocations
@@ -384,14 +383,14 @@ export const inventoryRoutes = (app: Express) => {
             message: `Online (${onlineStock}) + Store allocations (${storeTotal}) must equal total stock (${sareeData.totalStock})`,
           });
         }
-        const saree = await storage.updateSareeWithAllocations(
+        const saree = await inventoryService.updateSareeWithAllocations(
           req.params.id,
           sareeData,
           allocations
         );
         res.json(saree);
       } else {
-        const saree = await storage.updateSareeWithAllocations(
+        const saree = await inventoryService.updateSareeWithAllocations(
           req.params.id,
           sareeData,
           allocations
@@ -417,7 +416,7 @@ export const inventoryRoutes = (app: Express) => {
   app.get("/api/inventory/returns", authInventory, async (req, res) => {
     try {
       const { status } = req.query;
-      const returns = await storage.getReturnRequests({
+      const returns = await returnService.getReturnRequests({
         status: status as string | undefined,
       });
       res.json(returns);
@@ -435,12 +434,12 @@ export const inventoryRoutes = (app: Express) => {
         const user = (req as any).user;
         const { status, inspectionNotes } = req.body;
 
-        const returnRequest = await storage.getReturnRequest(req.params.id);
+        const returnRequest = await returnService.getReturnRequest(req.params.id);
         if (!returnRequest) {
           return res.status(404).json({ message: "Return request not found" });
         }
 
-        const updated = await storage.updateReturnRequestStatus(
+        const updated = await returnService.updateReturnRequestStatus(
           req.params.id,
           status,
           user.id,
@@ -538,7 +537,7 @@ export const inventoryRoutes = (app: Express) => {
                 );
 
                 // Link exchange order to return request
-                await storage.updateReturnRequest(returnRequest.id, {
+                await returnService.updateReturnRequest(returnRequest.id, {
                   exchangeOrderId: exchangeOrder.id,
                 });
 

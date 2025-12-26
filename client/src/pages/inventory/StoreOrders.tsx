@@ -138,7 +138,7 @@ export default function InventoryStoreOrders() {
         header: "Payment",
         cell: ({ row }) => (
           <Badge variant="outline" className="capitalize">
-            {row.original.paymentMethod}
+            {row.original.saleType}
           </Badge>
         ),
       },

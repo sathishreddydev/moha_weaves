@@ -12,12 +12,8 @@ import {
   storeSaleItems,
   stockRequests,
   serviceablePincodes,
-  returnRequests,
-  returnItems,
   refunds,
   productReviews,
-  coupons,
-  couponUsage,
   notifications,
   orderStatusHistory,
   appSettings,
@@ -29,43 +25,22 @@ import {
   saleProducts,
   type User,
   type Store,
-  type InsertStore,
-  type Saree,
-  type InsertSaree,
-  type StoreInventory,
   type Order,
-  type StoreSale,
-  type InsertStoreSale,
-  type InsertStoreSaleItem,
   type StockRequest,
   type InsertStockRequest,
   type ServiceablePincode,
   type InsertServiceablePincode,
-  type ReturnRequest,
-  type InsertReturnRequest,
-  type InsertReturnItem,
   type Refund,
   type InsertRefund,
-  type ProductReview,
-  type InsertProductReview,
-  type Coupon,
-  type InsertCoupon,
-  type CouponUsage,
-  type InsertCouponUsage,
   type Notification,
   type InsertNotification,
   type OrderStatusHistory,
   type InsertOrderStatusHistory,
   type StockMovement,
   type SareeWithDetails,
-  type CartItemWithSaree,
-  type WishlistItemWithSaree,
   type OrderWithItems,
   type StockRequestWithDetails,
   type StoreSaleWithItems,
-  type ReturnRequestWithDetails,
-  type SareeWithReviews,
-  type CouponWithUsage,
   type StoreExchangeWithDetails,
 } from "@shared/schema";
 import { db } from "./db";
@@ -145,18 +120,6 @@ export interface IStorage {
   }>;
   updateOrderStatus(id: string, status: string): Promise<Order | undefined>;
 
-  createSareeWithAllocations(
-    saree: InsertSaree,
-    storeAllocations: { storeId: string; quantity: number }[]
-  ): Promise<Saree>;
-  updateSareeWithAllocations(
-    id: string,
-    data: Partial<InsertSaree>,
-    storeAllocations: { storeId: string; quantity: number }[]
-  ): Promise<Saree | undefined>;
-  getSareeAllocations(
-    sareeId: string
-  ): Promise<{ storeId: string; storeName: string; quantity: number }[]>;
 
   // Stock Distribution (centralized view)
   getStockDistribution(): Promise<
@@ -179,16 +142,7 @@ export interface IStorage {
     status: string,
     approvedBy?: string
   ): Promise<StockRequest | undefined>;
-
-  // Stats
-  getAdminStats(): Promise<{
-    totalUsers: number;
-    totalSarees: number;
-    totalOrders: number;
-    totalRevenue: number;
-    pendingOrders: number;
-    lowStockItems: number;
-  }>;
+ 
   getStoreStats(storeId: string): Promise<{
     todaySales: number;
     todayRevenue: number;
@@ -209,31 +163,6 @@ export interface IStorage {
     data: Partial<InsertServiceablePincode>
   ): Promise<ServiceablePincode | undefined>;
   deleteServiceablePincode(id: string): Promise<boolean>;
-
-  // Return Requests
-  getReturnRequests(filters?: {
-    userId?: string;
-    status?: string;
-  }): Promise<ReturnRequestWithDetails[]>;
-  getReturnRequest(id: string): Promise<ReturnRequestWithDetails | undefined>;
-  createReturnRequest(
-    request: InsertReturnRequest,
-    items: InsertReturnItem[]
-  ): Promise<ReturnRequest>;
-  updateReturnRequestStatus(
-    id: string,
-    status: string,
-    processedBy?: string,
-    inspectionNotes?: string
-  ): Promise<ReturnRequest | undefined>;
-  updateReturnRequest(
-    id: string,
-    data: Partial<InsertReturnRequest>
-  ): Promise<ReturnRequest | undefined>;
-  getUserReturnRequests(userId: string): Promise<ReturnRequestWithDetails[]>;
-  checkOrderReturnEligibility(
-    orderId: string
-  ): Promise<{ eligible: boolean; reason?: string }>;
 
   // Refunds
   getRefunds(filters?: { userId?: string; status?: string }): Promise<Refund[]>;
@@ -902,92 +831,7 @@ export class DatabaseStorage implements IStorage {
     });
   }
 
-  // Saree with Store Allocations
-  async createSareeWithAllocations(
-    saree: InsertSaree,
-    storeAllocations: { storeId: string; quantity: number }[]
-  ): Promise<Saree> {
-    return await db.transaction(async (tx) => {
-      const createdSaree = await sareeService.createSaree(saree);
 
-      for (const allocation of storeAllocations) {
-        await tx.insert(storeInventory).values({
-          storeId: allocation.storeId,
-          sareeId: createdSaree.id,
-          quantity: allocation.quantity,
-          updatedAt: new Date(),
-        });
-      }
-
-      return createdSaree;
-    });
-  }
-
-  async updateSareeWithAllocations(
-    id: string,
-    data: Partial<InsertSaree>,
-    storeAllocations: { storeId: string; quantity: number }[]
-  ): Promise<Saree | undefined> {
-    return await db.transaction(async (tx) => {
-      const updatedSaree = await sareeService.updateSaree(id, data);
-      if (!updatedSaree) return undefined;
-
-      for (const allocation of storeAllocations) {
-        const existing = await storeService.getStoreInventoryItem(
-          allocation.storeId,
-          id
-        );
-        if (existing) {
-          await tx
-            .update(storeInventory)
-            .set({ quantity: allocation.quantity, updatedAt: new Date() })
-            .where(
-              and(
-                eq(storeInventory.storeId, allocation.storeId),
-                eq(storeInventory.sareeId, id)
-              )
-            );
-        } else {
-          await tx.insert(storeInventory).values({
-            storeId: allocation.storeId,
-            sareeId: id,
-            quantity: allocation.quantity,
-            updatedAt: new Date(),
-          });
-        }
-      }
-
-      return updatedSaree;
-    });
-  }
-
-  async getSareeAllocations(
-    sareeId: string
-  ): Promise<{ storeId: string; storeName: string; quantity: number }[]> {
-    const allocations = await db
-      .select({
-        storeId: storeInventory.storeId,
-        quantity: storeInventory.quantity,
-      })
-      .from(storeInventory)
-      .where(eq(storeInventory.sareeId, sareeId));
-
-    const result = await Promise.all(
-      allocations.map(async (alloc) => {
-        const [store] = await db
-          .select()
-          .from(stores)
-          .where(eq(stores.id, alloc.storeId));
-        return {
-          storeId: alloc.storeId,
-          storeName: store?.name || "Unknown",
-          quantity: alloc.quantity,
-        };
-      })
-    );
-
-    return result;
-  }
 
   async getStockDistribution(): Promise<
     {
@@ -1089,50 +933,6 @@ export class DatabaseStorage implements IStorage {
     return result || undefined;
   }
 
-  // Stats
-  async getAdminStats(): Promise<{
-    totalUsers: number;
-    totalSarees: number;
-    totalOrders: number;
-    totalRevenue: number;
-    pendingOrders: number;
-    lowStockItems: number;
-  }> {
-    const [userCount] = await db
-      .select({ count: sql<number>`count(*)::int` })
-      .from(users);
-    const [sareeCount] = await db
-      .select({ count: sql<number>`count(*)::int` })
-      .from(sarees)
-      .where(eq(sarees.isActive, true));
-    const [orderCount] = await db
-      .select({ count: sql<number>`count(*)::int` })
-      .from(orders);
-    const [revenueSum] = await db
-      .select({
-        sum: sql<number>`coalesce(sum(total_amount::numeric), 0)::float`,
-      })
-      .from(orders)
-      .where(eq(orders.status, "delivered"));
-    const [pendingCount] = await db
-      .select({ count: sql<number>`count(*)::int` })
-      .from(orders)
-      .where(eq(orders.status, "pending"));
-    const [lowStockCount] = await db
-      .select({ count: sql<number>`count(*)::int` })
-      .from(sarees)
-      .where(and(eq(sarees.isActive, true), lte(sarees.totalStock, 10)));
-
-    return {
-      totalUsers: userCount?.count || 0,
-      totalSarees: sareeCount?.count || 0,
-      totalOrders: orderCount?.count || 0,
-      totalRevenue: revenueSum?.sum || 0,
-      pendingOrders: pendingCount?.count || 0,
-      lowStockItems: lowStockCount?.count || 0,
-    };
-  }
-
   async getStoreStats(storeId: string): Promise<{
     todaySales: number;
     todayRevenue: number;
@@ -1231,239 +1031,7 @@ export class DatabaseStorage implements IStorage {
     return true;
   }
 
-  // Return Requests
-  async getReturnRequests(filters?: {
-    userId?: string;
-    status?: string;
-  }): Promise<ReturnRequestWithDetails[]> {
-    const conditions: any[] = [];
-    if (filters?.userId)
-      conditions.push(eq(returnRequests.userId, filters.userId));
-    if (filters?.status)
-      conditions.push(eq(returnRequests.status, filters.status as any));
 
-    const requests = await db
-      .select()
-      .from(returnRequests)
-      .where(conditions.length > 0 ? and(...conditions) : undefined)
-      .orderBy(desc(returnRequests.createdAt));
-
-    const result: ReturnRequestWithDetails[] = [];
-    for (const request of requests) {
-      const orderWithItems = await orderService.getOrder(request.orderId);
-      const user = await userService.getUser(request.userId);
-      const items = await db
-        .select()
-        .from(returnItems)
-        .innerJoin(orderItems, eq(returnItems.orderItemId, orderItems.id))
-        .innerJoin(sarees, eq(orderItems.sareeId, sarees.id))
-        .leftJoin(categories, eq(sarees.categoryId, categories.id))
-        .leftJoin(colors, eq(sarees.colorId, colors.id))
-        .leftJoin(fabrics, eq(sarees.fabricId, fabrics.id))
-        .where(eq(returnItems.returnRequestId, request.id));
-
-      const [refund] = await db
-        .select()
-        .from(refunds)
-        .where(eq(refunds.returnRequestId, request.id));
-
-      if (orderWithItems && user) {
-        result.push({
-          ...request,
-          order: orderWithItems,
-          user,
-          items: items.map((item) => ({
-            ...item.return_items,
-            orderItem: {
-              ...item.order_items,
-              saree: {
-                ...item.sarees,
-                category: item.categories,
-                color: item.colors,
-                fabric: item.fabrics,
-              },
-            },
-          })),
-          refund: refund || undefined,
-        });
-      }
-    }
-    return result;
-  }
-
-  async getReturnRequest(
-    id: string
-  ): Promise<ReturnRequestWithDetails | undefined> {
-    const [request] = await db
-      .select()
-      .from(returnRequests)
-      .where(eq(returnRequests.id, id));
-    if (!request) return undefined;
-
-    const orderWithItems = await orderService.getOrder(request.orderId);
-    const user = await userService.getUser(request.userId);
-    if (!orderWithItems || !user) return undefined;
-
-    const items = await db
-      .select()
-      .from(returnItems)
-      .innerJoin(orderItems, eq(returnItems.orderItemId, orderItems.id))
-      .innerJoin(sarees, eq(orderItems.sareeId, sarees.id))
-      .leftJoin(categories, eq(sarees.categoryId, categories.id))
-      .leftJoin(colors, eq(sarees.colorId, colors.id))
-      .leftJoin(fabrics, eq(sarees.fabricId, fabrics.id))
-      .where(eq(returnItems.returnRequestId, request.id));
-
-    const [refund] = await db
-      .select()
-      .from(refunds)
-      .where(eq(refunds.returnRequestId, request.id));
-
-    return {
-      ...request,
-      order: orderWithItems,
-      user,
-      items: items.map((item) => ({
-        ...item.return_items,
-        orderItem: {
-          ...item.order_items,
-          saree: {
-            ...item.sarees,
-            category: item.categories,
-            color: item.colors,
-            fabric: item.fabrics,
-          },
-        },
-      })),
-      refund: refund || undefined,
-    };
-  }
-
-  async createReturnRequest(
-    request: InsertReturnRequest,
-    items: InsertReturnItem[]
-  ): Promise<ReturnRequest> {
-    return await db.transaction(async (tx) => {
-      const [newRequest] = await tx
-        .insert(returnRequests)
-        .values(request)
-        .returning();
-
-      for (const item of items) {
-        await tx.insert(returnItems).values({
-          ...item,
-          returnRequestId: newRequest.id,
-        });
-      }
-
-      return newRequest;
-    });
-  }
-
-  async updateReturnRequestStatus(
-    id: string,
-    status: string,
-    processedBy?: string,
-    inspectionNotes?: string
-  ): Promise<ReturnRequest | undefined> {
-    const updateData: any = { status, updatedAt: new Date() };
-    if (processedBy) updateData.processedBy = processedBy;
-    if (inspectionNotes) updateData.inspectionNotes = inspectionNotes;
-
-    const [result] = await db
-      .update(returnRequests)
-      .set(updateData)
-      .where(eq(returnRequests.id, id))
-      .returning();
-    return result || undefined;
-  }
-
-  async updateReturnRequest(
-    id: string,
-    data: Partial<InsertReturnRequest>
-  ): Promise<ReturnRequest | undefined> {
-    const [result] = await db
-      .update(returnRequests)
-      .set({ ...data, updatedAt: new Date() })
-      .where(eq(returnRequests.id, id))
-      .returning();
-    return result || undefined;
-  }
-
-  async getUserReturnRequests(
-    userId: string
-  ): Promise<ReturnRequestWithDetails[]> {
-    return this.getReturnRequests({ userId });
-  }
-
-  async checkOrderReturnEligibility(
-    orderId: string
-  ): Promise<{ eligible: boolean; reason?: string }> {
-    const order = await orderService.getOrder(orderId);
-    if (!order) return { eligible: false, reason: "Order not found" };
-    if (order.status !== "delivered")
-      return {
-        eligible: false,
-        reason: "Order must be delivered to initiate return",
-      };
-
-    // Handle missing return window - calculate from deliveredAt if available
-    if (!order.returnEligibleUntil) {
-      if (order.deliveredAt) {
-        // Get return window setting, default to 7 days
-        const windowDays = await this.getSetting("return_window_days");
-        const days = windowDays ? parseInt(windowDays) : 7;
-        const eligibleUntil = new Date(order.deliveredAt);
-        eligibleUntil.setDate(eligibleUntil.getDate() + days);
-
-        // Update the order with the calculated return window
-        await db
-          .update(orders)
-          .set({ returnEligibleUntil: eligibleUntil })
-          .where(eq(orders.id, orderId));
-
-        if (new Date() > eligibleUntil) {
-          return { eligible: false, reason: "Return window has expired" };
-        }
-        return { eligible: true };
-      }
-      return {
-        eligible: false,
-        reason: "Return window not set - order delivery date missing",
-      };
-    }
-
-    if (new Date() > new Date(order.returnEligibleUntil)) {
-      return { eligible: false, reason: "Return window has expired" };
-    }
-
-    const existingReturns = await db
-      .select()
-      .from(returnRequests)
-      .where(
-        and(
-          eq(returnRequests.orderId, orderId),
-          inArray(returnRequests.status, [
-            "requested",
-            "approved",
-            "pickup_scheduled",
-            "picked_up",
-            "received",
-            "inspected",
-            "completed",
-          ])
-        )
-      );
-
-    if (existingReturns.length > 0) {
-      return {
-        eligible: false,
-        reason: "A return request already exists for this order",
-      };
-    }
-
-    return { eligible: true };
-  }
 
   // Refunds
   async getRefunds(filters?: {
