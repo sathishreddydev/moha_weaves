@@ -36,6 +36,13 @@
       "when": 1766064149559,
       "tag": "0004_next_paibok",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1766768787303,
+      "tag": "0005_new_iron_patriot",
+      "breakpoints": true
     }
   ]
 }

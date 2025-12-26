@@ -88,6 +88,7 @@ export const refundStatusEnum = pgEnum("refund_status", [
   "processing",
   "completed",
   "failed",
+  "cancelled",
 ]);
 export const couponTypeEnum = pgEnum("coupon_type", [
   "percentage",
@@ -476,11 +477,14 @@ export const refunds = pgTable("refunds", {
   amount: decimal("amount", { precision: 10, scale: 2 }).notNull(),
   status: refundStatusEnum("status").notNull().default("pending"),
   refundMethod: text("refund_method"),
-  stripeRefundId: text("stripe_refund_id"),
+  razorpayRefundId: text("razorpay_refund_id"),
+  razorpayPaymentId: text("razorpay_payment_id"),
   reason: text("reason"),
   processedBy: varchar("processed_by"),
   initiatedAt: timestamp("initiated_at"),
   completedAt: timestamp("completed_at"),
+  failureReason: text("failure_reason"),
+  retryCount: integer("retry_count").default(0),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 

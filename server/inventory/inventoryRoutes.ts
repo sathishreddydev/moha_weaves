@@ -1,5 +1,6 @@
 import type { Express, Request, Response, NextFunction } from "express";
 import { storage } from "../storage";
+import { refundService } from "../refund/refundService";
 import { createAuthMiddleware } from "../authMiddleware";
 import { parsePaginationParams } from "../paginationHelper";
 import { z } from "zod";
@@ -481,14 +482,34 @@ export const inventoryRoutes = (app: Express) => {
               notificationTitle = "Return Completed";
               notificationMessage = `Your return has been completed. Refund will be processed shortly.`;
 
-              // Create refund record when return is completed
-              await storage.createRefund({
+              // Create and process refund record when return is completed
+              // Check for partial refund based on inspection results
+              let refundAmount = returnRequest.refundAmount || "0";
+              
+              // Calculate partial refund if items are damaged
+              const damagedItems = returnRequest.items.filter(item => 
+                item.isRestockable === false && item.quantity > 0
+              );
+              
+              if (damagedItems.length > 0) {
+                // Calculate refund amount minus damaged items
+                const damagedAmount = damagedItems.reduce((sum, item) => 
+                  sum + (parseFloat(item.orderItem.price) * item.quantity)
+                , 0);
+                refundAmount = (parseFloat(refundAmount) - damagedAmount).toString();
+                console.log(`Partial refund calculated: ${refundAmount} (damaged items: ${damagedAmount})`);
+              }
+
+              const refund = await refundService.createAndProcessRefund({
                 returnRequestId: returnRequest.id,
                 orderId: returnRequest.orderId,
                 userId: returnRequest.userId,
-                amount: returnRequest.refundAmount || "0",
-                reason: "return_completed",
+                amount: refundAmount,
+                reason: damagedItems.length > 0 ? "partial_refund_damaged_items" : "return_completed",
+                processedBy: user.id,
               });
+
+              console.log(`Refund created: ${refund.id} for return: ${returnRequest.id}`);
 
               // Restore stock for returned items if restockable
               for (const item of returnRequest.items) {
@@ -586,6 +607,7 @@ export const inventoryRoutes = (app: Express) => {
       });
       res.json(refunds);
     } catch (error) {
+      console.error("Error fetching refunds:", error);
       res.status(500).json({ message: "Failed to fetch refunds" });
     }
   });
@@ -603,30 +625,40 @@ export const inventoryRoutes = (app: Express) => {
           return res.status(404).json({ message: "Refund not found" });
         }
 
-        const updated = await storage.updateRefundStatus(
-          req.params.id,
-          status,
-          status === "completed" || status === "failed"
-            ? new Date()
-            : undefined,
-          transactionId
-        );
-
-        // Create notification
-        if (status === "completed") {
-          await storage.createNotification({
-            userId: refund.userId,
-            type: "refund",
-            title: "Refund Processed",
-            message: `Your refund of ₹${refund.amount} has been processed successfully.`,
-            relatedId: refund.id,
-            relatedType: "refund",
-          });
+        let updated;
+        if (status === "retry") {
+          // Retry failed refund
+          await refundService.retryFailedRefund(req.params.id);
+          updated = await storage.getRefund(req.params.id);
+        } else {
+          // Manual processing
+          updated = await refundService.processRefundManually(
+            req.params.id,
+            status,
+            transactionId
+          );
         }
 
         res.json(updated);
       } catch (error) {
+        console.error("Error processing refund:", error);
         res.status(500).json({ message: "Failed to process refund" });
+      }
+    }
+  );
+
+  // Admin/Inventory: Check refund status from Razorpay
+  app.post(
+    "/api/inventory/refunds/:id/check-status",
+    authInventory,
+    async (req, res) => {
+      try {
+        await refundService.checkRefundStatus(req.params.id);
+        const updated = await storage.getRefund(req.params.id);
+        res.json(updated);
+      } catch (error) {
+        console.error("Error checking refund status:", error);
+        res.status(500).json({ message: "Failed to check refund status" });
       }
     }
   );

@@ -16,6 +16,7 @@ import multer from "multer";
 import { salesService } from "./sales&offer/salesStorage";
 import { sareeService } from "./saree/sareeStorage";
 import { reviewRoutes } from "./review/reviewRoutes";
+import { refundRoutes } from "./refund/refundRoutes";
 
 const authAny = createAuthMiddleware(["user", "admin", "inventory", "store"]);
 
@@ -35,7 +36,8 @@ export async function registerRoutes(
   inventoryRoutes(app);
   storeRoutes(app);
   userRoutes(app);
-  reviewRoutes(app)
+  reviewRoutes(app);
+  refundRoutes(app);
 
   // Serve uploaded files
   app.get("/objects/:objectPath(*)", async (req, res) => {

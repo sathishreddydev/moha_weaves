@@ -1043,11 +1043,31 @@ export class DatabaseStorage implements IStorage {
     if (filters?.status)
       conditions.push(eq(refunds.status, filters.status as any));
 
-    return db
-      .select()
+    const query = db
+      .select({
+        id: refunds.id,
+        returnRequestId: refunds.returnRequestId,
+        orderId: refunds.orderId,
+        userId: refunds.userId,
+        amount: refunds.amount,
+        status: refunds.status,
+        refundMethod: refunds.refundMethod,
+        razorpayRefundId: refunds.razorpayRefundId,
+        razorpayPaymentId: refunds.razorpayPaymentId,
+        reason: refunds.reason,
+        processedBy: refunds.processedBy,
+        initiatedAt: refunds.initiatedAt,
+        completedAt: refunds.completedAt,
+        failureReason: refunds.failureReason,
+        retryCount: refunds.retryCount,
+        createdAt: refunds.createdAt,
+      })
       .from(refunds)
-      .where(conditions.length > 0 ? and(...conditions) : undefined)
-      .orderBy(desc(refunds.createdAt));
+
+    const queryWithWhere =
+      conditions.length > 0 ? query.where(and(...conditions)) : query;
+
+    return queryWithWhere.orderBy(desc(refunds.createdAt));
   }
 
   async getRefund(id: string): Promise<Refund | undefined> {

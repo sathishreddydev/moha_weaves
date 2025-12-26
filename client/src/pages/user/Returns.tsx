@@ -218,9 +218,25 @@ export default function Returns() {
                   </div>
 
                   {returnRequest.refund && (
-                    <Badge variant={returnRequest.refund.status === "completed" ? "default" : "secondary"}>
-                      Refund: {returnRequest.refund.status}
-                    </Badge>
+                    <div className="text-right">
+                      <Badge 
+                        variant={returnRequest.refund.status === "completed" ? "default" : 
+                                returnRequest.refund.status === "failed" ? "destructive" : "secondary"}
+                        className="mb-1"
+                      >
+                        Refund: {returnRequest.refund.status.replace(/_/g, " ")}
+                      </Badge>
+                      {returnRequest.refund.razorpayRefundId && (
+                        <p className="text-xs text-muted-foreground">
+                          ID: {returnRequest.refund.razorpayRefundId.slice(0, 12)}...
+                        </p>
+                      )}
+                      {returnRequest.refund.failureReason && (
+                        <p className="text-xs text-red-600 mt-1">
+                          {returnRequest.refund.failureReason}
+                        </p>
+                      )}
+                    </div>
                   )}
                 </div>
 
