@@ -4,6 +4,7 @@ import { createAuthMiddleware } from "../authMiddleware";
 import { orderService } from "server/order/orderStorage";
 import { couponsService } from "server/coupons/couponsStorage";
 import { sareeService } from "server/saree/sareeStorage";
+import { returnService } from "server/inventory/returnServices";
 
 const authUser = createAuthMiddleware(["user"]);
 export const userRoutes = (app: Express) => {
@@ -20,7 +21,7 @@ export const userRoutes = (app: Express) => {
           return res.status(404).json({ message: "Order not found" });
         }
 
-        const eligibility = await storage.checkOrderReturnEligibility(
+        const eligibility = await returnService.checkOrderReturnEligibility(
           req.params.id
         );
         res.json(eligibility);
@@ -34,7 +35,7 @@ export const userRoutes = (app: Express) => {
   app.get("/api/user/returns", authUser, async (req, res) => {
     try {
       const user = (req as any).user;
-      const returns = await storage.getUserReturnRequests(user.id);
+      const returns = await returnService.getUserReturnRequests(user.id);
       res.json(returns);
     } catch (error) {
       res.status(500).json({ message: "Failed to fetch return requests" });
@@ -45,7 +46,7 @@ export const userRoutes = (app: Express) => {
   app.get("/api/user/returns/:id", authUser, async (req, res) => {
     try {
       const user = (req as any).user;
-      const returnRequest = await storage.getReturnRequest(req.params.id);
+      const returnRequest = await returnService.getReturnRequest(req.params.id);
 
       if (!returnRequest || returnRequest.userId !== user.id) {
         return res.status(404).json({ message: "Return request not found" });
@@ -69,7 +70,9 @@ export const userRoutes = (app: Express) => {
         return res.status(404).json({ message: "Order not found" });
       }
 
-      const eligibility = await storage.checkOrderReturnEligibility(orderId);
+      const eligibility = await returnService.checkOrderReturnEligibility(
+        orderId
+      );
       if (!eligibility.eligible) {
         return res.status(400).json({ message: eligibility.reason });
       }
@@ -106,7 +109,7 @@ export const userRoutes = (app: Express) => {
       // Calculate price difference for exchanges
       const priceDifference = exchangeAmount - returnAmount;
 
-      const returnRequest = await storage.createReturnRequest(
+      const returnRequest = await returnService.createReturnRequest(
         {
           orderId,
           userId: user.id,
@@ -175,8 +178,6 @@ export const userRoutes = (app: Express) => {
       res.status(500).json({ message: "Failed to fetch refunds" });
     }
   });
-
-
 
   // User: Validate coupon
   app.post("/api/user/coupons/validate", authUser, async (req, res) => {
