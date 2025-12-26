@@ -74,7 +74,7 @@ export default function Refunds() {
       </div>
 
       <div className="grid gap-4">
-        {/* {(refunds ?? [])?.map((refund: Refund) => (
+        {(refunds ?? [])?.map((refund: Refund) => (
           <Card key={refund.id}>
             <CardContent className="p-6">
               <div className="flex justify-between items-start">
@@ -120,7 +120,7 @@ export default function Refunds() {
               </div>
             </CardContent>
           </Card>
-        ))} */}
+        ))}
       </div>
     </div>
   );
