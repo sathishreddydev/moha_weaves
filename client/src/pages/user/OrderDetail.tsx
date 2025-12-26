@@ -380,7 +380,7 @@ export default function OrderDetail() {
             <div className="text-sm space-y-1">
               <p>
                 <span className="text-muted-foreground">Method:</span>{" "}
-                {order.paymentMethod?.toUpperCase() || "COD"}
+                {order.paymentMethod?.toUpperCase()}
               </p>
               <p>
                 <span className="text-muted-foreground">Status:</span>{" "}

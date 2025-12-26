@@ -53,11 +53,6 @@ export const paymentStatusEnum = pgEnum("payment_status", [
   "partially_refunded",
 ]);
 export const paymentMethodEnum = pgEnum("payment_method", [
-  "cod",
-  "online",
-  "upi",
-  "card",
-  "netbanking",
   "razorpay",
 ]);
 export const returnStatusEnum = pgEnum("return_status", [
@@ -304,7 +299,7 @@ export const orders = pgTable("orders", {
   paymentStatus: paymentStatusEnum("payment_status")
     .notNull()
     .default("pending"),
-  paymentMethod: paymentMethodEnum("payment_method").default("cod"),
+  paymentMethod: paymentMethodEnum("payment_method").default("razorpay"),
   paymentId: text("payment_id"),
   stripePaymentIntentId: text("stripe_payment_intent_id"),
   razorpayPaymentId: text("razorpay_payment_id"),

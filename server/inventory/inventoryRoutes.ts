@@ -521,7 +521,7 @@ export const inventoryRoutes = (app: Express) => {
                     finalAmount: returnRequest.refundAmount || "0",
                     status: "confirmed",
                     paymentStatus: "paid",
-                    paymentMethod: "online", // Exchange orders are treated as pre-paid
+                    paymentMethod: "razorpay", // Exchange orders are treated as pre-paid
                     shippingAddress: originalOrder.shippingAddress,
                     phone: originalOrder.phone,
                     notes: `Exchange order for original order #${returnRequest.orderId.slice(
