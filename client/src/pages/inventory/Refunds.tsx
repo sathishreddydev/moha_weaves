@@ -39,8 +39,25 @@ export default function Refunds() {
       return response.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/inventory/refunds"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/inventory/refunds"], exact: false });
       toast({ title: "Success", description: "Refund processed" });
+    },
+  });
+
+  const syncRefundStatusMutation = useMutation({
+    mutationFn: async ({ id }: { id: string }) => {
+      const response = await apiRequest(
+        "POST",
+        `/api/inventory/refunds/${id}/check-status`
+      );
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/inventory/refunds"], exact: false });
+      toast({ title: "Success", description: "Refund status synced" });
+    },
+    onError: () => {
+      toast({ title: "Error", description: "Failed to sync refund status", variant: "destructive" });
     },
   });
 
@@ -98,6 +115,16 @@ export default function Refunds() {
                   )}
                 </div>
                 <div className="flex gap-2">
+                  {refund.status === "processing" && (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => syncRefundStatusMutation.mutate({ id: refund.id })}
+                      disabled={syncRefundStatusMutation.isPending}
+                    >
+                      Sync Status
+                    </Button>
+                  )}
                   {refund.status === "failed" && (
                     <Button
                       size="sm"
