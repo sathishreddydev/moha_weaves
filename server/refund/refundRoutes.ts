@@ -6,6 +6,7 @@ import { storage } from "../storage";
 
 export const refundRoutes = (app: Express) => {
   const authInventory = createAuthMiddleware(["inventory", "admin"]);
+  const authUser = createAuthMiddleware(["user"]);
 
   // Webhook endpoint for Razorpay refund events
   app.post("/api/webhooks/razorpay/refund", async (req: Request, res: Response) => {
@@ -116,12 +117,9 @@ export const refundRoutes = (app: Express) => {
   });
 
   // User: Get their refunds
-  app.get("/api/user/refunds", async (req, res) => {
+  app.get("/api/user/refunds", authUser, async (req, res) => {
     try {
       const userId = (req as any).user?.id;
-      if (!userId) {
-        return res.status(401).json({ message: "Unauthorized" });
-      }
 
       const refunds = await refundService.getRefunds({ userId });
       res.json(refunds);

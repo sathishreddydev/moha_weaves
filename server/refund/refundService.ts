@@ -16,7 +16,7 @@ export interface RefundProcessingOptions {
 export class RefundService {
   // Create refund record and initiate payment gateway refund
   async createAndProcessRefund(options: RefundProcessingOptions): Promise<Refund> {
-    return await db.transaction(async (tx) => {
+    const { refund, razorpayPaymentId } = await db.transaction(async (tx) => {
       // Get order details to find payment ID
       const [order] = await tx
         .select()
@@ -43,11 +43,13 @@ export class RefundService {
         })
         .returning();
 
-      // Initiate Razorpay refund
-      await this.initiateRefund(refund.id, order.razorpayPaymentId);
-
-      return refund;
+      return { refund, razorpayPaymentId: order.razorpayPaymentId };
     });
+
+    // Initiate Razorpay refund only after the refund row is committed.
+    await this.initiateRefund(refund.id, razorpayPaymentId);
+
+    return refund;
   }
 
   // Initiate refund with Razorpay

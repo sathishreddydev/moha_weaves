@@ -500,6 +500,14 @@ export const inventoryRoutes = (app: Express) => {
                 console.log(`Partial refund calculated: ${refundAmount} (damaged items: ${damagedAmount})`);
               }
 
+              const refundAmountNumber = Number(refundAmount);
+              if (!Number.isFinite(refundAmountNumber)) {
+                return res.status(400).json({
+                  message: "Invalid refund amount calculated",
+                });
+              }
+              refundAmount = Math.max(0, refundAmountNumber).toFixed(2);
+
               const refund = await refundService.createAndProcessRefund({
                 returnRequestId: returnRequest.id,
                 orderId: returnRequest.orderId,

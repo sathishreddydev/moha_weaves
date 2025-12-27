@@ -27,7 +27,10 @@ export class RefundWebhookService {
   // Handle Razorpay webhook events
   static async handleWebhook(req: Request, res: Response): Promise<void> {
     try {
-      const signature = req.headers["x-razorpay-signature"] as string;
+      const signatureHeader = req.headers["x-razorpay-signature"];
+      const signature = Array.isArray(signatureHeader)
+        ? signatureHeader[0]
+        : (signatureHeader as string | undefined);
       const webhookSecret = process.env.RAZORPAY_WEBHOOK_SECRET!;
 
       if (!signature) {
@@ -35,7 +38,8 @@ export class RefundWebhookService {
         return;
       }
 
-      const body = JSON.stringify(req.body);
+      const rawBodyBuffer = (req as any).rawBody as Buffer | undefined;
+      const body = rawBodyBuffer ? rawBodyBuffer.toString("utf8") : JSON.stringify(req.body);
       
       if (!this.verifyWebhookSignature(body, signature, webhookSecret)) {
         console.error("Invalid webhook signature");
