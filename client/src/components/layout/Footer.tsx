@@ -12,8 +12,8 @@ export function Footer() {
           </div>
 
           <nav className="grid grid-cols-2 gap-x-6 gap-y-3 text-xs text-white text-center md:grid-cols-4 md:justify-self-end md:text-left">
-            <a href="/blog">Returns & Exchange</a>
-            <a href="/shop">Shipping Policy</a>
+            <a href="/returns-exchange-policy">Returns & Exchange</a>
+            <a href="/shipping-policy">Shipping Policy</a>
             <a href="/contact">FAQ</a>
             <a href="/contact">Contact Us</a>
           </nav>

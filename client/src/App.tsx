@@ -27,6 +27,10 @@ const Checkout = lazy(() => import("@/pages/user/Checkout"));
 const UserLogin = lazy(() => import("@/pages/user/Login"));
 const UserRegister = lazy(() => import("@/pages/user/Register"));
 const Addresses = lazy(() => import("@/pages/user/Addresses"));
+const ShippingPolicy = lazy(() => import("@/pages/user/ShippingPolicy"));
+const ReturnsExchangePolicy = lazy(
+  () => import("@/pages/user/ReturnsExchangePolicy")
+);
 
 // Import Sales components
 const Sales = lazy(() => import("@/pages/user/Sales"));
@@ -237,6 +241,11 @@ function Router() {
           <Route path="/user/returns" element={<Returns />} />
           <Route path="/user/checkout" element={<Checkout />} />
           <Route path="/user/addresses" element={<Addresses />} />
+          <Route path="/shipping-policy" element={<ShippingPolicy />} />
+          <Route
+            path="/returns-exchange-policy"
+            element={<ReturnsExchangePolicy />}
+          />
 
           <Route path="*" element={<NotFound />} />
         </Routes>

@@ -129,6 +129,24 @@ export const refundRoutes = (app: Express) => {
     }
   });
 
+  // User: Sync a refund status from Razorpay (useful if webhook failed)
+  app.post("/api/user/refunds/:id/check-status", authUser, async (req, res) => {
+    try {
+      const userId = (req as any).user?.id;
+      const refund = await storage.getRefund(req.params.id);
+      if (!refund || refund.userId !== userId) {
+        return res.status(404).json({ message: "Refund not found" });
+      }
+
+      await refundService.checkRefundStatus(req.params.id);
+      const updated = await storage.getRefund(req.params.id);
+      res.json(updated);
+    } catch (error) {
+      console.error("Error checking refund status (user):", error);
+      res.status(500).json({ message: "Failed to check refund status" });
+    }
+  });
+
   // Debug endpoint: Check all pending refunds (should be called by cron job)
   app.post("/api/admin/check-pending-refunds", authInventory, async (req, res) => {
     try {

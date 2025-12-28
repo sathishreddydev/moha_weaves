@@ -62,7 +62,7 @@ export const userRoutes = (app: Express) => {
   app.post("/api/user/returns", authUser, async (req, res) => {
     try {
       const user = (req as any).user;
-      const { orderId, reason, description, resolutionType, items } = req.body;
+      const { orderId, reason, reasonDetails, resolution, items } = req.body;
 
       // Validate order and eligibility
       const order = await orderService.getOrder(orderId);
@@ -88,7 +88,7 @@ export const userRoutes = (app: Express) => {
         }
 
         // If exchange, validate and calculate exchange product price
-        if (resolutionType === "exchange" && item.exchangeSareeId) {
+        if (resolution === "exchange" && item.exchangeSareeId) {
           const exchangeSaree = await sareeService.getSaree(
             item.exchangeSareeId
           );
@@ -114,8 +114,8 @@ export const userRoutes = (app: Express) => {
           orderId,
           userId: user.id,
           reason,
-          reasonDetails: description,
-          resolution: resolutionType || "refund",
+          reasonDetails,
+          resolution: resolution || "refund",
           refundAmount: returnAmount.toString(),
         },
         items.map((item: any) => ({
@@ -128,7 +128,7 @@ export const userRoutes = (app: Express) => {
 
       // Create notification
       const notificationMessage =
-        resolutionType === "exchange"
+        resolution === "exchange"
           ? `Your exchange request for order #${orderId.slice(
               -8
             )} has been submitted. ${
@@ -150,7 +150,7 @@ export const userRoutes = (app: Express) => {
         userId: user.id,
         type: "return",
         title:
-          resolutionType === "exchange"
+          resolution === "exchange"
             ? "Exchange Request Submitted"
             : "Return Request Submitted",
         message: notificationMessage,
@@ -166,16 +166,6 @@ export const userRoutes = (app: Express) => {
     } catch (error) {
       console.error("Error creating return request:", error);
       res.status(500).json({ message: "Failed to create return request" });
-    }
-  });
-  // User: Get user's refunds
-  app.get("/api/user/refunds", authUser, async (req, res) => {
-    try {
-      const user = (req as any).user;
-      const refunds = await storage.getRefunds({ userId: user.id });
-      res.json(refunds);
-    } catch (error) {
-      res.status(500).json({ message: "Failed to fetch refunds" });
     }
   });
 
