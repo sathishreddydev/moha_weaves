@@ -32,6 +32,7 @@ import { DataTable, FilterConfig } from "@/components/ui/data-table";
 import { useDataTable } from "@/hooks/use-data-table";
 import { ColumnDef } from "@tanstack/react-table";
 import type { OrderWithItems } from "@shared/schema";
+import { Button } from "@/components/ui/button";
 
 const statusConfig: Record<
   string,
@@ -80,6 +81,25 @@ const orderStatuses = [
   "delivered",
   "cancelled",
 ];
+
+const statusFlow = ["pending", "confirmed", "processing", "shipped", "delivered"] as const;
+
+const getAllowedNextStatuses = (currentStatus: string) => {
+  const current = String(currentStatus);
+
+  if (current === "delivered" || current === "cancelled") {
+    return [current];
+  }
+
+  const inFlow = statusFlow.includes(current as any);
+  if (!inFlow) {
+    return ["pending", "cancelled"];
+  }
+
+  const idx = statusFlow.indexOf(current as any);
+  const forward = statusFlow.slice(idx) as unknown as string[];
+  return Array.from(new Set([...forward, "cancelled"]));
+};
 
 const formatPrice = (price: string | number) => {
   const numPrice = typeof price === "string" ? parseFloat(price) : price;
@@ -138,10 +158,12 @@ export default function InventoryOrders() {
       refetch();
       toast({ title: "Success", description: "Order status updated" });
     },
-    onError: () => {
+    onError: (err: unknown) => {
+      const message = err instanceof Error ? err.message : "";
+      const extracted = message.includes(":") ? message.split(":").slice(1).join(":").trim() : "";
       toast({
         title: "Error",
-        description: "Failed to update order",
+        description: extracted || "Failed to update order",
         variant: "destructive",
       });
     },
@@ -153,9 +175,13 @@ export default function InventoryOrders() {
         accessorKey: "id",
         header: "Order ID",
         cell: ({ row }) => (
-          <span className="font-mono text-sm">
+          <button
+            type="button"
+            className="font-mono text-sm text-primary underline-offset-4 hover:underline"
+            onClick={() => navigate(`/inventory/orders/${row.original.id}`)}
+          >
             #{row.original.id.slice(0, 8).toUpperCase()}
-          </span>
+          </button>
         ),
       },
       {
@@ -223,34 +249,44 @@ export default function InventoryOrders() {
         id: "actions",
         header: "Actions",
         cell: ({ row }) => (
-          <Select
-            value={row.original.status}
-            onValueChange={(value) =>
-              updateStatusMutation.mutate({
-                id: row.original.id,
-                status: value,
-              })
-            }
-            disabled={updateStatusMutation.isPending}
-          >
-            <SelectTrigger
-              className="w-36"
-              data-testid={`select-status-${row.original.id}`}
+          <div className="flex items-center gap-2">
+            <Select
+              value={row.original.status}
+              onValueChange={(value) =>
+                updateStatusMutation.mutate({
+                  id: row.original.id,
+                  status: value,
+                })
+              }
+              disabled={updateStatusMutation.isPending}
             >
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {orderStatuses.map((s) => (
-                <SelectItem key={s} value={s} className="capitalize">
-                  {s.charAt(0).toUpperCase() + s.slice(1)}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+              <SelectTrigger
+                className="w-36"
+                data-testid={`select-status-${row.original.id}`}
+              >
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {getAllowedNextStatuses(row.original.status).map((s) => (
+                  <SelectItem key={s} value={s} className="capitalize">
+                    {s.charAt(0).toUpperCase() + s.slice(1)}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => navigate(`/inventory/orders/${row.original.id}?print=1`)}
+            >
+              Print
+            </Button>
+          </div>
         ),
       },
     ],
-    [updateStatusMutation]
+    [navigate, updateStatusMutation]
   );
 
   const filters: FilterConfig[] = [

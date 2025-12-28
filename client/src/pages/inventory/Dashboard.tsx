@@ -147,8 +147,6 @@ export default function InventoryDashboard() {
                   <TableHead>Product</TableHead>
                   <TableHead>Total Stock</TableHead>
                   <TableHead>Online Stock</TableHead>
-                  <TableHead>Distribution</TableHead>
-                  <TableHead>Action</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -184,33 +182,6 @@ export default function InventoryDashboard() {
                       </Badge>
                     </TableCell>
                     <TableCell>{saree.onlineStock}</TableCell>
-                    <TableCell>
-                      <Select
-                        value={saree.distributionChannel}
-                        onValueChange={(value) =>
-                          updateDistributionMutation.mutate({
-                            sareeId: saree.id,
-                            channel: value,
-                          })
-                        }
-                      >
-                        <SelectTrigger className="w-32">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="online">Online Only</SelectItem>
-                          <SelectItem value="shop">Shop Only</SelectItem>
-                          <SelectItem value="both">Both</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </TableCell>
-                    <TableCell>
-                      <Link to={`/inventory/stock/${saree.id}`}>
-                        <Button variant="ghost" size="sm">
-                          <Edit className="h-4 w-4" />
-                        </Button>
-                      </Link>
-                    </TableCell>
                   </TableRow>
                 ))}
               </TableBody>

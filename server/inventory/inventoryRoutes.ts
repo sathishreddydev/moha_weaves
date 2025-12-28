@@ -152,16 +152,32 @@ export const inventoryRoutes = (app: Express) => {
     }
   });
 
-  app.patch(
-    "/api/inventory/orders/:id/status",
+  app.get("/api/inventory/orders/:id", authInventory, async (req, res) => {
+    try {
+      const order = await orderService.getOrder(req.params.id);
+      if (!order) {
+        return res.status(404).json({ message: "Order not found" });
+      }
+      res.json(order);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch order" });
+    }
+  });
+
+  app.get(
+    "/api/inventory/orders/:id/history",
     authInventory,
     async (req, res) => {
       try {
-        const { status } = req.body;
-        const order = await storage.updateOrderStatus(req.params.id, status);
-        res.json(order);
+        const order = await orderService.getOrder(req.params.id);
+        if (!order) {
+          return res.status(404).json({ message: "Order not found" });
+        }
+
+        const history = await storage.getOrderStatusHistory(req.params.id);
+        res.json(history);
       } catch (error) {
-        res.status(500).json({ message: "Failed to update order" });
+        res.status(500).json({ message: "Failed to fetch order history" });
       }
     }
   );
@@ -733,6 +749,13 @@ export const inventoryRoutes = (app: Express) => {
         res.json(updated);
       } catch (error) {
         console.error("Error updating order status:", error);
+        const message = error instanceof Error ? error.message : String(error);
+        if (message.startsWith("INVALID_STATUS_TRANSITION:")) {
+          return res
+            .status(400)
+            .json({ message: message.replace("INVALID_STATUS_TRANSITION:", "").trim() });
+        }
+
         res.status(500).json({ message: "Failed to update order status" });
       }
     }

@@ -1201,6 +1201,46 @@ export class DatabaseStorage implements IStorage {
         .where(eq(orders.id, orderId));
       if (!order) return undefined;
 
+      const allowedFlow = [
+        "pending",
+        "confirmed",
+        "processing",
+        "shipped",
+        "delivered",
+      ];
+
+      const currentStatus = String(order.status);
+      const nextStatus = String(status);
+
+      if (currentStatus === nextStatus) {
+        return order as any;
+      }
+
+      const isCurrentFlow = allowedFlow.includes(currentStatus);
+      const isNextFlow = allowedFlow.includes(nextStatus);
+
+      if (currentStatus === "delivered" || currentStatus === "cancelled") {
+        throw new Error(
+          `INVALID_STATUS_TRANSITION: Cannot change status from ${currentStatus}`
+        );
+      }
+
+      if (nextStatus === "cancelled") {
+        // Allow cancelling from any non-terminal status
+      } else if (isCurrentFlow && isNextFlow) {
+        const curIdx = allowedFlow.indexOf(currentStatus);
+        const nextIdx = allowedFlow.indexOf(nextStatus);
+        if (nextIdx < curIdx) {
+          throw new Error(
+            `INVALID_STATUS_TRANSITION: Status cannot move backward from ${currentStatus} to ${nextStatus}`
+          );
+        }
+      } else {
+        throw new Error(
+          `INVALID_STATUS_TRANSITION: Invalid status transition from ${currentStatus} to ${nextStatus}`
+        );
+      }
+
       const updateData: any = {
         status: status as any,
         updatedAt: new Date(),

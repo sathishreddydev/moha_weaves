@@ -1475,7 +1475,7 @@ export default function InventorySarees() {
       </Dialog>
 
       <Dialog open={printDialogOpen} onOpenChange={setPrintDialogOpen}>
-        <DialogContent className="max-w-3xl">
+        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Print Product Details with Barcode</DialogTitle>
           </DialogHeader>
