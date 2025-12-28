@@ -1,5 +1,6 @@
 import { useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
+
 import {
   Package,
   Globe,
@@ -29,10 +30,12 @@ export default function StockDistribution() {
   const navigate = useNavigate();
   const { user, logout } = useAuth();
 
+  const isInventoryUser = !!user && (user.role === "inventory" || user.role === "admin");
+
   // Fetch stores to build dynamic columns
   const { data: stores } = useQuery<StoreType[]>({
     queryKey: ["/api/inventory/stores"],
-    enabled: !!user && user.role === "inventory",
+    enabled: isInventoryUser,
   });
 
   // Fetch categories for filtering
@@ -56,9 +59,14 @@ export default function StockDistribution() {
     initialPageSize: 10,
   });
 
+  const sareeIdsKey = useMemo(() => {
+    if (!sarees || sarees.length === 0) return "";
+    return sarees.map((s) => s.id).join(",");
+  }, [sarees]);
+
   // Fetch allocations for each saree and calculate unallocated stock
   const { data: distributionData, isLoading: isLoadingAllocations } = useQuery({
-    queryKey: ["/api/inventory/stock-distribution", sarees],
+    queryKey: ["/api/inventory/stock-distribution", sareeIdsKey],
     queryFn: async () => {
       if (!sarees || sarees.length === 0) return [];
 
@@ -69,6 +77,9 @@ export default function StockDistribution() {
               `/api/inventory/sarees/${saree.id}/allocations`,
               { credentials: "include" }
             );
+            if (!response.ok) {
+              throw new Error(`${response.status}: ${await response.text()}`);
+            }
             const allocations: StoreAllocation[] = await response.json();
 
             const totalStoreStock = allocations.reduce(
@@ -95,7 +106,7 @@ export default function StockDistribution() {
 
       return results;
     },
-    enabled: !!sarees && sarees.length > 0,
+    enabled: !!sarees && sarees.length > 0 && !!sareeIdsKey,
   });
 
   const formatPrice = (price: string | number) => {

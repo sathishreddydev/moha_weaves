@@ -42,19 +42,6 @@ import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import type { StockRequestWithDetails } from "@shared/schema";
 
-const navItems = [
-  { icon: LayoutDashboard, label: "Dashboard", href: "/inventory/dashboard" },
-  { icon: Shirt, label: "Sarees", href: "/inventory/sarees" },
-  { icon: Warehouse, label: "Stock Management", href: "/inventory/stock" },
-  {
-    icon: BarChart3,
-    label: "Stock Distribution",
-    href: "/inventory/distribution",
-  },
-  { icon: ClipboardList, label: "Store Requests", href: "/inventory/requests" },
-  { icon: Truck, label: "Online Orders", href: "/inventory/orders" },
-  { icon: RotateCcw, label: "Returns", href: "/inventory/returns" },
-];
 
 const statusConfig: Record<
   string,
@@ -97,9 +84,11 @@ export default function InventoryRequests() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [filterStatus, setFilterStatus] = useState<string>("all");
 
+  const isInventoryUser = !!user && (user.role === "inventory" || user.role === "admin");
+
   const { data: requests, isLoading } = useQuery<StockRequestWithDetails[]>({
     queryKey: ["/api/inventory/requests"],
-    enabled: !!user && user.role === "inventory",
+    enabled: isInventoryUser,
   });
 
   const updateStatusMutation = useMutation({
@@ -124,10 +113,6 @@ export default function InventoryRequests() {
     },
   });
 
-  const handleLogout = async () => {
-    await logout();
-    navigate("/inventory/login");
-  };
 
   const formatDate = (date: string | Date) => {
     return new Date(date).toLocaleDateString("en-IN", {
@@ -143,68 +128,7 @@ export default function InventoryRequests() {
     (request) => filterStatus === "all" || request.status === filterStatus
   );
 
-  if (!user || user.role !== "inventory") {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <h2 className="text-xl font-semibold mb-4">Access Denied</h2>
-          <Link to="/inventory/login">
-            <Button>Go to Inventory Login</Button>
-          </Link>
-        </div>
-      </div>
-    );
-  }
 
-  const Sidebar = () => (
-    <div className="flex flex-col h-full">
-      <div className="p-4 border-b">
-        <Link to="/" className="font-serif text-xl font-semibold text-primary">
-          Moha Inventory
-        </Link>
-      </div>
-      <nav className="flex-1 p-4 space-y-1">
-        {navItems.map((item) => (
-          <Link key={item.href} to={item.href}>
-            <Button
-              variant={
-                item.href === "/inventory/requests" ? "secondary" : "ghost"
-              }
-              className="w-full justify-start gap-3"
-              data-testid={`nav-${item.label
-                .toLowerCase()
-                .replace(/\s+/g, "-")}`}
-            >
-              <item.icon className="h-4 w-4" />
-              {item.label}
-            </Button>
-          </Link>
-        ))}
-      </nav>
-      <div className="p-4 border-t">
-        <div className="mb-3">
-          <p className="text-sm font-medium" data-testid="text-user-name">
-            {user.name}
-          </p>
-          <p
-            className="text-xs text-muted-foreground"
-            data-testid="text-user-email"
-          >
-            {user.email}
-          </p>
-        </div>
-        <Button
-          variant="outline"
-          className="w-full"
-          onClick={handleLogout}
-          data-testid="button-logout"
-        >
-          <LogOut className="h-4 w-4 mr-2" />
-          Logout
-        </Button>
-      </div>
-    </div>
-  );
 
   return (
     <div className="max-w-6xl mx-auto">

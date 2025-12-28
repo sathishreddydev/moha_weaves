@@ -34,21 +34,23 @@ export default function InventoryDashboard() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
+  const isInventoryUser = !!user && (user.role === "inventory" || user.role === "admin");
+
   const { data: lowStockItems, isLoading: loadingStock } = useQuery<
     SareeWithDetails[]
   >({
     queryKey: ["/api/inventory/low-stock"],
-    enabled: !!user && user.role === "inventory",
+    enabled: isInventoryUser,
   });
 
   const { data: pendingRequests } = useQuery<StockRequestWithDetails[]>({
     queryKey: ["/api/inventory/requests?status=pending"],
-    enabled: !!user && user.role === "inventory",
+    enabled: isInventoryUser,
   });
 
   const { data: pendingOrders } = useQuery<Order[]>({
     queryKey: ["/api/inventory/orders?status=pending"],
-    enabled: !!user && user.role === "inventory",
+    enabled: isInventoryUser,
   });
 
   const updateDistributionMutation = useMutation({
@@ -127,7 +129,7 @@ export default function InventoryDashboard() {
       <Card className="mb-8">
         <CardHeader className="flex flex-row items-center justify-between">
           <CardTitle>Low Stock Items</CardTitle>
-          <Link to="/inventory/stock">
+          <Link to="/inventory/sarees">
             <Button variant="ghost" size="sm">
               View All
             </Button>

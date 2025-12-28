@@ -54,9 +54,11 @@ interface StockMovementStats {
 export default function InventoryAnalytics() {
   const { user } = useAuth();
 
+  const isInventoryUser = !!user && (user.role === "inventory" || user.role === "admin");
+
   const { data: stats, isLoading } = useQuery<StockMovementStats>({
     queryKey: ["/api/inventory/stock-stats"],
-    enabled: !!user && user.role === "inventory",
+    enabled: isInventoryUser,
   });
 
   const { data: storeSales = [] } = useQuery({

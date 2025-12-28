@@ -32,6 +32,15 @@ const emptyToNull = z
   .nullable()
   .optional();
 
+const trackingNumberSchema = z.object({
+  trackingNumber: z
+    .string()
+    .transform((val) => val.trim())
+    .optional()
+    .nullable()
+    .transform((val) => (val === "" ? null : val)),
+});
+
 const sareeBaseSchema = z.object({
   name: z.string().min(1, "Name is required"),
   description: z.string().optional(),
@@ -124,6 +133,40 @@ export const inventoryRoutes = (app: Express) => {
       } catch (error) {
         console.error("Error updating stock request status:", error);
         res.status(500).json({ message: "Failed to update request" });
+      }
+    }
+  );
+
+  app.patch(
+    "/api/inventory/orders/:id/tracking",
+    authInventory,
+    async (req, res) => {
+      try {
+        const order = await orderService.getOrder(req.params.id);
+        if (!order) {
+          return res.status(404).json({ message: "Order not found" });
+        }
+
+        const parsed = trackingNumberSchema.safeParse(req.body);
+        if (!parsed.success) {
+          return res.status(400).json({
+            message: parsed.error.errors[0]?.message || "Invalid input",
+          });
+        }
+
+        const updated = await storage.updateOrderTrackingNumber(
+          req.params.id,
+          parsed.data.trackingNumber
+        );
+
+        if (!updated) {
+          return res.status(500).json({ message: "Failed to update tracking number" });
+        }
+
+        res.json(updated);
+      } catch (error) {
+        console.error("Error updating tracking number:", error);
+        res.status(500).json({ message: "Failed to update tracking number" });
       }
     }
   );

@@ -54,7 +54,6 @@ const AdminSettings = lazy(() => import("@/pages/admin/Settings"));
 const InventoryLogin = lazy(() => import("@/pages/inventory/Login"));
 const InventoryDashboard = lazy(() => import("@/pages/inventory/Dashboard"));
 const InventorySarees = lazy(() => import("@/pages/inventory/Sarees"));
-const InventoryStock = lazy(() => import("@/pages/inventory/Stock"));
 const InventoryStockDistribution = lazy(
   () => import("@/pages/inventory/StockDistribution")
 );
@@ -169,7 +168,7 @@ function Router() {
             <Route
               element={
                 <ProtectedRoute
-                  allowedRoles={["inventory"]}
+                  allowedRoles={["inventory", "admin"]}
                   loginPath="/inventory/login"
                 />
               }
@@ -179,7 +178,6 @@ function Router() {
 
                 <Route path="dashboard" element={<InventoryDashboard />} />
                 <Route path="sarees" element={<InventorySarees />} />
-                <Route path="stock" element={<InventoryStock />} />
                 <Route
                   path="distribution"
                   element={<InventoryStockDistribution />}

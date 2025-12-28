@@ -1,13 +1,15 @@
-import { useCallback, useEffect, useMemo, useRef } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useParams, useNavigate, useSearchParams } from "react-router-dom";
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ArrowLeft, Package, MapPin, CreditCard, Printer } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
+import { apiRequest } from "@/lib/queryClient";
 import type { OrderStatusHistory, OrderWithItems } from "@shared/schema";
 
 const statusColor: Record<string, string> = {
@@ -44,6 +46,8 @@ export default function InventoryOrderDetail() {
   const [searchParams, setSearchParams] = useSearchParams();
   const { toast } = useToast();
   const printRootRef = useRef<HTMLDivElement | null>(null);
+  const queryClient = useQueryClient();
+  const [trackingNumber, setTrackingNumber] = useState("");
 
   const orderQuery = useQuery<OrderWithItems>({
     queryKey: ["/api/inventory/orders", id],
@@ -61,6 +65,37 @@ export default function InventoryOrderDetail() {
   }, [id]);
 
   const order = orderQuery.data;
+
+  useEffect(() => {
+    if (!order) return;
+    setTrackingNumber(order.trackingNumber ? String(order.trackingNumber) : "");
+  }, [order]);
+
+  const updateTrackingMutation = useMutation({
+    mutationFn: async ({ orderId, value }: { orderId: string; value: string }) => {
+      const response = await apiRequest(
+        "PATCH",
+        `/api/inventory/orders/${orderId}/tracking`,
+        { trackingNumber: value }
+      );
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/inventory/orders", id] });
+      toast({ title: "Success", description: "Tracking number updated" });
+    },
+    onError: (err: unknown) => {
+      const message = err instanceof Error ? err.message : "";
+      const extracted = message.includes(":")
+        ? message.split(":").slice(1).join(":").trim()
+        : "";
+      toast({
+        title: "Error",
+        description: extracted || "Failed to update tracking number",
+        variant: "destructive",
+      });
+    },
+  });
 
   const printOrder = useCallback(() => {
     const root = printRootRef.current;
@@ -196,6 +231,26 @@ export default function InventoryOrderDetail() {
                 ETA: {formatDate(order.estimatedDelivery)}
               </div>
             ) : null}
+
+            <div className="pt-2">
+              <div className="text-xs text-muted-foreground mb-1">Update Tracking Number</div>
+              <div className="flex items-center gap-2">
+                <Input
+                  value={trackingNumber}
+                  onChange={(e) => setTrackingNumber(e.target.value)}
+                  placeholder="Enter tracking number"
+                />
+                <Button
+                  onClick={() => {
+                    if (!id) return;
+                    updateTrackingMutation.mutate({ orderId: id, value: trackingNumber });
+                  }}
+                  disabled={!id || updateTrackingMutation.isPending}
+                >
+                  Save
+                </Button>
+              </div>
+            </div>
           </CardContent>
         </Card>
 

@@ -107,6 +107,8 @@ export default function InventoryReturns() {
   const { user } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
+
+  const isInventoryUser = !!user && (user.role === "inventory" || user.role === "admin");
   const [filterStatus, setFilterStatus] = useState<string>("all");
   const [filterType, setFilterType] = useState<string>("all");
   const [updateDialog, setUpdateDialog] = useState<{
@@ -122,7 +124,7 @@ export default function InventoryReturns() {
 
   const { data: returns, isLoading } = useQuery<ReturnRequestWithDetails[]>({
     queryKey: ["/api/inventory/returns"],
-    enabled: !!user && user.role === "inventory",
+    enabled: isInventoryUser,
   });
 
   const updateStatusMutation = useMutation({

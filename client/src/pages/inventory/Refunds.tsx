@@ -4,25 +4,24 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { toast } from "@/hooks/use-toast";
+import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
 import { apiRequest } from "@/lib/queryClient";
-
-interface Refund {
-  id: string;
-  returnRequestId: string;
-  orderId: string;
-  amount: string;
-  status: string;
-  reason: string;
-  createdAt: string;
-  razorpayRefundId?: string;
-  failureReason?: string;
-}
+import type { Refund } from "@shared/schema";
 
 export default function Refunds() {
   const [statusFilter, setStatusFilter] = useState("all");
   const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  const formatAmount = (value: string | number | null | undefined) => {
+    const num = typeof value === "string" ? parseFloat(value) : Number(value ?? 0);
+    return new Intl.NumberFormat("en-IN", {
+      style: "currency",
+      currency: "INR",
+      maximumFractionDigits: 2,
+    }).format(Number.isFinite(num) ? num : 0);
+  };
 
   const { data: refunds = [], isLoading } = useQuery({
     queryKey: ["/api/inventory/refunds", statusFilter],
@@ -101,10 +100,10 @@ export default function Refunds() {
                       {refund.status}
                     </Badge>
                     <span className="text-sm text-gray-600">
-                      {format(new Date(refund.createdAt), "MMM dd, yyyy HH:mm")}
+                      {format(new Date(refund.createdAt as any), "MMM dd, yyyy HH:mm")}
                     </span>
                   </div>
-                  <div className="font-semibold">{refund.amount}</div>
+                  <div className="font-semibold">{formatAmount(refund.amount)}</div>
                   <p className="text-sm text-gray-600">Order: {refund.orderId}</p>
                   <p className="text-sm text-gray-600">Reason: {refund.reason}</p>
                   {refund.razorpayRefundId && (

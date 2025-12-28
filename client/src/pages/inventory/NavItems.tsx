@@ -14,7 +14,6 @@ import {
 export const NavItems = [
   { icon: LayoutDashboard, label: "Dashboard", href: "/inventory/dashboard" },
   { icon: Shirt, label: "Sarees", href: "/inventory/sarees" },
-  // { icon: Warehouse, label: "Stock Management", href: "/inventory/stock" },
   {
     icon: BarChart3,
     label: "Stock Distribution",

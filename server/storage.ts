@@ -120,6 +120,11 @@ export interface IStorage {
   }>;
   updateOrderStatus(id: string, status: string): Promise<Order | undefined>;
 
+  updateOrderTrackingNumber(
+    id: string,
+    trackingNumber: string | null | undefined
+  ): Promise<Order | undefined>;
+
 
   // Stock Distribution (centralized view)
   getStockDistribution(): Promise<
@@ -793,6 +798,21 @@ export class DatabaseStorage implements IStorage {
     const [result] = await db
       .update(orders)
       .set(updateData)
+      .where(eq(orders.id, id))
+      .returning();
+    return result || undefined;
+  }
+
+  async updateOrderTrackingNumber(
+    id: string,
+    trackingNumber: string | null | undefined
+  ): Promise<Order | undefined> {
+    const [result] = await db
+      .update(orders)
+      .set({
+        trackingNumber: trackingNumber ?? null,
+        updatedAt: new Date(),
+      })
       .where(eq(orders.id, id))
       .returning();
     return result || undefined;
