@@ -1,4 +1,4 @@
-import { useMemo, useState, useEffect } from "react";
+import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import {
   Package,
@@ -7,6 +7,7 @@ import {
   CheckCircle,
   Truck,
   XCircle,
+  RefreshCw,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -15,9 +16,10 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Separator } from "@/components/ui/separator";
 import { useAuth } from "@/lib/auth";
 import { useQuery } from "@tanstack/react-query";
-import type { OrderWithItems } from "@shared/schema";
+import type { OrderWithItems, ReturnRequestWithDetails, Refund } from "@shared/schema";
 import { WriteReview } from "@/components/product/WriteReview";
 import { useDebounce } from "@/components/common/useDebounceHook";
+import { useToast } from "@/hooks/use-toast";
 
 const statusConfig: Record<
   string,
@@ -60,6 +62,7 @@ const statusConfig: Record<
 
 export default function Orders() {
   const { user } = useAuth();
+  const { toast } = useToast();
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [timeFilter, setTimeFilter] = useState("any");
@@ -71,6 +74,58 @@ export default function Orders() {
     queryKey: ["/api/user/orders"],
     enabled: !!user,
   });
+
+  const { data: userReturns } = useQuery<ReturnRequestWithDetails[]>({
+    queryKey: ["/api/user/returns"],
+    enabled: !!user,
+  });
+
+  const { data: userRefunds } = useQuery<Refund[]>({
+    queryKey: ["/api/user/refunds"],
+    enabled: !!user,
+  });
+
+  const handleDownloadInvoice = async (orderId: string) => {
+    try {
+      const response = await fetch(`/api/user/orders/${orderId}/invoice`, {
+        method: "GET",
+        credentials: "include",
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to download invoice");
+      }
+
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `invoice-${orderId.slice(0, 8).toUpperCase()}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(url);
+    } catch (e) {
+      toast({
+        title: "Error",
+        description: "Unable to download invoice right now",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleCopyTracking = async (trackingNumber: string) => {
+    try {
+      await navigator.clipboard.writeText(trackingNumber);
+      toast({ title: "Copied", description: "Tracking number copied" });
+    } catch {
+      toast({
+        title: "Error",
+        description: "Unable to copy tracking number",
+        variant: "destructive",
+      });
+    }
+  };
 
   const formatPrice = (price: string | number) => {
     const numPrice = typeof price === "string" ? parseFloat(price) : price;
@@ -104,22 +159,172 @@ export default function Orders() {
 
   const filteredOrders = useMemo(() => {
     if (!orders) return [];
-    return orders.filter((order) => {
-      if (statusFilter !== "all" && order.status !== statusFilter) return false;
-      if (!isWithinTimeRange(order.createdAt)) return false;
+    return orders
+      .filter((order) => {
+        if (statusFilter !== "all") {
+          const status = order.status;
+          const inProgress = ["pending", "confirmed", "processing"].includes(status);
+          if (statusFilter === "in_progress" && !inProgress) return false;
+          if (statusFilter === "shipped" && status !== "shipped") return false;
+          if (statusFilter === "delivered" && status !== "delivered") return false;
+          if (statusFilter === "cancelled" && status !== "cancelled") return false;
+        }
+        if (!isWithinTimeRange(order.createdAt)) return false;
 
-      if (debouncedSearch.trim()) {
-        const s = debouncedSearch.toLowerCase();
-        const matchesOrderId = order.id.toLowerCase().includes(s);
-        const matchesProduct = order.items.some((item) =>
-          item.saree.name.toLowerCase().includes(s)
-        );
-        if (!matchesOrderId && !matchesProduct) return false;
+        if (debouncedSearch.trim()) {
+          const s = debouncedSearch.toLowerCase();
+          const matchesOrderId = order.id.toLowerCase().includes(s);
+          const matchesProduct = order.items.some((item) =>
+            item.saree.name.toLowerCase().includes(s)
+          );
+          if (!matchesOrderId && !matchesProduct) return false;
+        }
+
+        return true;
+      })
+      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+  }, [orders, debouncedSearch, statusFilter, timeFilter]);
+
+  const tabCounts = useMemo(() => {
+    if (!orders) {
+      return {
+        all: 0,
+        in_progress: 0,
+        shipped: 0,
+        delivered: 0,
+        cancelled: 0,
+      };
+    }
+
+    const counts = {
+      all: orders.length,
+      in_progress: 0,
+      shipped: 0,
+      delivered: 0,
+      cancelled: 0,
+    };
+
+    for (const o of orders) {
+      const status = o.status;
+      if (["pending", "confirmed", "processing"].includes(status)) counts.in_progress++;
+      if (status === "shipped") counts.shipped++;
+      if (status === "delivered") counts.delivered++;
+      if (status === "cancelled") counts.cancelled++;
+    }
+
+    return counts;
+  }, [orders]);
+
+  const displayMetaByOrderId = useMemo(() => {
+    const map = new Map<
+      string,
+      {
+        itemStatusByOrderItemId: Map<
+          string,
+          {
+            label: string;
+            color: string;
+            updatedAt: string | Date;
+          }
+        >;
+      }
+    >();
+
+    if (!orders) return map;
+
+    const refundByReturnRequestId = new Map<string, Refund>();
+    for (const rf of userRefunds || []) {
+      if (rf.returnRequestId) refundByReturnRequestId.set(rf.returnRequestId, rf);
+    }
+
+    const getReturnLabelColor = (resolution: string, status: string) => {
+      const isExchange = resolution === "exchange";
+      const base = isExchange ? "Exchange" : "Return";
+      const label =
+        status === "completed"
+          ? `${base} Completed`
+          : status === "rejected"
+            ? `${base} Rejected`
+            : status === "pickup_scheduled"
+              ? `${base} Pickup Scheduled`
+              : status === "picked_up"
+                ? `${base} Picked Up`
+                : status === "received"
+                  ? `${base} Received`
+                  : status === "approved"
+                    ? `${base} Approved`
+                    : status === "cancelled"
+                      ? `${base} Cancelled`
+                      : `${base} Requested`;
+
+      const color =
+        status === "completed"
+          ? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-100"
+          : status === "rejected"
+            ? "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-100"
+            : isExchange
+              ? "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-100"
+              : "bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-100";
+
+      return { label, color };
+    };
+
+    const getRefundLabelColor = (status: string) => {
+      const label =
+        status === "completed"
+          ? "Refunded"
+          : status === "failed"
+            ? "Refund Failed"
+            : "Refund Processing";
+      const color =
+        status === "completed"
+          ? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-100"
+          : status === "failed"
+            ? "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-100"
+            : "bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-100";
+      return { label, color };
+    };
+
+    for (const o of orders) {
+      const itemStatusByOrderItemId = new Map<
+        string,
+        { label: string; color: string; updatedAt: string | Date }
+      >();
+
+      const returnsForOrder = (userReturns || [])
+        .filter((r) => r.orderId === o.id)
+        .slice()
+        .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
+
+      for (const rr of returnsForOrder) {
+        for (const ri of rr.items || []) {
+          const existing = itemStatusByOrderItemId.get(ri.orderItemId);
+          const rrUpdated = rr.updatedAt || rr.createdAt;
+          if (!existing || new Date(rrUpdated).getTime() > new Date(existing.updatedAt).getTime()) {
+            const { label, color } = getReturnLabelColor(rr.resolution, rr.status);
+            itemStatusByOrderItemId.set(ri.orderItemId, { label, color, updatedAt: rrUpdated });
+
+            const refund = rr.resolution !== "exchange" ? refundByReturnRequestId.get(rr.id) : undefined;
+            if (refund) {
+              const refundMeta = getRefundLabelColor(refund.status);
+              const refundUpdated = refund.completedAt || refund.initiatedAt || refund.createdAt;
+              if (refundUpdated && new Date(refundUpdated).getTime() >= new Date(rrUpdated).getTime()) {
+                itemStatusByOrderItemId.set(ri.orderItemId, {
+                  label: refundMeta.label,
+                  color: refundMeta.color,
+                  updatedAt: refundUpdated,
+                });
+              }
+            }
+          }
+        }
       }
 
-      return true;
-    });
-  }, [orders, debouncedSearch, statusFilter, timeFilter]);
+      map.set(o.id, { itemStatusByOrderItemId });
+    }
+
+    return map;
+  }, [orders, userReturns, userRefunds]);
 
   const totalPages = Math.ceil(filteredOrders.length / ordersPerPage);
   const paginatedOrders = filteredOrders.slice(
@@ -171,7 +376,7 @@ export default function Orders() {
   }
 
   return (
-    <div className="max-w-4xl mx-auto px-4 py-8">
+    <div className="max-w-6xl mx-auto px-4 py-6 sm:py-8">
       <h1
         className="font-serif text-xl font-semibold mb-4"
         data-testid="text-page-title"
@@ -179,7 +384,59 @@ export default function Orders() {
         My Orders
       </h1>
 
-      {/* Search & Filters */}
+      <div className="mb-4 flex gap-2 flex-wrap">
+        <Button
+          size="sm"
+          variant={statusFilter === "all" ? "default" : "outline"}
+          onClick={() => {
+            setStatusFilter("all");
+            setCurrentPage(1);
+          }}
+        >
+          All ({tabCounts.all})
+        </Button>
+        <Button
+          size="sm"
+          variant={statusFilter === "in_progress" ? "default" : "outline"}
+          onClick={() => {
+            setStatusFilter("in_progress");
+            setCurrentPage(1);
+          }}
+        >
+          In Progress ({tabCounts.in_progress})
+        </Button>
+        <Button
+          size="sm"
+          variant={statusFilter === "shipped" ? "default" : "outline"}
+          onClick={() => {
+            setStatusFilter("shipped");
+            setCurrentPage(1);
+          }}
+        >
+          Shipped ({tabCounts.shipped})
+        </Button>
+        <Button
+          size="sm"
+          variant={statusFilter === "delivered" ? "default" : "outline"}
+          onClick={() => {
+            setStatusFilter("delivered");
+            setCurrentPage(1);
+          }}
+        >
+          Delivered ({tabCounts.delivered})
+        </Button>
+        <Button
+          size="sm"
+          variant={statusFilter === "cancelled" ? "default" : "outline"}
+          onClick={() => {
+            setStatusFilter("cancelled");
+            setCurrentPage(1);
+          }}
+        >
+          Cancelled ({tabCounts.cancelled})
+        </Button>
+      </div>
+
       <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <input
           type="text"
@@ -192,22 +449,6 @@ export default function Orders() {
           className="w-full sm:w-80 rounded-md border px-3 py-2 text-sm"
         />
         <div className="flex gap-2 sm:gap-3 flex-wrap">
-          <select
-            value={statusFilter}
-            onChange={(e) => {
-              setStatusFilter(e.target.value);
-              setCurrentPage(1); // Reset page when filter changes
-            }}
-            className="rounded-md border px-3 py-2 text-sm"
-          >
-            <option value="all">All Status</option>
-            <option value="pending">Pending</option>
-            <option value="confirmed">Confirmed</option>
-            <option value="processing">Processing</option>
-            <option value="shipped">Shipped</option>
-            <option value="delivered">Delivered</option>
-            <option value="cancelled">Cancelled</option>
-          </select>
           <select
             value={timeFilter}
             onChange={(e) => {
@@ -234,6 +475,8 @@ export default function Orders() {
         {paginatedOrders.map((order) => {
           const status = statusConfig[order.status] || statusConfig.pending;
           const StatusIcon = status.icon;
+          const meta = displayMetaByOrderId.get(order.id);
+          const hasReturnOrExchange = (userReturns || []).some((r) => r.orderId === order.id);
 
           return (
             <Card
@@ -241,100 +484,163 @@ export default function Orders() {
               className="overflow-hidden"
               data-testid={`card-order-${order.id}`}
             >
-              <div className="p-4 bg-muted/50 flex flex-wrap items-center justify-between gap-4">
-                <div className="flex flex-wrap items-center gap-4 text-sm">
-                  <div>
-                    <span className="text-muted-foreground">Order ID:</span>{" "}
-                    <span
-                      className="font-medium"
-                      data-testid={`text-order-id-${order.id}`}
-                    >
-                      #{order.id.slice(0, 8).toUpperCase()}
-                    </span>
+              <div className="p-4 bg-muted/50 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                <div className="flex flex-col gap-2">
+                  <div className="flex flex-wrap items-center gap-3 text-sm">
+                    <div>
+                      <span className="text-muted-foreground">Order ID:</span>{" "}
+                      <span
+                        className="font-medium"
+                        data-testid={`text-order-id-${order.id}`}
+                      >
+                        #{order.id.slice(0, 8).toUpperCase()}
+                      </span>
+                    </div>
+                    <Separator orientation="vertical" className="h-4 hidden sm:block" />
+                    <div>
+                      <span className="text-muted-foreground">Date:</span>{" "}
+                      <span className="font-medium">
+                        {formatDate(order.createdAt)}
+                      </span>
+                    </div>
                   </div>
-                  <Separator orientation="vertical" className="h-4" />
-                  <div>
-                    <span className="text-muted-foreground">Date:</span>{" "}
-                    <span className="font-medium">
-                      {formatDate(order.createdAt)}
-                    </span>
-                  </div>
+
+                  {order.trackingNumber ? (
+                    <div className="text-xs text-muted-foreground">
+                      Tracking: <span className="font-medium">{order.trackingNumber}</span>
+                    </div>
+                  ) : null}
                 </div>
-                <Badge className={status.color}>
-                  <StatusIcon className="h-3 w-3 mr-1" />
-                  {status.label}
-                </Badge>
+
+                <div className="flex flex-wrap items-center gap-2">
+                  <Badge variant="outline" className="text-xs">
+                    {order.items.length} item(s)
+                  </Badge>
+                </div>
               </div>
 
               <div className="p-4">
-                <div className="space-y-4">
-                  {order.items.slice(0, 3).map((item) => (
-                    <div
-                      key={item.id}
-                      className="flex gap-4 flex-wrap sm:flex-nowrap"
-                    >
-                      <Link to={`/sarees/${item.saree.id}`}>
-                        <div className="w-16 h-20 rounded-md overflow-hidden bg-muted flex-shrink-0">
-                          <img
-                            src={
-                              item.saree.imageUrl ||
-                              "https://images.unsplash.com/photo-1610030469983-98e550d6193c?w=100&h=150&fit=crop"
-                            }
-                            alt={item.saree.name}
-                            className="w-full h-full object-cover"
-                          />
-                        </div>
-                      </Link>
-                      <div className="flex-1 min-w-0">
-                        <Link to={`/sarees/${item.saree.id}`}>
-                          <h4 className="font-medium text-sm line-clamp-1 hover:text-primary">
-                            {item.saree.name}
-                          </h4>
+                <div className="space-y-3">
+                  {order.items.slice(0, 2).map((item) => {
+                    const itemStatus = meta?.itemStatusByOrderItemId?.get(item.id);
+                    const deliveryBadge = {
+                      label: status.label,
+                      color: status.color,
+                    };
+                    const effective = itemStatus || deliveryBadge;
+
+                    return (
+                      <div
+                        key={item.id}
+                        className="flex flex-col sm:flex-row gap-4"
+                      >
+                        <Link to={`/sarees/${item.saree.id}`} className="flex-shrink-0">
+                          <div className="w-16 h-20 rounded-md overflow-hidden bg-muted">
+                            <img
+                              src={
+                                item.saree.imageUrl ||
+                                "https://images.unsplash.com/photo-1610030469983-98e550d6193c?w=100&h=150&fit=crop"
+                              }
+                              alt={item.saree.name}
+                              className="w-full h-full object-cover"
+                            />
+                          </div>
                         </Link>
-                        <p className="text-sm text-muted-foreground">
-                          Qty: {item.quantity}
-                        </p>
-                        <p className="text-sm font-medium text-primary">
-                          {formatPrice(item.price)}
-                        </p>
+                        <div className="flex-1 min-w-0">
+                          <Link to={`/sarees/${item.saree.id}`}>
+                            <h4 className="font-medium text-sm line-clamp-1 hover:text-primary">
+                              {item.saree.name}
+                            </h4>
+                          </Link>
+                          <div className="mt-1">
+                            <Badge className={effective.color}>{effective.label}</Badge>
+                          </div>
+                          <p className="text-sm text-muted-foreground">
+                            Qty: {item.quantity}
+                          </p>
+                        </div>
+                        {order.status === "delivered" ? (
+                          <div className="sm:self-center">
+                            <WriteReview saree={item.saree} />
+                          </div>
+                        ) : null}
                       </div>
-                      {order.status === "delivered" && (
-                        <WriteReview saree={item.saree} />
-                      )}
-                    </div>
-                  ))}
-                  {order.items.length > 3 && (
+                    );
+                  })}
+                  {order.items.length > 2 ? (
                     <p className="text-sm text-muted-foreground">
-                      +{order.items.length - 3} more item(s)
+                      +{order.items.length - 2} more item(s)
                     </p>
-                  )}
+                  ) : null}
                 </div>
 
                 <Separator className="my-4" />
 
-                <div className="flex items-center justify-between flex-wrap gap-2 sm:gap-0">
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                   <div>
-                    <span className="text-muted-foreground text-sm">
-                      Total:
-                    </span>{" "}
+                    <span className="text-muted-foreground text-sm">Total:</span>{" "}
                     <span
                       className="font-semibold text-lg"
                       data-testid={`text-order-total-${order.id}`}
                     >
-                      {formatPrice(order.totalAmount)}
+                      {formatPrice(order.finalAmount || order.totalAmount)}
                     </span>
                   </div>
 
-                  <Link to={`/user/orders/${order.id}`}>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      data-testid={`button-view-order-${order.id}`}
-                    >
-                      View Details
-                      <ChevronRight className="h-4 w-4 ml-1" />
-                    </Button>
-                  </Link>
+                  <div className="flex flex-col sm:flex-row gap-2 sm:items-center">
+                    {(() => {
+                      const isReturnWindowOpen = order.returnEligibleUntil
+                        ? new Date(order.returnEligibleUntil).getTime() >= Date.now()
+                        : true;
+                      const showReturnExchange =
+                        order.status === "delivered" && isReturnWindowOpen && !hasReturnOrExchange;
+                      return showReturnExchange ? (
+                        <Link to={`/user/orders/${order.id}`} className="w-full sm:w-auto">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="w-full sm:w-auto"
+                          >
+                            Return / Exchange
+                          </Button>
+                        </Link>
+                      ) : null;
+                    })()}
+
+                    {order.trackingNumber ? (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="w-full sm:w-auto"
+                        onClick={() => handleCopyTracking(order.trackingNumber!)}
+                      >
+                        Copy tracking
+                      </Button>
+                    ) : null}
+
+                    {order.paymentStatus === "paid" ? (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="w-full sm:w-auto"
+                        onClick={() => handleDownloadInvoice(order.id)}
+                      >
+                        Download invoice
+                      </Button>
+                    ) : null}
+
+                    <Link to={`/user/orders/${order.id}`} className="w-full sm:w-auto">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="w-full sm:w-auto"
+                        data-testid={`button-view-order-${order.id}`}
+                      >
+                        View Details
+                        <ChevronRight className="h-4 w-4 ml-1" />
+                      </Button>
+                    </Link>
+                  </div>
                 </div>
               </div>
             </Card>

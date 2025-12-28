@@ -479,19 +479,30 @@ export default function OrderDetail() {
     orderSteps.findIndex((s) => s.key === (order.status as any))
   );
 
-  const returnForThisOrder = (userReturns || []).find((r) => r.orderId === order.id);
-  const activeReturnStepIndex = returnForThisOrder
-    ? Math.max(0, returnSteps.findIndex((s) => s.key === (returnForThisOrder.status as any)))
+  const returnsForThisOrder = (userReturns || [])
+    .filter((r) => r.orderId === order.id)
+    .slice()
+    .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
+
+  const latestReturnForThisOrder = returnsForThisOrder.length > 0 ? returnsForThisOrder[0] : undefined;
+  const hasReturnOrExchange = returnsForThisOrder.length > 0;
+  const activeReturnStepIndex = latestReturnForThisOrder
+    ? Math.max(0, returnSteps.findIndex((s) => s.key === (latestReturnForThisOrder.status as any)))
     : 0;
 
-  const returnBadge = returnForThisOrder
-    ? returnStatusConfig[returnForThisOrder.status] || returnStatusConfig.requested
+  const returnedOrderItemIds = new Set<string>();
+  for (const rr of returnsForThisOrder) {
+    for (const ri of rr.items || []) {
+      returnedOrderItemIds.add(ri.orderItemId);
+    }
+  }
+  const isPartialReturn =
+    returnedOrderItemIds.size > 0 &&
+    returnedOrderItemIds.size < (order.items?.length || 0);
+
+  const returnBadge = latestReturnForThisOrder
+    ? returnStatusConfig[latestReturnForThisOrder.status] || returnStatusConfig.requested
     : null;
-  const DisplayBadgeIcon = returnBadge ? returnBadge.icon : StatusIcon;
-  const displayBadgeClass = returnBadge ? returnBadge.color : status.color;
-  const displayBadgeLabel = returnBadge
-    ? returnBadge.label
-    : status.label;
 
   const orderTimeline = (orderHistory || [])
     .slice()
@@ -509,15 +520,15 @@ export default function OrderDetail() {
     });
 
   const getReturnStatusDate = (status: string) => {
-    if (!returnForThisOrder) return undefined;
-    if (status === "pickup_scheduled") return (returnForThisOrder as any).pickupScheduledAt;
-    if (status === "picked_up") return (returnForThisOrder as any).pickedUpAt;
-    if (status === "received") return (returnForThisOrder as any).receivedAt;
-    if (status === "requested") return returnForThisOrder.createdAt;
-    return returnForThisOrder.updatedAt;
+    if (!latestReturnForThisOrder) return undefined;
+    if (status === "pickup_scheduled") return (latestReturnForThisOrder as any).pickupScheduledAt;
+    if (status === "picked_up") return (latestReturnForThisOrder as any).pickedUpAt;
+    if (status === "received") return (latestReturnForThisOrder as any).receivedAt;
+    if (status === "requested") return latestReturnForThisOrder.createdAt;
+    return latestReturnForThisOrder.updatedAt;
   };
 
-  const returnTimeline = returnForThisOrder
+  const returnTimeline = latestReturnForThisOrder
     ? (
         [
           "requested",
@@ -543,13 +554,73 @@ export default function OrderDetail() {
         })
     : [];
 
-  const refundForThisOrder = (userRefunds || []).find((refund) => {
-    if (refund.orderId !== order.id) return false;
-    if (returnForThisOrder?.id && refund.returnRequestId) {
-      return refund.returnRequestId === returnForThisOrder.id;
+  const refundByReturnRequestId = new Map<string, Refund>();
+  for (const rf of userRefunds || []) {
+    if (rf.returnRequestId) refundByReturnRequestId.set(rf.returnRequestId, rf);
+  }
+
+  const refundForThisOrder = latestReturnForThisOrder
+    ? refundByReturnRequestId.get(latestReturnForThisOrder.id) || (userRefunds || []).find((rf) => rf.orderId === order.id)
+    : (userRefunds || []).find((rf) => rf.orderId === order.id);
+
+  const itemStatusByOrderItemId = new Map<string, { label: string; color: string; updatedAt: string | Date }>();
+  for (const rr of returnsForThisOrder) {
+    for (const ri of rr.items || []) {
+      const existing = itemStatusByOrderItemId.get(ri.orderItemId);
+      const rrUpdated = rr.updatedAt || rr.createdAt;
+      if (!existing || new Date(rrUpdated).getTime() > new Date(existing.updatedAt).getTime()) {
+        const isExchange = rr.resolution === "exchange";
+        const base = isExchange ? "Exchange" : "Return";
+        const label =
+          rr.status === "completed"
+            ? `${base} Completed`
+            : rr.status === "rejected"
+              ? `${base} Rejected`
+              : rr.status === "pickup_scheduled"
+                ? `${base} Pickup Scheduled`
+                : rr.status === "picked_up"
+                  ? `${base} Picked Up`
+                  : rr.status === "received"
+                    ? `${base} Received`
+                    : rr.status === "approved"
+                      ? `${base} Approved`
+                      : rr.status === "cancelled"
+                        ? `${base} Cancelled`
+                        : `${base} Requested`;
+
+        const color =
+          rr.status === "completed"
+            ? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-100"
+            : rr.status === "rejected"
+              ? "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-100"
+              : isExchange
+                ? "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-100"
+                : "bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-100";
+
+        itemStatusByOrderItemId.set(ri.orderItemId, { label, color, updatedAt: rrUpdated });
+
+        const refund = !isExchange ? refundByReturnRequestId.get(rr.id) : undefined;
+        if (refund) {
+          const refundUpdated = refund.completedAt || refund.initiatedAt || refund.createdAt;
+          if (refundUpdated && new Date(refundUpdated).getTime() >= new Date(rrUpdated).getTime()) {
+            const refundLabel =
+              refund.status === "completed"
+                ? "Refunded"
+                : refund.status === "failed"
+                  ? "Refund Failed"
+                  : "Refund Processing";
+            const refundColor =
+              refund.status === "completed"
+                ? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-100"
+                : refund.status === "failed"
+                  ? "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-100"
+                  : "bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-100";
+            itemStatusByOrderItemId.set(ri.orderItemId, { label: refundLabel, color: refundColor, updatedAt: refundUpdated });
+          }
+        }
+      }
     }
-    return true;
-  });
+  }
 
   const refundBadge = refundForThisOrder
     ? refundStatusConfig[refundForThisOrder.status] || refundStatusConfig.pending
@@ -613,10 +684,6 @@ export default function OrderDetail() {
           </p>
         </div>
         <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2">
-          <Badge className={displayBadgeClass}>
-            <DisplayBadgeIcon className="h-3 w-3 mr-1" />
-            {displayBadgeLabel}
-          </Badge>
           <Button
             variant="outline"
             size="sm"
@@ -668,15 +735,15 @@ export default function OrderDetail() {
               )}
             </div>
 
-            {returnForThisOrder ? (
+            {latestReturnForThisOrder ? (
               <div>
                 <h4 className="font-semibold mb-3">
-                  {returnForThisOrder.resolution === "exchange" ? "Exchange timeline" : "Return / Refund timeline"}
+                  {latestReturnForThisOrder.resolution === "exchange" ? "Exchange timeline" : "Return / Refund timeline"}
                 </h4>
                 <div className="space-y-4">
                   {returnTimeline.map((t, idx) => {
                     const Icon = t.icon;
-                    const isCurrent = t.key === returnForThisOrder.status;
+                    const isCurrent = t.key === latestReturnForThisOrder.status;
                     return (
                       <div key={t.key} className="flex gap-3">
                         <div className="flex flex-col items-center">
@@ -707,7 +774,7 @@ export default function OrderDetail() {
               </div>
             ) : null}
 
-            {refundForThisOrder && returnForThisOrder?.resolution !== "exchange" ? (
+            {refundForThisOrder && latestReturnForThisOrder?.resolution !== "exchange" ? (
               <div>
                 <h4 className="font-semibold mb-3">Refund status</h4>
                 <div className="space-y-2 text-sm">
@@ -904,7 +971,7 @@ export default function OrderDetail() {
         );
 
         const refundStatusCard =
-          refundForThisOrder && returnForThisOrder?.resolution !== "exchange" ? (
+          refundForThisOrder && latestReturnForThisOrder?.resolution !== "exchange" ? (
             <Card className="p-4">
               <div className="flex items-start justify-between gap-3">
                 <div>
@@ -1010,7 +1077,18 @@ export default function OrderDetail() {
           order.status === "delivered" ? (
             <Card className="p-4">
               <h3 className="font-semibold mb-2">Need Help?</h3>
-              {eligibility?.eligible ? (
+              {hasReturnOrExchange ? (
+                <>
+                  <p className="text-sm text-muted-foreground mb-4">
+                    You already have a return/exchange request for this order.
+                  </p>
+                  <Link to="/user/returns" className="w-full">
+                    <Button variant="outline" className="w-full">
+                      View return requests
+                    </Button>
+                  </Link>
+                </>
+              ) : eligibility?.eligible ? (
                 <>
                   <p className="text-sm text-muted-foreground mb-4">
                     You can return or exchange items within the return window.
@@ -1038,10 +1116,6 @@ export default function OrderDetail() {
               <Card className="p-4">
             <div className="flex items-center justify-between gap-4 mb-4">
               <h3 className="font-semibold">Ordered items</h3>
-              <Badge className={displayBadgeClass}>
-                <DisplayBadgeIcon className="h-3 w-3 mr-1" />
-                {displayBadgeLabel}
-              </Badge>
             </div>
 
             <div className="space-y-3">
@@ -1069,6 +1143,16 @@ export default function OrderDetail() {
                         {item.saree.name}
                       </h4>
                     </Link>
+                    {(() => {
+                      const itemStatus = itemStatusByOrderItemId.get(item.id);
+                      const fallback = { label: status.label, color: status.color, updatedAt: order.updatedAt };
+                      const displayStatus = itemStatus || fallback;
+                      return (
+                        <div className="mt-2">
+                          <Badge className={displayStatus.color}>{displayStatus.label}</Badge>
+                        </div>
+                      );
+                    })()}
                     <div className="mt-1 text-sm text-muted-foreground space-y-0.5">
                       {item.saree.color ? <p>Color: {item.saree.color.name}</p> : null}
                       <p>Qty: {item.quantity}</p>
