@@ -56,7 +56,7 @@ import { useAuth } from "@/lib/auth";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
-import type { Coupon } from "@shared/schema";
+import type { CouponWithUsage } from "@shared/schema";
 
 const navItems = [
   { icon: LayoutDashboard, label: "Dashboard", href: "/admin/dashboard" },
@@ -93,7 +93,7 @@ export default function AdminCoupons() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
-  const [editingCoupon, setEditingCoupon] = useState<Coupon | null>(null);
+  const [editingCoupon, setEditingCoupon] = useState<CouponWithUsage | null>(null);
   const [deletingCouponId, setDeletingCouponId] = useState<string | null>(null);
   const [formData, setFormData] = useState<CouponFormData>({
     code: "",
@@ -107,7 +107,7 @@ export default function AdminCoupons() {
     isActive: true,
   });
 
-  const { data: coupons, isLoading } = useQuery<Coupon[]>({
+  const { data: coupons, isLoading } = useQuery<CouponWithUsage[]>({
     queryKey: ["/api/admin/coupons"],
     enabled: !!user && user.role === "admin",
   });
@@ -206,7 +206,7 @@ export default function AdminCoupons() {
     setDialogOpen(true);
   };
 
-  const handleOpenEdit = (coupon: Coupon) => {
+  const handleOpenEdit = (coupon: CouponWithUsage) => {
     setEditingCoupon(coupon);
     setFormData({
       code: coupon.code,
@@ -214,10 +214,10 @@ export default function AdminCoupons() {
       value: coupon.value,
       minOrderAmount: coupon.minOrderAmount || "",
       maxDiscount: coupon.maxDiscount || "",
-      maxUsageLimit: coupon.maxUsageLimit?.toString() || "",
+      maxUsageLimit: coupon.usageLimit?.toString() || "",
       perUserLimit: coupon.perUserLimit?.toString() || "1",
-      expiresAt: coupon.expiresAt
-        ? new Date(coupon.expiresAt).toISOString().split("T")[0]
+      expiresAt: coupon.validUntil
+        ? new Date(coupon.validUntil).toISOString().split("T")[0]
         : "",
       isActive: coupon.isActive,
     });
@@ -368,11 +368,11 @@ export default function AdminCoupons() {
                       <TableCell>
                         <span className="text-sm">
                           {coupon.usageCount || 0} /{" "}
-                          {coupon.maxUsageLimit || "∞"}
+                          {coupon.usageLimit || "∞"}
                         </span>
                       </TableCell>
                       <TableCell className="text-sm text-muted-foreground">
-                        {formatDate(coupon.expiresAt)}
+                        {formatDate(coupon.validUntil)}
                       </TableCell>
                       <TableCell>
                         <Badge
