@@ -199,11 +199,11 @@ const orderSteps: {
   key: (typeof orderStepOrder)[number];
   label: string;
 }[] = [
-  { key: "pending", label: "Order Placed" },
-  { key: "confirmed", label: "Confirmed" },
-  { key: "shipped", label: "Shipped" },
-  { key: "delivered", label: "Delivered" },
-];
+    { key: "pending", label: "Order Placed" },
+    { key: "confirmed", label: "Confirmed" },
+    { key: "shipped", label: "Shipped" },
+    { key: "delivered", label: "Delivered" },
+  ];
 
 const returnSteps = [
   { key: "requested", label: "Return Requested" },
@@ -530,28 +530,28 @@ export default function OrderDetail() {
 
   const returnTimeline = latestReturnForThisOrder
     ? (
-        [
-          "requested",
-          "approved",
-          "rejected",
-          "pickup_scheduled",
-          "picked_up",
-          "received",
-          "inspected",
-          "completed",
-          "cancelled",
-        ] as const
-      )
-        .filter((s) => returnStatusConfig[s])
-        .map((s) => {
-          const cfg = returnStatusConfig[s];
-          return {
-            key: s,
-            icon: cfg.icon,
-            label: cfg.label,
-            date: getReturnStatusDate(s),
-          };
-        })
+      [
+        "requested",
+        "approved",
+        "rejected",
+        "pickup_scheduled",
+        "picked_up",
+        "received",
+        "inspected",
+        "completed",
+        "cancelled",
+      ] as const
+    )
+      .filter((s) => returnStatusConfig[s])
+      .map((s) => {
+        const cfg = returnStatusConfig[s];
+        return {
+          key: s,
+          icon: cfg.icon,
+          label: cfg.label,
+          date: getReturnStatusDate(s),
+        };
+      })
     : [];
 
   const refundByReturnRequestId = new Map<string, Refund>();
@@ -1114,66 +1114,58 @@ export default function OrderDetail() {
           <div className="grid gap-6 lg:grid-cols-12">
             <div className="lg:col-span-8 space-y-4 sm:space-y-6">
               <Card className="p-4">
-            <div className="flex items-center justify-between gap-4 mb-4">
-              <h3 className="font-semibold">Ordered items</h3>
-            </div>
-
-            <div className="space-y-3">
-              {order.items.map((item) => (
-                <div
-                  key={item.id}
-                  className="flex flex-col sm:flex-row gap-4 p-3 rounded-lg border bg-card hover:bg-muted/30 transition-colors"
-                >
-                  <Link to={`/sarees/${item.saree.id}`} className="flex-shrink-0">
-                    <div className="w-20 h-24 rounded-md overflow-hidden bg-muted">
-                      <img
-                        src={
-                          item.saree.imageUrl ||
-                          "https://images.unsplash.com/photo-1610030469983-98e550d6193c?w=100&h=150&fit=crop"
-                        }
-                        alt={item.saree.name}
-                        className="w-full h-full object-cover"
-                      />
-                    </div>
-                  </Link>
-
-                  <div className="flex-1 min-w-0">
-                    <Link to={`/sarees/${item.saree.id}`}>
-                      <h4 className="font-medium hover:text-primary line-clamp-1">
-                        {item.saree.name}
-                      </h4>
-                    </Link>
-                    {(() => {
-                      const itemStatus = itemStatusByOrderItemId.get(item.id);
-                      const fallback = { label: status.label, color: status.color, updatedAt: order.updatedAt };
-                      const displayStatus = itemStatus || fallback;
-                      return (
-                        <div className="mt-2">
-                          <Badge className={displayStatus.color}>{displayStatus.label}</Badge>
-                        </div>
-                      );
-                    })()}
-                    <div className="mt-1 text-sm text-muted-foreground space-y-0.5">
-                      {item.saree.color ? <p>Color: {item.saree.color.name}</p> : null}
-                      <p>Qty: {item.quantity}</p>
-                    </div>
-                    <p className="font-semibold text-primary mt-2">
-                      {formatPrice(item.price)}
-                    </p>
-                  </div>
-
-                  <div className="flex flex-col sm:items-end justify-between gap-2">
-                    {order.status === "delivered" ? <WriteReview saree={item.saree} /> : null}
-                    <Link to={`/sarees/${item.saree.id}`} className="w-full sm:w-auto">
-                      <Button variant="ghost" size="sm" className="w-full sm:w-auto">
-                        View product
-                      </Button>
-                    </Link>
-                  </div>
+                <div className="flex items-center justify-between gap-4 mb-4">
+                  <h3 className="font-semibold">Ordered items</h3>
                 </div>
-              ))}
-            </div>
-          </Card>
+
+                <div className="space-y-3">
+                  {order.items.map((item) => (
+                    <div
+                      key={item.id}
+                      className="flex flex-col sm:flex-row gap-4 p-3 rounded-lg border bg-card hover:bg-muted/30 transition-colors"
+                    >
+                      <Link to={`/sarees/${item.saree.id}`} className="flex-shrink-0">
+                        <div className="w-20 h-24 rounded-md overflow-hidden bg-muted">
+                          <img
+                            src={
+                              item.saree.imageUrl ||
+                              "https://images.unsplash.com/photo-1610030469983-98e550d6193c?w=100&h=150&fit=crop"
+                            }
+                            alt={item.saree.name}
+                            className="w-full h-full object-cover"
+                          />
+                        </div>
+                      </Link>
+
+                      <div className="flex-1 min-w-0">
+                        <Link to={`/sarees/${item.saree.id}`}>
+                          <h4 className="font-medium hover:text-primary line-clamp-1">
+                            {item.saree.name}
+                          </h4>
+                        </Link>
+
+                        <div className="mt-1 text-sm text-muted-foreground space-y-0.5">
+                          <p>Qty: {item.quantity}</p>
+                        </div>
+                        <p className="font-semibold text-primary mt-2">
+                          {formatPrice(item.price)}
+                        </p>
+                      </div>
+                      {(() => {
+                        const itemStatus = itemStatusByOrderItemId.get(item.id);
+                        const fallback = { label: status.label, color: status.color, updatedAt: order.updatedAt };
+                        const displayStatus = itemStatus || fallback;
+                        return (
+                          <div >
+                            <Badge className={displayStatus.color}>{displayStatus.label}</Badge>
+                          </div>
+                        );
+                      })()}
+
+                    </div>
+                  ))}
+                </div>
+              </Card>
             </div>
 
             <div className="lg:col-span-4">
