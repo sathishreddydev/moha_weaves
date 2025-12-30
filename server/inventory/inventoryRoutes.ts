@@ -600,13 +600,46 @@ export const inventoryRoutes = (app: Express) => {
                 returnRequest.orderId
               );
               if (originalOrder) {
+                // Restore stock for returned items if restockable (exchange flow too)
+                for (const item of returnRequest.items) {
+                  if (item.isRestockable) {
+                    await storage.restoreStockFromReturn(
+                      item.orderItem.sareeId,
+                      item.quantity,
+                      returnRequest.orderId
+                    );
+                  }
+                }
+
+                const exchangeOrderItems: { sareeId: string; quantity: number; price: string }[] = [];
+                let exchangeTotal = 0;
+
+                for (const item of returnRequest.items) {
+                  const targetSareeId =
+                    (item as any).exchangeSareeId || item.orderItem.sareeId;
+
+                  const targetSaree = await sareeService.getSaree(targetSareeId);
+                  if (!targetSaree) {
+                    return res.status(400).json({
+                      message: "Exchange product not found for one of the items",
+                    });
+                  }
+
+                  exchangeOrderItems.push({
+                    sareeId: targetSareeId,
+                    quantity: item.quantity,
+                    price: targetSaree.price,
+                  });
+                  exchangeTotal += Number(targetSaree.price) * Number(item.quantity || 0);
+                }
+
                 // Create exchange order with same items
                 const exchangeOrder = await orderService.createOrder(
                   {
                     userId: returnRequest.userId,
-                    totalAmount: returnRequest.refundAmount || "0",
+                    totalAmount: exchangeTotal.toFixed(2),
                     discountAmount: "0",
-                    finalAmount: returnRequest.refundAmount || "0",
+                    finalAmount: exchangeTotal.toFixed(2),
                     status: "confirmed",
                     paymentStatus: "paid",
                     paymentMethod: "razorpay", // Exchange orders are treated as pre-paid
@@ -617,11 +650,7 @@ export const inventoryRoutes = (app: Express) => {
                       8
                     )}`,
                   },
-                  returnRequest.items.map((item) => ({
-                    sareeId: item.orderItem.sareeId,
-                    quantity: item.quantity,
-                    price: item.orderItem.price,
-                  }))
+                  exchangeOrderItems
                 );
 
                 // Link exchange order to return request

@@ -9,7 +9,6 @@ import {
   XCircle,
   RotateCcw,
   Star,
-  ArrowLeftRight,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -30,6 +29,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { ReusableDialog } from "@/components/common/ReusableDialog";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import {
@@ -39,12 +39,13 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/lib/auth";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
-import type { OrderWithItems, OrderStatusHistory, ReturnRequestWithDetails, Refund } from "@shared/schema";
+import type { OrderWithItems, OrderStatusHistory, ReturnRequestWithDetails, Refund, SareeWithDetails } from "@shared/schema";
 import { WriteReview } from "@/components/product/WriteReview";
 
 const statusConfig: Record<
@@ -213,72 +214,6 @@ const returnSteps = [
   { key: "completed", label: "Completed" },
 ] as const;
 
-const getStepIndex = (current: string | null | undefined, ordered: readonly string[]) => {
-  if (!current) return 0;
-  const idx = ordered.indexOf(current);
-  return idx >= 0 ? idx : 0;
-};
-
-function StatusStepper(props: {
-  title: string;
-  steps: ReadonlyArray<{ label: string }>;
-  activeIndex: number;
-  subtitle?: string;
-}) {
-  const { title, steps, activeIndex, subtitle } = props;
-  return (
-    <Card className="p-4">
-      <div className="flex items-start justify-between gap-4">
-        <div>
-          <h3 className="font-semibold">{title}</h3>
-          {subtitle ? (
-            <p className="text-sm text-muted-foreground mt-1">{subtitle}</p>
-          ) : null}
-        </div>
-      </div>
-
-      <div className="mt-4">
-        <div className="flex items-center gap-3">
-          {steps.map((step, idx) => {
-            const isDone = idx < activeIndex;
-            const isActive = idx === activeIndex;
-            return (
-              <div key={step.label} className="flex items-center flex-1 min-w-0">
-                <div className="flex items-center gap-2 min-w-0">
-                  <div
-                    className={
-                      "h-6 w-6 rounded-full flex items-center justify-center border " +
-                      (isDone
-                        ? "bg-primary border-primary text-primary-foreground"
-                        : isActive
-                          ? "border-primary text-primary"
-                          : "border-muted-foreground/30 text-muted-foreground")
-                    }
-                  >
-                    {isDone ? <CheckCircle className="h-4 w-4" /> : <span className="text-xs">{idx + 1}</span>}
-                  </div>
-                  <div className="min-w-0">
-                    <p
-                      className={
-                        "text-xs sm:text-sm truncate " +
-                        (isDone ? "text-foreground" : isActive ? "text-primary font-medium" : "text-muted-foreground")
-                      }
-                    >
-                      {step.label}
-                    </p>
-                  </div>
-                </div>
-                {idx < steps.length - 1 ? (
-                  <div className={"h-[2px] flex-1 mx-3 " + (idx < activeIndex ? "bg-primary" : "bg-muted")} />
-                ) : null}
-              </div>
-            );
-          })}
-        </div>
-      </div>
-    </Card>
-  );
-}
 
 export default function OrderDetail() {
   const { id } = useParams<{ id: string }>();
@@ -296,10 +231,35 @@ export default function OrderDetail() {
   const [selectedItems, setSelectedItems] = useState<
     Record<string, { selected: boolean; quantity: number }>
   >({});
+  const [exchangeSearch, setExchangeSearch] = useState("");
+  const [exchangeByOrderItemId, setExchangeByOrderItemId] = useState<
+    Record<string, string>
+  >({});
+  const [modalItemId, setModalItemId] = useState<string | null>(null);
 
   const { data: order, isLoading } = useQuery<OrderWithItems>({
     queryKey: ["/api/user/orders", id],
     enabled: !!user && !!id,
+  });
+
+  const { data: exchangeOptions, isLoading: exchangeOptionsLoading } = useQuery<
+    SareeWithDetails[]
+  >({
+    queryKey: ["exchange-options", exchangeSearch],
+    queryFn: async () => {
+      const res = await fetch("/api/getSarees", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          search: exchangeSearch,
+          limit: 20,
+        }),
+      });
+      if (!res.ok) throw new Error("Failed to fetch products");
+      return res.json();
+    },
+    enabled: showReturnDialog && resolutionType === "exchange",
+    placeholderData: (prev) => prev,
   });
 
   const { data: orderHistory } = useQuery<OrderStatusHistory[]>({
@@ -401,12 +361,17 @@ export default function OrderDetail() {
   };
 
   const handleReturnSubmit = () => {
+    const orderItemById = new Map(order?.items?.map((it) => [it.id, it]) || []);
     const items = Object.entries(selectedItems)
       .filter(([_, v]) => v.selected)
       .map(([orderItemId, v]) => ({
         orderItemId,
         quantity: v.quantity,
         reason: returnReason,
+        exchangeSareeId:
+          resolutionType === "exchange"
+            ? orderItemById.get(orderItemId)?.saree?.id || null
+            : null,
       }));
 
     if (items.length === 0) {
@@ -426,12 +391,77 @@ export default function OrderDetail() {
     });
   };
 
+  const openReturnExchangeModal = (
+    mode: "refund" | "exchange",
+    preselectOrderItemId?: string
+  ) => {
+    setResolutionType(mode);
+
+    setReturnReason("");
+    setReturnDescription("");
+    setExchangeSearch("");
+    setExchangeByOrderItemId({});
+    setModalItemId(preselectOrderItemId || null);
+
+    if (order?.items) {
+      setSelectedItems(() => {
+        const next: Record<string, { selected: boolean; quantity: number }> = {};
+        for (const item of order.items) {
+          const remainingQty = Number(
+            remainingQtyByOrderItemId.get(String(item.id)) ?? item.quantity
+          );
+
+          if (preselectOrderItemId) {
+            const isTarget = item.id === preselectOrderItemId;
+            next[item.id] = {
+              selected: isTarget && remainingQty > 0,
+              quantity: isTarget ? remainingQty : 0,
+            };
+            continue;
+          }
+
+          // If opened from CTA, start with no selection.
+          next[item.id] = { selected: false, quantity: 0 };
+        }
+        return next;
+      });
+    }
+
+    setShowReturnDialog(true);
+  };
+
+  const selectAllItemsForReturnExchange = () => {
+    if (!order?.items) return;
+    setSelectedItems(() => {
+      const next: Record<string, { selected: boolean; quantity: number }> = {};
+      for (const item of order.items) {
+        const remainingQty = Number(
+          remainingQtyByOrderItemId.get(String(item.id)) ?? item.quantity
+        );
+        const locked = activeOrderItemIds.has(String(item.id));
+        next[item.id] = {
+          selected: !locked && remainingQty > 0,
+          quantity: !locked && remainingQty > 0 ? remainingQty : 0,
+        };
+      }
+      return next;
+    });
+  };
+
+  const setExchangeForItem = (orderItemId: string, sareeId: string) => {
+    setExchangeByOrderItemId((prev) => ({ ...prev, [orderItemId]: sareeId }));
+  };
+
   const toggleItemSelection = (itemId: string, maxQty: number) => {
+    const locked = activeOrderItemIds.has(String(itemId));
+    const remainingQty = Number(remainingQtyByOrderItemId.get(String(itemId)) ?? maxQty);
+    if (locked || remainingQty <= 0) return;
+
     setSelectedItems((prev) => ({
       ...prev,
       [itemId]: prev[itemId]?.selected
         ? { selected: false, quantity: 0 }
-        : { selected: true, quantity: maxQty },
+        : { selected: true, quantity: remainingQty },
     }));
   };
 
@@ -472,23 +502,69 @@ export default function OrderDetail() {
   }
 
   const status = statusConfig[order.status] || statusConfig.pending;
-  const StatusIcon = status.icon;
 
-  const activeOrderStepIndex = Math.max(
-    0,
-    orderSteps.findIndex((s) => s.key === (order.status as any))
+  const returnsForThisOrder = (userReturns || []).filter(
+    (r: ReturnRequestWithDetails) => r.orderId === id
   );
 
-  const returnsForThisOrder = (userReturns || [])
-    .filter((r) => r.orderId === order.id)
-    .slice()
-    .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
-
   const latestReturnForThisOrder = returnsForThisOrder.length > 0 ? returnsForThisOrder[0] : undefined;
-  const hasReturnOrExchange = returnsForThisOrder.length > 0;
-  const activeReturnStepIndex = latestReturnForThisOrder
-    ? Math.max(0, returnSteps.findIndex((s) => s.key === (latestReturnForThisOrder.status as any)))
-    : 0;
+  const inProgressReturnStatuses = [
+    "requested",
+    "approved",
+    "pickup_scheduled",
+    "picked_up",
+    "in_transit",
+    "received",
+    "inspected",
+  ] as const;
+
+
+  const hasAnyReturnOrExchange = returnsForThisOrder.length > 0;
+
+  const hasActiveExchange = returnsForThisOrder.some(
+    (r: ReturnRequestWithDetails) =>
+      r.resolution === "exchange" &&
+      inProgressReturnStatuses.includes(r.status as any)
+  );
+
+  const activeOrderItemIds = new Set<string>();
+  for (const rr of returnsForThisOrder) {
+    if (!inProgressReturnStatuses.includes(rr.status as any)) continue;
+    for (const item of rr.items || []) {
+      activeOrderItemIds.add(String(item.orderItemId));
+    }
+  }
+
+  const activeAndCompletedStatuses = [
+    "requested",
+    "approved",
+    "pickup_scheduled",
+    "picked_up",
+    "in_transit",
+    "received",
+    "inspected",
+    "completed",
+  ] as const;
+
+  const returnedQtyByOrderItemId = new Map<string, number>();
+  for (const rr of returnsForThisOrder) {
+    if (!activeAndCompletedStatuses.includes(rr.status as any)) continue;
+    for (const ri of rr.items || []) {
+      const key = String(ri.orderItemId);
+      returnedQtyByOrderItemId.set(
+        key,
+        (returnedQtyByOrderItemId.get(key) || 0) + Number(ri.quantity || 0)
+      );
+    }
+  }
+
+  const remainingQtyByOrderItemId = new Map<string, number>();
+  for (const item of order.items || []) {
+    const purchasedQty = Number(item.quantity || 0);
+    const returnedQty = Number(returnedQtyByOrderItemId.get(String(item.id)) || 0);
+    remainingQtyByOrderItemId.set(String(item.id), Math.max(0, purchasedQty - returnedQty));
+  }
+
 
   const returnedOrderItemIds = new Set<string>();
   for (const rr of returnsForThisOrder) {
@@ -496,13 +572,6 @@ export default function OrderDetail() {
       returnedOrderItemIds.add(ri.orderItemId);
     }
   }
-  const isPartialReturn =
-    returnedOrderItemIds.size > 0 &&
-    returnedOrderItemIds.size < (order.items?.length || 0);
-
-  const returnBadge = latestReturnForThisOrder
-    ? returnStatusConfig[latestReturnForThisOrder.status] || returnStatusConfig.requested
-    : null;
 
   const orderTimeline = (orderHistory || [])
     .slice()
@@ -1077,30 +1146,19 @@ export default function OrderDetail() {
           order.status === "delivered" ? (
             <Card className="p-4">
               <h3 className="font-semibold mb-2">Need Help?</h3>
-              {hasReturnOrExchange ? (
+              {eligibility?.eligible ? (
                 <>
                   <p className="text-sm text-muted-foreground mb-4">
-                    You already have a return/exchange request for this order.
+                    You can return or exchange eligible items within the return window.
                   </p>
-                  <Link to="/user/returns" className="w-full">
-                    <Button variant="outline" className="w-full">
-                      View return requests
-                    </Button>
-                  </Link>
-                </>
-              ) : eligibility?.eligible ? (
-                <>
-                  <p className="text-sm text-muted-foreground mb-4">
-                    You can return or exchange items within the return window.
-                  </p>
-                  <Button
-                    onClick={() => setShowReturnDialog(true)}
-                    className="w-full"
-                    data-testid="button-return-exchange"
-                  >
-                    <RotateCcw className="h-4 w-4 mr-2" />
-                    Return / Exchange
-                  </Button>
+                  {hasAnyReturnOrExchange ? (
+                    <Link to="/user/returns" className="w-full">
+                      <Button variant="outline" className="w-full mb-2">
+                        View return requests
+                      </Button>
+                    </Link>
+                  ) : null}
+
                 </>
               ) : (
                 <p className="text-sm text-muted-foreground">
@@ -1161,6 +1219,30 @@ export default function OrderDetail() {
                           </div>
                         );
                       })()}
+
+                      {eligibility?.eligible ? (
+                        <div className="flex gap-2">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => openReturnExchangeModal("refund", item.id)}
+                            disabled={activeOrderItemIds.has(String(item.id))}
+                          >
+                            Return
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => openReturnExchangeModal("exchange", item.id)}
+                            disabled={
+                              hasActiveExchange ||
+                              activeOrderItemIds.has(String(item.id))
+                            }
+                          >
+                            Exchange
+                          </Button>
+                        </div>
+                      ) : null}
 
                     </div>
                   ))}
@@ -1226,112 +1308,21 @@ export default function OrderDetail() {
         );
       })()}
 
-      <Dialog open={showReturnDialog} onOpenChange={setShowReturnDialog}>
-        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>Return / Exchange Request</DialogTitle>
-            <DialogDescription>
-              Select the items you want to return or exchange.
-            </DialogDescription>
-          </DialogHeader>
-
-          <div className="space-y-4">
-            <div>
-              <Label>Resolution Type</Label>
-              <Select
-                value={resolutionType}
-                onValueChange={(v) => setResolutionType(v as any)}
-              >
-                <SelectTrigger data-testid="select-resolution-type">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="refund">
-                    <div className="flex items-center gap-2">
-                      <RotateCcw className="h-4 w-4" />
-                      Refund
-                    </div>
-                  </SelectItem>
-                  <SelectItem value="exchange">
-                    <div className="flex items-center gap-2">
-                      <ArrowLeftRight className="h-4 w-4" />
-                      Exchange
-                    </div>
-                  </SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div>
-              <Label>Reason for Return</Label>
-              <Select value={returnReason} onValueChange={setReturnReason}>
-                <SelectTrigger data-testid="select-return-reason">
-                  <SelectValue placeholder="Select a reason" />
-                </SelectTrigger>
-                <SelectContent>
-                  {returnReasons.map((reason) => (
-                    <SelectItem key={reason.value} value={reason.value}>
-                      {reason.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div>
-              <Label>Additional Details</Label>
-              <Textarea
-                value={returnDescription}
-                onChange={(e) => setReturnDescription(e.target.value)}
-                placeholder="Please provide more details..."
-                data-testid="input-return-description"
-              />
-            </div>
-
-            <div>
-              <Label className="mb-2 block">Select Items</Label>
-              <div className="space-y-2">
-                {order.items.map((item) => (
-                  <div
-                    key={item.id}
-                    className="flex items-center gap-3 p-2 border rounded-md"
-                  >
-                    <Checkbox
-                      checked={selectedItems[item.id]?.selected || false}
-                      onCheckedChange={() =>
-                        toggleItemSelection(item.id, item.quantity)
-                      }
-                      data-testid={`checkbox-item-${item.id}`}
-                    />
-                    <div className="w-10 h-12 rounded overflow-hidden bg-muted flex-shrink-0">
-                      <img
-                        src={
-                          item.saree.imageUrl ||
-                          "https://images.unsplash.com/photo-1610030469983-98e550d6193c?w=50&h=60&fit=crop"
-                        }
-                        alt={item.saree.name}
-                        className="w-full h-full object-cover"
-                      />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium line-clamp-1">
-                        {item.saree.name}
-                      </p>
-                      <p className="text-xs text-muted-foreground">
-                        Qty: {item.quantity}
-                      </p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-
-          <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => setShowReturnDialog(false)}
-            >
+      <ReusableDialog
+        open={showReturnDialog}
+        onOpenChange={(open) => {
+          setShowReturnDialog(open);
+          if (!open) setModalItemId(null);
+        }}
+        title={resolutionType === "exchange" ? "Exchange Request" : "Return Request"}
+        description={
+          resolutionType === "exchange"
+            ? "Select the items you want to exchange."
+            : "Select the items you want to return."
+        }
+        footer={
+          <>
+            <Button variant="outline" onClick={() => setShowReturnDialog(false)}>
               Cancel
             </Button>
             <Button
@@ -1339,13 +1330,109 @@ export default function OrderDetail() {
               disabled={!returnReason || createReturnMutation.isPending}
               data-testid="button-submit-return"
             >
-              {createReturnMutation.isPending
-                ? "Submitting..."
-                : "Submit Request"}
+              {createReturnMutation.isPending ? "Submitting..." : "Submit Request"}
             </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+          </>
+        }
+      >
+        <div className="space-y-4 max-h-[70vh] overflow-y-auto">
+          <div>
+            <Label>Reason</Label>
+            <Select value={returnReason} onValueChange={setReturnReason}>
+              <SelectTrigger data-testid="select-return-reason">
+                <SelectValue placeholder="Select a reason" />
+              </SelectTrigger>
+              <SelectContent>
+                {returnReasons.map((reason) => (
+                  <SelectItem key={reason.value} value={reason.value}>
+                    {reason.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div>
+            <Label>Additional Details</Label>
+            <Textarea
+              value={returnDescription}
+              onChange={(e) => setReturnDescription(e.target.value)}
+              placeholder="Please provide more details..."
+              data-testid="input-return-description"
+            />
+          </div>
+
+          <div>
+            <Label className="mb-2 block">Select Items</Label>
+            <div className="space-y-2">
+              {(modalItemId
+                ? order.items.filter((i) => i.id === modalItemId)
+                : order.items
+              ).map((item) => (
+                (() => {
+                  const locked = activeOrderItemIds.has(String(item.id));
+                  const remainingQty = Number(
+                    remainingQtyByOrderItemId.get(String(item.id)) ?? item.quantity
+                  );
+                  const disabled = locked || remainingQty <= 0;
+
+                  return (
+                    <div
+                      key={item.id}
+                      className="flex items-center gap-3 p-2 border rounded-md"
+                    >
+                      {modalItemId ? (
+                        <div className="w-4" />
+                      ) : (
+                        <Checkbox
+                          checked={selectedItems[item.id]?.selected || false}
+                          disabled={disabled}
+                          onCheckedChange={() =>
+                            toggleItemSelection(item.id, item.quantity)
+                          }
+                          data-testid={`checkbox-item-${item.id}`}
+                        />
+                      )}
+                      <div className="w-10 h-12 rounded overflow-hidden bg-muted flex-shrink-0">
+                        <img
+                          src={
+                            item.saree.imageUrl ||
+                            "https://images.unsplash.com/photo-1610030469983-98e550d6193c?w=50&h=60&fit=crop"
+                          }
+                          alt={item.saree.name}
+                          className="w-full h-full object-cover"
+                        />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium line-clamp-1">
+                          {item.saree.name}
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          Qty: {item.quantity} {remainingQty < item.quantity ? `(Remaining: ${remainingQty})` : null}
+                        </p>
+                        {locked ? (
+                          <p className="text-[11px] text-muted-foreground mt-1">
+                            This item already has a return/exchange in progress.
+                          </p>
+                        ) : remainingQty <= 0 ? (
+                          <p className="text-[11px] text-muted-foreground mt-1">
+                            No remaining quantity eligible for return/exchange.
+                          </p>
+                        ) : null}
+                        {resolutionType === "exchange" && selectedItems[item.id]?.selected ? (
+                          <p className="text-[11px] text-muted-foreground mt-1">
+                            Exchange will be processed for the same product.
+                          </p>
+                        ) : null}
+                      </div>
+                    </div>
+                  );
+                })()
+              ))}
+            </div>
+          </div>
+        </div>
+      </ReusableDialog>
     </div>
   );
 }

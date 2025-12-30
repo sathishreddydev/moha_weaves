@@ -6,6 +6,7 @@ export function ReusableDialog({
   onOpenChange,
   title,
   description,
+  headerRight,
   children,
   footer,
 }: BaseModalProps) {
@@ -16,9 +17,12 @@ export function ReusableDialog({
 
         <Dialog.Content className="fixed left-1/2 top-1/2 w-full max-w-lg -translate-x-1/2 -translate-y-1/2 rounded-xl bg-white shadow-lg flex flex-col">
           <div className="border-b px-6 py-4">
-            <Dialog.Title className="text-lg font-semibold">
-              {title}
-            </Dialog.Title>
+            <div className="flex items-start justify-between gap-3">
+              <Dialog.Title className="text-lg font-semibold">
+                {title}
+              </Dialog.Title>
+              {headerRight ? <div className="shrink-0">{headerRight}</div> : null}
+            </div>
 
             {description && (
               <Dialog.Description className="text-sm text-muted-foreground">

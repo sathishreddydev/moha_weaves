@@ -13,7 +13,7 @@ import {
   ReturnRequest,
   orders,
 } from "@shared/schema";
-import { eq, and, desc, inArray } from "drizzle-orm";
+import { eq, and, desc, inArray, sql } from "drizzle-orm";
 import { userService } from "server/auth/authStorage";
 import { db } from "server/db";
 import { orderService } from "server/order/orderStorage";
@@ -45,7 +45,47 @@ interface IStorage {
     orderId: string
   ): Promise<{ eligible: boolean; reason?: string }>;
 }
+
 export class ReturnRepo implements IStorage {
+  private readonly activeReturnStatuses = [
+    "requested",
+    "approved",
+    "pickup_scheduled",
+    "picked_up",
+    "in_transit",
+    "received",
+    "inspected",
+    "completed",
+  ] as const;
+
+  private async getReturnedQuantitiesByOrderItem(
+    orderId: string
+  ): Promise<Record<string, number>> {
+    const rows = await db
+      .select({
+        orderItemId: returnItems.orderItemId,
+        qty: sql<number>`sum(${returnItems.quantity})::int`,
+      })
+      .from(returnItems)
+      .innerJoin(
+        returnRequests,
+        eq(returnItems.returnRequestId, returnRequests.id)
+      )
+      .where(
+        and(
+          eq(returnRequests.orderId, orderId),
+          inArray(returnRequests.status, [...this.activeReturnStatuses])
+        )
+      )
+      .groupBy(returnItems.orderItemId);
+
+    const map: Record<string, number> = {};
+    for (const row of rows) {
+      map[String(row.orderItemId)] = Number(row.qty || 0);
+    }
+    return map;
+  }
+
   // Return Requests
   async getReturnRequests(filters?: {
     userId?: string;
@@ -252,28 +292,18 @@ export class ReturnRepo implements IStorage {
       return { eligible: false, reason: "Return window has expired" };
     }
 
-    const existingReturns = await db
-      .select()
-      .from(returnRequests)
-      .where(
-        and(
-          eq(returnRequests.orderId, orderId),
-          inArray(returnRequests.status, [
-            "requested",
-            "approved",
-            "pickup_scheduled",
-            "picked_up",
-            "received",
-            "inspected",
-            "completed",
-          ])
-        )
-      );
+    // Eligible if at least one order item still has remaining quantity not already covered by active returns
+    const returnedByItem = await this.getReturnedQuantitiesByOrderItem(orderId);
+    const hasRemaining = order.items.some((item: any) => {
+      const purchasedQty = Number(item.quantity || 0);
+      const returnedQty = Number(returnedByItem[String(item.id)] || 0);
+      return purchasedQty > returnedQty;
+    });
 
-    if (existingReturns.length > 0) {
+    if (!hasRemaining) {
       return {
         eligible: false,
-        reason: "A return request already exists for this order",
+        reason: "All items in this order have already been returned or exchanged",
       };
     }
 
@@ -281,5 +311,4 @@ export class ReturnRepo implements IStorage {
   }
 }
 
-
-export const returnService = new ReturnRepo()
+export const returnService = new ReturnRepo();

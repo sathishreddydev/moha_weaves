@@ -456,6 +456,7 @@ export const returnItems = pgTable("return_items", {
     .references(() => orderItems.id)
     .notNull(),
   quantity: integer("quantity").notNull(),
+  exchangeSareeId: varchar("exchange_saree_id").references(() => sarees.id),
   condition: text("condition"),
   isRestockable: boolean("is_restockable").default(true),
 });
@@ -910,6 +911,10 @@ export const returnItemsRelations = relations(returnItems, ({ one }) => ({
   orderItem: one(orderItems, {
     fields: [returnItems.orderItemId],
     references: [orderItems.id],
+  }),
+  exchangeSaree: one(sarees, {
+    fields: [returnItems.exchangeSareeId],
+    references: [sarees.id],
   }),
 }));
 
