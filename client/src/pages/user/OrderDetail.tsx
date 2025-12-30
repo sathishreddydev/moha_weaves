@@ -39,151 +39,13 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/lib/auth";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import type { OrderWithItems, OrderStatusHistory, ReturnRequestWithDetails, Refund, SareeWithDetails } from "@shared/schema";
-import { WriteReview } from "@/components/product/WriteReview";
-
-const statusConfig: Record<
-  string,
-  { icon: typeof Clock; label: string; color: string }
-> = {
-  pending: {
-    icon: Clock,
-    label: "Pending",
-    color:
-      "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-100",
-  },
-  confirmed: {
-    icon: CheckCircle,
-    label: "Confirmed",
-    color: "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-100",
-  },
-  processing: {
-    icon: Package,
-    label: "Processing",
-    color:
-      "bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-100",
-  },
-  shipped: {
-    icon: Truck,
-    label: "Shipped",
-    color:
-      "bg-indigo-100 text-indigo-800 dark:bg-indigo-900 dark:text-indigo-100",
-  },
-  delivered: {
-    icon: CheckCircle,
-    label: "Delivered",
-    color: "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-100",
-  },
-  cancelled: {
-    icon: XCircle,
-    label: "Cancelled",
-    color: "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-100",
-  },
-};
-
-const refundStatusConfig: Record<
-  string,
-  { icon: typeof Clock; label: string; color: string }
-> = {
-  pending: {
-    icon: Clock,
-    label: "Refund Pending",
-    color:
-      "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-100",
-  },
-  initiated: {
-    icon: Clock,
-    label: "Refund Initiated",
-    color: "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-100",
-  },
-  processing: {
-    icon: Clock,
-    label: "Refund Processing",
-    color:
-      "bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-100",
-  },
-  completed: {
-    icon: CheckCircle,
-    label: "Refund Completed",
-    color:
-      "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-100",
-  },
-  failed: {
-    icon: XCircle,
-    label: "Refund Failed",
-    color: "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-100",
-  },
-  cancelled: {
-    icon: XCircle,
-    label: "Refund Cancelled",
-    color:
-      "bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-100",
-  },
-};
-
-const returnStatusConfig: Record<
-  string,
-  { icon: typeof Clock; label: string; color: string }
-> = {
-  requested: {
-    icon: RotateCcw,
-    label: "Return Requested",
-    color:
-      "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-100",
-  },
-  approved: {
-    icon: CheckCircle,
-    label: "Return Approved",
-    color: "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-100",
-  },
-  rejected: {
-    icon: XCircle,
-    label: "Return Rejected",
-    color: "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-100",
-  },
-  pickup_scheduled: {
-    icon: Clock,
-    label: "Pickup Scheduled",
-    color:
-      "bg-indigo-100 text-indigo-800 dark:bg-indigo-900 dark:text-indigo-100",
-  },
-  picked_up: {
-    icon: Package,
-    label: "Picked Up",
-    color:
-      "bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-100",
-  },
-  received: {
-    icon: Package,
-    label: "Received",
-    color:
-      "bg-cyan-100 text-cyan-800 dark:bg-cyan-900 dark:text-cyan-100",
-  },
-  inspected: {
-    icon: Package,
-    label: "Under Inspection",
-    color:
-      "bg-indigo-100 text-indigo-800 dark:bg-indigo-900 dark:text-indigo-100",
-  },
-  completed: {
-    icon: CheckCircle,
-    label: "Return Completed",
-    color:
-      "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-100",
-  },
-  cancelled: {
-    icon: XCircle,
-    label: "Return Cancelled",
-    color:
-      "bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-100",
-  },
-};
+import { orderStatusConfig, returnStatusConfig, refundStatusConfig, inProgressReturnStatuses, activeAndCompletedStatuses, allReturnStatuses, refundSteps } from "@/constants/statusConfig";
 
 const returnReasons = [
   { value: "defective", label: "Product is defective" },
@@ -194,25 +56,6 @@ const returnReasons = [
   { value: "changed_mind", label: "Changed my mind" },
   { value: "other", label: "Other reason" },
 ];
-
-const orderStepOrder = ["pending", "confirmed", "processing", "shipped", "delivered"] as const;
-const orderSteps: {
-  key: (typeof orderStepOrder)[number];
-  label: string;
-}[] = [
-    { key: "pending", label: "Order Placed" },
-    { key: "confirmed", label: "Confirmed" },
-    { key: "shipped", label: "Shipped" },
-    { key: "delivered", label: "Delivered" },
-  ];
-
-const returnSteps = [
-  { key: "requested", label: "Return Requested" },
-  { key: "approved", label: "Approved" },
-  { key: "picked_up", label: "Picked Up" },
-  { key: "received", label: "Received" },
-  { key: "completed", label: "Completed" },
-] as const;
 
 
 export default function OrderDetail() {
@@ -231,35 +74,12 @@ export default function OrderDetail() {
   const [selectedItems, setSelectedItems] = useState<
     Record<string, { selected: boolean; quantity: number }>
   >({});
-  const [exchangeSearch, setExchangeSearch] = useState("");
-  const [exchangeByOrderItemId, setExchangeByOrderItemId] = useState<
-    Record<string, string>
-  >({});
+
   const [modalItemId, setModalItemId] = useState<string | null>(null);
 
   const { data: order, isLoading } = useQuery<OrderWithItems>({
     queryKey: ["/api/user/orders", id],
     enabled: !!user && !!id,
-  });
-
-  const { data: exchangeOptions, isLoading: exchangeOptionsLoading } = useQuery<
-    SareeWithDetails[]
-  >({
-    queryKey: ["exchange-options", exchangeSearch],
-    queryFn: async () => {
-      const res = await fetch("/api/getSarees", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          search: exchangeSearch,
-          limit: 20,
-        }),
-      });
-      if (!res.ok) throw new Error("Failed to fetch products");
-      return res.json();
-    },
-    enabled: showReturnDialog && resolutionType === "exchange",
-    placeholderData: (prev) => prev,
   });
 
   // Fetch stock for sarees in this order to enable/disable exchange
@@ -283,6 +103,15 @@ export default function OrderDetail() {
     enabled: !!order?.items,
   });
   const stockBySareeId = new Map(sareesWithStock?.map((s) => [s.id, s.stock]) || []);
+
+  const { data: eligibility } = useQuery<{
+    eligible: boolean;
+    reason?: string;
+    remainingDays?: number;
+  }>({
+    queryKey: ["/api/user/orders", id, "return-eligibility"],
+    enabled: !!user && !!id && order?.status === "delivered",
+  });
 
   const { data: orderHistory } = useQuery<OrderStatusHistory[]>({
     queryKey: ["/api/user/orders", id, "history"],
@@ -326,14 +155,6 @@ export default function OrderDetail() {
         variant: "destructive",
       });
     },
-  });
-
-  const { data: eligibility } = useQuery<{
-    eligible: boolean;
-    reason?: string;
-  }>({
-    queryKey: ["/api/user/orders", id, "return-eligibility"],
-    enabled: !!user && !!id && order?.status === "delivered",
   });
 
   const createReturnMutation = useMutation({
@@ -435,8 +256,6 @@ export default function OrderDetail() {
 
     setReturnReason("");
     setReturnDescription("");
-    setExchangeSearch("");
-    setExchangeByOrderItemId({});
     setModalItemId(preselectOrderItemId || null);
     setSelectedItems({}); // Reset selection state
 
@@ -483,10 +302,6 @@ export default function OrderDetail() {
       }
       return next;
     });
-  };
-
-  const setExchangeForItem = (orderItemId: string, sareeId: string) => {
-    setExchangeByOrderItemId((prev) => ({ ...prev, [orderItemId]: sareeId }));
   };
 
   const toggleItemSelection = (itemId: string, maxQty: number) => {
@@ -538,23 +353,13 @@ export default function OrderDetail() {
     );
   }
 
-  const status = statusConfig[order.status] || statusConfig.pending;
+  const status = orderStatusConfig[order.status] || orderStatusConfig.pending;
 
   const returnsForThisOrder = (userReturns || []).filter(
     (r: ReturnRequestWithDetails) => r.orderId === id
   );
 
   const latestReturnForThisOrder = returnsForThisOrder.length > 0 ? returnsForThisOrder[0] : undefined;
-  const inProgressReturnStatuses = [
-    "requested",
-    "approved",
-    "pickup_scheduled",
-    "picked_up",
-    "in_transit",
-    "received",
-    "inspected",
-  ] as const;
-
 
   const hasAnyReturnOrExchange = returnsForThisOrder.length > 0;
 
@@ -571,17 +376,6 @@ export default function OrderDetail() {
       activeOrderItemIds.add(String(item.orderItemId));
     }
   }
-
-  const activeAndCompletedStatuses = [
-    "requested",
-    "approved",
-    "pickup_scheduled",
-    "picked_up",
-    "in_transit",
-    "received",
-    "inspected",
-    "completed",
-  ] as const;
 
   const returnedQtyByOrderItemId = new Map<string, number>();
   for (const rr of returnsForThisOrder) {
@@ -615,7 +409,7 @@ export default function OrderDetail() {
     .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime())
     .map((entry) => {
       const key = ((entry.newStatus || entry.status) as string) || "pending";
-      const cfg = statusConfig[key] || statusConfig.pending;
+      const cfg = orderStatusConfig[key as keyof typeof orderStatusConfig] || orderStatusConfig.pending;
       return {
         id: entry.id,
         icon: cfg.icon,
@@ -635,19 +429,7 @@ export default function OrderDetail() {
   };
 
   const returnTimeline = latestReturnForThisOrder
-    ? (
-      [
-        "requested",
-        "approved",
-        "rejected",
-        "pickup_scheduled",
-        "picked_up",
-        "received",
-        "inspected",
-        "completed",
-        "cancelled",
-      ] as const
-    )
+    ? allReturnStatuses
       .filter((s) => returnStatusConfig[s])
       .map((s) => {
         const cfg = returnStatusConfig[s];
@@ -733,7 +515,6 @@ export default function OrderDetail() {
     : null;
   const RefundBadgeIcon = refundBadge ? refundBadge.icon : Clock;
 
-  const refundSteps = ["pending", "initiated", "processing", "completed", "failed", "cancelled"] as const;
   const refundActiveIndex = refundForThisOrder
     ? Math.max(0, refundSteps.indexOf(refundForThisOrder.status as any))
     : 0;
@@ -1186,7 +967,9 @@ export default function OrderDetail() {
               {eligibility?.eligible ? (
                 <>
                   <p className="text-sm text-muted-foreground mb-4">
-                    You can return or exchange eligible items within the return window.
+                    {eligibility?.remainingDays !== undefined
+                      ? `You can return or exchange eligible items within ${eligibility.remainingDays} day${eligibility.remainingDays !== 1 ? "s" : ""}.`
+                      : "You can return or exchange eligible items within the return window."}
                   </p>
                   {hasAnyReturnOrExchange ? (
                     <Link to="/user/returns" className="w-full">

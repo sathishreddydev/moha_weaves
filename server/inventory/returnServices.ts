@@ -43,7 +43,7 @@ interface IStorage {
   getUserReturnRequests(userId: string): Promise<ReturnRequestWithDetails[]>;
   checkOrderReturnEligibility(
     orderId: string
-  ): Promise<{ eligible: boolean; reason?: string }>;
+  ): Promise<{ eligible: boolean; reason?: string; remainingDays?: number }>;
 }
 
 export class ReturnRepo implements IStorage {
@@ -253,7 +253,7 @@ export class ReturnRepo implements IStorage {
 
   async checkOrderReturnEligibility(
     orderId: string
-  ): Promise<{ eligible: boolean; reason?: string }> {
+  ): Promise<{ eligible: boolean; reason?: string; remainingDays?: number }> {
     const order = await orderService.getOrder(orderId);
     if (!order) return { eligible: false, reason: "Order not found" };
     if (order.status !== "delivered")
@@ -262,13 +262,14 @@ export class ReturnRepo implements IStorage {
         reason: "Order must be delivered to initiate return",
       };
 
+    let eligibleUntil: Date;
     // Handle missing return window - calculate from deliveredAt if available
     if (!order.returnEligibleUntil) {
       if (order.deliveredAt) {
         // Get return window setting, default to 7 days
         const windowDays = await storage.getSetting("return_window_days");
         const days = windowDays ? parseInt(windowDays) : 7;
-        const eligibleUntil = new Date(order.deliveredAt);
+        eligibleUntil = new Date(order.deliveredAt);
         eligibleUntil.setDate(eligibleUntil.getDate() + days);
 
         // Update the order with the calculated return window
@@ -276,21 +277,24 @@ export class ReturnRepo implements IStorage {
           .update(orders)
           .set({ returnEligibleUntil: eligibleUntil })
           .where(eq(orders.id, orderId));
-
-        if (new Date() > eligibleUntil) {
-          return { eligible: false, reason: "Return window has expired" };
-        }
-        return { eligible: true };
+      } else {
+        return {
+          eligible: false,
+          reason: "Return window not set - order delivery date missing",
+        };
       }
-      return {
-        eligible: false,
-        reason: "Return window not set - order delivery date missing",
-      };
+    } else {
+      eligibleUntil = new Date(order.returnEligibleUntil);
     }
 
-    if (new Date() > new Date(order.returnEligibleUntil)) {
+    const now = new Date();
+    if (now > eligibleUntil) {
       return { eligible: false, reason: "Return window has expired" };
     }
+
+    // Compute remaining days (floor to whole days)
+    const remainingMs = eligibleUntil.getTime() - now.getTime();
+    const remainingDays = Math.max(0, Math.floor(remainingMs / (1000 * 60 * 60 * 24)));
 
     // Eligible if at least one order item still has remaining quantity not already covered by active returns
     const returnedByItem = await this.getReturnedQuantitiesByOrderItem(orderId);
@@ -299,15 +303,11 @@ export class ReturnRepo implements IStorage {
       const returnedQty = Number(returnedByItem[String(item.id)] || 0);
       return purchasedQty > returnedQty;
     });
-
     if (!hasRemaining) {
-      return {
-        eligible: false,
-        reason: "All items in this order have already been returned or exchanged",
-      };
+      return { eligible: false, reason: "All items in this order have already been returned or exchanged", remainingDays };
     }
 
-    return { eligible: true };
+    return { eligible: true, remainingDays };
   }
 }
 

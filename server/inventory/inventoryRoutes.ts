@@ -520,97 +520,16 @@ export const inventoryRoutes = (app: Express) => {
             notificationMessage = isExchange
               ? `Your exchange request has been approved. Please ship the items back and we'll send your exchange product.`
               : `Your return request has been approved. Please ship the items back.`;
-            break;
-          case "rejected":
-            notificationTitle = isExchange
-              ? "Exchange Request Rejected"
-              : "Return Request Rejected";
-            notificationMessage = `Your ${
-              isExchange ? "exchange" : "return"
-            } request has been rejected. ${inspectionNotes || ""}`;
-            break;
-          case "received":
-            notificationTitle = "Return Items Received";
-            notificationMessage = `We have received your return items and they are being processed.`;
-            break;
-          case "completed":
-            if (isExchange) {
-              notificationTitle = "Exchange Completed";
-              notificationMessage = `Your exchange has been completed. Your new product will be shipped soon!`;
-            } else {
-              notificationTitle = "Return Completed";
-              notificationMessage = `Your return has been completed. Refund will be processed shortly.`;
 
-              // Create and process refund record when return is completed
-              // Check for partial refund based on inspection results
-              let refundAmount = returnRequest.refundAmount || "0";
-              
-              // Calculate partial refund if items are damaged
-              const damagedItems = returnRequest.items.filter(item => 
-                item.isRestockable === false && item.quantity > 0
-              );
-              
-              if (damagedItems.length > 0) {
-                // Calculate refund amount minus damaged items
-                const damagedAmount = damagedItems.reduce((sum, item) => 
-                  sum + (parseFloat(item.orderItem.price) * item.quantity)
-                , 0);
-                refundAmount = (parseFloat(refundAmount) - damagedAmount).toString();
-                console.log(`Partial refund calculated: ${refundAmount} (damaged items: ${damagedAmount})`);
-              }
-
-              const refundAmountNumber = Number(refundAmount);
-              if (!Number.isFinite(refundAmountNumber)) {
-                return res.status(400).json({
-                  message: "Invalid refund amount calculated",
-                });
-              }
-              refundAmount = Math.max(0, refundAmountNumber).toFixed(2);
-
-              const refund = await refundService.createAndProcessRefund({
-                returnRequestId: returnRequest.id,
-                orderId: returnRequest.orderId,
-                userId: returnRequest.userId,
-                amount: refundAmount,
-                reason: damagedItems.length > 0 ? "partial_refund_damaged_items" : "return_completed",
-                processedBy: user.id,
-              });
-
-              console.log(`Refund created: ${refund.id} for return: ${returnRequest.id}`);
-
-              // Restore stock for returned items if restockable
-              for (const item of returnRequest.items) {
-                if (item.isRestockable) {
-                  await storage.restoreStockFromReturn(
-                    item.orderItem.sareeId,
-                    item.quantity,
-                    returnRequest.orderId
-                  );
-                }
-              }
-            }
-
-            // Handle exchange order creation if resolution type is exchange
+            // Handle exchange order creation if resolution type is exchange and not already created
             if (
               isExchange &&
-              status === "completed" &&
               !returnRequest.exchangeOrderId
             ) {
               const originalOrder = await orderService.getOrder(
                 returnRequest.orderId
               );
               if (originalOrder) {
-                // Restore stock for returned items if restockable (exchange flow too)
-                for (const item of returnRequest.items) {
-                  if (item.isRestockable) {
-                    await storage.restoreStockFromReturn(
-                      item.orderItem.sareeId,
-                      item.quantity,
-                      returnRequest.orderId
-                    );
-                  }
-                }
-
                 const exchangeOrderItems: { sareeId: string; quantity: number; price: string }[] = [];
                 let exchangeTotal = 0;
 
@@ -672,6 +591,86 @@ export const inventoryRoutes = (app: Express) => {
                 });
               }
             }
+            break;
+          case "rejected":
+            notificationTitle = isExchange
+              ? "Exchange Request Rejected"
+              : "Return Request Rejected";
+            notificationMessage = `Your ${
+              isExchange ? "exchange" : "return"
+            } request has been rejected. ${inspectionNotes || ""}`;
+            break;
+          case "received":
+            notificationTitle = "Return Items Received";
+            notificationMessage = `We have received your return items and they are being processed.`;
+            break;
+          case "completed":
+            if (isExchange) {
+              // Restore stock for returned items if restockable
+              for (const item of returnRequest.items) {
+                if (item.isRestockable) {
+                  await storage.restoreStockFromReturn(
+                    item.orderItem.sareeId,
+                    item.quantity,
+                    returnRequest.orderId
+                  );
+                }
+              }
+              notificationTitle = "Exchange Completed";
+              notificationMessage = `Your exchange has been completed. Your new product will be shipped soon!`;
+            } else {
+              notificationTitle = "Return Completed";
+              notificationMessage = `Your return has been completed. Refund will be processed shortly.`;
+
+              // Create and process refund record when return is completed
+              // Check for partial refund based on inspection results
+              let refundAmount = returnRequest.refundAmount || "0";
+              
+              // Calculate partial refund if items are damaged
+              const damagedItems = returnRequest.items.filter(item => 
+                item.isRestockable === false && item.quantity > 0
+              );
+              
+              if (damagedItems.length > 0) {
+                // Calculate refund amount minus damaged items
+                const damagedAmount = damagedItems.reduce((sum, item) => 
+                  sum + (parseFloat(item.orderItem.price) * item.quantity)
+                , 0);
+                refundAmount = (parseFloat(refundAmount) - damagedAmount).toString();
+                console.log(`Partial refund calculated: ${refundAmount} (damaged items: ${damagedAmount})`);
+              }
+
+              const refundAmountNumber = Number(refundAmount);
+              if (!Number.isFinite(refundAmountNumber)) {
+                return res.status(400).json({
+                  message: "Invalid refund amount calculated",
+                });
+              }
+              refundAmount = Math.max(0, refundAmountNumber).toFixed(2);
+
+              const refund = await refundService.createAndProcessRefund({
+                returnRequestId: returnRequest.id,
+                orderId: returnRequest.orderId,
+                userId: returnRequest.userId,
+                amount: refundAmount,
+                reason: damagedItems.length > 0 ? "partial_refund_damaged_items" : "return_completed",
+                processedBy: user.id,
+              });
+
+              console.log(`Refund created: ${refund.id} for return: ${returnRequest.id}`);
+
+              // Restore stock for returned items if restockable
+              for (const item of returnRequest.items) {
+                if (item.isRestockable) {
+                  await storage.restoreStockFromReturn(
+                    item.orderItem.sareeId,
+                    item.quantity,
+                    returnRequest.orderId
+                  );
+                }
+              }
+            }
+
             break;
         }
 
