@@ -262,6 +262,28 @@ export default function OrderDetail() {
     placeholderData: (prev) => prev,
   });
 
+  // Fetch stock for sarees in this order to enable/disable exchange
+  const { data: sareesWithStock } = useQuery<
+    Array<{ id: string; stock: number }>
+  >({
+    queryKey: ["order-sarees-stock", order?.items?.map((it) => it.saree.id)],
+    queryFn: async () => {
+      if (!order?.items) return [];
+      const idsSet = new Set(order.items.map((it) => it.saree.id));
+      const ids = Array.from(idsSet);
+      const res = await fetch("/api/getSarees", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ids }),
+      });
+      if (!res.ok) throw new Error("Failed to fetch stock");
+      const data = await res.json();
+      return data.map((s: any) => ({ id: s.id, stock: Number(s.onlineStock) || 0 }));
+    },
+    enabled: !!order?.items,
+  });
+  const stockBySareeId = new Map(sareesWithStock?.map((s) => [s.id, s.stock]) || []);
+
   const { data: orderHistory } = useQuery<OrderStatusHistory[]>({
     queryKey: ["/api/user/orders", id, "history"],
     enabled: !!user && !!id,
@@ -382,6 +404,20 @@ export default function OrderDetail() {
       return;
     }
 
+    if (resolutionType === "exchange") {
+      const outOfStockItems = items.filter(
+        (i) => (stockBySareeId.get(i.exchangeSareeId!) ?? 0) <= 0
+      );
+      if (outOfStockItems.length > 0) {
+        toast({
+          title: "Some selected items are out of stock and cannot be exchanged",
+          description: "You can return them instead.",
+          variant: "destructive",
+        });
+        return;
+      }
+    }
+
     createReturnMutation.mutate({
       orderId: id,
       reason: returnReason,
@@ -402,6 +438,7 @@ export default function OrderDetail() {
     setExchangeSearch("");
     setExchangeByOrderItemId({});
     setModalItemId(preselectOrderItemId || null);
+    setSelectedItems({}); // Reset selection state
 
     if (order?.items) {
       setSelectedItems(() => {
@@ -1166,7 +1203,14 @@ export default function OrderDetail() {
                 </p>
               )}
             </Card>
-          ) : null;
+          ) : (
+            <Card className="p-4">
+              <h3 className="font-semibold mb-2">Need Help?</h3>
+              <p className="text-sm text-muted-foreground">
+                Returns and exchanges are available after your order is delivered.
+              </p>
+            </Card>
+          );
 
         return (
           <div className="grid gap-6 lg:grid-cols-12">
@@ -1227,20 +1271,44 @@ export default function OrderDetail() {
                             variant="outline"
                             onClick={() => openReturnExchangeModal("refund", item.id)}
                             disabled={activeOrderItemIds.has(String(item.id))}
+                            title={
+                              (stockBySareeId.get(item.saree.id) ?? 0) <= 0
+                                ? "You can return this item even if out of stock."
+                                : undefined
+                            }
                           >
                             Return
                           </Button>
+                          {(() => {
+                        const isLocked = activeOrderItemIds.has(String(item.id));
+                        const stock = stockBySareeId.get(item.saree.id) ?? 0;
+                        const disabled = hasActiveExchange || isLocked || stock <= 0;
+                        if (id === "dbbfcea8-c88d-4f1b-832c-3ea128604e71") {
+                          console.log("Exchange debug", {
+                            itemId: item.id,
+                            itemName: item.saree.name,
+                            hasActiveExchange,
+                            isLocked,
+                            stock,
+                            disabled,
+                          });
+                        }
+                        return (
                           <Button
                             size="sm"
                             variant="outline"
                             onClick={() => openReturnExchangeModal("exchange", item.id)}
-                            disabled={
-                              hasActiveExchange ||
-                              activeOrderItemIds.has(String(item.id))
+                            disabled={disabled}
+                            title={
+                              stock <= 0
+                                ? "This product is out of stock. You can return it instead."
+                                : undefined
                             }
                           >
                             Exchange
                           </Button>
+                        );
+                      })()}
                         </div>
                       ) : null}
 
@@ -1316,9 +1384,13 @@ export default function OrderDetail() {
         }}
         title={resolutionType === "exchange" ? "Exchange Request" : "Return Request"}
         description={
-          resolutionType === "exchange"
-            ? "Select the items you want to exchange."
-            : "Select the items you want to return."
+          modalItemId
+            ? resolutionType === "exchange"
+              ? "Exchange this item for the same product."
+              : "Return this item."
+            : resolutionType === "exchange"
+              ? "Select the items you want to exchange."
+              : "Select the items you want to return."
         }
         footer={
           <>
