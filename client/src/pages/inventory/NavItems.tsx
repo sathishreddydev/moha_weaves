@@ -6,6 +6,7 @@ import {
   ClipboardList,
   Truck,
   RotateCcw,
+  ArrowLeftRight,
   TrendingUp,
   Store,
   CreditCard,
@@ -24,5 +25,6 @@ export const NavItems = [
   { icon: Truck, label: "Online Orders", href: "/inventory/orders" },
   { icon: Store, label: "Store Orders", href: "/inventory/store-orders" },
   { icon: RotateCcw, label: "Returns", href: "/inventory/returns" },
+  { icon: ArrowLeftRight, label: "Exchanges", href: "/inventory/exchanges" },
   { icon: CreditCard, label: "Refunds", href: "/inventory/refunds" },
 ];

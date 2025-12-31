@@ -29,6 +29,19 @@ export const orderStatusEnum = pgEnum("order_status", [
   "delivered",
   "cancelled",
 ]);
+export const returnStatusEnum = pgEnum("return_status", [
+  "requested",
+  "approved",
+  "rejected",
+  "pickup_scheduled",
+  "picked_up",
+  "in_transit",
+  "received",
+  "inspected",
+  "completed",
+  "cancelled",
+]);
+
 export const distributionChannelEnum = pgEnum("distribution_channel", [
   "shop",
   "online",
@@ -54,18 +67,6 @@ export const paymentStatusEnum = pgEnum("payment_status", [
 ]);
 export const paymentMethodEnum = pgEnum("payment_method", [
   "razorpay",
-]);
-export const returnStatusEnum = pgEnum("return_status", [
-  "requested",
-  "approved",
-  "rejected",
-  "pickup_scheduled",
-  "picked_up",
-  "in_transit",
-  "received",
-  "inspected",
-  "completed",
-  "cancelled",
 ]);
 export const returnReasonEnum = pgEnum("return_reason", [
   "defective",

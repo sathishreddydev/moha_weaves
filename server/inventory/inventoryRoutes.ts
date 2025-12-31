@@ -8,7 +8,6 @@ import { orderService } from "../order/orderStorage";
 import { storeService } from "server/store/storeStorage";
 import { sareeService } from "server/saree/sareeStorage";
 import { inventoryService } from "./inventoryStorage";
-import { returnService } from "./returnServices";
 const storeAllocationSchema = z.object({
   storeId: z.string().min(1, "Store ID is required"),
   quantity: z.number().int().min(0, "Quantity must be a non-negative integer"),
@@ -472,227 +471,6 @@ export const inventoryRoutes = (app: Express) => {
     }
   });
 
-  // Admin/Inventory: Get all return requests
-  app.get("/api/inventory/returns", authInventory, async (req, res) => {
-    try {
-      const { status } = req.query;
-      const returns = await returnService.getReturnRequests({
-        status: status as string | undefined,
-      });
-      res.json(returns);
-    } catch (error) {
-      res.status(500).json({ message: "Failed to fetch return requests" });
-    }
-  });
-
-  // Admin/Inventory: Update return request status
-  app.patch(
-    "/api/inventory/returns/:id/status",
-    authInventory,
-    async (req, res) => {
-      try {
-        const user = (req as any).user;
-        const { status, inspectionNotes } = req.body;
-
-        const returnRequest = await returnService.getReturnRequest(req.params.id);
-        if (!returnRequest) {
-          return res.status(404).json({ message: "Return request not found" });
-        }
-
-        const updated = await returnService.updateReturnRequestStatus(
-          req.params.id,
-          status,
-          user.id,
-          inspectionNotes
-        );
-
-        // Create notification for user
-        let notificationTitle = "";
-        let notificationMessage = "";
-
-        const isExchange = returnRequest.resolution === "exchange";
-
-        switch (status) {
-          case "approved":
-            notificationTitle = isExchange
-              ? "Exchange Request Approved"
-              : "Return Request Approved";
-            notificationMessage = isExchange
-              ? `Your exchange request has been approved. Please ship the items back and we'll send your exchange product.`
-              : `Your return request has been approved. Please ship the items back.`;
-
-            // Handle exchange order creation if resolution type is exchange and not already created
-            if (
-              isExchange &&
-              !returnRequest.exchangeOrderId
-            ) {
-              const originalOrder = await orderService.getOrder(
-                returnRequest.orderId
-              );
-              if (originalOrder) {
-                const exchangeOrderItems: { sareeId: string; quantity: number; price: string }[] = [];
-                let exchangeTotal = 0;
-
-                for (const item of returnRequest.items) {
-                  const targetSareeId =
-                    (item as any).exchangeSareeId || item.orderItem.sareeId;
-
-                  const targetSaree = await sareeService.getSaree(targetSareeId);
-                  if (!targetSaree) {
-                    return res.status(400).json({
-                      message: "Exchange product not found for one of the items",
-                    });
-                  }
-
-                  exchangeOrderItems.push({
-                    sareeId: targetSareeId,
-                    quantity: item.quantity,
-                    price: targetSaree.price,
-                  });
-                  exchangeTotal += Number(targetSaree.price) * Number(item.quantity || 0);
-                }
-
-                // Create exchange order with same items
-                const exchangeOrder = await orderService.createOrder(
-                  {
-                    userId: returnRequest.userId,
-                    totalAmount: exchangeTotal.toFixed(2),
-                    discountAmount: "0",
-                    finalAmount: exchangeTotal.toFixed(2),
-                    status: "confirmed",
-                    paymentStatus: "paid",
-                    paymentMethod: "razorpay", // Exchange orders are treated as pre-paid
-                    shippingAddress: originalOrder.shippingAddress,
-                    phone: originalOrder.phone,
-                    notes: `Exchange order for original order #${returnRequest.orderId.slice(
-                      0,
-                      8
-                    )}`,
-                  },
-                  exchangeOrderItems
-                );
-
-                // Link exchange order to return request
-                await returnService.updateReturnRequest(returnRequest.id, {
-                  exchangeOrderId: exchangeOrder.id,
-                });
-
-                // Create notification about exchange order
-                await storage.createNotification({
-                  userId: returnRequest.userId,
-                  type: "order",
-                  title: "Exchange Order Created",
-                  message: `Your exchange order #${exchangeOrder.id.slice(
-                    0,
-                    8
-                  )} has been created and will be shipped soon!`,
-                  relatedId: exchangeOrder.id,
-                  relatedType: "order",
-                });
-              }
-            }
-            break;
-          case "rejected":
-            notificationTitle = isExchange
-              ? "Exchange Request Rejected"
-              : "Return Request Rejected";
-            notificationMessage = `Your ${
-              isExchange ? "exchange" : "return"
-            } request has been rejected. ${inspectionNotes || ""}`;
-            break;
-          case "received":
-            notificationTitle = "Return Items Received";
-            notificationMessage = `We have received your return items and they are being processed.`;
-            break;
-          case "completed":
-            if (isExchange) {
-              // Restore stock for returned items if restockable
-              for (const item of returnRequest.items) {
-                if (item.isRestockable) {
-                  await storage.restoreStockFromReturn(
-                    item.orderItem.sareeId,
-                    item.quantity,
-                    returnRequest.orderId
-                  );
-                }
-              }
-              notificationTitle = "Exchange Completed";
-              notificationMessage = `Your exchange has been completed. Your new product will be shipped soon!`;
-            } else {
-              notificationTitle = "Return Completed";
-              notificationMessage = `Your return has been completed. Refund will be processed shortly.`;
-
-              // Create and process refund record when return is completed
-              // Check for partial refund based on inspection results
-              let refundAmount = returnRequest.refundAmount || "0";
-              
-              // Calculate partial refund if items are damaged
-              const damagedItems = returnRequest.items.filter(item => 
-                item.isRestockable === false && item.quantity > 0
-              );
-              
-              if (damagedItems.length > 0) {
-                // Calculate refund amount minus damaged items
-                const damagedAmount = damagedItems.reduce((sum, item) => 
-                  sum + (parseFloat(item.orderItem.price) * item.quantity)
-                , 0);
-                refundAmount = (parseFloat(refundAmount) - damagedAmount).toString();
-                console.log(`Partial refund calculated: ${refundAmount} (damaged items: ${damagedAmount})`);
-              }
-
-              const refundAmountNumber = Number(refundAmount);
-              if (!Number.isFinite(refundAmountNumber)) {
-                return res.status(400).json({
-                  message: "Invalid refund amount calculated",
-                });
-              }
-              refundAmount = Math.max(0, refundAmountNumber).toFixed(2);
-
-              const refund = await refundService.createAndProcessRefund({
-                returnRequestId: returnRequest.id,
-                orderId: returnRequest.orderId,
-                userId: returnRequest.userId,
-                amount: refundAmount,
-                reason: damagedItems.length > 0 ? "partial_refund_damaged_items" : "return_completed",
-                processedBy: user.id,
-              });
-
-              console.log(`Refund created: ${refund.id} for return: ${returnRequest.id}`);
-
-              // Restore stock for returned items if restockable
-              for (const item of returnRequest.items) {
-                if (item.isRestockable) {
-                  await storage.restoreStockFromReturn(
-                    item.orderItem.sareeId,
-                    item.quantity,
-                    returnRequest.orderId
-                  );
-                }
-              }
-            }
-
-            break;
-        }
-
-        if (notificationTitle) {
-          await storage.createNotification({
-            userId: returnRequest.userId,
-            type: "return",
-            title: notificationTitle,
-            message: notificationMessage,
-            relatedId: returnRequest.id,
-            relatedType: "return_request",
-          });
-        }
-
-        res.json(updated);
-      } catch (error) {
-        console.error("Error updating return request:", error);
-        res.status(500).json({ message: "Failed to update return request" });
-      }
-    }
-  );
-
   // Admin/Inventory: Get all refunds
   app.get("/api/inventory/refunds", authInventory, async (req, res) => {
     try {
@@ -766,10 +544,19 @@ export const inventoryRoutes = (app: Express) => {
         const user = (req as any).user;
         const { status, note } = req.body;
 
+        console.log("Updating order status:", {
+          orderId: req.params.id,
+          status,
+          note,
+          userId: user.id
+        });
+
         const order = await orderService.getOrder(req.params.id);
         if (!order) {
           return res.status(404).json({ message: "Order not found" });
         }
+
+        console.log("Current order status:", order.status);
 
         const updated = await storage.updateOrderWithStatusHistory(
           req.params.id,
@@ -781,6 +568,8 @@ export const inventoryRoutes = (app: Express) => {
         if (!updated) {
           return res.status(500).json({ message: "Failed to update order" });
         }
+
+        console.log("Order updated successfully:", updated.status);
 
         // Create notification for user
         let notificationMessage = "";
@@ -890,27 +679,6 @@ export const inventoryRoutes = (app: Express) => {
     } catch (error) {
       console.error("Error fetching store sales:", error);
       res.status(500).json({ message: "Failed to fetch store sales" });
-    }
-  });
-
-  app.get("/api/inventory/exchanges", authInventory, async (req, res) => {
-    try {
-      const { storeId, limit } = req.query;
-      if (storeId) {
-        const exchanges = await storeService.getStoreExchanges(
-          storeId as string,
-          limit ? parseInt(limit as string) : undefined
-        );
-        res.json(exchanges);
-      } else {
-        const allExchanges = await storage.getAllStoreExchanges(
-          limit ? parseInt(limit as string) : undefined
-        );
-        res.json(allExchanges);
-      }
-    } catch (error) {
-      console.error("Error fetching exchanges:", error);
-      res.status(500).json({ message: "Failed to fetch exchanges" });
     }
   });
 };

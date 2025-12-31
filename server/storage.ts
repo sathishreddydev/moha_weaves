@@ -1227,6 +1227,12 @@ export class DatabaseStorage implements IStorage {
         "processing",
         "shipped",
         "delivered",
+        "cancelled",
+        "exchange_requested",
+        "exchange_processing",
+        "exchange_packing",
+        "exchange_shipping",
+        "exchange_delivered",
       ];
 
       const currentStatus = String(order.status);
@@ -1239,26 +1245,63 @@ export class DatabaseStorage implements IStorage {
       const isCurrentFlow = allowedFlow.includes(currentStatus);
       const isNextFlow = allowedFlow.includes(nextStatus);
 
-      if (currentStatus === "delivered" || currentStatus === "cancelled") {
-        throw new Error(
-          `INVALID_STATUS_TRANSITION: Cannot change status from ${currentStatus}`
-        );
-      }
+      // Define valid transitions
+      const validTransitions: Record<string, string[]> = {
+        // Standard order flow
+        pending: ["confirmed", "cancelled"],
+        confirmed: ["processing", "cancelled", "exchange_requested"], // Allow exchange from confirmed
+        processing: ["shipped", "cancelled", "exchange_requested"], // Allow exchange from processing
+        shipped: ["delivered", "cancelled", "exchange_requested"], // Allow exchange from shipped
+        delivered: ["exchange_requested"], // Can start exchange from delivered
+        cancelled: [], // Terminal state
+        
+        // Exchange flow (special handling)
+        exchange_requested: ["exchange_processing", "cancelled"],
+        exchange_processing: ["exchange_packing", "cancelled"],
+        exchange_packing: ["exchange_shipping", "cancelled"],
+        exchange_shipping: ["exchange_delivered", "cancelled"],
+        exchange_delivered: [], // Terminal state
+      };
 
-      if (nextStatus === "cancelled") {
-        // Allow cancelling from any non-terminal status
-      } else if (isCurrentFlow && isNextFlow) {
-        const curIdx = allowedFlow.indexOf(currentStatus);
-        const nextIdx = allowedFlow.indexOf(nextStatus);
-        if (nextIdx < curIdx) {
+      // Special case: allow transition to exchange flow
+      if (nextStatus.startsWith("exchange_")) {
+        // Allow transition to exchange flow from confirmed, processing, shipped, or delivered
+        if (["confirmed", "processing", "shipped", "delivered"].includes(currentStatus)) {
+          if (nextStatus === "exchange_requested") {
+            // Allow starting exchange
+          } else {
+            throw new Error(
+              `INVALID_STATUS_TRANSITION: Cannot transition to ${nextStatus} from ${currentStatus}. Must start with exchange_requested.`
+            );
+          }
+        } else if (currentStatus.startsWith("exchange_")) {
+          // Allow transitions within exchange flow
+          const allowedNext = validTransitions[currentStatus] || [];
+          if (!allowedNext.includes(nextStatus)) {
+            throw new Error(
+              `INVALID_STATUS_TRANSITION: Invalid exchange status transition from ${currentStatus} to ${nextStatus}`
+            );
+          }
+        } else {
           throw new Error(
-            `INVALID_STATUS_TRANSITION: Status cannot move backward from ${currentStatus} to ${nextStatus}`
+            `INVALID_STATUS_TRANSITION: Cannot transition to exchange status from ${currentStatus}`
+          );
+        }
+      } else if (nextStatus === "cancelled") {
+        // Allow cancelling from any non-terminal status
+        if (!allowedFlow.includes(currentStatus) && !currentStatus.startsWith("exchange_")) {
+          throw new Error(
+            `INVALID_STATUS_TRANSITION: Cannot cancel from ${currentStatus}`
           );
         }
       } else {
-        throw new Error(
-          `INVALID_STATUS_TRANSITION: Invalid status transition from ${currentStatus} to ${nextStatus}`
-        );
+        // Standard order flow transitions
+        const allowedNext = validTransitions[currentStatus] || [];
+        if (!allowedNext.includes(nextStatus)) {
+          throw new Error(
+            `INVALID_STATUS_TRANSITION: Invalid status transition from ${currentStatus} to ${nextStatus}`
+          );
+        }
       }
 
       const updateData: any = {

@@ -34,35 +34,68 @@ export const userRoutes = (app: Express) => {
     }
   );
 
-  // User: Get user's return requests
-  app.get("/api/user/returns", authUser, async (req, res) => {
+  // User: Validate coupon
+  app.post("/api/user/coupons/validate", authUser, async (req, res) => {
     try {
       const user = (req as any).user;
-      const returns = await returnService.getUserReturnRequests(user.id);
-      res.json(returns);
-    } catch (error) {
-      res.status(500).json({ message: "Failed to fetch return requests" });
-    }
-  });
+      const { code, orderAmount } = req.body;
 
-  // User: Get single return request
-  app.get("/api/user/returns/:id", authUser, async (req, res) => {
-    try {
-      const user = (req as any).user;
-      const returnRequest = await returnService.getReturnRequest(req.params.id);
+      const result = await couponsService.validateCoupon(
+        code,
+        user.id,
+        orderAmount
+      );
 
-      if (!returnRequest || returnRequest.userId !== user.id) {
-        return res.status(404).json({ message: "Return request not found" });
+      if (!result.valid) {
+        return res.status(400).json({ message: result.error });
       }
 
-      res.json(returnRequest);
+      // Calculate discount
+      let discountAmount = 0;
+      const coupon = result.coupon!;
+
+      if (coupon.type === "percentage") {
+        discountAmount = (orderAmount * parseFloat(coupon.value)) / 100;
+        if (coupon.maxDiscount) {
+          discountAmount = Math.min(
+            discountAmount,
+            parseFloat(coupon.maxDiscount)
+          );
+        }
+      } else {
+        discountAmount = parseFloat(coupon.value);
+      }
+
+      res.json({
+        valid: true,
+        coupon,
+        discountAmount: discountAmount.toFixed(2),
+        finalAmount: (orderAmount - discountAmount).toFixed(2),
+      });
     } catch (error) {
-      res.status(500).json({ message: "Failed to fetch return request" });
+      res.status(500).json({ message: "Failed to validate coupon" });
     }
   });
 
-  // User: Create return request (supports both refund and exchange)
-  app.post("/api/user/returns", authUser, async (req, res) => {
+  // User: Get order status history
+  app.get("/api/user/orders/:id/history", authUser, async (req, res) => {
+    try {
+      const user = (req as any).user;
+      const order = await orderService.getOrder(req.params.id);
+
+      if (!order || order.userId !== user.id) {
+        return res.status(404).json({ message: "Order not found" });
+      }
+
+      const history = await storage.getOrderStatusHistory(req.params.id);
+      res.json(history);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch order history" });
+    }
+  });
+
+  // User: Validate return request
+  app.post("/api/user/returns/validate", authUser, async (req, res) => {
     try {
       const user = (req as any).user;
       const { orderId, reason, reasonDetails, resolution, items } = req.body;
@@ -291,48 +324,6 @@ export const userRoutes = (app: Express) => {
     }
   });
 
-  // User: Validate coupon
-  app.post("/api/user/coupons/validate", authUser, async (req, res) => {
-    try {
-      const user = (req as any).user;
-      const { code, orderAmount } = req.body;
-
-      const result = await couponsService.validateCoupon(
-        code,
-        user.id,
-        orderAmount
-      );
-
-      if (!result.valid) {
-        return res.status(400).json({ message: result.error });
-      }
-
-      // Calculate discount
-      let discountAmount = 0;
-      const coupon = result.coupon!;
-
-      if (coupon.type === "percentage") {
-        discountAmount = (orderAmount * parseFloat(coupon.value)) / 100;
-        if (coupon.maxDiscount) {
-          discountAmount = Math.min(
-            discountAmount,
-            parseFloat(coupon.maxDiscount)
-          );
-        }
-      } else {
-        discountAmount = parseFloat(coupon.value);
-      }
-
-      res.json({
-        valid: true,
-        coupon,
-        discountAmount: discountAmount.toFixed(2),
-        finalAmount: (orderAmount - discountAmount).toFixed(2),
-      });
-    } catch (error) {
-      res.status(500).json({ message: "Failed to validate coupon" });
-    }
-  });
   // User: Get order status history
   app.get("/api/user/orders/:id/history", authUser, async (req, res) => {
     try {

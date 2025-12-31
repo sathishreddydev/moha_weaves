@@ -134,6 +134,11 @@ export default function OrderDetail() {
     enabled: !!user,
   });
 
+  const { data: userExchanges } = useQuery<ReturnRequestWithDetails[]>({
+    queryKey: ["/api/user/exchanges"],
+    enabled: !!user,
+  });
+
   const { data: userRefunds } = useQuery<Refund[]>({
     queryKey: ["/api/user/refunds"],
     enabled: !!user,
@@ -159,18 +164,27 @@ export default function OrderDetail() {
 
   const createReturnMutation = useMutation({
     mutationFn: async (data: any) => {
-      const response = await apiRequest("POST", "/api/user/returns", data);
-      return response.json();
+      if (data.resolution === "exchange") {
+        const response = await apiRequest("POST", "/api/user/exchanges", data);
+        return response.json();
+      } else {
+        const response = await apiRequest("POST", "/api/user/returns", data);
+        return response.json();
+      }
     },
-    onSuccess: () => {
-      toast({ title: "Return request submitted successfully" });
-      queryClient.invalidateQueries({ queryKey: ["/api/user/returns"] });
+    onSuccess: (data, variables) => {
+      toast({ title: `${variables.resolution === "exchange" ? "Exchange" : "Return"} request submitted successfully` });
+      if (variables.resolution === "exchange") {
+        queryClient.invalidateQueries({ queryKey: ["/api/user/exchanges"] });
+      } else {
+        queryClient.invalidateQueries({ queryKey: ["/api/user/returns"] });
+      }
       setShowReturnDialog(false);
-      navigate("/user/returns");
+      navigate(variables.resolution === "exchange" ? "/user/exchanges" : "/user/returns");
     },
-    onError: (error: any) => {
+    onError: (error: any, variables) => {
       toast({
-        title: "Failed to submit return request",
+        title: `Failed to submit ${variables.resolution === "exchange" ? "exchange" : "return"} request`,
         description: error.message,
         variant: "destructive",
       });
@@ -353,24 +367,28 @@ export default function OrderDetail() {
     );
   }
 
-  const status = orderStatusConfig[order.status] || orderStatusConfig.pending;
+  const status = orderStatusConfig[order.status as keyof typeof orderStatusConfig] || orderStatusConfig.pending;
 
   const returnsForThisOrder = (userReturns || []).filter(
-    (r: ReturnRequestWithDetails) => r.orderId === id
+    (r: ReturnRequestWithDetails) => r.orderId === id && r.resolution !== "exchange"
+  );
+
+  const exchangesForThisOrder = (userExchanges || []).filter(
+    (r: ReturnRequestWithDetails) => r.orderId === id && r.resolution === "exchange"
   );
 
   const latestReturnForThisOrder = returnsForThisOrder.length > 0 ? returnsForThisOrder[0] : undefined;
+  const latestExchangeForThisOrder = exchangesForThisOrder.length > 0 ? exchangesForThisOrder[0] : undefined;
 
-  const hasAnyReturnOrExchange = returnsForThisOrder.length > 0;
+  const hasAnyReturnOrExchange = returnsForThisOrder.length > 0 || exchangesForThisOrder.length > 0;
 
-  const hasActiveExchange = returnsForThisOrder.some(
+  const hasActiveExchange = exchangesForThisOrder.some(
     (r: ReturnRequestWithDetails) =>
-      r.resolution === "exchange" &&
       inProgressReturnStatuses.includes(r.status as any)
   );
 
   const activeOrderItemIds = new Set<string>();
-  for (const rr of returnsForThisOrder) {
+  for (const rr of [...returnsForThisOrder, ...exchangesForThisOrder]) {
     if (!inProgressReturnStatuses.includes(rr.status as any)) continue;
     for (const item of rr.items || []) {
       activeOrderItemIds.add(String(item.orderItemId));
@@ -378,7 +396,7 @@ export default function OrderDetail() {
   }
 
   const returnedQtyByOrderItemId = new Map<string, number>();
-  for (const rr of returnsForThisOrder) {
+  for (const rr of [...returnsForThisOrder, ...exchangesForThisOrder]) {
     if (!activeAndCompletedStatuses.includes(rr.status as any)) continue;
     for (const ri of rr.items || []) {
       const key = String(ri.orderItemId);
@@ -398,7 +416,7 @@ export default function OrderDetail() {
 
 
   const returnedOrderItemIds = new Set<string>();
-  for (const rr of returnsForThisOrder) {
+  for (const rr of [...returnsForThisOrder, ...exchangesForThisOrder]) {
     for (const ri of rr.items || []) {
       returnedOrderItemIds.add(ri.orderItemId);
     }
@@ -419,13 +437,13 @@ export default function OrderDetail() {
       };
     });
 
-  const getReturnStatusDate = (status: string) => {
-    if (!latestReturnForThisOrder) return undefined;
-    if (status === "pickup_scheduled") return (latestReturnForThisOrder as any).pickupScheduledAt;
-    if (status === "picked_up") return (latestReturnForThisOrder as any).pickedUpAt;
-    if (status === "received") return (latestReturnForThisOrder as any).receivedAt;
-    if (status === "requested") return latestReturnForThisOrder.createdAt;
-    return latestReturnForThisOrder.updatedAt;
+  const getReturnStatusDate = (status: string, request?: any) => {
+    if (!request) return undefined;
+    if (status === "pickup_scheduled") return request.pickupScheduledAt;
+    if (status === "picked_up") return request.pickedUpAt;
+    if (status === "received") return request.receivedAt;
+    if (status === "requested") return request.createdAt;
+    return request.updatedAt;
   };
 
   const returnTimeline = latestReturnForThisOrder
@@ -437,7 +455,21 @@ export default function OrderDetail() {
           key: s,
           icon: cfg.icon,
           label: cfg.label,
-          date: getReturnStatusDate(s),
+          date: getReturnStatusDate(s, latestReturnForThisOrder),
+        };
+      })
+    : [];
+
+  const exchangeTimeline = latestExchangeForThisOrder
+    ? allReturnStatuses
+      .filter((s) => returnStatusConfig[s])
+      .map((s) => {
+        const cfg = returnStatusConfig[s];
+        return {
+          key: s,
+          icon: cfg.icon,
+          label: cfg.label,
+          date: getReturnStatusDate(s, latestExchangeForThisOrder),
         };
       })
     : [];
@@ -452,7 +484,7 @@ export default function OrderDetail() {
     : (userRefunds || []).find((rf) => rf.orderId === order.id);
 
   const itemStatusByOrderItemId = new Map<string, { label: string; color: string; updatedAt: string | Date }>();
-  for (const rr of returnsForThisOrder) {
+  for (const rr of [...returnsForThisOrder, ...exchangesForThisOrder]) {
     for (const ri of rr.items || []) {
       const existing = itemStatusByOrderItemId.get(ri.orderItemId);
       const rrUpdated = rr.updatedAt || rr.createdAt;
@@ -624,9 +656,7 @@ export default function OrderDetail() {
 
             {latestReturnForThisOrder ? (
               <div>
-                <h4 className="font-semibold mb-3">
-                  {latestReturnForThisOrder.resolution === "exchange" ? "Exchange timeline" : "Return / Refund timeline"}
-                </h4>
+                <h4 className="font-semibold mb-3">Return / Refund timeline</h4>
                 <div className="space-y-4">
                   {returnTimeline.map((t, idx) => {
                     const Icon = t.icon;
@@ -643,6 +673,43 @@ export default function OrderDetail() {
                             <Icon className="h-4 w-4" />
                           </div>
                           {idx < returnTimeline.length - 1 ? (
+                            <div className="w-px flex-1 bg-muted mt-2" />
+                          ) : null}
+                        </div>
+                        <div className="flex-1 pb-1">
+                          <p className={"font-medium " + (isCurrent ? "text-primary" : "")}>{t.label}</p>
+                          {t.date ? (
+                            <p className="text-sm text-muted-foreground">{formatDate(t.date)}</p>
+                          ) : (
+                            <p className="text-sm text-muted-foreground">Date not available</p>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            ) : null}
+
+            {latestExchangeForThisOrder ? (
+              <div>
+                <h4 className="font-semibold mb-3">Exchange timeline</h4>
+                <div className="space-y-4">
+                  {exchangeTimeline.map((t, idx) => {
+                    const Icon = t.icon;
+                    const isCurrent = t.key === latestExchangeForThisOrder.status;
+                    return (
+                      <div key={t.key} className="flex gap-3">
+                        <div className="flex flex-col items-center">
+                          <div
+                            className={
+                              "h-8 w-8 rounded-full border flex items-center justify-center " +
+                              (isCurrent ? "border-primary text-primary" : "")
+                            }
+                          >
+                            <Icon className="h-4 w-4" />
+                          </div>
+                          {idx < exchangeTimeline.length - 1 ? (
                             <div className="w-px flex-1 bg-muted mt-2" />
                           ) : null}
                         </div>
@@ -972,11 +1039,22 @@ export default function OrderDetail() {
                       : "You can return or exchange eligible items within the return window."}
                   </p>
                   {hasAnyReturnOrExchange ? (
-                    <Link to="/user/returns" className="w-full">
-                      <Button variant="outline" className="w-full mb-2">
-                        View return requests
-                      </Button>
-                    </Link>
+                    <div className="space-y-2">
+                      {returnsForThisOrder.length > 0 && (
+                        <Link to="/user/returns" className="w-full">
+                          <Button variant="outline" className="w-full">
+                            View return requests
+                          </Button>
+                        </Link>
+                      )}
+                      {exchangesForThisOrder.length > 0 && (
+                        <Link to="/user/exchanges" className="w-full">
+                          <Button variant="outline" className="w-full">
+                            View exchange requests
+                          </Button>
+                        </Link>
+                      )}
+                    </div>
                   ) : null}
 
                 </>

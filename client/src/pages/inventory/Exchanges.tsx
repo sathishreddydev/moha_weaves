@@ -5,9 +5,8 @@ import {
   CheckCircle,
   XCircle,
   Clock,
-  RotateCcw,
-  RefreshCcw,
   ArrowLeftRight,
+  RefreshCcw,
   ArrowLeft,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -52,14 +51,13 @@ const statusConfig: Record<
 > = {
   requested: {
     icon: Clock,
-    label: "Requested",
-    color:
-      "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-100",
+    label: "Pending Review",
+    color: "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-100",
   },
   approved: {
     icon: CheckCircle,
     label: "Approved",
-    color: "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-100",
+    color: "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-100",
   },
   rejected: {
     icon: XCircle,
@@ -78,25 +76,23 @@ const statusConfig: Record<
   },
   in_transit: {
     icon: Truck,
-    label: "In Transit",
-    color: "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-100",
+    label: "Items in Transit",
+    color: "bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-100",
   },
   received: {
     icon: Package,
-    label: "Received",
+    label: "Received at Warehouse",
     color: "bg-cyan-100 text-cyan-800 dark:bg-cyan-900 dark:text-cyan-100",
   },
   inspected: {
     icon: Package,
-    label: "Inspected",
-    color:
-      "bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-100",
+    label: "Under Inspection",
+    color: "bg-indigo-100 text-indigo-800 dark:bg-indigo-900 dark:text-indigo-100",
   },
   completed: {
     icon: CheckCircle,
     label: "Completed",
-    color:
-      "bg-emerald-100 text-emerald-800 dark:bg-emerald-900 dark:text-emerald-100",
+    color: "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-100",
   },
   cancelled: {
     icon: XCircle,
@@ -105,7 +101,7 @@ const statusConfig: Record<
   },
 };
 
-export default function InventoryReturns() {
+export default function InventoryExchanges() {
   const { user } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -123,10 +119,9 @@ export default function InventoryReturns() {
   });
   const [inspectionNotes, setInspectionNotes] = useState("");
 
-  const { data: returns, isLoading } = useQuery<ReturnRequestWithDetails[]>({
-    queryKey: ["/api/inventory/returns"],
+  const { data: exchanges, isLoading } = useQuery<ReturnRequestWithDetails[]>({
+    queryKey: ["/api/inventory/exchanges"],
     enabled: isInventoryUser,
-    select: (data) => data.filter((r) => r.resolution === "refund"),
   });
 
   const updateStatusMutation = useMutation({
@@ -141,7 +136,7 @@ export default function InventoryReturns() {
     }) => {
       const response = await apiRequest(
         "PATCH",
-        `/api/inventory/returns/${id}/status`,
+        `/api/inventory/exchanges/${id}/status`,
         {
           status,
           inspectionNotes: notes,
@@ -150,15 +145,15 @@ export default function InventoryReturns() {
       return response.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/inventory/returns"] });
-      toast({ title: "Success", description: "Return status updated" });
+      queryClient.invalidateQueries({ queryKey: ["/api/inventory/exchanges"] });
+      toast({ title: "Success", description: "Exchange status updated" });
       setUpdateDialog({ open: false, request: null, status: "" });
       setInspectionNotes("");
     },
     onError: () => {
       toast({
         title: "Error",
-        description: "Failed to update return status",
+        description: "Failed to update exchange status",
         variant: "destructive",
       });
     },
@@ -181,23 +176,6 @@ export default function InventoryReturns() {
       });
     }
   };
-
-  const formatDate = (date: string | Date) => {
-    return new Date(date).toLocaleDateString("en-IN", {
-      day: "numeric",
-      month: "short",
-      year: "numeric",
-    });
-  };
-
-  const formatPrice = (price: string | number) => {
-    const numPrice = typeof price === "string" ? parseFloat(price) : price;
-    return `₹${numPrice.toLocaleString("en-IN")}`;
-  };
-
-  const filteredReturns = returns?.filter((ret) => {
-    return filterStatus === "all" || ret.status === filterStatus;
-  });
 
   const getNextAction = (request: ReturnRequestWithDetails) => {
     switch (request.status) {
@@ -264,14 +242,55 @@ export default function InventoryReturns() {
             disabled={updateStatusMutation.isPending}
             data-testid={`button-complete-${request.id}`}
           >
-            Complete{" "}
-            {request.resolution === "exchange" ? "Exchange" : "Return"}
+            Complete Exchange
           </Button>
         );
       default:
         return null;
     }
   };
+
+  const formatDate = (date: string | Date) => {
+    return new Date(date).toLocaleDateString("en-IN", {
+      day: "numeric",
+      month: "short",
+      year: "numeric",
+    });
+  };
+
+  const formatPrice = (price: string | number) => {
+    const numPrice = typeof price === "string" ? parseFloat(price) : price;
+    return `₹${numPrice.toLocaleString("en-IN")}`;
+  };
+
+  const filteredExchanges = exchanges?.filter((ret) => {
+    return filterStatus === "all" || ret.status === filterStatus;
+  });
+
+  if (!isInventoryUser) {
+    return (
+      <div className="max-w-7xl mx-auto px-4 py-16 text-center">
+        <Package className="h-16 w-16 mx-auto text-muted-foreground mb-4" />
+        <h2 className="text-2xl font-semibold mb-2">Access Denied</h2>
+        <p className="text-muted-foreground mb-6">
+          You don't have permission to access this page.
+        </p>
+      </div>
+    );
+  }
+
+  if (isLoading) {
+    return (
+      <div className="max-w-6xl mx-auto px-4 py-8">
+        <Skeleton className="h-8 w-48 mb-8" />
+        <div className="space-y-4">
+          {[...Array(3)].map((_, i) => (
+            <Skeleton key={i} className="h-48" />
+          ))}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div>
@@ -282,17 +301,17 @@ export default function InventoryReturns() {
               className="text-2xl font-semibold"
               data-testid="text-page-title"
             >
-              Returns
+              Exchanges
             </h1>
             <p className="text-muted-foreground">
-              Manage customer return requests
+              Manage customer exchange requests
             </p>
           </div>
           <div className="flex gap-2">
-            <Link to="/inventory/exchanges">
+            <Link to="/inventory/returns">
               <Button variant="outline" size="sm">
-                <ArrowLeftRight className="h-4 w-4 mr-2" />
-                View Exchanges
+                <ArrowLeft className="h-4 w-4 mr-2" />
+                Back to Returns
               </Button>
             </Link>
             <Select value={filterStatus} onValueChange={setFilterStatus}>
@@ -327,7 +346,7 @@ export default function InventoryReturns() {
                   <Skeleton key={i} className="h-24" />
                 ))}
               </div>
-            ) : filteredReturns && filteredReturns.length > 0 ? (
+            ) : filteredExchanges && filteredExchanges.length > 0 ? (
               <Table>
                 <TableHeader>
                   <TableRow>
@@ -343,7 +362,7 @@ export default function InventoryReturns() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {filteredReturns.map((request) => {
+                  {filteredExchanges.map((request) => {
                     const status =
                       statusConfig[request.status] || statusConfig.requested;
                     const StatusIcon = status.icon;
@@ -433,8 +452,8 @@ export default function InventoryReturns() {
               </Table>
             ) : (
               <div className="text-center py-8 text-muted-foreground">
-                <RotateCcw className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                <p>No return requests found</p>
+                <ArrowLeftRight className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                <p>No exchange requests found</p>
               </div>
             )}
           </CardContent>
@@ -505,30 +524,20 @@ export default function InventoryReturns() {
                   ? "Enter reason for rejection..."
                   : "Add inspection notes (optional)..."
               }
-              className="mt-2"
-              data-testid="input-inspection-notes"
             />
           </div>
           <DialogFooter>
             <Button
               variant="outline"
-              onClick={() =>
-                setUpdateDialog({ open: false, request: null, status: "" })
-              }
+              onClick={() => setUpdateDialog({ open: false, request: null, status: "" })}
             >
               Cancel
             </Button>
             <Button
-              variant={
-                updateDialog.status === "rejected" ? "destructive" : "default"
-              }
               onClick={handleConfirmUpdate}
               disabled={updateStatusMutation.isPending}
-              data-testid="button-confirm-status"
             >
-              {updateDialog.status === "rejected"
-                ? "Confirm Rejection"
-                : "Update Status"}
+              {updateStatusMutation.isPending ? "Updating..." : "Update Status"}
             </Button>
           </DialogFooter>
         </DialogContent>

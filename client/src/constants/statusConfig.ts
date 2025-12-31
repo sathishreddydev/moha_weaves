@@ -31,6 +31,32 @@ export const orderStatusConfig = {
     label: "Cancelled",
     color: "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-100",
   },
+  // Exchange statuses (for orders that are in exchange flow)
+  exchange_requested: {
+    icon: RotateCcw,
+    label: "Exchange Requested",
+    color: "bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-100",
+  },
+  exchange_processing: {
+    icon: Package,
+    label: "Exchange Processing",
+    color: "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-100",
+  },
+  exchange_packing: {
+    icon: Package,
+    label: "Exchange Packing",
+    color: "bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-100",
+  },
+  exchange_shipping: {
+    icon: Truck,
+    label: "Exchange Shipping",
+    color: "bg-indigo-100 text-indigo-800 dark:bg-indigo-900 dark:text-indigo-100",
+  },
+  exchange_delivered: {
+    icon: CheckCircle,
+    label: "Exchange Delivered",
+    color: "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-100",
+  },
 } as const;
 
 export const returnStatusConfig = {
@@ -154,3 +180,17 @@ export const allReturnStatuses = [
 ] as const;
 
 export const refundSteps = ["pending", "initiated", "processing", "completed", "failed", "cancelled"] as const;
+
+export const orderStatuses = [
+  "pending",
+  "confirmed",
+  "processing",
+  "shipped",
+  "delivered",
+  "cancelled",
+  "exchange_requested",
+  "exchange_processing",
+  "exchange_packing",
+  "exchange_shipping",
+  "exchange_delivered",
+] as const;

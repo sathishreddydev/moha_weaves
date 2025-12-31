@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom";
-import { RotateCcw, Package, Clock, CheckCircle, XCircle, Truck, ArrowLeftRight } from "lucide-react";
+import { RotateCcw, Package, Clock, CheckCircle, XCircle, Truck, ArrowLeftRight, ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -68,6 +68,7 @@ export default function Returns() {
   const { data: returns, isLoading } = useQuery<ReturnRequestWithDetails[]>({
     queryKey: ["/api/user/returns"],
     enabled: !!user,
+    select: (data) => data.filter((r) => r.resolution === "refund"),
   });
 
   const formatPrice = (price: string | number) => {
@@ -132,9 +133,17 @@ export default function Returns() {
 
   return (
     <div className="max-w-4xl mx-auto px-4 py-8">
-      <h1 className="font-serif text-xl font-semibold mb-4" data-testid="text-page-title">
-        Returns & Exchanges
-      </h1>
+      <div className="flex items-center gap-4 mb-6">
+        <h1 className="font-serif text-xl font-semibold" data-testid="text-page-title">
+          Returns
+        </h1>
+        <Link to="/user/exchanges">
+          <Button variant="outline" size="sm">
+            <ArrowLeftRight className="h-4 w-4 mr-2" />
+            View Exchanges
+          </Button>
+        </Link>
+      </div>
 
       <div className="space-y-6">
         {returns.map((returnRequest) => {
