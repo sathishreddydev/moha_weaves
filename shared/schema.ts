@@ -27,6 +27,9 @@ export const orderStatusEnum = pgEnum("order_status", [
   "processing",
   "shipped",
   "delivered",
+  "exchange_processing",
+  "exchange_shipped",
+  "exchange_delivered",
   "cancelled",
 ]);
 export const returnStatusEnum = pgEnum("return_status", [
@@ -39,6 +42,9 @@ export const returnStatusEnum = pgEnum("return_status", [
   "received",
   "inspected",
   "completed",
+  "exchange_processing",
+  "exchange_shipped",
+  "exchange_delivered",
   "cancelled",
 ]);
 

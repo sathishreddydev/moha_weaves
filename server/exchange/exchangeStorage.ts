@@ -8,6 +8,8 @@ import {
   fabrics,
   orders,
   users,
+  stockMovements,
+  notifications,
   InsertReturnRequest,
   InsertReturnItem,
   ReturnRequest,
@@ -68,6 +70,21 @@ export interface IExchangeStorage {
     newItems: any[]
   ): Promise<any>;
   updateStoreExchangeStatus(id: string, status: string): Promise<any | undefined>;
+  updateExchangeOrderStatus(
+    orderId: string,
+    status: "exchange_processing" | "exchange_shipped" | "exchange_delivered",
+    processedBy?: string
+  ): Promise<any | undefined>;
+  createExchangeStatusNotification(
+    userId: string,
+    orderId: string,
+    status: "exchange_processing" | "exchange_shipped" | "exchange_delivered"
+  ): Promise<void>;
+  updateExchangeItemStatus(
+    exchangeRequestId: string,
+    status: "exchange_processing" | "exchange_shipped" | "exchange_delivered",
+    processedBy?: string
+  ): Promise<any | undefined>;
 }
 
 export class ExchangeStorage implements IExchangeStorage {
@@ -239,17 +256,70 @@ export class ExchangeStorage implements IExchangeStorage {
     inspectionNotes?: string,
     exchangeOrderId?: string
   ): Promise<ReturnRequest | undefined> {
-    const updateData: any = { status, updatedAt: new Date() };
-    if (processedBy) updateData.processedBy = processedBy;
-    if (inspectionNotes) updateData.inspectionNotes = inspectionNotes;
-    if (exchangeOrderId) updateData.exchangeOrderId = exchangeOrderId;
+    return await db.transaction(async (tx) => {
+      const updateData: any = { status, updatedAt: new Date() };
+      if (processedBy) updateData.processedBy = processedBy;
+      if (inspectionNotes) updateData.inspectionNotes = inspectionNotes;
+      if (exchangeOrderId) updateData.exchangeOrderId = exchangeOrderId;
 
-    const [result] = await db
-      .update(returnRequests)
-      .set(updateData)
-      .where(and(eq(returnRequests.id, id), eq(returnRequests.resolution, "exchange")))
-      .returning();
-    return result || undefined;
+      const [result] = await tx
+        .update(returnRequests)
+        .set(updateData)
+        .where(and(eq(returnRequests.id, id), eq(returnRequests.resolution, "exchange")))
+        .returning();
+
+      if (!result) return undefined;
+
+      // Handle exchange completion logic
+      if (status === "completed") {
+        const exchangeRequest = await this.getExchangeRequest(id);
+        if (!exchangeRequest) return result;
+
+        // Don't update order status - let item-level tracking handle the display
+        // Order status should remain as it was (e.g., "delivered")
+        // The item-level status will show "Exchange Completed" for specific items
+
+        // Handle inventory management for returned items
+        for (const item of exchangeRequest.items) {
+          const returnItem = exchangeRequest.items.find(ri => ri.orderItemId === item.orderItemId);
+          if (returnItem?.isRestockable) {
+            // Add returned item back to stock
+            await tx.insert(stockMovements).values({
+              sareeId: item.orderItem.saree.id,
+              quantity: returnItem.quantity, // Positive quantity for stock addition
+              movementType: "return",
+              source: "online",
+              orderRefId: exchangeRequest.orderId,
+              createdAt: new Date(),
+            });
+          }
+
+          // Record stock movement for exchanged item (deduction)
+          if (returnItem?.exchangeSareeId) {
+            await tx.insert(stockMovements).values({
+              sareeId: returnItem.exchangeSareeId,
+              quantity: -returnItem.quantity, // Negative quantity for stock deduction
+              movementType: "sale",
+              source: "online",
+              orderRefId: exchangeRequest.orderId,
+              createdAt: new Date(),
+            });
+          }
+        }
+
+        // Create customer notification
+        await tx.insert(notifications).values({
+          userId: exchangeRequest.userId,
+          type: "order",
+          title: "Exchange Completed",
+          message: `Your exchange request for order #${exchangeRequest.orderId} has been completed. Your exchanged items will be shipped soon.`,
+          relatedId: exchangeRequest.orderId,
+          createdAt: new Date(),
+        });
+      }
+
+      return result;
+    });
   }
 
   async updateExchangeRequest(
@@ -359,6 +429,80 @@ export class ExchangeStorage implements IExchangeStorage {
   async updateStoreExchangeStatus(id: string, status: string): Promise<any | undefined> {
     // This would be implemented when store exchange tables are properly set up
     return undefined;
+  }
+
+  async updateExchangeOrderStatus(
+    orderId: string,
+    status: "exchange_processing" | "exchange_shipped" | "exchange_delivered",
+    processedBy?: string
+  ): Promise<any | undefined> {
+    const [result] = await db
+      .update(orders)
+      .set({ status, updatedAt: new Date() })
+      .where(eq(orders.id, orderId))
+      .returning();
+    return result || undefined;
+  }
+
+  async createExchangeStatusNotification(
+    userId: string,
+    orderId: string,
+    status: "exchange_processing" | "exchange_shipped" | "exchange_delivered"
+  ): Promise<void> {
+    const statusMessages = {
+      exchange_processing: "Your exchange is being processed",
+      exchange_shipped: "Your exchange has been shipped",
+      exchange_delivered: "Your exchange has been delivered"
+    };
+
+    await db.insert(notifications).values({
+      userId,
+      type: "order",
+      title: `Exchange Status Update`,
+      message: `${statusMessages[status as keyof typeof statusMessages]} for order #${orderId}`,
+      relatedId: orderId,
+      createdAt: new Date(),
+    });
+  }
+
+  async updateExchangeItemStatus(
+    exchangeRequestId: string,
+    status: "exchange_processing" | "exchange_shipped" | "exchange_delivered",
+    processedBy?: string
+  ): Promise<any | undefined> {
+    return await db.transaction(async (tx) => {
+      const updateData: any = { status, updatedAt: new Date() };
+      if (processedBy) updateData.processedBy = processedBy;
+
+      const [result] = await tx
+        .update(returnRequests)
+        .set(updateData)
+        .where(and(eq(returnRequests.id, exchangeRequestId), eq(returnRequests.resolution, "exchange")))
+        .returning();
+
+      if (!result) return undefined;
+
+      // Create customer notification for item-level status update
+      const exchangeRequest = await this.getExchangeRequest(exchangeRequestId);
+      if (exchangeRequest) {
+        const statusMessages = {
+          exchange_processing: "Your exchange is being processed",
+          exchange_shipped: "Your exchange has been shipped", 
+          exchange_delivered: "Your exchange has been delivered"
+        };
+
+        await tx.insert(notifications).values({
+          userId: exchangeRequest.userId,
+          type: "order",
+          title: `Exchange Status Update`,
+          message: `${statusMessages[status as keyof typeof statusMessages]} for order #${exchangeRequest.orderId}`,
+          relatedId: exchangeRequest.orderId,
+          createdAt: new Date(),
+        });
+      }
+
+      return result || undefined;
+    });
   }
 }
 

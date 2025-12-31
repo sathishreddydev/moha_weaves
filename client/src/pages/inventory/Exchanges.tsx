@@ -159,6 +159,36 @@ export default function InventoryExchanges() {
     },
   });
 
+  const updateOrderStatusMutation = useMutation({
+    mutationFn: async ({
+      id,
+      status,
+    }: {
+      id: string;
+      status: string;
+    }) => {
+      const response = await apiRequest(
+        "PATCH",
+        `/api/inventory/exchanges/${id}/item-status`,
+        {
+          status,
+        }
+      );
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/inventory/exchanges"] });
+      toast({ title: "Success", description: "Exchange item status updated" });
+    },
+    onError: () => {
+      toast({
+        title: "Error",
+        description: "Failed to update exchange item status",
+        variant: "destructive",
+      });
+    },
+  });
+
   const handleStatusUpdate = (
     request: ReturnRequestWithDetails,
     status: string
@@ -175,6 +205,16 @@ export default function InventoryExchanges() {
         notes: inspectionNotes,
       });
     }
+  };
+
+  const handleOrderStatusUpdate = (
+    request: ReturnRequestWithDetails,
+    orderStatus: string
+  ) => {
+    updateOrderStatusMutation.mutate({
+      id: request.id,
+      status: orderStatus,
+    });
   };
 
   const getNextAction = (request: ReturnRequestWithDetails) => {
@@ -245,9 +285,85 @@ export default function InventoryExchanges() {
             Complete Exchange
           </Button>
         );
+      case "completed":
+        return getOrderStatusActions(request);
       default:
         return null;
     }
+  };
+
+  const getOrderStatusActions = (request: ReturnRequestWithDetails) => {
+    const currentExchangeStatus = request.status;
+    
+    switch (currentExchangeStatus) {
+      case "completed":
+        return (
+          <Button
+            size="sm"
+            onClick={() => handleOrderStatusUpdate(request, "exchange_processing")}
+            disabled={updateOrderStatusMutation.isPending}
+            data-testid={`button-start-processing-${request.id}`}
+          >
+            Start Processing
+          </Button>
+        );
+      case "exchange_processing":
+        return (
+          <Button
+            size="sm"
+            onClick={() => handleOrderStatusUpdate(request, "exchange_shipped")}
+            disabled={updateOrderStatusMutation.isPending}
+            data-testid={`button-ship-${request.id}`}
+          >
+            Mark Shipped
+          </Button>
+        );
+      case "exchange_shipped":
+        return (
+          <Button
+            size="sm"
+            onClick={() => handleOrderStatusUpdate(request, "exchange_delivered")}
+            disabled={updateOrderStatusMutation.isPending}
+            data-testid={`button-deliver-${request.id}`}
+          >
+            Mark Delivered
+          </Button>
+        );
+      case "exchange_delivered":
+        return (
+          <Badge className="bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-100">
+            <CheckCircle className="h-3 w-3 mr-1" />
+            Exchange Delivered
+          </Badge>
+        );
+      default:
+        return (
+          <Button
+            size="sm"
+            onClick={() => handleOrderStatusUpdate(request, "exchange_processing")}
+            disabled={updateOrderStatusMutation.isPending}
+            data-testid={`button-start-processing-${request.id}`}
+          >
+            Start Processing
+          </Button>
+        );
+    }
+  };
+
+  const getOrderStatusDisplay = (orderStatus: string) => {
+    const statusMap = {
+      exchange_processing: { label: "Processing", color: "bg-blue-100 text-blue-800" },
+      exchange_shipped: { label: "Shipped", color: "bg-purple-100 text-purple-800" },
+      exchange_delivered: { label: "Delivered", color: "bg-green-100 text-green-800" },
+    };
+    
+    const config = statusMap[orderStatus as keyof typeof statusMap];
+    return config ? (
+      <Badge className={config.color}>
+        <Truck className="h-3 w-3 mr-1" />
+        {config.label}
+      </Badge>
+    ) : null;
   };
 
   const formatDate = (date: string | Date) => {
@@ -439,10 +555,15 @@ export default function InventoryExchanges() {
                           {formatDate(request.createdAt)}
                         </TableCell>
                         <TableCell>
-                          <Badge className={status.color}>
-                            <StatusIcon className="h-3 w-3 mr-1" />
-                            {status.label}
-                          </Badge>
+                          <div className="space-y-1">
+                            <Badge className={status.color}>
+                              <StatusIcon className="h-3 w-3 mr-1" />
+                              {status.label}
+                            </Badge>
+                            {request.status === "completed" && request.order?.status && (
+                              getOrderStatusDisplay(request.order.status)
+                            )}
+                          </div>
                         </TableCell>
                         <TableCell>{getNextAction(request)}</TableCell>
                       </TableRow>

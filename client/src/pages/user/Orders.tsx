@@ -53,6 +53,21 @@ const statusConfig: Record<
     label: "Delivered",
     color: "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-100",
   },
+  exchange_processing: {
+    icon: Package,
+    label: "Exchange Processing",
+    color: "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-100",
+  },
+  exchange_shipped: {
+    icon: Truck,
+    label: "Exchange Shipped",
+    color: "bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-100",
+  },
+  exchange_delivered: {
+    icon: CheckCircle,
+    label: "Exchange Delivered",
+    color: "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-100",
+  },
   cancelled: {
     icon: XCircle,
     label: "Cancelled",
@@ -164,9 +179,11 @@ export default function Orders() {
         if (statusFilter !== "all") {
           const status = order.status;
           const inProgress = ["pending", "confirmed", "processing"].includes(status);
-          if (statusFilter === "in_progress" && !inProgress) return false;
-          if (statusFilter === "shipped" && status !== "shipped") return false;
-          if (statusFilter === "delivered" && status !== "delivered") return false;
+          const exchangeInProgress = ["exchange_processing", "exchange_shipped"].includes(status);
+          
+          if (statusFilter === "in_progress" && !inProgress && !exchangeInProgress) return false;
+          if (statusFilter === "shipped" && status !== "shipped" && status !== "exchange_shipped") return false;
+          if (statusFilter === "delivered" && status !== "delivered" && status !== "exchange_delivered") return false;
           if (statusFilter === "cancelled" && status !== "cancelled") return false;
         }
         if (!isWithinTimeRange(order.createdAt)) return false;
@@ -207,8 +224,11 @@ export default function Orders() {
     for (const o of orders) {
       const status = o.status;
       if (["pending", "confirmed", "processing"].includes(status)) counts.in_progress++;
+      if (["exchange_processing", "exchange_shipped"].includes(status)) counts.in_progress++;
       if (status === "shipped") counts.shipped++;
+      if (status === "exchange_shipped") counts.shipped++;
       if (status === "delivered") counts.delivered++;
+      if (status === "exchange_delivered") counts.delivered++;
       if (status === "cancelled") counts.cancelled++;
     }
 

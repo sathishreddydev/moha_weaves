@@ -10,6 +10,24 @@ import { useQuery } from "@tanstack/react-query";
 import { returnStatusConfig } from "@/constants/statusConfig";
 import type { ReturnRequestWithDetails } from "@shared/schema";
 
+const exchangeOrderStatusConfig = {
+  exchange_processing: {
+    icon: Clock,
+    label: "Processing Exchange",
+    color: "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-100",
+  },
+  exchange_shipped: {
+    icon: Truck,
+    label: "Exchange Shipped",
+    color: "bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-100",
+  },
+  exchange_delivered: {
+    icon: CheckCircle,
+    label: "Exchange Delivered",
+    color: "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-100",
+  },
+};
+
 export default function Exchanges() {
   const { user } = useAuth();
 
@@ -27,13 +45,26 @@ export default function Exchanges() {
     }).format(numPrice);
   };
 
-  const formatDate = (date: string | Date) => {
-    return new Date(date).toLocaleDateString("en-IN", {
-      day: "numeric",
-      month: "short",
-      year: "numeric",
-    });
-  };
+  const getExchangeOrderStatusDisplay = (orderStatus: string) => {
+  const config = exchangeOrderStatusConfig[orderStatus as keyof typeof exchangeOrderStatusConfig];
+  if (!config) return null;
+  
+  const StatusIcon = config.icon;
+  return (
+    <Badge className={config.color}>
+      <StatusIcon className="h-3 w-3 mr-1" />
+      {config.label}
+    </Badge>
+  );
+};
+
+const formatDate = (date: string | Date) => {
+  return new Date(date).toLocaleDateString("en-IN", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+  });
+};
 
   if (!user) {
     return (
@@ -118,10 +149,15 @@ export default function Exchanges() {
                     <span className="font-medium">{formatDate(exchangeRequest.createdAt)}</span>
                   </div>
                 </div>
-                <Badge className={status.color}>
-                  <StatusIcon className="h-3 w-3 mr-1" />
-                  {status.label}
-                </Badge>
+                <div className="flex flex-col gap-2">
+                  <Badge className={status.color}>
+                    <StatusIcon className="h-3 w-3 mr-1" />
+                    {status.label}
+                  </Badge>
+                  {exchangeRequest.status === "completed" && exchangeRequest.order?.status && 
+                    getExchangeOrderStatusDisplay(exchangeRequest.order.status)
+                  }
+                </div>
               </div>
 
               <div className="p-4">
@@ -172,6 +208,18 @@ export default function Exchanges() {
                   <div className="mt-4 p-3 bg-muted/50 rounded-md">
                     <p className="text-sm font-medium">Inspection Notes:</p>
                     <p className="text-sm text-muted-foreground">{exchangeRequest.inspectionNotes}</p>
+                  </div>
+                )}
+
+                {exchangeRequest.status === "completed" && exchangeRequest.order?.status && (
+                  <div className="mt-4 p-3 bg-primary/5 rounded-md border border-primary/20">
+                    <p className="text-sm font-medium mb-2">Exchange Progress</p>
+                    <div className="flex items-center gap-2">
+                      {getExchangeOrderStatusDisplay(exchangeRequest.order.status)}
+                      <span className="text-xs text-muted-foreground">
+                        Track your exchange shipment status
+                      </span>
+                    </div>
                   </div>
                 )}
               </div>
