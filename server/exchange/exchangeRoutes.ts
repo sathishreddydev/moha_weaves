@@ -334,47 +334,6 @@ export const exchangeRoutes = (app: Express) => {
     }
   });
 
-  // Admin: Update exchange order status (exchange_processing -> exchange_shipped -> exchange_delivered)
-  app.patch("/api/inventory/exchanges/:id/order-status", authInventory, async (req: Request, res: Response) => {
-    try {
-      const { status } = req.body;
-      const user = (req as any).user;
-
-      const validStatuses = ["exchange_processing", "exchange_shipped", "exchange_delivered"];
-      if (!validStatuses.includes(status)) {
-        return res.status(400).json({ message: "Invalid exchange order status" });
-      }
-
-      const exchangeRequest = await exchangeStorage.getExchangeRequest(req.params.id);
-      if (!exchangeRequest) {
-        return res.status(404).json({ message: "Exchange request not found" });
-      }
-
-      // Update the original order status
-      const updated = await exchangeStorage.updateExchangeOrderStatus(
-        exchangeRequest.orderId,
-        status,
-        user?.id
-      );
-
-      if (!updated) {
-        return res.status(404).json({ message: "Order not found" });
-      }
-
-      // Create notification for customer
-      await exchangeStorage.createExchangeStatusNotification(
-        exchangeRequest.userId,
-        exchangeRequest.orderId,
-        status
-      );
-
-      res.json({ message: "Exchange order status updated successfully", order: updated });
-    } catch (error) {
-      console.error("Error updating exchange order status:", error);
-      res.status(500).json({ message: "Failed to update exchange order status" });
-    }
-  });
-
   // Admin: Update exchange item status (item-level tracking)
   app.patch("/api/inventory/exchanges/:id/item-status", authInventory, async (req: Request, res: Response) => {
     try {

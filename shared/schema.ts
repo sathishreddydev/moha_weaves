@@ -22,15 +22,28 @@ export const userRoleEnum = pgEnum("user_role", [
   "store",
 ]);
 export const orderStatusEnum = pgEnum("order_status", [
+  "created",
+  "processing",
+  "completed",
+  "cancelled",
+]);
+
+export const itemStatusEnum = pgEnum("item_status", [
   "pending",
   "confirmed",
   "processing",
   "shipped",
   "delivered",
+  "cancelled",
+  "return_requested",
+  "return_approved",
+  "return_completed",
+  "exchange_requested",
+  "exchange_approved",
   "exchange_processing",
   "exchange_shipped",
   "exchange_delivered",
-  "cancelled",
+  "exchange_completed",
 ]);
 export const returnStatusEnum = pgEnum("return_status", [
   "requested",
@@ -42,9 +55,6 @@ export const returnStatusEnum = pgEnum("return_status", [
   "received",
   "inspected",
   "completed",
-  "exchange_processing",
-  "exchange_shipped",
-  "exchange_delivered",
   "cancelled",
 ]);
 
@@ -303,7 +313,7 @@ export const orders = pgTable("orders", {
   finalAmount: decimal("final_amount", { precision: 10, scale: 2 })
     .notNull()
     .default("0"),
-  status: orderStatusEnum("status").notNull().default("pending"),
+  status: orderStatusEnum("status").notNull().default("created"),
   paymentStatus: paymentStatusEnum("payment_status")
     .notNull()
     .default("pending"),
@@ -336,6 +346,13 @@ export const orderItems = pgTable("order_items", {
     .notNull(),
   quantity: integer("quantity").notNull(),
   price: decimal("price", { precision: 10, scale: 2 }).notNull(),
+  status: itemStatusEnum("status").notNull().default("pending"),
+  trackingNumber: text("tracking_number"),
+  shippedAt: timestamp("shipped_at"),
+  deliveredAt: timestamp("delivered_at"),
+  returnEligibleUntil: timestamp("return_eligible_until"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });
 
 // Store sales (in-store transactions)
@@ -619,16 +636,16 @@ export const notifications = pgTable("notifications", {
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
-// Order status history for tracking
-export const orderStatusHistory = pgTable("order_status_history", {
+// Item status history for tracking individual item status changes
+export const itemStatusHistory = pgTable("item_status_history", {
   id: varchar("id")
     .primaryKey()
     .default(sql`gen_random_uuid()`),
-  orderId: varchar("order_id")
-    .references(() => orders.id)
+  orderItemId: varchar("order_item_id")
+    .references(() => orderItems.id)
     .notNull(),
-  status: orderStatusEnum("status").notNull(),
-  newStatus: orderStatusEnum("new_status"),
+  status: itemStatusEnum("status").notNull(),
+  newStatus: itemStatusEnum("new_status"),
   note: text("note"),
   updatedBy: varchar("updated_by"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
@@ -852,14 +869,14 @@ export const ordersRelations = relations(orders, ({ one, many }) => ({
   items: many(orderItems),
   returnRequests: many(returnRequests),
   refunds: many(refunds),
-  statusHistory: many(orderStatusHistory),
   reviews: many(productReviews),
   coupon: one(coupons, { fields: [orders.couponId], references: [coupons.id] }),
 }));
 
-export const orderItemsRelations = relations(orderItems, ({ one }) => ({
+export const orderItemsRelations = relations(orderItems, ({ one, many }) => ({
   order: one(orders, { fields: [orderItems.orderId], references: [orders.id] }),
   saree: one(sarees, { fields: [orderItems.sareeId], references: [sarees.id] }),
+  statusHistory: many(itemStatusHistory),
 }));
 
 export const storeSalesRelations = relations(storeSales, ({ one, many }) => ({
@@ -983,15 +1000,12 @@ export const notificationsRelations = relations(notifications, ({ one }) => ({
   user: one(users, { fields: [notifications.userId], references: [users.id] }),
 }));
 
-export const orderStatusHistoryRelations = relations(
-  orderStatusHistory,
-  ({ one }) => ({
-    order: one(orders, {
-      fields: [orderStatusHistory.orderId],
-      references: [orders.id],
-    }),
-  })
-);
+export const itemStatusHistoryRelations = relations(itemStatusHistory, ({ one }) => ({
+  orderItem: one(orderItems, {
+    fields: [itemStatusHistory.orderItemId],
+    references: [orderItems.id],
+  }),
+}));
 
 export const stockMovementsRelations = relations(stockMovements, ({ one }) => ({
   saree: one(sarees, {
@@ -1181,12 +1195,12 @@ export const insertNotificationSchema = createInsertSchema(notifications).omit({
   id: true,
   createdAt: true,
 });
-export const insertOrderStatusHistorySchema = createInsertSchema(
-  orderStatusHistory
-).omit({ id: true, createdAt: true });
 export const insertAppSettingSchema = createInsertSchema(appSettings).omit({
   updatedAt: true,
 });
+export const insertItemStatusHistorySchema = createInsertSchema(
+  itemStatusHistory
+).omit({ id: true, createdAt: true });
 export const insertStockMovementSchema = createInsertSchema(
   stockMovements
 ).omit({ id: true, createdAt: true });
@@ -1267,9 +1281,9 @@ export type CouponUsage = typeof couponUsage.$inferSelect;
 export type InsertCouponUsage = z.infer<typeof insertCouponUsageSchema>;
 export type Notification = typeof notifications.$inferSelect;
 export type InsertNotification = z.infer<typeof insertNotificationSchema>;
-export type OrderStatusHistory = typeof orderStatusHistory.$inferSelect;
-export type InsertOrderStatusHistory = z.infer<
-  typeof insertOrderStatusHistorySchema
+export type ItemStatusHistory = typeof itemStatusHistory.$inferSelect;
+export type InsertItemStatusHistory = z.infer<
+  typeof insertItemStatusHistorySchema
 >;
 export type AppSetting = typeof appSettings.$inferSelect;
 export type InsertAppSetting = z.infer<typeof insertAppSettingSchema>;

@@ -10,7 +10,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
-import type { OrderStatusHistory, OrderWithItems } from "@shared/schema";
+import type { ItemStatusHistory, OrderWithItems } from "@shared/schema";
 
 const statusColor: Record<string, string> = {
   pending: "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-100",
@@ -19,6 +19,17 @@ const statusColor: Record<string, string> = {
   shipped: "bg-indigo-100 text-indigo-800 dark:bg-indigo-900 dark:text-indigo-100",
   delivered: "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-100",
   cancelled: "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-100",
+  // Return statuses
+  return_requested: "bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-100",
+  return_approved: "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-100",
+  return_completed: "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-100",
+  // Exchange statuses
+  exchange_requested: "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-100",
+  exchange_approved: "bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-100",
+  exchange_processing: "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-100",
+  exchange_shipped: "bg-indigo-100 text-indigo-800 dark:bg-indigo-900 dark:text-indigo-100",
+  exchange_delivered: "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-100",
+  exchange_completed: "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-100",
 };
 
 const formatPrice = (price: string | number) => {
@@ -54,7 +65,7 @@ export default function InventoryOrderDetail() {
     enabled: !!id,
   });
 
-  const historyQuery = useQuery<OrderStatusHistory[]>({
+  const historyQuery = useQuery<ItemStatusHistory[]>({
     queryKey: ["/api/inventory/orders", id, "history"],
     enabled: !!id,
   });
@@ -204,9 +215,20 @@ export default function InventoryOrderDetail() {
         </div>
 
         <div className="flex items-center gap-2">
-          <Badge className={statusColor[String(order.status)] || statusColor.pending}>
-            {String(order.status).charAt(0).toUpperCase() + String(order.status).slice(1)}
-          </Badge>
+          {/* Show item-level statuses */}
+          {order.items?.length === 1 ? (
+            <Badge className={statusColor[order.items[0].status as string] || statusColor.pending}>
+              {String(order.items[0].status).charAt(0).toUpperCase() + String(order.items[0].status).slice(1)}
+            </Badge>
+          ) : (
+            <div className="flex flex-col gap-1">
+              {order.items?.map((item, index) => (
+                <Badge key={item.id} className={statusColor[item.status as string] || statusColor.pending}>
+                  Item {index + 1}: {String(item.status).charAt(0).toUpperCase() + String(item.status).slice(1)}
+                </Badge>
+              ))}
+            </div>
+          )}
           <Button variant="outline" onClick={printOrder}>
             <Printer className="h-4 w-4 mr-2" />
             Print
@@ -361,7 +383,7 @@ export default function InventoryOrderDetail() {
             <div className="col right">
               <div className="mono">Order: {order.id}</div>
               <div className="muted">Date: {formatDate(order.createdAt)}</div>
-              <div className="muted">Status: {String(order.status)}</div>
+              <div className="muted">Status: {order.items?.map(item => String(item.status)).join(", ")}</div>
             </div>
           </div>
 

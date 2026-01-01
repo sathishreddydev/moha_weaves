@@ -130,7 +130,7 @@ export class ReviewRepository implements IReviewStorage {
       .where(
         and(
           eq(orders.userId, userId),
-          eq(orders.status, "delivered"),
+          eq(orders.status, "completed"),
           eq(orderItems.sareeId, sareeId)
         )
       );

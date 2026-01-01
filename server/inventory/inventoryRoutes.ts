@@ -216,7 +216,7 @@ export const inventoryRoutes = (app: Express) => {
           return res.status(404).json({ message: "Order not found" });
         }
 
-        const history = await storage.getOrderStatusHistory(req.params.id);
+        const history = await storage.getItemStatusHistory(req.params.id);
         res.json(history);
       } catch (error) {
         res.status(500).json({ message: "Failed to fetch order history" });
@@ -542,12 +542,13 @@ export const inventoryRoutes = (app: Express) => {
     async (req, res) => {
       try {
         const user = (req as any).user;
-        const { status, note } = req.body;
+        const { status, note, orderItemIds } = req.body;
 
-        console.log("Updating order status:", {
+        console.log("Updating order item status:", {
           orderId: req.params.id,
           status,
           note,
+          orderItemIds,
           userId: user.id
         });
 
@@ -556,20 +557,41 @@ export const inventoryRoutes = (app: Express) => {
           return res.status(404).json({ message: "Order not found" });
         }
 
-        console.log("Current order status:", order.status);
-
-        const updated = await storage.updateOrderWithStatusHistory(
-          req.params.id,
-          status,
-          user.id,
-          note
-        );
-
-        if (!updated) {
-          return res.status(500).json({ message: "Failed to update order" });
+        // If orderItemIds provided, update specific items only
+        if (orderItemIds && Array.isArray(orderItemIds) && orderItemIds.length > 0) {
+          const updatedItems = [];
+          for (const orderItemId of orderItemIds) {
+            const updatedItem = await orderService.updateItemStatus(
+              orderItemId,
+              status,
+              user.id,
+              note || `Status updated to ${status}`
+            );
+            if (updatedItem) {
+              updatedItems.push(updatedItem);
+            }
+          }
+          
+          console.log("Order items updated successfully:", updatedItems.length);
+          res.json({ message: "Order item status updated successfully", items: updatedItems });
+        } else {
+          // If no specific items provided, update all items in the order
+          const updatedItems = [];
+          for (const item of order.items) {
+            const updatedItem = await orderService.updateItemStatus(
+              item.id,
+              status,
+              user.id,
+              note || `Status updated to ${status}`
+            );
+            if (updatedItem) {
+              updatedItems.push(updatedItem);
+            }
+          }
+          
+          console.log("All order items updated successfully:", updatedItems.length);
+          res.json({ message: "All order items status updated successfully", items: updatedItems });
         }
-
-        console.log("Order updated successfully:", updated.status);
 
         // Create notification for user
         let notificationMessage = "";
@@ -588,7 +610,6 @@ export const inventoryRoutes = (app: Express) => {
           case "delivered":
             notificationMessage =
               "Your order has been delivered. Enjoy your purchase!";
-            // Return eligibility is now set automatically in updateOrderWithStatusHistory
             break;
           case "cancelled":
             notificationMessage = "Your order has been cancelled.";
@@ -605,10 +626,8 @@ export const inventoryRoutes = (app: Express) => {
             relatedType: "order",
           });
         }
-
-        res.json(updated);
       } catch (error) {
-        console.error("Error updating order status:", error);
+        console.error("Error updating order item status:", error);
         const message = error instanceof Error ? error.message : String(error);
         if (message.startsWith("INVALID_STATUS_TRANSITION:")) {
           return res
@@ -616,7 +635,7 @@ export const inventoryRoutes = (app: Express) => {
             .json({ message: message.replace("INVALID_STATUS_TRANSITION:", "").trim() });
         }
 
-        res.status(500).json({ message: "Failed to update order status" });
+        res.status(500).json({ message: "Failed to update order item status" });
       }
     }
   );

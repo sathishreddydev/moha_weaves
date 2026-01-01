@@ -8,6 +8,7 @@ import {
   Truck,
   XCircle,
   RefreshCw,
+  RotateCcw,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -20,60 +21,8 @@ import type { OrderWithItems, ReturnRequestWithDetails, Refund } from "@shared/s
 import { WriteReview } from "@/components/product/WriteReview";
 import { useDebounce } from "@/components/common/useDebounceHook";
 import { useToast } from "@/hooks/use-toast";
-
-const statusConfig: Record<
-  string,
-  { icon: typeof Clock; label: string; color: string }
-> = {
-  pending: {
-    icon: Clock,
-    label: "Pending",
-    color:
-      "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-100",
-  },
-  confirmed: {
-    icon: CheckCircle,
-    label: "Confirmed",
-    color: "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-100",
-  },
-  processing: {
-    icon: Package,
-    label: "Processing",
-    color:
-      "bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-100",
-  },
-  shipped: {
-    icon: Truck,
-    label: "Shipped",
-    color:
-      "bg-indigo-100 text-indigo-800 dark:bg-indigo-900 dark:text-indigo-100",
-  },
-  delivered: {
-    icon: CheckCircle,
-    label: "Delivered",
-    color: "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-100",
-  },
-  exchange_processing: {
-    icon: Package,
-    label: "Exchange Processing",
-    color: "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-100",
-  },
-  exchange_shipped: {
-    icon: Truck,
-    label: "Exchange Shipped",
-    color: "bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-100",
-  },
-  exchange_delivered: {
-    icon: CheckCircle,
-    label: "Exchange Delivered",
-    color: "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-100",
-  },
-  cancelled: {
-    icon: XCircle,
-    label: "Cancelled",
-    color: "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-100",
-  },
-};
+import { orderStatusConfig, returnStatusConfig, refundStatusConfig, inProgressReturnStatuses, activeAndCompletedStatuses, allReturnStatuses, refundSteps } from "@/constants/statusConfig";
+import { itemStatusConfig, isItemDelivered, isItemInProgress, isItemShipped, isItemCancelled } from "@/constants/itemStatusConfig";
 
 export default function Orders() {
   const { user } = useAuth();
@@ -92,6 +41,11 @@ export default function Orders() {
 
   const { data: userReturns } = useQuery<ReturnRequestWithDetails[]>({
     queryKey: ["/api/user/returns"],
+    enabled: !!user,
+  });
+
+  const { data: userExchanges } = useQuery<ReturnRequestWithDetails[]>({
+    queryKey: ["/api/user/exchanges"],
     enabled: !!user,
   });
 
@@ -177,14 +131,17 @@ export default function Orders() {
     return orders
       .filter((order) => {
         if (statusFilter !== "all") {
-          const status = order.status;
-          const inProgress = ["pending", "confirmed", "processing"].includes(status);
-          const exchangeInProgress = ["exchange_processing", "exchange_shipped"].includes(status);
+          // Check item-level statuses instead of order status
+          const itemStatuses = order.items.map(item => item.status as any);
+          const inProgress = itemStatuses.some(isItemInProgress);
+          const hasShipped = itemStatuses.some(isItemShipped);
+          const hasDelivered = itemStatuses.some(isItemDelivered);
+          const hasCancelled = itemStatuses.some(isItemCancelled);
           
-          if (statusFilter === "in_progress" && !inProgress && !exchangeInProgress) return false;
-          if (statusFilter === "shipped" && status !== "shipped" && status !== "exchange_shipped") return false;
-          if (statusFilter === "delivered" && status !== "delivered" && status !== "exchange_delivered") return false;
-          if (statusFilter === "cancelled" && status !== "cancelled") return false;
+          if (statusFilter === "in_progress" && !inProgress) return false;
+          if (statusFilter === "shipped" && !hasShipped) return false;
+          if (statusFilter === "delivered" && !hasDelivered) return false;
+          if (statusFilter === "cancelled" && !hasCancelled) return false;
         }
         if (!isWithinTimeRange(order.createdAt)) return false;
 
@@ -222,14 +179,14 @@ export default function Orders() {
     };
 
     for (const o of orders) {
-      const status = o.status;
-      if (["pending", "confirmed", "processing"].includes(status)) counts.in_progress++;
-      if (["exchange_processing", "exchange_shipped"].includes(status)) counts.in_progress++;
-      if (status === "shipped") counts.shipped++;
-      if (status === "exchange_shipped") counts.shipped++;
-      if (status === "delivered") counts.delivered++;
-      if (status === "exchange_delivered") counts.delivered++;
-      if (status === "cancelled") counts.cancelled++;
+      // Count based on item-level statuses
+      const itemStatuses = o.items.map(item => item.status as any);
+      
+      if (["pending", "confirmed", "processing"].some(s => itemStatuses.includes(s))) counts.in_progress++;
+      if (["exchange_processing", "exchange_shipped"].some(s => itemStatuses.includes(s))) counts.in_progress++;
+      if (["shipped", "exchange_shipped"].some(s => itemStatuses.includes(s))) counts.shipped++;
+      if (["delivered", "exchange_delivered", "exchange_completed", "return_completed"].some(s => itemStatuses.includes(s))) counts.delivered++;
+      if (itemStatuses.includes("cancelled")) counts.cancelled++;
     }
 
     return counts;
@@ -311,12 +268,28 @@ export default function Orders() {
         { label: string; color: string; updatedAt: string | Date }
       >();
 
+      // First, set current item statuses from order items
+      for (const item of o.items || []) {
+        const currentItemStatusConfig = itemStatusConfig[item.status as any] || itemStatusConfig.pending;
+        itemStatusByOrderItemId.set(item.id, {
+          label: currentItemStatusConfig.label,
+          color: currentItemStatusConfig.color,
+          updatedAt: item.updatedAt || o.updatedAt
+        });
+      }
+
       const returnsForOrder = (userReturns || [])
         .filter((r) => r.orderId === o.id)
         .slice()
         .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
 
-      for (const rr of returnsForOrder) {
+      const exchangesForOrder = (userExchanges || [])
+        .filter((r) => r.orderId === o.id)
+        .slice()
+        .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
+
+      // Process both returns and exchanges
+      for (const rr of [...returnsForOrder, ...exchangesForOrder]) {
         for (const ri of rr.items || []) {
           const existing = itemStatusByOrderItemId.get(ri.orderItemId);
           const rrUpdated = rr.updatedAt || rr.createdAt;
@@ -344,7 +317,7 @@ export default function Orders() {
     }
 
     return map;
-  }, [orders, userReturns, userRefunds]);
+  }, [orders, userReturns, userExchanges, userRefunds]);
 
   const totalPages = Math.ceil(filteredOrders.length / ordersPerPage);
   const paginatedOrders = filteredOrders.slice(
@@ -493,10 +466,8 @@ export default function Orders() {
 
       <div className="space-y-6">
         {paginatedOrders.map((order) => {
-          const status = statusConfig[order.status] || statusConfig.pending;
-          const StatusIcon = status.icon;
           const meta = displayMetaByOrderId.get(order.id);
-          const hasReturnOrExchange = (userReturns || []).some((r) => r.orderId === order.id);
+          const hasReturnOrExchange = (userReturns || []).some((r) => r.orderId === order.id) || (userExchanges || []).some((r) => r.orderId === order.id);
 
           return (
             <Card
@@ -543,11 +514,9 @@ export default function Orders() {
                 <div className="space-y-3">
                   {order.items.slice(0, 2).map((item) => {
                     const itemStatus = meta?.itemStatusByOrderItemId?.get(item.id);
-                    const deliveryBadge = {
-                      label: status.label,
-                      color: status.color,
-                    };
-                    const effective = itemStatus || deliveryBadge;
+                    // Use item's own status instead of order status
+                    const currentStatusConfig = itemStatusConfig[item.status as any] || itemStatusConfig.pending;
+                    const effective = itemStatus || currentStatusConfig;
 
                     return (
                       <div
@@ -579,7 +548,7 @@ export default function Orders() {
                             Qty: {item.quantity}
                           </p>
                         </div>
-                        {order.status === "delivered" ? (
+                        {item.status === "delivered" ? (
                           <div className="sm:self-center">
                             <WriteReview saree={item.saree} />
                           </div>
@@ -612,8 +581,13 @@ export default function Orders() {
                       const isReturnWindowOpen = order.returnEligibleUntil
                         ? new Date(order.returnEligibleUntil).getTime() >= Date.now()
                         : true;
-                      const showReturnExchange =
-                        order.status === "delivered" && isReturnWindowOpen && !hasReturnOrExchange;
+                      // Check if at least one item is delivered and eligible for return
+                      const hasDeliveredItem = order.items.some(item => 
+                        (item.status as any) === "delivered" || 
+                        (item.status as any) === "exchange_completed" ||
+                        (item.status as any) === "return_completed"
+                      );
+                      const showReturnExchange = hasDeliveredItem && isReturnWindowOpen && !hasReturnOrExchange;
                       return showReturnExchange ? (
                         <Link to={`/user/orders/${order.id}`} className="w-full sm:w-auto">
                           <Button

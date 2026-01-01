@@ -43,7 +43,14 @@ interface IStorage {
   getUserReturnRequests(userId: string): Promise<ReturnRequestWithDetails[]>;
   checkOrderReturnEligibility(
     orderId: string
-  ): Promise<{ eligible: boolean; reason?: string; remainingDays?: number }>;
+  ): Promise<{
+    itemId: string;
+    eligible: boolean;
+    reason?: string;
+    remainingDays?: number;
+  }[]>;
+
+
 }
 
 export class ReturnRepo implements IStorage {
@@ -253,62 +260,70 @@ export class ReturnRepo implements IStorage {
 
   async checkOrderReturnEligibility(
     orderId: string
-  ): Promise<{ eligible: boolean; reason?: string; remainingDays?: number }> {
+  ): Promise<
+    { itemId: string; eligible: boolean; reason?: string; remainingDays?: number }[]
+  > {
     const order = await orderService.getOrder(orderId);
-    if (!order) return { eligible: false, reason: "Order not found" };
-    if (order.status !== "delivered")
-      return {
-        eligible: false,
-        reason: "Order must be delivered to initiate return",
-      };
 
-    let eligibleUntil: Date;
-    // Handle missing return window - calculate from deliveredAt if available
-    if (!order.returnEligibleUntil) {
-      if (order.deliveredAt) {
-        // Get return window setting, default to 7 days
-        const windowDays = await storage.getSetting("return_window_days");
-        const days = windowDays ? parseInt(windowDays) : 7;
-        eligibleUntil = new Date(order.deliveredAt);
-        eligibleUntil.setDate(eligibleUntil.getDate() + days);
-
-        // Update the order with the calculated return window
-        await db
-          .update(orders)
-          .set({ returnEligibleUntil: eligibleUntil })
-          .where(eq(orders.id, orderId));
-      } else {
-        return {
+    if (!order) {
+      return [
+        {
+          itemId: "",
           eligible: false,
-          reason: "Return window not set - order delivery date missing",
-        };
-      }
-    } else {
-      eligibleUntil = new Date(order.returnEligibleUntil);
+          reason: "Order not found",
+        },
+      ];
     }
+
+    const returnedByItem = await this.getReturnedQuantitiesByOrderItem(orderId);
+
+    const windowDays = await storage.getSetting("return_window_days");
+    const days = windowDays ? parseInt(windowDays) : 7;
 
     const now = new Date();
-    if (now > eligibleUntil) {
-      return { eligible: false, reason: "Return window has expired" };
-    }
 
-    // Compute remaining days (floor to whole days)
-    const remainingMs = eligibleUntil.getTime() - now.getTime();
-    const remainingDays = Math.max(0, Math.floor(remainingMs / (1000 * 60 * 60 * 24)));
+    return order.items.map((item: any) => {
+      if (!item.deliveredAt) {
+        return {
+          itemId: item.id,
+          eligible: false,
+          reason: "Item delivery date missing",
+        };
+      }
 
-    // Eligible if at least one order item still has remaining quantity not already covered by active returns
-    const returnedByItem = await this.getReturnedQuantitiesByOrderItem(orderId);
-    const hasRemaining = order.items.some((item: any) => {
+      const deliveredAt = new Date(item.deliveredAt);
+      const eligibleUntil = new Date(deliveredAt);
+      eligibleUntil.setDate(eligibleUntil.getDate() + days);
+
+      if (now > eligibleUntil) {
+        return {
+          itemId: item.id,
+          eligible: false,
+          reason: "Return window has expired",
+        };
+      }
+
       const purchasedQty = Number(item.quantity || 0);
       const returnedQty = Number(returnedByItem[String(item.id)] || 0);
-      return purchasedQty > returnedQty;
-    });
-    if (!hasRemaining) {
-      return { eligible: false, reason: "All items in this order have already been returned or exchanged", remainingDays };
-    }
+      const hasRemaining = purchasedQty > returnedQty;
 
-    return { eligible: true, remainingDays };
+      return {
+        itemId: item.id,
+        eligible: hasRemaining,
+        reason: !hasRemaining
+          ? "All items in this order have already been returned or exchanged"
+          : undefined,
+        remainingDays: hasRemaining
+          ? Math.max(
+            0,
+            Math.floor((eligibleUntil.getTime() - now.getTime()) / (1000 * 60 * 60 * 24))
+          )
+          : 0,
+      };
+    });
   }
+
+
 }
 
 export const returnService = new ReturnRepo();

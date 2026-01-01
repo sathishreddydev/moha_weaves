@@ -58,7 +58,7 @@ export class AdminRepository implements IStorage {
         sum: sql<number>`coalesce(sum(total_amount::numeric), 0)::float`,
       })
       .from(orders)
-      .where(eq(orders.status, "delivered"));
+      .where(eq(orders.status, "completed"));
 
     const [storeSalesSum] = await db
       .select({
@@ -70,7 +70,7 @@ export class AdminRepository implements IStorage {
     const [pendingCount] = await db
       .select({ count: sql<number>`count(*)::int` })
       .from(orders)
-      .where(eq(orders.status, "pending"));
+      .where(eq(orders.status, "created"));
     const [lowStockCount] = await db
       .select({ count: sql<number>`count(*)::int` })
       .from(sarees)

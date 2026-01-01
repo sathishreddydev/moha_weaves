@@ -36,7 +36,7 @@ import { Button } from "@/components/ui/button";
 
 const statusConfig: Record<
   string,
-  { icon: typeof Clock; label: string; color: string }
+  { icon: React.ComponentType<any>; label: string; color: string }
 > = {
   pending: {
     icon: Clock,
@@ -70,6 +70,53 @@ const statusConfig: Record<
     icon: XCircle,
     label: "Cancelled",
     color: "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-100",
+  },
+  // Return statuses
+  return_requested: {
+    icon: Clock,
+    label: "Return Requested",
+    color: "bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-100",
+  },
+  return_approved: {
+    icon: CheckCircle,
+    label: "Return Approved",
+    color: "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-100",
+  },
+  return_completed: {
+    icon: CheckCircle,
+    label: "Return Completed",
+    color: "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-100",
+  },
+  // Exchange statuses
+  exchange_requested: {
+    icon: Clock,
+    label: "Exchange Requested",
+    color: "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-100",
+  },
+  exchange_approved: {
+    icon: CheckCircle,
+    label: "Exchange Approved",
+    color: "bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-100",
+  },
+  exchange_processing: {
+    icon: Package,
+    label: "Exchange Processing",
+    color: "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-100",
+  },
+  exchange_shipped: {
+    icon: Truck,
+    label: "Exchange Shipped",
+    color: "bg-indigo-100 text-indigo-800 dark:bg-indigo-900 dark:text-indigo-100",
+  },
+  exchange_delivered: {
+    icon: CheckCircle,
+    label: "Exchange Delivered",
+    color: "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-100",
+  },
+  exchange_completed: {
+    icon: CheckCircle,
+    label: "Exchange Completed",
+    color: "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-100",
   },
 };
 
@@ -234,14 +281,52 @@ export default function InventoryOrders() {
         accessorKey: "status",
         header: "Status",
         cell: ({ row }) => {
-          const status =
-            statusConfig[row.original.status] || statusConfig.pending;
-          const StatusIcon = status.icon;
+          // Show item-level statuses for all items in the order
+          const itemStatuses = row.original.items?.map(item => item.status as any) || [];
+          const uniqueStatuses = Array.from(new Set(itemStatuses));
+          
+          if (uniqueStatuses.length === 0) {
+            const status = statusConfig.pending;
+            const StatusIcon = status.icon;
+            return (
+              <Badge className={status.color}>
+                <StatusIcon className="h-3 w-3 mr-1" />
+                {status.label}
+              </Badge>
+            );
+          }
+          
+          // If all items have the same status, show one badge
+          if (uniqueStatuses.length === 1) {
+            const status = statusConfig[uniqueStatuses[0] as keyof typeof statusConfig] || statusConfig.pending;
+            const StatusIcon = status.icon;
+            return (
+              <Badge className={status.color}>
+                <StatusIcon className="h-3 w-3 mr-1" />
+                {status.label}
+              </Badge>
+            );
+          }
+          
+          // If items have different statuses, show a summary
+          const statusCounts = itemStatuses.reduce((acc, status) => {
+            acc[status] = (acc[status] || 0) + 1;
+            return acc;
+          }, {} as Record<string, number>);
+          
           return (
-            <Badge className={status.color}>
-              <StatusIcon className="h-3 w-3 mr-1" />
-              {status.label}
-            </Badge>
+            <div className="flex flex-col gap-1">
+              {Object.entries(statusCounts).map(([status, count]) => {
+                const currentStatusConfig = statusConfig[status as keyof typeof statusConfig] || statusConfig.pending;
+                const StatusIcon = currentStatusConfig.icon;
+                return (
+                  <Badge key={status} className={currentStatusConfig.color}>
+                    <StatusIcon className="h-3 w-3 mr-1" />
+                    {currentStatusConfig.label} ({String(count)})
+                  </Badge>
+                );
+              })}
+            </div>
           );
         },
       },
@@ -251,7 +336,7 @@ export default function InventoryOrders() {
         cell: ({ row }) => (
           <div className="flex items-center gap-2">
             <Select
-              value={row.original.status}
+              value={row.original.items?.[0]?.status as string || "pending"}
               onValueChange={(value) =>
                 updateStatusMutation.mutate({
                   id: row.original.id,
@@ -267,7 +352,7 @@ export default function InventoryOrders() {
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                {getAllowedNextStatuses(row.original.status).map((s) => (
+                {orderStatuses.map((s) => (
                   <SelectItem key={s} value={s} className="capitalize">
                     {s.charAt(0).toUpperCase() + s.slice(1)}
                   </SelectItem>

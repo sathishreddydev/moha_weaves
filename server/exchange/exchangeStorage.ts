@@ -10,6 +10,8 @@ import {
   users,
   stockMovements,
   notifications,
+  itemStatusHistory,
+  itemStatusEnum,
   InsertReturnRequest,
   InsertReturnItem,
   ReturnRequest,
@@ -70,11 +72,6 @@ export interface IExchangeStorage {
     newItems: any[]
   ): Promise<any>;
   updateStoreExchangeStatus(id: string, status: string): Promise<any | undefined>;
-  updateExchangeOrderStatus(
-    orderId: string,
-    status: "exchange_processing" | "exchange_shipped" | "exchange_delivered",
-    processedBy?: string
-  ): Promise<any | undefined>;
   createExchangeStatusNotification(
     userId: string,
     orderId: string,
@@ -243,6 +240,25 @@ export class ExchangeStorage implements IExchangeStorage {
           ...item,
           returnRequestId: newRequest.id,
         });
+
+        // Update item status to "exchange_requested"
+        await tx
+          .update(orderItems)
+          .set({ 
+            status: "exchange_requested",
+            updatedAt: new Date(),
+          })
+          .where(eq(orderItems.id, item.orderItemId));
+
+        // Create item status history
+        await tx.insert(itemStatusHistory).values({
+          orderItemId: item.orderItemId,
+          status: "delivered", // Previous status
+          newStatus: "exchange_requested",
+          note: "Exchange request created",
+          updatedBy: request.userId,
+          createdAt: new Date(),
+        });
       }
 
       return newRequest;
@@ -275,18 +291,35 @@ export class ExchangeStorage implements IExchangeStorage {
         const exchangeRequest = await this.getExchangeRequest(id);
         if (!exchangeRequest) return result;
 
-        // Don't update order status - let item-level tracking handle the display
-        // Order status should remain as it was (e.g., "delivered")
-        // The item-level status will show "Exchange Completed" for specific items
+        // Update item-level status for exchanged items
+        for (const item of exchangeRequest.items) {
+          await tx
+            .update(orderItems)
+            .set({ 
+              status: "exchange_completed",
+              updatedAt: new Date(),
+            })
+            .where(eq(orderItems.id, item.orderItemId));
+
+          // Create item status history
+          await tx.insert(itemStatusHistory).values({
+            orderItemId: item.orderItemId,
+            status: "delivered", // Previous status
+            newStatus: "exchange_completed",
+            note: "Exchange completed",
+            updatedBy: processedBy,
+            createdAt: new Date(),
+          });
+        }
 
         // Handle inventory management for returned items
         for (const item of exchangeRequest.items) {
-          const returnItem = exchangeRequest.items.find(ri => ri.orderItemId === item.orderItemId);
-          if (returnItem?.isRestockable) {
+          // item is already the return item, no need to find it again
+          if (item.isRestockable) {
             // Add returned item back to stock
             await tx.insert(stockMovements).values({
               sareeId: item.orderItem.saree.id,
-              quantity: returnItem.quantity, // Positive quantity for stock addition
+              quantity: item.quantity, // Positive quantity for stock addition
               movementType: "return",
               source: "online",
               orderRefId: exchangeRequest.orderId,
@@ -295,10 +328,10 @@ export class ExchangeStorage implements IExchangeStorage {
           }
 
           // Record stock movement for exchanged item (deduction)
-          if (returnItem?.exchangeSareeId) {
+          if (item.exchangeSareeId) {
             await tx.insert(stockMovements).values({
-              sareeId: returnItem.exchangeSareeId,
-              quantity: -returnItem.quantity, // Negative quantity for stock deduction
+              sareeId: item.exchangeSareeId,
+              quantity: -item.quantity, // Negative quantity for stock deduction
               movementType: "sale",
               source: "online",
               orderRefId: exchangeRequest.orderId,
@@ -345,11 +378,20 @@ export class ExchangeStorage implements IExchangeStorage {
   ): Promise<{ eligible: boolean; reason?: string; remainingDays?: number }> {
     const order = await orderService.getOrder(orderId);
     if (!order) return { eligible: false, reason: "Order not found" };
-    if (order.status !== "delivered")
+    
+    // Check if at least one item is delivered
+    const hasDeliveredItem = order.items.some((item: any) => 
+      item.status === "delivered" || 
+      item.status === "exchange_completed" ||
+      item.status === "return_completed"
+    );
+    
+    if (!hasDeliveredItem) {
       return {
         eligible: false,
-        reason: "Order must be delivered to initiate exchange",
+        reason: "At least one item must be delivered to initiate exchange",
       };
+    }
 
     let eligibleUntil: Date;
     // Handle missing return window - calculate from deliveredAt if available
@@ -431,19 +473,6 @@ export class ExchangeStorage implements IExchangeStorage {
     return undefined;
   }
 
-  async updateExchangeOrderStatus(
-    orderId: string,
-    status: "exchange_processing" | "exchange_shipped" | "exchange_delivered",
-    processedBy?: string
-  ): Promise<any | undefined> {
-    const [result] = await db
-      .update(orders)
-      .set({ status, updatedAt: new Date() })
-      .where(eq(orders.id, orderId))
-      .returning();
-    return result || undefined;
-  }
-
   async createExchangeStatusNotification(
     userId: string,
     orderId: string,
@@ -482,9 +511,46 @@ export class ExchangeStorage implements IExchangeStorage {
 
       if (!result) return undefined;
 
-      // Create customer notification for item-level status update
+      // Get exchange request details to update item statuses
       const exchangeRequest = await this.getExchangeRequest(exchangeRequestId);
-      if (exchangeRequest) {
+      if (!exchangeRequest) return result;
+
+      // Update item-level status for exchanged items based on exchange status
+      let itemStatus: string;
+      switch (status) {
+        case "exchange_processing":
+          itemStatus = "exchange_processing";
+          break;
+        case "exchange_shipped":
+          itemStatus = "exchange_shipped";
+          break;
+        case "exchange_delivered":
+          itemStatus = "exchange_delivered";
+          break;
+      }
+
+      for (const item of exchangeRequest.items) {
+        await tx
+          .update(orderItems)
+          .set({ 
+            status: itemStatus as "exchange_processing" | "exchange_shipped" | "exchange_delivered",
+            updatedAt: new Date(),
+            ...(status === "exchange_shipped" && { shippedAt: new Date() }),
+            ...(status === "exchange_delivered" && { deliveredAt: new Date() }),
+          })
+          .where(eq(orderItems.id, item.orderItemId));
+
+        // Create item status history
+        await tx.insert(itemStatusHistory).values({
+          orderItemId: item.orderItemId,
+          status: "exchange_requested", 
+          newStatus: itemStatus as "exchange_processing" | "exchange_shipped" | "exchange_delivered",
+          note: `Exchange ${status.replace(/_/g, " ")}`,
+          updatedBy: processedBy,
+          createdAt: new Date(),
+        });
+
+        // Create customer notification for item-level status update
         const statusMessages = {
           exchange_processing: "Your exchange is being processed",
           exchange_shipped: "Your exchange has been shipped", 

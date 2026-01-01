@@ -9,6 +9,9 @@ import {
   refunds,
   orders,
   users,
+  itemStatusHistory,
+  itemStatusEnum,
+  stockMovements,
   InsertReturnRequest,
   InsertReturnItem,
   ReturnRequest,
@@ -229,6 +232,25 @@ export class ReturnStorage implements IReturnStorage {
           ...item,
           returnRequestId: newRequest.id,
         });
+
+        // Update item status to "return_requested"
+        await tx
+          .update(orderItems)
+          .set({ 
+            status: "return_requested",
+            updatedAt: new Date(),
+          })
+          .where(eq(orderItems.id, item.orderItemId));
+
+        // Create item status history
+        await tx.insert(itemStatusHistory).values({
+          orderItemId: item.orderItemId,
+          status: "delivered", // Previous status
+          newStatus: "return_requested",
+          note: "Return request created",
+          updatedBy: request.userId,
+          createdAt: new Date(),
+        });
       }
 
       return newRequest;
@@ -241,16 +263,60 @@ export class ReturnStorage implements IReturnStorage {
     processedBy?: string,
     inspectionNotes?: string
   ): Promise<ReturnRequest | undefined> {
-    const updateData: any = { status, updatedAt: new Date() };
-    if (processedBy) updateData.processedBy = processedBy;
-    if (inspectionNotes) updateData.inspectionNotes = inspectionNotes;
+    return await db.transaction(async (tx) => {
+      const updateData: any = { status, updatedAt: new Date() };
+      if (processedBy) updateData.processedBy = processedBy;
+      if (inspectionNotes) updateData.inspectionNotes = inspectionNotes;
 
-    const [result] = await db
-      .update(returnRequests)
-      .set(updateData)
-      .where(eq(returnRequests.id, id))
-      .returning();
-    return result || undefined;
+      const [result] = await tx
+        .update(returnRequests)
+        .set(updateData)
+        .where(eq(returnRequests.id, id))
+        .returning();
+
+      if (!result) return undefined;
+
+      // Get return request details to update item statuses
+      const returnRequest = await this.getReturnRequest(id);
+      if (!returnRequest) return result;
+
+      // Handle return completion - update item statuses
+      if (status === "completed") {
+        for (const item of returnRequest.items) {
+          await tx
+            .update(orderItems)
+            .set({ 
+              status: "return_completed",
+              updatedAt: new Date(),
+            })
+            .where(eq(orderItems.id, item.orderItemId));
+
+          // Create item status history
+          await tx.insert(itemStatusHistory).values({
+            orderItemId: item.orderItemId,
+            status: "return_requested", // Previous status
+            newStatus: "return_completed",
+            note: "Return completed",
+            updatedBy: processedBy,
+            createdAt: new Date(),
+          });
+
+          // Handle inventory restocking if applicable
+          if (item.isRestockable) {
+            await tx.insert(stockMovements).values({
+              sareeId: item.orderItem.saree.id,
+              quantity: item.quantity, // Positive quantity for stock addition
+              movementType: "return",
+              source: "online",
+              orderRefId: returnRequest.orderId,
+              createdAt: new Date(),
+            });
+          }
+        }
+      }
+
+      return result;
+    });
   }
 
   async updateReturnRequest(
@@ -276,11 +342,20 @@ export class ReturnStorage implements IReturnStorage {
   ): Promise<{ eligible: boolean; reason?: string; remainingDays?: number }> {
     const order = await orderService.getOrder(orderId);
     if (!order) return { eligible: false, reason: "Order not found" };
-    if (order.status !== "delivered")
+    
+    // Check if at least one item is delivered
+    const hasDeliveredItem = order.items.some((item: any) => 
+      item.status === "delivered" || 
+      item.status === "exchange_completed" ||
+      item.status === "return_completed"
+    );
+    
+    if (!hasDeliveredItem) {
       return {
         eligible: false,
-        reason: "Order must be delivered to initiate return",
+        reason: "At least one item must be delivered to initiate return",
       };
+    }
 
     let eligibleUntil: Date;
     // Handle missing return window - calculate from deliveredAt if available

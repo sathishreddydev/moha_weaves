@@ -164,16 +164,6 @@ export const returnRoutes = (app: Express) => {
         return res.status(400).json({ message: "Invalid return resolution" });
       }
 
-      // Check order return eligibility
-      const eligibility = await returnStorage.checkOrderReturnEligibility(orderId);
-      if (!eligibility.eligible) {
-        return res.status(400).json({
-          message: "Order not eligible for return",
-          reason: eligibility.reason
-        });
-      }
-
-      // Create return request
       const returnData: InsertReturnRequest = {
         orderId,
         userId,
@@ -192,8 +182,6 @@ export const returnRoutes = (app: Express) => {
       }));
 
       const newReturn = await returnStorage.createReturnRequest(returnData, returnItemsData);
-
-      // Get the complete return request with details
       const returnWithDetails = await returnStorage.getReturnRequest(newReturn.id);
 
       res.status(201).json(returnWithDetails);

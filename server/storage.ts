@@ -15,7 +15,7 @@ import {
   refunds,
   productReviews,
   notifications,
-  orderStatusHistory,
+  itemStatusHistory,
   appSettings,
   stockMovements,
   storeExchanges,
@@ -34,8 +34,8 @@ import {
   type InsertRefund,
   type Notification,
   type InsertNotification,
-  type OrderStatusHistory,
-  type InsertOrderStatusHistory,
+  type ItemStatusHistory,
+  type InsertItemStatusHistory,
   type StockMovement,
   type SareeWithDetails,
   type OrderWithItems,
@@ -192,18 +192,6 @@ export interface IStorage {
   markNotificationAsRead(id: string): Promise<Notification | undefined>;
   markAllNotificationsAsRead(userId: string): Promise<boolean>;
   getUnreadNotificationCount(userId: string): Promise<number>;
-
-  // Order Status History
-  getOrderStatusHistory(orderId: string): Promise<OrderStatusHistory[]>;
-  addOrderStatusHistory(
-    entry: InsertOrderStatusHistory
-  ): Promise<OrderStatusHistory>;
-  updateOrderWithStatusHistory(
-    orderId: string,
-    status: string,
-    changedBy?: string,
-    notes?: string
-  ): Promise<Order | undefined>;
 
   // App Settings
   getSetting(key: string): Promise<string | null>;
@@ -1182,159 +1170,6 @@ export class DatabaseStorage implements IStorage {
     return result?.count || 0;
   }
 
-  // Order Status History
-  async getOrderStatusHistory(orderId: string): Promise<OrderStatusHistory[]> {
-    return db
-      .select()
-      .from(orderStatusHistory)
-      .where(eq(orderStatusHistory.orderId, orderId))
-      .orderBy(asc(orderStatusHistory.createdAt));
-  }
-
-  async addOrderStatusHistory(
-    entry: InsertOrderStatusHistory
-  ): Promise<OrderStatusHistory> {
-    const [result] = await db
-      .insert(orderStatusHistory)
-      .values(entry)
-      .returning();
-    return result;
-  }
-
-  async updateOrderWithStatusHistory(
-    orderId: string,
-    status: string,
-    changedBy?: string,
-    notes?: string
-  ): Promise<Order | undefined> {
-    // Get return window setting for delivered orders
-    let returnWindowDays = 7;
-    if (status === "delivered") {
-      const windowDays = await this.getSetting("return_window_days");
-      if (windowDays) returnWindowDays = parseInt(windowDays);
-    }
-
-    return await db.transaction(async (tx) => {
-      const [order] = await tx
-        .select()
-        .from(orders)
-        .where(eq(orders.id, orderId));
-      if (!order) return undefined;
-
-      const allowedFlow = [
-        "pending",
-        "confirmed",
-        "processing",
-        "shipped",
-        "delivered",
-        "cancelled",
-        "exchange_requested",
-        "exchange_processing",
-        "exchange_packing",
-        "exchange_shipping",
-        "exchange_delivered",
-      ];
-
-      const currentStatus = String(order.status);
-      const nextStatus = String(status);
-
-      if (currentStatus === nextStatus) {
-        return order as any;
-      }
-
-      const isCurrentFlow = allowedFlow.includes(currentStatus);
-      const isNextFlow = allowedFlow.includes(nextStatus);
-
-      // Define valid transitions
-      const validTransitions: Record<string, string[]> = {
-        // Standard order flow
-        pending: ["confirmed", "cancelled"],
-        confirmed: ["processing", "cancelled", "exchange_requested"], // Allow exchange from confirmed
-        processing: ["shipped", "cancelled", "exchange_requested"], // Allow exchange from processing
-        shipped: ["delivered", "cancelled", "exchange_requested"], // Allow exchange from shipped
-        delivered: ["exchange_requested"], // Can start exchange from delivered
-        cancelled: [], // Terminal state
-        
-        // Exchange flow (special handling)
-        exchange_requested: ["exchange_processing", "cancelled"],
-        exchange_processing: ["exchange_packing", "cancelled"],
-        exchange_packing: ["exchange_shipping", "cancelled"],
-        exchange_shipping: ["exchange_delivered", "cancelled"],
-        exchange_delivered: [], // Terminal state
-      };
-
-      // Special case: allow transition to exchange flow
-      if (nextStatus.startsWith("exchange_")) {
-        // Allow transition to exchange flow from confirmed, processing, shipped, or delivered
-        if (["confirmed", "processing", "shipped", "delivered"].includes(currentStatus)) {
-          if (nextStatus === "exchange_requested") {
-            // Allow starting exchange
-          } else {
-            throw new Error(
-              `INVALID_STATUS_TRANSITION: Cannot transition to ${nextStatus} from ${currentStatus}. Must start with exchange_requested.`
-            );
-          }
-        } else if (currentStatus.startsWith("exchange_")) {
-          // Allow transitions within exchange flow
-          const allowedNext = validTransitions[currentStatus] || [];
-          if (!allowedNext.includes(nextStatus)) {
-            throw new Error(
-              `INVALID_STATUS_TRANSITION: Invalid exchange status transition from ${currentStatus} to ${nextStatus}`
-            );
-          }
-        } else {
-          throw new Error(
-            `INVALID_STATUS_TRANSITION: Cannot transition to exchange status from ${currentStatus}`
-          );
-        }
-      } else if (nextStatus === "cancelled") {
-        // Allow cancelling from any non-terminal status
-        if (!allowedFlow.includes(currentStatus) && !currentStatus.startsWith("exchange_")) {
-          throw new Error(
-            `INVALID_STATUS_TRANSITION: Cannot cancel from ${currentStatus}`
-          );
-        }
-      } else {
-        // Standard order flow transitions
-        const allowedNext = validTransitions[currentStatus] || [];
-        if (!allowedNext.includes(nextStatus)) {
-          throw new Error(
-            `INVALID_STATUS_TRANSITION: Invalid status transition from ${currentStatus} to ${nextStatus}`
-          );
-        }
-      }
-
-      const updateData: any = {
-        status: status as any,
-        updatedAt: new Date(),
-      };
-
-      // Set deliveredAt and returnEligibleUntil when marking as delivered
-      if (status === "delivered") {
-        const now = new Date();
-        updateData.deliveredAt = now;
-        const eligibleUntil = new Date(now);
-        eligibleUntil.setDate(eligibleUntil.getDate() + returnWindowDays);
-        updateData.returnEligibleUntil = eligibleUntil;
-      }
-
-      const [updatedOrder] = await tx
-        .update(orders)
-        .set(updateData)
-        .where(eq(orders.id, orderId))
-        .returning();
-
-      await tx.insert(orderStatusHistory).values({
-        orderId,
-        status: status as any,
-        note: notes,
-        updatedBy: changedBy,
-      });
-
-      return updatedOrder || undefined;
-    });
-  }
-
   // App Settings
   async getSetting(key: string): Promise<string | null> {
     const [result] = await db
@@ -1826,6 +1661,23 @@ export class DatabaseStorage implements IStorage {
       data,
       total: countResult[0]?.count || 0,
     };
+  }
+
+  async getItemStatusHistory(orderId: string): Promise<ItemStatusHistory[]> {
+    return await db
+      .select({
+        id: itemStatusHistory.id,
+        orderItemId: itemStatusHistory.orderItemId,
+        status: itemStatusHistory.status,
+        newStatus: itemStatusHistory.newStatus,
+        note: itemStatusHistory.note,
+        updatedBy: itemStatusHistory.updatedBy,
+        createdAt: itemStatusHistory.createdAt,
+      })
+      .from(itemStatusHistory)
+      .innerJoin(orderItems, eq(itemStatusHistory.orderItemId, orderItems.id))
+      .where(eq(orderItems.orderId, orderId))
+      .orderBy(desc(itemStatusHistory.createdAt));
   }
 }
 

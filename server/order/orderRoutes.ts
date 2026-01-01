@@ -309,7 +309,7 @@ export const orderRoutes = (app: Express) => {
           shippingAddress,
           phone,
           notes,
-          status: "pending",
+          status: "created",
         },
         cartItems.cart.map((item) => {
           const originalPrice =
@@ -463,7 +463,7 @@ receipt: `r${Date.now()}`,
           shippingAddress,
           phone,
           notes,
-          status: "pending",
+          status: "created",
           paymentStatus: "paid",
           paymentMethod: "razorpay",
           razorpayPaymentId, 

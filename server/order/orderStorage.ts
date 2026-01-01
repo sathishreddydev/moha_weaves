@@ -13,6 +13,8 @@ import {
   OrderWithItems,
   sarees,
   stockMovements,
+  itemStatusHistory,
+  itemStatusEnum,
 } from "@shared/schema";
 
 export interface OrderStorage {
@@ -22,6 +24,18 @@ export interface OrderStorage {
   ): Promise<Order>;
   getOrders(userId: string): Promise<OrderWithItems[]>;
   getOrder(id: string): Promise<OrderWithItems | undefined>;
+  updateItemStatus(
+    orderItemId: string,
+    status: string,
+    updatedBy?: string,
+    note?: string
+  ): Promise<any | undefined>;
+  updateOrderStatus(
+    orderId: string,
+    status: string,
+    updatedBy?: string,
+    note?: string
+  ): Promise<any | undefined>;
 }
 
 export class OrderRepository implements OrderStorage {
@@ -32,7 +46,20 @@ export class OrderRepository implements OrderStorage {
     const [newOrder] = await db.insert(orders).values(order).returning();
 
     for (const item of items) {
-      await db.insert(orderItems).values({ ...item, orderId: newOrder.id });
+      const [newOrderItem] = await db.insert(orderItems).values({ 
+        ...item, 
+        orderId: newOrder.id,
+        status: "pending"
+      }).returning();
+
+      // Create initial item status history
+      await db.insert(itemStatusHistory).values({
+        orderItemId: newOrderItem.id,
+        status: "pending",
+        newStatus: "pending",
+        note: "Order created",
+        createdAt: new Date(),
+      });
 
       // Deduct from online stock and total stock
       await db
@@ -120,6 +147,76 @@ export class OrderRepository implements OrderStorage {
         },
       })),
     };
+  }
+
+  async updateItemStatus(
+    orderItemId: string,
+    status: string,
+    updatedBy?: string,
+    note?: string
+  ): Promise<any | undefined> {
+    return await db.transaction(async (tx) => {
+      // Get current item status
+      const [currentItem] = await tx
+        .select()
+        .from(orderItems)
+        .where(eq(orderItems.id, orderItemId));
+
+      if (!currentItem) return undefined;
+
+      // Update item status
+      const [updatedItem] = await tx
+        .update(orderItems)
+        .set({ 
+          status: status as any,
+          updatedAt: new Date(),
+          ...(status === "shipped" && { shippedAt: new Date() }),
+          ...(status === "delivered" && { deliveredAt: new Date() }),
+        })
+        .where(eq(orderItems.id, orderItemId))
+        .returning();
+
+      // Create status history record
+      await tx.insert(itemStatusHistory).values({
+        orderItemId,
+        status: currentItem.status,
+        newStatus: status as any,
+        note: note || `Status updated to ${status}`,
+        updatedBy,
+        createdAt: new Date(),
+      });
+
+      return updatedItem;
+    });
+  }
+
+  async updateOrderStatus(
+    orderId: string,
+    status: string,
+    updatedBy?: string,
+    note?: string
+  ): Promise<any | undefined> {
+    return await db.transaction(async (tx) => {
+      // Get current order status
+      const [currentOrder] = await tx
+        .select()
+        .from(orders)
+        .where(eq(orders.id, orderId));
+
+      if (!currentOrder) return undefined;
+
+      // Update order status
+      const [updatedOrder] = await tx
+        .update(orders)
+        .set({ 
+          status: status as any,
+          updatedAt: new Date(),
+        })
+        .where(eq(orders.id, orderId))
+        .returning();
+
+      return updatedOrder;
+    });
   }
 }
 

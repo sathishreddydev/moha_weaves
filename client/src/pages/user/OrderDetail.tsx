@@ -21,15 +21,8 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
 import { ReusableDialog } from "@/components/common/ReusableDialog";
+import { StatusDialog } from "@/pages/user/common/StatusDialog";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import {
@@ -44,18 +37,9 @@ import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/lib/auth";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
-import type { OrderWithItems, OrderStatusHistory, ReturnRequestWithDetails, Refund, SareeWithDetails } from "@shared/schema";
-import { orderStatusConfig, returnStatusConfig, refundStatusConfig, inProgressReturnStatuses, activeAndCompletedStatuses, allReturnStatuses, refundSteps } from "@/constants/statusConfig";
-
-const returnReasons = [
-  { value: "defective", label: "Product is defective" },
-  { value: "wrong_item", label: "Received wrong item" },
-  { value: "not_as_described", label: "Not as described" },
-  { value: "quality_issue", label: "Quality issue" },
-  { value: "size_issue", label: "Size doesn't fit" },
-  { value: "changed_mind", label: "Changed my mind" },
-  { value: "other", label: "Other reason" },
-];
+import type { OrderWithItems, ItemStatusHistory, ReturnRequestWithDetails, Refund, SareeWithDetails } from "@shared/schema";
+import { returnStatusConfig, refundStatusConfig, inProgressReturnStatuses, activeAndCompletedStatuses, allReturnStatuses, refundSteps } from "@/constants/statusConfig";
+import { itemStatusConfig, isItemDelivered, returnReasons } from "@/constants/itemStatusConfig";
 
 
 export default function OrderDetail() {
@@ -104,16 +88,34 @@ export default function OrderDetail() {
   });
   const stockBySareeId = new Map(sareesWithStock?.map((s) => [s.id, s.stock]) || []);
 
-  const { data: eligibility } = useQuery<{
-    eligible: boolean;
-    reason?: string;
-    remainingDays?: number;
-  }>({
+  const { data: eligibility } = useQuery<
+    {
+      itemId: string;
+      eligible: boolean;
+      reason?: string;
+      remainingDays?: number;
+    }[]
+  >({
     queryKey: ["/api/user/orders", id, "return-eligibility"],
-    enabled: !!user && !!id && order?.status === "delivered",
+    enabled:
+      !!user &&
+      !!id &&
+      order?.items?.some((item) =>
+        isItemDelivered(item.status as any)
+      ),
   });
 
-  const { data: orderHistory } = useQuery<OrderStatusHistory[]>({
+  const isItemEligibleForReturn = (itemId: string): boolean => {
+    if (!eligibility) return false;
+
+    const itemEligibility = eligibility.find(
+      (item) => item.itemId === itemId
+    );
+
+    return itemEligibility?.eligible ?? false;
+  };
+
+  const { data: orderHistory } = useQuery<ItemStatusHistory[]>({
     queryKey: ["/api/user/orders", id, "history"],
     enabled: !!user && !!id,
   });
@@ -300,24 +302,6 @@ export default function OrderDetail() {
     setShowReturnDialog(true);
   };
 
-  const selectAllItemsForReturnExchange = () => {
-    if (!order?.items) return;
-    setSelectedItems(() => {
-      const next: Record<string, { selected: boolean; quantity: number }> = {};
-      for (const item of order.items) {
-        const remainingQty = Number(
-          remainingQtyByOrderItemId.get(String(item.id)) ?? item.quantity
-        );
-        const locked = activeOrderItemIds.has(String(item.id));
-        next[item.id] = {
-          selected: !locked && remainingQty > 0,
-          quantity: !locked && remainingQty > 0 ? remainingQty : 0,
-        };
-      }
-      return next;
-    });
-  };
-
   const toggleItemSelection = (itemId: string, maxQty: number) => {
     const locked = activeOrderItemIds.has(String(itemId));
     const remainingQty = Number(remainingQtyByOrderItemId.get(String(itemId)) ?? maxQty);
@@ -366,8 +350,6 @@ export default function OrderDetail() {
       </div>
     );
   }
-
-  const status = orderStatusConfig[order.status as keyof typeof orderStatusConfig] || orderStatusConfig.pending;
 
   const returnsForThisOrder = (userReturns || []).filter(
     (r: ReturnRequestWithDetails) => r.orderId === id && r.resolution !== "exchange"
@@ -422,58 +404,6 @@ export default function OrderDetail() {
     }
   }
 
-  const orderTimeline = (orderHistory || [])
-    .slice()
-    .sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime())
-    .map((entry) => {
-      const key = ((entry.newStatus || entry.status) as string) || "pending";
-      const cfg = orderStatusConfig[key as keyof typeof orderStatusConfig] || orderStatusConfig.pending;
-      return {
-        id: entry.id,
-        icon: cfg.icon,
-        label: cfg.label,
-        date: entry.createdAt,
-        note: entry.note,
-      };
-    });
-
-  const getReturnStatusDate = (status: string, request?: any) => {
-    if (!request) return undefined;
-    if (status === "pickup_scheduled") return request.pickupScheduledAt;
-    if (status === "picked_up") return request.pickedUpAt;
-    if (status === "received") return request.receivedAt;
-    if (status === "requested") return request.createdAt;
-    return request.updatedAt;
-  };
-
-  const returnTimeline = latestReturnForThisOrder
-    ? allReturnStatuses
-      .filter((s) => returnStatusConfig[s])
-      .map((s) => {
-        const cfg = returnStatusConfig[s];
-        return {
-          key: s,
-          icon: cfg.icon,
-          label: cfg.label,
-          date: getReturnStatusDate(s, latestReturnForThisOrder),
-        };
-      })
-    : [];
-
-  const exchangeTimeline = latestExchangeForThisOrder
-    ? allReturnStatuses
-      .filter((s) => returnStatusConfig[s])
-      .map((s) => {
-        const cfg = returnStatusConfig[s];
-        return {
-          key: s,
-          icon: cfg.icon,
-          label: cfg.label,
-          date: getReturnStatusDate(s, latestExchangeForThisOrder),
-        };
-      })
-    : [];
-
   const refundByReturnRequestId = new Map<string, Refund>();
   for (const rf of userRefunds || []) {
     if (rf.returnRequestId) refundByReturnRequestId.set(rf.returnRequestId, rf);
@@ -484,6 +414,18 @@ export default function OrderDetail() {
     : (userRefunds || []).find((rf) => rf.orderId === order.id);
 
   const itemStatusByOrderItemId = new Map<string, { label: string; color: string; updatedAt: string | Date }>();
+
+  // First, set current item statuses from order items
+  for (const item of order.items || []) {
+    const currentItemStatusConfig = itemStatusConfig[item.status as any] || itemStatusConfig.pending;
+    itemStatusByOrderItemId.set(item.id, {
+      label: currentItemStatusConfig.label,
+      color: currentItemStatusConfig.color,
+      updatedAt: item.updatedAt || order.updatedAt
+    });
+  }
+
+  // Then, override with return/exchange statuses if they exist and are more recent
   for (const rr of [...returnsForThisOrder, ...exchangesForThisOrder]) {
     for (const ri of rr.items || []) {
       const existing = itemStatusByOrderItemId.get(ri.orderItemId);
@@ -547,9 +489,6 @@ export default function OrderDetail() {
     : null;
   const RefundBadgeIcon = refundBadge ? refundBadge.icon : Clock;
 
-  const refundActiveIndex = refundForThisOrder
-    ? Math.max(0, refundSteps.indexOf(refundForThisOrder.status as any))
-    : 0;
 
   const handleDownloadInvoice = async () => {
     try {
@@ -613,221 +552,6 @@ export default function OrderDetail() {
           </Button>
         </div>
       </div>
-
-      <Dialog open={showStatusDialog} onOpenChange={setShowStatusDialog}>
-        <DialogContent className="max-w-2xl">
-          <DialogHeader>
-            <DialogTitle>Status details</DialogTitle>
-            <DialogDescription>
-              Track your order and return progress with timestamps.
-            </DialogDescription>
-          </DialogHeader>
-
-          <div className="space-y-6">
-            <div>
-              <h4 className="font-semibold mb-3">Order timeline</h4>
-              {orderTimeline.length === 0 ? (
-                <p className="text-sm text-muted-foreground">No timeline updates yet.</p>
-              ) : (
-                <div className="space-y-4">
-                  {orderTimeline.map((t, idx) => {
-                    const Icon = t.icon;
-                    return (
-                      <div key={t.id} className="flex gap-3">
-                        <div className="flex flex-col items-center">
-                          <div className="h-8 w-8 rounded-full border flex items-center justify-center">
-                            <Icon className="h-4 w-4" />
-                          </div>
-                          {idx < orderTimeline.length - 1 ? (
-                            <div className="w-px flex-1 bg-muted mt-2" />
-                          ) : null}
-                        </div>
-                        <div className="flex-1 pb-1">
-                          <p className="font-medium">{t.label}</p>
-                          <p className="text-sm text-muted-foreground">{formatDate(t.date)}</p>
-                          {t.note ? <p className="text-sm mt-1">{t.note}</p> : null}
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
-
-            {latestReturnForThisOrder ? (
-              <div>
-                <h4 className="font-semibold mb-3">Return / Refund timeline</h4>
-                <div className="space-y-4">
-                  {returnTimeline.map((t, idx) => {
-                    const Icon = t.icon;
-                    const isCurrent = t.key === latestReturnForThisOrder.status;
-                    return (
-                      <div key={t.key} className="flex gap-3">
-                        <div className="flex flex-col items-center">
-                          <div
-                            className={
-                              "h-8 w-8 rounded-full border flex items-center justify-center " +
-                              (isCurrent ? "border-primary text-primary" : "")
-                            }
-                          >
-                            <Icon className="h-4 w-4" />
-                          </div>
-                          {idx < returnTimeline.length - 1 ? (
-                            <div className="w-px flex-1 bg-muted mt-2" />
-                          ) : null}
-                        </div>
-                        <div className="flex-1 pb-1">
-                          <p className={"font-medium " + (isCurrent ? "text-primary" : "")}>{t.label}</p>
-                          {t.date ? (
-                            <p className="text-sm text-muted-foreground">{formatDate(t.date)}</p>
-                          ) : (
-                            <p className="text-sm text-muted-foreground">Date not available</p>
-                          )}
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            ) : null}
-
-            {latestExchangeForThisOrder ? (
-              <div>
-                <h4 className="font-semibold mb-3">Exchange timeline</h4>
-                <div className="space-y-4">
-                  {exchangeTimeline.map((t, idx) => {
-                    const Icon = t.icon;
-                    const isCurrent = t.key === latestExchangeForThisOrder.status;
-                    return (
-                      <div key={t.key} className="flex gap-3">
-                        <div className="flex flex-col items-center">
-                          <div
-                            className={
-                              "h-8 w-8 rounded-full border flex items-center justify-center " +
-                              (isCurrent ? "border-primary text-primary" : "")
-                            }
-                          >
-                            <Icon className="h-4 w-4" />
-                          </div>
-                          {idx < exchangeTimeline.length - 1 ? (
-                            <div className="w-px flex-1 bg-muted mt-2" />
-                          ) : null}
-                        </div>
-                        <div className="flex-1 pb-1">
-                          <p className={"font-medium " + (isCurrent ? "text-primary" : "")}>{t.label}</p>
-                          {t.date ? (
-                            <p className="text-sm text-muted-foreground">{formatDate(t.date)}</p>
-                          ) : (
-                            <p className="text-sm text-muted-foreground">Date not available</p>
-                          )}
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            ) : null}
-
-            {refundForThisOrder && latestReturnForThisOrder?.resolution !== "exchange" ? (
-              <div>
-                <h4 className="font-semibold mb-3">Refund status</h4>
-                <div className="space-y-2 text-sm">
-                  <p>
-                    <span className="text-muted-foreground">Amount:</span> {formatPrice(refundForThisOrder.amount)}
-                  </p>
-                  <p>
-                    <span className="text-muted-foreground">Status:</span> {refundForThisOrder.status}
-                  </p>
-                  {refundForThisOrder.razorpayRefundId ? (
-                    <p>
-                      <span className="text-muted-foreground">Razorpay refund:</span> {maskId(refundForThisOrder.razorpayRefundId)}
-                    </p>
-                  ) : null}
-                  <p>
-                    <span className="text-muted-foreground">Created:</span> {formatDate(refundForThisOrder.createdAt)}
-                  </p>
-                  {refundForThisOrder.initiatedAt ? (
-                    <p>
-                      <span className="text-muted-foreground">Initiated:</span> {formatDate(refundForThisOrder.initiatedAt)}
-                    </p>
-                  ) : null}
-                  {refundForThisOrder.completedAt ? (
-                    <p>
-                      <span className="text-muted-foreground">Completed:</span> {formatDate(refundForThisOrder.completedAt)}
-                    </p>
-                  ) : null}
-                  {refundForThisOrder.failureReason ? (
-                    <p className="text-red-600">
-                      <span className="text-muted-foreground">Failure:</span> {refundForThisOrder.failureReason}
-                    </p>
-                  ) : null}
-                </div>
-
-                <div className="mt-4">
-                  <div className="flex items-center gap-3">
-                    {refundSteps.map((step, idx) => {
-                      const isDone = refundForThisOrder.status === "failed"
-                        ? idx < refundSteps.indexOf("failed")
-                        : idx < refundActiveIndex;
-                      const isActive = idx === refundActiveIndex;
-                      const isFailed = refundForThisOrder.status === "failed" && step === "failed";
-                      return (
-                        <div key={step} className="flex items-center flex-1 min-w-0">
-                          <div className="flex items-center gap-2 min-w-0">
-                            <div
-                              className={
-                                "h-6 w-6 rounded-full flex items-center justify-center border " +
-                                (isFailed
-                                  ? "bg-red-600 border-red-600 text-white"
-                                  : isDone
-                                    ? "bg-primary border-primary text-primary-foreground"
-                                    : isActive
-                                      ? "border-primary text-primary"
-                                      : "border-muted-foreground/30 text-muted-foreground")
-                              }
-                            >
-                              {isDone || isFailed ? (
-                                <CheckCircle className="h-4 w-4" />
-                              ) : (
-                                <span className="text-xs">{idx + 1}</span>
-                              )}
-                            </div>
-                            <div className="min-w-0">
-                              <p
-                                className={
-                                  "text-xs sm:text-sm truncate capitalize " +
-                                  (isFailed
-                                    ? "text-red-600 font-medium"
-                                    : isDone
-                                      ? "text-foreground"
-                                      : isActive
-                                        ? "text-primary font-medium"
-                                        : "text-muted-foreground")
-                                }
-                              >
-                                {step.replace(/_/g, " ")}
-                              </p>
-                            </div>
-                          </div>
-                          {idx < refundSteps.length - 1 ? (
-                            <div className={"h-[2px] flex-1 mx-3 " + (idx < refundActiveIndex ? "bg-primary" : "bg-muted")} />
-                          ) : null}
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-              </div>
-            ) : null}
-          </div>
-
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setShowStatusDialog(false)}>
-              Close
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
 
       {(() => {
         const orderSummaryCard = (
@@ -1027,51 +751,70 @@ export default function OrderDetail() {
           </Card>
         );
 
-        const needHelpCard =
-          order.status === "delivered" ? (
-            <Card className="p-4">
-              <h3 className="font-semibold mb-2">Need Help?</h3>
-              {eligibility?.eligible ? (
-                <>
-                  <p className="text-sm text-muted-foreground mb-4">
-                    {eligibility?.remainingDays !== undefined
-                      ? `You can return or exchange eligible items within ${eligibility.remainingDays} day${eligibility.remainingDays !== 1 ? "s" : ""}.`
-                      : "You can return or exchange eligible items within the return window."}
-                  </p>
-                  {hasAnyReturnOrExchange ? (
-                    <div className="space-y-2">
-                      {returnsForThisOrder.length > 0 && (
-                        <Link to="/user/returns" className="w-full">
-                          <Button variant="outline" className="w-full">
-                            View return requests
-                          </Button>
-                        </Link>
-                      )}
-                      {exchangesForThisOrder.length > 0 && (
-                        <Link to="/user/exchanges" className="w-full">
-                          <Button variant="outline" className="w-full">
-                            View exchange requests
-                          </Button>
-                        </Link>
-                      )}
-                    </div>
-                  ) : null}
+        const needHelpCard = order?.items?.some(item => isItemDelivered(item.status as any)) ? (
+          <Card className="p-4">
+            <h3 className="font-semibold mb-2">Need Help?</h3>
+            {(() => {
+              // Handle both array and object responses from API
+              const eligibilityArray = Array.isArray(eligibility) ? eligibility : [];
+              const eligibleItems = eligibilityArray.filter(item => item.eligible) || [];
+              const hasEligibleItems = eligibleItems.length > 0;
+              const firstEligibleItem = eligibleItems[0];
 
-                </>
-              ) : (
-                <p className="text-sm text-muted-foreground">
-                  {eligibility?.reason || "Return window has expired for this order."}
-                </p>
-              )}
-            </Card>
-          ) : (
-            <Card className="p-4">
-              <h3 className="font-semibold mb-2">Need Help?</h3>
-              <p className="text-sm text-muted-foreground">
-                Returns and exchanges are available after your order is delivered.
-              </p>
-            </Card>
-          );
+              if (hasEligibleItems) {
+                return (
+                  <>
+                    <p className="text-sm text-muted-foreground mb-4">
+                      {firstEligibleItem?.remainingDays !== undefined
+                        ? `You can return or exchange eligible items within ${firstEligibleItem.remainingDays} day${firstEligibleItem.remainingDays !== 1 ? "s" : ""}.`
+                        : "You can return or exchange eligible items within the return window."}
+                    </p>
+                    {hasAnyReturnOrExchange ? (
+                      <div className="space-y-2">
+                        {returnsForThisOrder.length > 0 && (
+                          <Link to="/user/returns" className="w-full">
+                            <Button variant="outline" className="w-full">
+                              View return requests
+                            </Button>
+                          </Link>
+                        )}
+                        {exchangesForThisOrder.length > 0 && (
+                          <Link to="/user/exchanges" className="w-full">
+                            <Button variant="outline" className="w-full">
+                              View exchange requests
+                            </Button>
+                          </Link>
+                        )}
+                      </div>
+                    ) : null}
+                  </>
+                );
+              } else {
+                // Handle both array and object responses for error messages
+                let errorMessage = "Return window has expired for this order.";
+
+                if (Array.isArray(eligibility) && eligibility.length > 0) {
+                  errorMessage = eligibility[0]?.reason || errorMessage;
+                } else if (eligibility && typeof eligibility === 'object' && 'reason' in eligibility && typeof eligibility.reason === 'string') {
+                  errorMessage = eligibility.reason || errorMessage;
+                }
+
+                return (
+                  <p className="text-sm text-muted-foreground">
+                    {errorMessage}
+                  </p>
+                );
+              }
+            })()}
+          </Card>
+        ) : (
+          <Card className="p-4">
+            <h3 className="font-semibold mb-2">Need Help?</h3>
+            <p className="text-sm text-muted-foreground">
+              Returns and exchanges are available after your order is delivered.
+            </p>
+          </Card>
+        );
 
         return (
           <div className="grid gap-6 lg:grid-cols-12">
@@ -1116,7 +859,7 @@ export default function OrderDetail() {
                       </div>
                       {(() => {
                         const itemStatus = itemStatusByOrderItemId.get(item.id);
-                        const fallback = { label: status.label, color: status.color, updatedAt: order.updatedAt };
+                        const fallback = { label: "No status", color: "bg-gray-100 text-gray-800", updatedAt: order.updatedAt };
                         const displayStatus = itemStatus || fallback;
                         return (
                           <div >
@@ -1124,8 +867,7 @@ export default function OrderDetail() {
                           </div>
                         );
                       })()}
-
-                      {eligibility?.eligible ? (
+                      {isItemEligibleForReturn(item.id) ? (
                         <div className="flex gap-2">
                           <Button
                             size="sm"
@@ -1141,35 +883,35 @@ export default function OrderDetail() {
                             Return
                           </Button>
                           {(() => {
-                        const isLocked = activeOrderItemIds.has(String(item.id));
-                        const stock = stockBySareeId.get(item.saree.id) ?? 0;
-                        const disabled = hasActiveExchange || isLocked || stock <= 0;
-                        if (id === "dbbfcea8-c88d-4f1b-832c-3ea128604e71") {
-                          console.log("Exchange debug", {
-                            itemId: item.id,
-                            itemName: item.saree.name,
-                            hasActiveExchange,
-                            isLocked,
-                            stock,
-                            disabled,
-                          });
-                        }
-                        return (
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => openReturnExchangeModal("exchange", item.id)}
-                            disabled={disabled}
-                            title={
-                              stock <= 0
-                                ? "This product is out of stock. You can return it instead."
-                                : undefined
+                            const isLocked = activeOrderItemIds.has(String(item.id));
+                            const stock = stockBySareeId.get(item.saree.id) ?? 0;
+                            const disabled = hasActiveExchange || isLocked || stock <= 0;
+                            if (id === "dbbfcea8-c88d-4f1b-832c-3ea128604e71") {
+                              console.log("Exchange debug", {
+                                itemId: item.id,
+                                itemName: item.saree.name,
+                                hasActiveExchange,
+                                isLocked,
+                                stock,
+                                disabled,
+                              });
                             }
-                          >
-                            Exchange
-                          </Button>
-                        );
-                      })()}
+                            return (
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => openReturnExchangeModal("exchange", item.id)}
+                                disabled={disabled}
+                                title={
+                                  stock <= 0
+                                    ? "This product is out of stock. You can return it instead."
+                                    : undefined
+                                }
+                              >
+                                Exchange
+                              </Button>
+                            );
+                          })()}
                         </div>
                       ) : null}
 
@@ -1366,6 +1108,18 @@ export default function OrderDetail() {
           </div>
         </div>
       </ReusableDialog>
+
+      <StatusDialog
+        showStatusDialog={showStatusDialog}
+        setShowStatusDialog={setShowStatusDialog}
+        order={order}
+        orderHistory={orderHistory || []}
+        latestReturnForThisOrder={latestReturnForThisOrder}
+        latestExchangeForThisOrder={latestExchangeForThisOrder}
+        refundForThisOrder={refundForThisOrder}
+        formatPrice={formatPrice}
+        maskId={maskId}
+      />
     </div>
   );
 }
