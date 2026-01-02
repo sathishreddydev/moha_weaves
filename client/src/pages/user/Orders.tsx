@@ -17,7 +17,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Separator } from "@/components/ui/separator";
 import { useAuth } from "@/lib/auth";
 import { useQuery } from "@tanstack/react-query";
-import type { OrderWithItems, ReturnRequestWithDetails, Refund } from "@shared/schema";
+import type { OrderWithItems, ReturnRequestWithDetails, Refund, OnlineExchangeWithDetails } from "@shared/schema";
 import { WriteReview } from "@/components/product/WriteReview";
 import { useDebounce } from "@/components/common/useDebounceHook";
 import { useToast } from "@/hooks/use-toast";
@@ -44,8 +44,8 @@ export default function Orders() {
     enabled: !!user,
   });
 
-  const { data: userExchanges } = useQuery<ReturnRequestWithDetails[]>({
-    queryKey: ["/api/user/exchanges"],
+  const { data: userExchanges } = useQuery<OnlineExchangeWithDetails[]>({
+    queryKey: ["/api/user/online-exchanges"],
     enabled: !!user,
   });
 
@@ -214,7 +214,7 @@ export default function Orders() {
       if (rf.returnRequestId) refundByReturnRequestId.set(rf.returnRequestId, rf);
     }
 
-    const getReturnLabelColor = (resolution: string, status: string) => {
+    const getReturnLabelColor = (resolution: string | undefined, status: string) => {
       const isExchange = resolution === "exchange";
       const base = isExchange ? "Exchange" : "Return";
       const label =
@@ -294,10 +294,12 @@ export default function Orders() {
           const existing = itemStatusByOrderItemId.get(ri.orderItemId);
           const rrUpdated = rr.updatedAt || rr.createdAt;
           if (!existing || new Date(rrUpdated).getTime() > new Date(existing.updatedAt).getTime()) {
-            const { label, color } = getReturnLabelColor(rr.resolution, rr.status);
+            // Online exchanges don't have resolution field, so check if it's an exchange by absence of resolution
+            const isExchange = !('resolution' in rr);
+            const { label, color } = getReturnLabelColor(isExchange ? undefined : rr.resolution, rr.status);
             itemStatusByOrderItemId.set(ri.orderItemId, { label, color, updatedAt: rrUpdated });
 
-            const refund = rr.resolution !== "exchange" ? refundByReturnRequestId.get(rr.id) : undefined;
+            const refund = isExchange ? undefined : refundByReturnRequestId.get(rr.id);
             if (refund) {
               const refundMeta = getRefundLabelColor(refund.status);
               const refundUpdated = refund.completedAt || refund.initiatedAt || refund.createdAt;

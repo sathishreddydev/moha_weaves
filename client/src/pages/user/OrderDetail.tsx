@@ -37,7 +37,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/lib/auth";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
-import type { OrderWithItems, ItemStatusHistory, ReturnRequestWithDetails, Refund, SareeWithDetails } from "@shared/schema";
+import type { OrderWithItems, ItemStatusHistory, ReturnRequestWithDetails, Refund, SareeWithDetails, OnlineExchangeWithDetails } from "@shared/schema";
 import { returnStatusConfig, refundStatusConfig, inProgressReturnStatuses, activeAndCompletedStatuses, allReturnStatuses, refundSteps } from "@/constants/statusConfig";
 import { itemStatusConfig, isItemDelivered, returnReasons } from "@/constants/itemStatusConfig";
 
@@ -136,8 +136,8 @@ export default function OrderDetail() {
     enabled: !!user,
   });
 
-  const { data: userExchanges } = useQuery<ReturnRequestWithDetails[]>({
-    queryKey: ["/api/user/exchanges"],
+  const { data: userExchanges } = useQuery<OnlineExchangeWithDetails[]>({
+    queryKey: ["/api/user/online-exchanges"],
     enabled: !!user,
   });
 
@@ -167,7 +167,7 @@ export default function OrderDetail() {
   const createReturnMutation = useMutation({
     mutationFn: async (data: any) => {
       if (data.resolution === "exchange") {
-        const response = await apiRequest("POST", "/api/user/exchanges", data);
+        const response = await apiRequest("POST", "/api/user/online-exchanges", data);
         return response.json();
       } else {
         const response = await apiRequest("POST", "/api/user/returns", data);
@@ -177,7 +177,7 @@ export default function OrderDetail() {
     onSuccess: (data, variables) => {
       toast({ title: `${variables.resolution === "exchange" ? "Exchange" : "Return"} request submitted successfully` });
       if (variables.resolution === "exchange") {
-        queryClient.invalidateQueries({ queryKey: ["/api/user/exchanges"] });
+        queryClient.invalidateQueries({ queryKey: ["/api/user/online-exchanges"] });
       } else {
         queryClient.invalidateQueries({ queryKey: ["/api/user/returns"] });
       }
@@ -356,7 +356,7 @@ export default function OrderDetail() {
   );
 
   const exchangesForThisOrder = (userExchanges || []).filter(
-    (r: ReturnRequestWithDetails) => r.orderId === id && r.resolution === "exchange"
+    (r: OnlineExchangeWithDetails) => r.orderId === id
   );
 
   const latestReturnForThisOrder = returnsForThisOrder.length > 0 ? returnsForThisOrder[0] : undefined;
@@ -365,7 +365,7 @@ export default function OrderDetail() {
   const hasAnyReturnOrExchange = returnsForThisOrder.length > 0 || exchangesForThisOrder.length > 0;
 
   const hasActiveExchange = exchangesForThisOrder.some(
-    (r: ReturnRequestWithDetails) =>
+    (r: OnlineExchangeWithDetails) =>
       inProgressReturnStatuses.includes(r.status as any)
   );
 
@@ -431,7 +431,7 @@ export default function OrderDetail() {
       const existing = itemStatusByOrderItemId.get(ri.orderItemId);
       const rrUpdated = rr.updatedAt || rr.createdAt;
       if (!existing || new Date(rrUpdated).getTime() > new Date(existing.updatedAt).getTime()) {
-        const isExchange = rr.resolution === "exchange";
+        const isExchange = !('resolution' in rr); // Online exchanges don't have resolution field
         const base = isExchange ? "Exchange" : "Return";
         const label =
           rr.status === "completed"

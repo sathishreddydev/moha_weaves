@@ -92,12 +92,25 @@ export const returnReasonEnum = pgEnum("return_reason", [
   "color_mismatch",
   "damaged_in_shipping",
   "changed_mind",
+  "quality_issue",
   "other",
 ]);
 export const returnResolutionEnum = pgEnum("return_resolution", [
   "refund",
   "exchange",
   "store_credit",
+]);
+
+export const onlineExchangeStatusEnum = pgEnum("online_exchange_status", [
+  "requested",
+  "approved",
+  "pickup_scheduled",
+  "picked_up",
+  "in_transit",
+  "received",
+  "inspected",
+  "completed",
+  "cancelled",
 ]);
 export const refundStatusEnum = pgEnum("refund_status", [
   "pending",
@@ -475,6 +488,47 @@ export const returnItems = pgTable("return_items", {
     .default(sql`gen_random_uuid()`),
   returnRequestId: varchar("return_request_id")
     .references(() => returnRequests.id)
+    .notNull(),
+  orderItemId: varchar("order_item_id")
+    .references(() => orderItems.id)
+    .notNull(),
+  quantity: integer("quantity").notNull(),
+  condition: text("condition"),
+  isRestockable: boolean("is_restockable").default(true),
+});
+
+// Online exchanges - separate table for online exchange requests
+export const onlineExchanges = pgTable("online_exchanges", {
+  id: varchar("id")
+    .primaryKey()
+    .default(sql`gen_random_uuid()`),
+  orderId: varchar("order_id")
+    .references(() => orders.id)
+    .notNull(),
+  userId: varchar("user_id")
+    .references(() => users.id)
+    .notNull(),
+  status: onlineExchangeStatusEnum("status").notNull().default("requested"),
+  reason: returnReasonEnum("reason").notNull(),
+  reasonDetails: text("reason_details"),
+  pickupAddress: text("pickup_address"),
+  pickupScheduledAt: timestamp("pickup_scheduled_at"),
+  pickedUpAt: timestamp("picked_up_at"),
+  receivedAt: timestamp("received_at"),
+  inspectionNotes: text("inspection_notes"),
+  processedBy: varchar("processed_by"),
+  exchangeOrderId: varchar("exchange_order_id"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
+// Online exchange items - items being exchanged in online exchanges
+export const onlineExchangeItems = pgTable("online_exchange_items", {
+  id: varchar("id")
+    .primaryKey()
+    .default(sql`gen_random_uuid()`),
+  exchangeId: varchar("exchange_id")
+    .references(() => onlineExchanges.id)
     .notNull(),
   orderItemId: varchar("order_item_id")
     .references(() => orderItems.id)
@@ -936,8 +990,35 @@ export const returnItemsRelations = relations(returnItems, ({ one }) => ({
     fields: [returnItems.orderItemId],
     references: [orderItems.id],
   }),
+}));
+
+export const onlineExchangesRelations = relations(onlineExchanges, ({ one, many }) => ({
+  order: one(orders, {
+    fields: [onlineExchanges.orderId],
+    references: [orders.id],
+  }),
+  user: one(users, {
+    fields: [onlineExchanges.userId],
+    references: [users.id],
+  }),
+  processor: one(users, {
+    fields: [onlineExchanges.processedBy],
+    references: [users.id],
+  }),
+  items: many(onlineExchangeItems),
+}));
+
+export const onlineExchangeItemsRelations = relations(onlineExchangeItems, ({ one }) => ({
+  exchange: one(onlineExchanges, {
+    fields: [onlineExchangeItems.exchangeId],
+    references: [onlineExchanges.id],
+  }),
+  orderItem: one(orderItems, {
+    fields: [onlineExchangeItems.orderItemId],
+    references: [orderItems.id],
+  }),
   exchangeSaree: one(sarees, {
-    fields: [returnItems.exchangeSareeId],
+    fields: [onlineExchangeItems.exchangeSareeId],
     references: [sarees.id],
   }),
 }));
@@ -1176,6 +1257,13 @@ export const insertReturnRequestSchema = createInsertSchema(
 export const insertReturnItemSchema = createInsertSchema(returnItems).omit({
   id: true,
 });
+
+export const insertOnlineExchangeSchema = createInsertSchema(
+  onlineExchanges
+).omit({ id: true, createdAt: true, updatedAt: true });
+export const insertOnlineExchangeItemSchema = createInsertSchema(
+  onlineExchangeItems
+).omit({ id: true });
 export const insertRefundSchema = createInsertSchema(refunds).omit({
   id: true,
   createdAt: true,
@@ -1271,6 +1359,19 @@ export type ReturnRequest = typeof returnRequests.$inferSelect;
 export type InsertReturnRequest = z.infer<typeof insertReturnRequestSchema>;
 export type ReturnItem = typeof returnItems.$inferSelect;
 export type InsertReturnItem = z.infer<typeof insertReturnItemSchema>;
+export type OnlineExchange = typeof onlineExchanges.$inferSelect;
+export type InsertOnlineExchange = z.infer<typeof insertOnlineExchangeSchema>;
+export type OnlineExchangeItem = typeof onlineExchangeItems.$inferSelect;
+export type InsertOnlineExchangeItem = z.infer<typeof insertOnlineExchangeItemSchema>;
+export type OnlineExchangeWithDetails = OnlineExchange & {
+  order: any;
+  user: any;
+  items: (Omit<OnlineExchangeItem, 'id'> & {
+    orderItem: {
+      saree: any;
+    };
+  })[];
+};
 export type Refund = typeof refunds.$inferSelect;
 export type InsertRefund = z.infer<typeof insertRefundSchema>;
 export type ProductReview = typeof productReviews.$inferSelect;

@@ -7,32 +7,61 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Separator } from "@/components/ui/separator";
 import { useAuth } from "@/lib/auth";
 import { useQuery } from "@tanstack/react-query";
-import { returnStatusConfig } from "@/constants/statusConfig";
-import type { ReturnRequestWithDetails } from "@shared/schema";
+import type { OnlineExchangeWithDetails } from "@shared/schema";
 
-const exchangeOrderStatusConfig = {
-  exchange_processing: {
+const onlineExchangeStatusConfig = {
+  requested: {
     icon: Clock,
-    label: "Processing Exchange",
+    label: "Exchange Requested",
+    color: "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-100",
+  },
+  approved: {
+    icon: CheckCircle,
+    label: "Exchange Approved",
     color: "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-100",
   },
-  exchange_shipped: {
-    icon: Truck,
-    label: "Exchange Shipped",
+  pickup_scheduled: {
+    icon: Package,
+    label: "Pickup Scheduled",
     color: "bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-100",
   },
-  exchange_delivered: {
+  picked_up: {
+    icon: Truck,
+    label: "Item Picked Up",
+    color: "bg-indigo-100 text-indigo-800 dark:bg-indigo-900 dark:text-indigo-100",
+  },
+  in_transit: {
+    icon: Truck,
+    label: "In Transit",
+    color: "bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-100",
+  },
+  received: {
+    icon: Package,
+    label: "Item Received",
+    color: "bg-teal-100 text-teal-800 dark:bg-teal-900 dark:text-teal-100",
+  },
+  inspected: {
     icon: CheckCircle,
-    label: "Exchange Delivered",
+    label: "Item Inspected",
+    color: "bg-cyan-100 text-cyan-800 dark:bg-cyan-900 dark:text-cyan-100",
+  },
+  completed: {
+    icon: CheckCircle,
+    label: "Exchange Completed",
     color: "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-100",
+  },
+  cancelled: {
+    icon: XCircle,
+    label: "Exchange Cancelled",
+    color: "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-100",
   },
 };
 
 export default function Exchanges() {
   const { user } = useAuth();
 
-  const { data: exchanges, isLoading } = useQuery<ReturnRequestWithDetails[]>({
-    queryKey: ["/api/user/exchanges"],
+  const { data: exchanges, isLoading } = useQuery<OnlineExchangeWithDetails[]>({
+    queryKey: ["/api/user/online-exchanges"],
     enabled: !!user,
   });
 
@@ -44,19 +73,6 @@ export default function Exchanges() {
       maximumFractionDigits: 0,
     }).format(numPrice);
   };
-
-  const getExchangeOrderStatusDisplay = (orderStatus: string) => {
-  const config = exchangeOrderStatusConfig[orderStatus as keyof typeof exchangeOrderStatusConfig];
-  if (!config) return null;
-  
-  const StatusIcon = config.icon;
-  return (
-    <Badge className={config.color}>
-      <StatusIcon className="h-3 w-3 mr-1" />
-      {config.label}
-    </Badge>
-  );
-};
 
 const formatDate = (date: string | Date) => {
   return new Date(date).toLocaleDateString("en-IN", {
@@ -124,54 +140,49 @@ const formatDate = (date: string | Date) => {
       </div>
 
       <div className="space-y-6">
-        {exchanges.map((exchangeRequest) => {
-          const status = returnStatusConfig[exchangeRequest.status] || returnStatusConfig.requested;
+        {exchanges.map((exchange) => {
+          const status = onlineExchangeStatusConfig[exchange.status as keyof typeof onlineExchangeStatusConfig] || onlineExchangeStatusConfig.requested;
           const StatusIcon = status.icon;
 
           return (
-            <Card key={exchangeRequest.id} className="overflow-hidden" data-testid={`card-exchange-${exchangeRequest.id}`}>
+            <Card key={exchange.orderId} className="overflow-hidden" data-testid={`card-exchange-${exchange.orderId}`}>
               <div className="p-4 bg-muted/50 flex flex-wrap items-center justify-between gap-4">
                 <div className="flex flex-wrap items-center gap-4 text-sm">
                   <div className="flex items-center gap-2">
                     <ArrowLeftRight className="h-4 w-4 text-primary" />
-                    <span className="font-medium">Exchange Request</span>
+                    <span className="font-medium">Online Exchange</span>
                   </div>
                   <Separator orientation="vertical" className="h-4" />
                   <div>
                     <span className="text-muted-foreground">Order:</span>{" "}
-                    <Link to={`/user/orders/${exchangeRequest.orderId}`} className="font-medium hover:text-primary">
-                      #{exchangeRequest.orderId.slice(0, 8).toUpperCase()}
+                    <Link to={`/user/orders/${exchange.orderId}`} className="font-medium hover:text-primary">
+                      #{exchange.orderId.slice(0, 8).toUpperCase()}
                     </Link>
                   </div>
                   <Separator orientation="vertical" className="h-4" />
                   <div>
                     <span className="text-muted-foreground">Date:</span>{" "}
-                    <span className="font-medium">{formatDate(exchangeRequest.createdAt)}</span>
+                    <span className="font-medium">{formatDate(exchange.createdAt)}</span>
                   </div>
                 </div>
-                <div className="flex flex-col gap-2">
-                  <Badge className={status.color}>
-                    <StatusIcon className="h-3 w-3 mr-1" />
-                    {status.label}
-                  </Badge>
-                  {exchangeRequest.status === "completed" && exchangeRequest.order?.status && 
-                    getExchangeOrderStatusDisplay(exchangeRequest.order.status)
-                  }
-                </div>
+                <Badge className={status.color}>
+                  <StatusIcon className="h-3 w-3 mr-1" />
+                  {status.label}
+                </Badge>
               </div>
 
               <div className="p-4">
                 <div className="mb-4">
                   <p className="text-sm text-muted-foreground mb-1">Reason</p>
-                  <p className="text-sm font-medium capitalize">{exchangeRequest.reason.replace(/_/g, " ")}</p>
-                  {exchangeRequest.reasonDetails && (
-                    <p className="text-sm text-muted-foreground mt-1">{exchangeRequest.reasonDetails}</p>
+                  <p className="text-sm font-medium capitalize">{exchange.reason.replace(/_/g, " ")}</p>
+                  {exchange.reasonDetails && (
+                    <p className="text-sm text-muted-foreground mt-1">{exchange.reasonDetails}</p>
                   )}
                 </div>
 
                 <div className="space-y-3">
-                  {exchangeRequest.items.slice(0, 2).map((item) => (
-                    <div key={item.id} className="flex gap-4 items-center">
+                  {exchange.items.slice(0, 2).map((item: any) => (
+                    <div key={item.orderItemId} className="flex gap-4 items-center">
                       <div className="w-12 h-16 rounded-md overflow-hidden bg-muted flex-shrink-0">
                         <img
                           src={item.orderItem.saree.imageUrl || "https://images.unsplash.com/photo-1610030469983-98e550d6193c?w=100&h=150&fit=crop"}
@@ -188,38 +199,26 @@ const formatDate = (date: string | Date) => {
                       </div>
                     </div>
                   ))}
-                  {exchangeRequest.items.length > 2 && (
-                    <p className="text-sm text-muted-foreground">+{exchangeRequest.items.length - 2} more item(s)</p>
+                  {exchange.items.length > 2 && (
+                    <p className="text-sm text-muted-foreground">+{exchange.items.length - 2} more item(s)</p>
                   )}
                 </div>
 
                 <Separator className="my-4" />
 
-                <div className="flex items-center justify-between">
-                  <div>
-                    <span className="text-muted-foreground text-sm">Exchange Amount:</span>{" "}
-                    <span className="font-semibold text-lg" data-testid={`text-exchange-amount-${exchangeRequest.id}`}>
-                      {formatPrice(exchangeRequest.refundAmount || "0")}
-                    </span>
-                  </div>
-                </div>
-
-                {exchangeRequest.inspectionNotes && (
+                {exchange.inspectionNotes && (
                   <div className="mt-4 p-3 bg-muted/50 rounded-md">
                     <p className="text-sm font-medium">Inspection Notes:</p>
-                    <p className="text-sm text-muted-foreground">{exchangeRequest.inspectionNotes}</p>
+                    <p className="text-sm text-muted-foreground">{exchange.inspectionNotes}</p>
                   </div>
                 )}
 
-                {exchangeRequest.status === "completed" && exchangeRequest.order?.status && (
-                  <div className="mt-4 p-3 bg-primary/5 rounded-md border border-primary/20">
-                    <p className="text-sm font-medium mb-2">Exchange Progress</p>
-                    <div className="flex items-center gap-2">
-                      {getExchangeOrderStatusDisplay(exchangeRequest.order.status)}
-                      <span className="text-xs text-muted-foreground">
-                        Track your exchange shipment status
-                      </span>
-                    </div>
+                {exchange.status === "completed" && (
+                  <div className="mt-4 p-3 bg-green-50 dark:bg-green-900/20 rounded-md border border-green-200 dark:border-green-800">
+                    <p className="text-sm font-medium text-green-800 dark:text-green-200">Exchange Completed</p>
+                    <p className="text-xs text-green-600 dark:text-green-400 mt-1">
+                      Your exchange has been successfully processed
+                    </p>
                   </div>
                 )}
               </div>

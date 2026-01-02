@@ -4,7 +4,7 @@ import { refundSteps, returnStatusConfig, allReturnStatuses } from "@/constants/
 import { itemStatusConfig } from "@/constants/itemStatusConfig";
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@radix-ui/react-dialog";
 import { CheckCircle } from "lucide-react";
-import type { OrderWithItems, ItemStatusHistory, ReturnRequestWithDetails, Refund } from "@shared/schema";
+import type { OrderWithItems, ItemStatusHistory, ReturnRequestWithDetails, Refund, OnlineExchangeWithDetails } from "@shared/schema";
 
 interface StatusDialogProps {
     showStatusDialog: boolean;
@@ -12,7 +12,7 @@ interface StatusDialogProps {
     order: OrderWithItems;
     orderHistory: ItemStatusHistory[];
     latestReturnForThisOrder?: ReturnRequestWithDetails;
-    latestExchangeForThisOrder?: ReturnRequestWithDetails;
+    latestExchangeForThisOrder?: OnlineExchangeWithDetails;
     refundForThisOrder?: Refund;
     formatPrice: (price: string | number) => string;
     maskId: (value?: string | null) => string;

@@ -8,59 +8,9 @@ import { Separator } from "@/components/ui/separator";
 import { useAuth } from "@/lib/auth";
 import { useQuery } from "@tanstack/react-query";
 import type { ReturnRequestWithDetails } from "@shared/schema";
+import { returnStatusConfig } from "@/constants/itemStatusConfig";
 
-const statusConfig: Record<string, { icon: typeof Clock; label: string; color: string }> = {
-  requested: {
-    icon: Clock,
-    label: "Pending Review",
-    color: "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-100",
-  },
-  approved: {
-    icon: CheckCircle,
-    label: "Approved",
-    color: "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-100",
-  },
-  rejected: {
-    icon: XCircle,
-    label: "Rejected",
-    color: "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-100",
-  },
-  pickup_scheduled: {
-    icon: Clock,
-    label: "Pickup Scheduled",
-    color: "bg-indigo-100 text-indigo-800 dark:bg-indigo-900 dark:text-indigo-100",
-  },
-  picked_up: {
-    icon: Package,
-    label: "Picked Up",
-    color: "bg-violet-100 text-violet-800 dark:bg-violet-900 dark:text-violet-100",
-  },
-  in_transit: {
-    icon: Truck,
-    label: "Items in Transit",
-    color: "bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-100",
-  },
-  received: {
-    icon: Package,
-    label: "Received at Warehouse",
-    color: "bg-cyan-100 text-cyan-800 dark:bg-cyan-900 dark:text-cyan-100",
-  },
-  inspected: {
-    icon: Package,
-    label: "Under Inspection",
-    color: "bg-indigo-100 text-indigo-800 dark:bg-indigo-900 dark:text-indigo-100",
-  },
-  completed: {
-    icon: CheckCircle,
-    label: "Completed",
-    color: "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-100",
-  },
-  cancelled: {
-    icon: XCircle,
-    label: "Cancelled",
-    color: "bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-100",
-  },
-};
+
 
 export default function Returns() {
   const { user } = useAuth();
@@ -147,7 +97,7 @@ export default function Returns() {
 
       <div className="space-y-6">
         {returns.map((returnRequest) => {
-          const status = statusConfig[returnRequest.status] || statusConfig.requested;
+          const status = returnStatusConfig[returnRequest.status] || returnStatusConfig.requested;
           const StatusIcon = status.icon;
           const isExchange = returnRequest.resolution === "exchange";
 
@@ -228,9 +178,9 @@ export default function Returns() {
 
                   {returnRequest.refund && (
                     <div className="text-right">
-                      <Badge 
-                        variant={returnRequest.refund.status === "completed" ? "default" : 
-                                returnRequest.refund.status === "failed" ? "destructive" : "secondary"}
+                      <Badge
+                        variant={returnRequest.refund.status === "completed" ? "default" :
+                          returnRequest.refund.status === "failed" ? "destructive" : "secondary"}
                         className="mb-1"
                       >
                         Refund: {returnRequest.refund.status.replace(/_/g, " ")}

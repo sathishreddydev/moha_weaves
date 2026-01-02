@@ -42,7 +42,7 @@ import { useAuth } from "@/lib/auth";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
-import type { ReturnRequestWithDetails } from "@shared/schema";
+import type { ReturnRequestWithDetails, OnlineExchangeWithDetails } from "@shared/schema";
 import { Link } from "react-router-dom";
 
 const statusConfig: Record<
@@ -58,11 +58,6 @@ const statusConfig: Record<
     icon: CheckCircle,
     label: "Approved",
     color: "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-100",
-  },
-  rejected: {
-    icon: XCircle,
-    label: "Rejected",
-    color: "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-100",
   },
   pickup_scheduled: {
     icon: Clock,
@@ -110,7 +105,7 @@ export default function InventoryExchanges() {
   const [filterStatus, setFilterStatus] = useState<string>("all");
   const [updateDialog, setUpdateDialog] = useState<{
     open: boolean;
-    request: ReturnRequestWithDetails | null;
+    request: OnlineExchangeWithDetails | null;
     status: string;
   }>({
     open: false,
@@ -119,8 +114,8 @@ export default function InventoryExchanges() {
   });
   const [inspectionNotes, setInspectionNotes] = useState("");
 
-  const { data: exchanges, isLoading } = useQuery<ReturnRequestWithDetails[]>({
-    queryKey: ["/api/inventory/exchanges"],
+  const { data: exchanges, isLoading } = useQuery<OnlineExchangeWithDetails[]>({
+    queryKey: ["/api/inventory/online-exchanges"],
     enabled: isInventoryUser,
   });
 
@@ -136,7 +131,7 @@ export default function InventoryExchanges() {
     }) => {
       const response = await apiRequest(
         "PATCH",
-        `/api/inventory/exchanges/${id}/status`,
+        `/api/inventory/online-exchanges/${id}/status`,
         {
           status,
           inspectionNotes: notes,
@@ -145,7 +140,7 @@ export default function InventoryExchanges() {
       return response.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/inventory/exchanges"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/inventory/online-exchanges"] });
       toast({ title: "Success", description: "Exchange status updated" });
       setUpdateDialog({ open: false, request: null, status: "" });
       setInspectionNotes("");
@@ -169,7 +164,7 @@ export default function InventoryExchanges() {
     }) => {
       const response = await apiRequest(
         "PATCH",
-        `/api/inventory/exchanges/${id}/item-status`,
+        `/api/inventory/online-exchanges/${id}/status`,
         {
           status,
         }
@@ -177,7 +172,7 @@ export default function InventoryExchanges() {
       return response.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/inventory/exchanges"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/inventory/online-exchanges"] });
       toast({ title: "Success", description: "Exchange item status updated" });
     },
     onError: () => {
@@ -190,7 +185,7 @@ export default function InventoryExchanges() {
   });
 
   const handleStatusUpdate = (
-    request: ReturnRequestWithDetails,
+    request: OnlineExchangeWithDetails,
     status: string
   ) => {
     setInspectionNotes(request.inspectionNotes || "");
@@ -208,7 +203,7 @@ export default function InventoryExchanges() {
   };
 
   const handleOrderStatusUpdate = (
-    request: ReturnRequestWithDetails,
+    request: OnlineExchangeWithDetails,
     orderStatus: string
   ) => {
     updateOrderStatusMutation.mutate({
@@ -217,119 +212,47 @@ export default function InventoryExchanges() {
     });
   };
 
-  const getNextAction = (request: ReturnRequestWithDetails) => {
-    switch (request.status) {
+
+  const getOrderStatusActions = (request: OnlineExchangeWithDetails) => {
+    const currentExchangeStatus = request.status;
+    
+    switch (currentExchangeStatus) {
+      case "completed":
+        return null;
       case "requested":
         return (
-          <div className="flex gap-2">
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() => handleStatusUpdate(request, "rejected")}
-              disabled={updateStatusMutation.isPending}
-              data-testid={`button-reject-${request.id}`}
-            >
-              Reject
-            </Button>
-            <Button
-              size="sm"
-              onClick={() => handleStatusUpdate(request, "approved")}
-              disabled={updateStatusMutation.isPending}
-              data-testid={`button-approve-${request.id}`}
-            >
-              Approve
-            </Button>
-          </div>
+          <Button
+            size="sm"
+            onClick={() => handleOrderStatusUpdate(request, "approved")}
+            disabled={updateOrderStatusMutation.isPending}
+            data-testid={`button-start-processing-${request.orderId}`}
+          >
+            Start Processing
+          </Button>
         );
       case "approved":
         return (
           <Button
             size="sm"
-            onClick={() => handleStatusUpdate(request, "in_transit")}
-            disabled={updateStatusMutation.isPending}
-            data-testid={`button-mark-transit-${request.id}`}
-          >
-            Mark In Transit
-          </Button>
-        );
-      case "in_transit":
-        return (
-          <Button
-            size="sm"
-            onClick={() => handleStatusUpdate(request, "received")}
-            disabled={updateStatusMutation.isPending}
-            data-testid={`button-mark-received-${request.id}`}
-          >
-            Mark as Received
-          </Button>
-        );
-      case "received":
-        return (
-          <Button
-            size="sm"
-            onClick={() => handleStatusUpdate(request, "inspected")}
-            disabled={updateStatusMutation.isPending}
-            data-testid={`button-mark-inspected-${request.id}`}
-          >
-            Mark as Inspected
-          </Button>
-        );
-      case "inspected":
-        return (
-          <Button
-            size="sm"
-            onClick={() => handleStatusUpdate(request, "completed")}
-            disabled={updateStatusMutation.isPending}
-            data-testid={`button-complete-${request.id}`}
-          >
-            Complete Exchange
-          </Button>
-        );
-      case "completed":
-        return getOrderStatusActions(request);
-      default:
-        return null;
-    }
-  };
-
-  const getOrderStatusActions = (request: ReturnRequestWithDetails) => {
-    const currentExchangeStatus = request.status;
-    
-    switch (currentExchangeStatus) {
-      case "completed":
-        return (
-          <Button
-            size="sm"
-            onClick={() => handleOrderStatusUpdate(request, "exchange_processing")}
+            onClick={() => handleOrderStatusUpdate(request, "pickup_scheduled")}
             disabled={updateOrderStatusMutation.isPending}
-            data-testid={`button-start-processing-${request.id}`}
-          >
-            Start Processing
-          </Button>
-        );
-      case "exchange_processing":
-        return (
-          <Button
-            size="sm"
-            onClick={() => handleOrderStatusUpdate(request, "exchange_shipped")}
-            disabled={updateOrderStatusMutation.isPending}
-            data-testid={`button-ship-${request.id}`}
+            data-testid={`button-ship-${request.orderId}`}
           >
             Mark Shipped
           </Button>
         );
-      case "exchange_shipped":
+      case "pickup_scheduled":
         return (
           <Button
             size="sm"
-            onClick={() => handleOrderStatusUpdate(request, "exchange_delivered")}
+            onClick={() => handleOrderStatusUpdate(request, "picked_up")}
             disabled={updateOrderStatusMutation.isPending}
-            data-testid={`button-deliver-${request.id}`}
+            data-testid={`button-deliver-${request.orderId}`}
           >
             Mark Delivered
           </Button>
         );
-      case "exchange_delivered":
+      case "picked_up":
         return (
           <Badge className="bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-100">
             <CheckCircle className="h-3 w-3 mr-1" />
@@ -340,9 +263,9 @@ export default function InventoryExchanges() {
         return (
           <Button
             size="sm"
-            onClick={() => handleOrderStatusUpdate(request, "exchange_processing")}
+            onClick={() => handleOrderStatusUpdate(request, "approved")}
             disabled={updateOrderStatusMutation.isPending}
-            data-testid={`button-start-processing-${request.id}`}
+            data-testid={`button-start-processing-${request.orderId}`}
           >
             Start Processing
           </Button>
@@ -352,9 +275,9 @@ export default function InventoryExchanges() {
 
   const getOrderStatusDisplay = (orderStatus: string) => {
     const statusMap = {
-      exchange_processing: { label: "Processing", color: "bg-blue-100 text-blue-800" },
-      exchange_shipped: { label: "Shipped", color: "bg-purple-100 text-purple-800" },
-      exchange_delivered: { label: "Delivered", color: "bg-green-100 text-green-800" },
+      approved: { label: "Processing", color: "bg-blue-100 text-blue-800" },
+      pickup_scheduled: { label: "Shipped", color: "bg-purple-100 text-purple-800" },
+      picked_up: { label: "Delivered", color: "bg-green-100 text-green-800" },
     };
     
     const config = statusMap[orderStatus as keyof typeof statusMap];
@@ -482,12 +405,13 @@ export default function InventoryExchanges() {
                     const status =
                       statusConfig[request.status] || statusConfig.requested;
                     const StatusIcon = status.icon;
-                    const isExchange = request.resolution === "exchange";
+                    // Online exchanges don't have resolution field, so all are exchanges
+                    const isExchange = true;
 
                     return (
                       <TableRow
-                        key={request.id}
-                        data-testid={`row-return-${request.id}`}
+                        key={request.orderId}
+                        data-testid={`row-return-${request.orderId}`}
                       >
                         <TableCell>
                           <Badge variant={isExchange ? "secondary" : "outline"}>
@@ -544,7 +468,7 @@ export default function InventoryExchanges() {
                           </div>
                         </TableCell>
                         <TableCell className="font-medium">
-                          {formatPrice(request.refundAmount || "0")}
+                          N/A
                         </TableCell>
                         <TableCell>
                           <span className="text-sm capitalize">
@@ -565,7 +489,7 @@ export default function InventoryExchanges() {
                             )}
                           </div>
                         </TableCell>
-                        <TableCell>{getNextAction(request)}</TableCell>
+                        <TableCell>{getOrderStatusActions(request)}</TableCell>
                       </TableRow>
                     );
                   })}
@@ -588,10 +512,7 @@ export default function InventoryExchanges() {
           <DialogHeader>
             <DialogTitle>
               {updateDialog.status === "rejected" ? "Reject" : "Update"}{" "}
-              {updateDialog.request?.resolution === "exchange"
-                ? "Exchange"
-                : "Return"}{" "}
-              Request
+              Exchange Request
             </DialogTitle>
             <DialogDescription>
               {updateDialog.status === "rejected"

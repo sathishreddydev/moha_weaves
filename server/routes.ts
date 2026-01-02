@@ -18,7 +18,7 @@ import { sareeService } from "./saree/sareeStorage";
 import { reviewRoutes } from "./review/reviewRoutes";
 import { refundRoutes } from "./refund/refundRoutes";
 import { returnRoutes } from "./return/returnRoutes";
-import { exchangeRoutes } from "./exchange/exchangeRoutes";
+import { onlineExchangeRoutes } from "./exchange/onlineExchangeRoutes";
 
 const authAny = createAuthMiddleware(["user", "admin", "inventory", "store"]);
 
@@ -41,7 +41,7 @@ export async function registerRoutes(
   reviewRoutes(app);
   refundRoutes(app);
   returnRoutes(app);
-  exchangeRoutes(app);
+  onlineExchangeRoutes(app);
 
   // Serve uploaded files
   app.get("/objects/:objectPath(*)", async (req, res) => {
