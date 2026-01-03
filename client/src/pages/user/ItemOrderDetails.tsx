@@ -3,12 +3,6 @@ import { useParams, Link, useNavigate } from "react-router-dom";
 import {
   ArrowLeft,
   Package,
-  Clock,
-  CheckCircle,
-  Truck,
-  XCircle,
-  RotateCcw,
-  Star,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -269,7 +263,7 @@ export default function ItemOrderDetails() {
 
               <div className="space-y-1 mb-4">
                 <p className="text-muted-foreground text-sm">
-                  Order #{order.id.slice(0, 8).toUpperCase()} • Placed on {formatDate(order.createdAt)}
+                  Order #{order.id} • Placed on {formatDate(order.createdAt)}
                 </p>
                 <p className="text-muted-foreground text-sm">
                   Item ID: {item.id}
@@ -335,7 +329,7 @@ export default function ItemOrderDetails() {
             <div className="space-y-2 text-sm">
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Order ID:</span>
-                <span className="font-medium">#{order.id.slice(0, 8).toUpperCase()}</span>
+                <span className="font-medium">#{order.id}</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Order Date:</span>

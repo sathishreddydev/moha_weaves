@@ -317,7 +317,7 @@ export const cart = pgTable("cart", {
 export const orders = pgTable("orders", {
   id: varchar("id")
     .primaryKey()
-    .default(sql`gen_random_uuid()`),
+    .notNull(),
   userId: varchar("user_id").notNull(),
   totalAmount: decimal("total_amount", { precision: 10, scale: 2 }).notNull(),
   discountAmount: decimal("discount_amount", {
@@ -351,7 +351,7 @@ export const orders = pgTable("orders", {
 export const orderItems = pgTable("order_items", {
   id: varchar("id")
     .primaryKey()
-    .default(sql`gen_random_uuid()`),
+    .notNull(),
   orderId: varchar("order_id")
     .references(() => orders.id)
     .notNull(),

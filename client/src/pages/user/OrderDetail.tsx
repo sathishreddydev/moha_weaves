@@ -302,7 +302,7 @@ export default function OrderDetail() {
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = `invoice-${order.id.slice(0, 8).toUpperCase()}.pdf`;
+      a.download = `invoice-${order.id}.pdf`;
       document.body.appendChild(a);
       a.click();
       a.remove();
@@ -332,7 +332,7 @@ export default function OrderDetail() {
             className="font-serif text-2xl font-semibold"
             data-testid="text-order-id"
           >
-            Order #{order.id.slice(0, 8).toUpperCase()}
+            Order #{order.id}
           </h1>
           <p className="text-muted-foreground text-sm mt-1">
             Placed on {formatDate(order.createdAt)}

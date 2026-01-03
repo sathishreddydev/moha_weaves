@@ -49,7 +49,7 @@ export default function Orders() {
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = `invoice-${orderId.slice(0, 8).toUpperCase()}.pdf`;
+      a.download = `invoice-${orderId}.pdf`;
       document.body.appendChild(a);
       a.click();
       a.remove();
@@ -338,7 +338,7 @@ export default function Orders() {
                         className="font-medium"
                         data-testid={`text-order-id-${order.id}`}
                       >
-                        #{order.id.slice(0, 8).toUpperCase()}
+                        #{order.id}
                       </span>
                     </div>
                     <Separator orientation="vertical" className="h-4 hidden sm:block" />

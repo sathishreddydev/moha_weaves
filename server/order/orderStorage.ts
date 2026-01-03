@@ -16,6 +16,7 @@ import {
   itemStatusHistory,
   itemStatusEnum,
 } from "@shared/schema";
+import { IdGenerator } from "server/utils/idGenerator";
 
 export interface OrderStorage {
   createOrder(
@@ -43,11 +44,21 @@ export class OrderRepository implements OrderStorage {
     order: InsertOrder,
     items: Omit<InsertOrderItem, "orderId">[]
   ): Promise<Order> {
-    const [newOrder] = await db.insert(orders).values(order).returning();
+    // Generate order ID
+    const orderId = await IdGenerator.generateOrderId();
+    
+    const [newOrder] = await db.insert(orders).values({
+      ...order,
+      id: orderId,
+    }).returning();
 
+    let itemIndex = 1;
     for (const item of items) {
+      const itemId = IdGenerator.generateItemIdFromOrder(orderId, itemIndex - 1);
+      
       const [newOrderItem] = await db.insert(orderItems).values({
         ...item,
+        id: itemId,
         orderId: newOrder.id,
         status: "pending"
       }).returning();
@@ -82,6 +93,8 @@ export class OrderRepository implements OrderStorage {
 
       // Check for low stock and create alert
       await storage.checkAndCreateStockAlert(item.sareeId);
+      
+      itemIndex++;
     }
 
     return newOrder;

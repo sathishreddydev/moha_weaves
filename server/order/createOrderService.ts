@@ -10,18 +10,32 @@ import {
 } from "@shared/schema";
 import { db } from "server/db";
 import { storage } from "server/storage";
+import { IdGenerator } from "server/utils/idGenerator";
 
 export async function createOrderTransaction(
   orderData: InsertOrder,
   items: Omit<InsertOrderItem, "orderId">[]
 ) {
   return await db.transaction(async (trx) => {
-    // 1️⃣ Create order
-    const [newOrder] = await trx.insert(orders).values(orderData).returning();
+    // 1️⃣ Generate order ID
+    const orderId = await IdGenerator.generateOrderId();
+    
+    // 1️⃣ Create order with generated ID
+    const [newOrder] = await trx.insert(orders).values({
+      ...orderData,
+      id: orderId,
+    }).returning();
 
     // 2️⃣ Process items
+    let itemIndex = 1;
     for (const item of items) {
-      await trx.insert(orderItems).values({ ...item, orderId: newOrder.id });
+      const itemId = IdGenerator.generateItemIdFromOrder(orderId, itemIndex - 1);
+      
+      await trx.insert(orderItems).values({ 
+        ...item, 
+        id: itemId,
+        orderId: newOrder.id,
+      });
 
       // Deduct stock
       const updated = await trx
@@ -50,6 +64,8 @@ export async function createOrderTransaction(
 
       // Low stock alert
       await storage.checkAndCreateStockAlert(item.sareeId);
+      
+      itemIndex++;
     }
 
     return newOrder;

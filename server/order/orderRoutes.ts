@@ -43,7 +43,7 @@ export const orderRoutes = (app: Express) => {
 
       const { default: PDFDocument } = await import("pdfkit");
 
-      const safeId = order.id.slice(0, 8).toUpperCase();
+      const safeId = order.id;
       res.setHeader("Content-Type", "application/pdf");
       res.setHeader(
         "Content-Disposition",
