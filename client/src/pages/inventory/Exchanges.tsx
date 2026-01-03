@@ -217,9 +217,9 @@ export default function InventoryExchanges() {
     const currentExchangeStatus = request.status;
     
     switch (currentExchangeStatus) {
-      case "completed":
+      case "exchange_completed":
         return null;
-      case "requested":
+      case "exchange_requested":
         return (
           <Button
             size="sm"
@@ -230,29 +230,29 @@ export default function InventoryExchanges() {
             Start Processing
           </Button>
         );
-      case "approved":
+      case "exchange_approved":
         return (
           <Button
             size="sm"
-            onClick={() => handleOrderStatusUpdate(request, "pickup_scheduled")}
+            onClick={() => handleOrderStatusUpdate(request, "exchange_pickup_scheduled")}
             disabled={updateOrderStatusMutation.isPending}
             data-testid={`button-ship-${request.orderId}`}
           >
             Mark Shipped
           </Button>
         );
-      case "pickup_scheduled":
+      case "exchange_pickup_scheduled":
         return (
           <Button
             size="sm"
-            onClick={() => handleOrderStatusUpdate(request, "picked_up")}
+            onClick={() => handleOrderStatusUpdate(request, "exchange_picked_up")}
             disabled={updateOrderStatusMutation.isPending}
             data-testid={`button-deliver-${request.orderId}`}
           >
             Mark Delivered
           </Button>
         );
-      case "picked_up":
+      case "exchange_picked_up":
         return (
           <Badge className="bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-100">
             <CheckCircle className="h-3 w-3 mr-1" />
@@ -484,7 +484,7 @@ export default function InventoryExchanges() {
                               <StatusIcon className="h-3 w-3 mr-1" />
                               {status.label}
                             </Badge>
-                            {request.status === "completed" && request.order?.status && (
+                            {request.status === "exchange_completed" && request.order?.status && (
                               getOrderStatusDisplay(request.order.status)
                             )}
                           </div>

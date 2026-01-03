@@ -309,7 +309,6 @@ export class ReturnStorage implements IReturnStorage {
           createdAt: new Date(),
         });
 
-        // Only restock when completed
         if (status === "completed" && item.isRestockable) {
           await tx.insert(stockMovements).values({
             sareeId: item.orderItem.saree.id,

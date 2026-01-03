@@ -272,7 +272,6 @@ export class OnlineExchangeStorage implements IOnlineExchangeStorage {
           updatedBy: processedBy,
           createdAt: new Date(),
         });
-        // Create customer notification
         await tx.insert(notifications).values({
           userId: onlineExchange.userId,
           type: "order",
@@ -283,10 +282,8 @@ export class OnlineExchangeStorage implements IOnlineExchangeStorage {
         });
       }
 
-      // Handle inventory management
       for (const item of onlineExchange.items) {
         if (item.isRestockable) {
-          // Add returned item back to stock
           await tx.insert(stockMovements).values({
             sareeId: item.orderItem.saree.id,
             quantity: item.quantity,
@@ -298,7 +295,6 @@ export class OnlineExchangeStorage implements IOnlineExchangeStorage {
         }
 
         if (item.exchangeSareeId) {
-          // Deduct exchanged item from stock
           await tx.insert(stockMovements).values({
             sareeId: item.exchangeSareeId,
             quantity: -item.quantity,

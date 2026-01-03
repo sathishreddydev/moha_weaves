@@ -207,7 +207,7 @@ export default function InventoryReturns() {
             <Button
               size="sm"
               variant="outline"
-              onClick={() => handleStatusUpdate(request, "rejected")}
+              onClick={() => handleStatusUpdate(request, "return_rejected")}
               disabled={updateStatusMutation.isPending}
               data-testid={`button-reject-${request.id}`}
             >
@@ -215,7 +215,7 @@ export default function InventoryReturns() {
             </Button>
             <Button
               size="sm"
-              onClick={() => handleStatusUpdate(request, "approved")}
+              onClick={() => handleStatusUpdate(request, "return_approved")}
               disabled={updateStatusMutation.isPending}
               data-testid={`button-approve-${request.id}`}
             >
@@ -227,7 +227,7 @@ export default function InventoryReturns() {
         return (
           <Button
             size="sm"
-            onClick={() => handleStatusUpdate(request, "in_transit")}
+            onClick={() => handleStatusUpdate(request, "return_in_transit")}
             disabled={updateStatusMutation.isPending}
             data-testid={`button-mark-transit-${request.id}`}
           >
@@ -238,7 +238,7 @@ export default function InventoryReturns() {
         return (
           <Button
             size="sm"
-            onClick={() => handleStatusUpdate(request, "received")}
+            onClick={() => handleStatusUpdate(request, "return_received")}
             disabled={updateStatusMutation.isPending}
             data-testid={`button-mark-received-${request.id}`}
           >
@@ -249,7 +249,7 @@ export default function InventoryReturns() {
         return (
           <Button
             size="sm"
-            onClick={() => handleStatusUpdate(request, "inspected")}
+            onClick={() => handleStatusUpdate(request, "return_inspected")}
             disabled={updateStatusMutation.isPending}
             data-testid={`button-mark-inspected-${request.id}`}
           >
@@ -260,7 +260,7 @@ export default function InventoryReturns() {
         return (
           <Button
             size="sm"
-            onClick={() => handleStatusUpdate(request, "completed")}
+            onClick={() => handleStatusUpdate(request, "return_completed")}
             disabled={updateStatusMutation.isPending}
             data-testid={`button-complete-${request.id}`}
           >

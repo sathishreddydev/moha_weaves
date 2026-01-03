@@ -8,15 +8,11 @@ export const refundRoutes = (app: Express) => {
   const authInventory = createAuthMiddleware(["inventory", "admin"]);
   const authUser = createAuthMiddleware(["user"]);
 
-  // Webhook endpoint for Razorpay refund events
   app.post("/api/webhooks/razorpay/refund", async (req: Request, res: Response) => {
     await RefundWebhookService.handleWebhook(req, res);
   });
 
-  // Admin: Get all refunds with enhanced filtering
   app.get("/api/inventory/refunds", authInventory, async (req, res) => {
-                console.log(req.query)
-
     try {
       const { status, userId } = req.query;
 

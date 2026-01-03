@@ -173,12 +173,6 @@ export interface IStorage {
   getRefunds(filters?: { userId?: string; status?: string }): Promise<Refund[]>;
   getRefund(id: string): Promise<Refund | undefined>;
   createRefund(refund: InsertRefund): Promise<Refund>;
-  updateRefundStatus(
-    id: string,
-    status: string,
-    processedAt?: Date,
-    transactionId?: string
-  ): Promise<Refund | undefined>;
   getRefundByReturnRequest(
     returnRequestId: string
   ): Promise<Refund | undefined>;
@@ -1086,24 +1080,6 @@ export class DatabaseStorage implements IStorage {
   async createRefund(refund: InsertRefund): Promise<Refund> {
     const [result] = await db.insert(refunds).values(refund).returning();
     return result;
-  }
-
-  async updateRefundStatus(
-    id: string,
-    status: string,
-    processedAt?: Date,
-    transactionId?: string
-  ): Promise<Refund | undefined> {
-    const updateData: any = { status };
-    if (processedAt) updateData.processedAt = processedAt;
-    if (transactionId) updateData.transactionId = transactionId;
-
-    const [result] = await db
-      .update(refunds)
-      .set(updateData)
-      .where(eq(refunds.id, id))
-      .returning();
-    return result || undefined;
   }
 
   async getRefundByReturnRequest(

@@ -14,10 +14,8 @@ export interface RefundProcessingOptions {
 }
 
 export class RefundService {
-  // Create refund record and initiate payment gateway refund
   async createAndProcessRefund(options: RefundProcessingOptions): Promise<Refund> {
     const { refund, razorpayPaymentId } = await db.transaction(async (tx) => {
-      // Get order details to find payment ID
       const [order] = await tx
         .select()
         .from(orders)
@@ -27,7 +25,6 @@ export class RefundService {
         throw new Error("Order or payment ID not found");
       }
 
-      // Create refund record
       const [refund] = await tx
         .insert(refunds)
         .values({
@@ -46,13 +43,11 @@ export class RefundService {
       return { refund, razorpayPaymentId: order.razorpayPaymentId };
     });
 
-    // Initiate Razorpay refund only after the refund row is committed.
     await this.initiateRefund(refund.id, razorpayPaymentId);
 
     return refund;
   }
 
-  // Initiate refund with Razorpay
   private async initiateRefund(refundId: string, paymentId: string): Promise<void> {
     try {
       const refund = await this.getRefund(refundId);
@@ -60,10 +55,8 @@ export class RefundService {
         throw new Error("Refund not found");
       }
 
-      // Update status to initiated
       await this.updateRefundStatus(refundId, "initiated", undefined, undefined);
 
-      // Create Razorpay refund
       const amountInPaise = Math.round(parseFloat(refund.amount) * 100);
       const razorpayRefund = await createRefund({
         paymentId,
@@ -76,7 +69,6 @@ export class RefundService {
         },
       });
 
-      // Update refund with Razorpay details
       await this.updateRefundStatus(
         refundId,
         "processing",
@@ -97,7 +89,6 @@ export class RefundService {
     }
   }
 
-  // Check and update refund status from Razorpay
   async checkRefundStatus(refundId: string): Promise<void> {
     try {
       const refund = await this.getRefund(refundId);
@@ -116,7 +107,6 @@ export class RefundService {
           new Date()
         );
         
-        // Create notification for user
         await storage.createNotification({
           userId: refund.userId,
           type: "refund",
@@ -138,7 +128,6 @@ export class RefundService {
     }
   }
 
-  // Retry failed refunds
   async retryFailedRefund(refundId: string): Promise<void> {
     const refund = await this.getRefund(refundId);
     if (!refund || refund.status !== "failed") {
@@ -150,13 +139,11 @@ export class RefundService {
     }
 
     try {
-      // Update retry count
       await db
         .update(refunds)
         .set({ retryCount: (refund.retryCount || 0) + 1 })
         .where(eq(refunds.id, refundId));
 
-      // Re-initiate refund
       if (refund.razorpayPaymentId) {
         await this.initiateRefund(refundId, refund.razorpayPaymentId);
       }
@@ -166,13 +153,11 @@ export class RefundService {
     }
   }
 
-  // Get refund by ID
   async getRefund(id: string): Promise<Refund | undefined> {
     const [result] = await db.select().from(refunds).where(eq(refunds.id, id));
     return result || undefined;
   }
 
-  // Update refund status
   private async updateRefundStatus(
     id: string,
     status: "pending" | "initiated" | "processing" | "completed" | "failed" | "cancelled",
@@ -193,7 +178,6 @@ export class RefundService {
       .where(eq(refunds.id, id));
   }
 
-  // Get all refunds with filters
   async getRefunds(filters?: {
     userId?: string;
     status?: "pending" | "initiated" | "processing" | "completed" | "failed" | "cancelled";
@@ -209,7 +193,6 @@ export class RefundService {
     return await queryWithWhere.orderBy(refunds.createdAt);
   }
 
-  // Process refund manually (admin override)
   async processRefundManually(
     refundId: string,
     status: "pending" | "initiated" | "processing" | "completed" | "failed" | "cancelled",

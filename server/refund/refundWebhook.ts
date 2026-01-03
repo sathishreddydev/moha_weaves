@@ -6,7 +6,6 @@ import { refunds } from "@shared/schema";
 import { eq } from "drizzle-orm";
 
 export class RefundWebhookService {
-  // Verify Razorpay webhook signature
   static verifyWebhookSignature(body: string, signature: string, secret: string): boolean {
     try {
       const expectedSignature = crypto
@@ -24,7 +23,6 @@ export class RefundWebhookService {
     }
   }
 
-  // Handle Razorpay webhook events
   static async handleWebhook(req: Request, res: Response): Promise<void> {
     try {
       const signatureHeader = req.headers["x-razorpay-signature"];
@@ -50,7 +48,6 @@ export class RefundWebhookService {
       const event = req.body;
       console.log("Webhook event received:", event.event);
 
-      // Handle different webhook events
       switch (event.event) {
         case "refund.processed":
           await this.handleRefundProcessed(event.payload.refund.entity);
@@ -75,10 +72,8 @@ export class RefundWebhookService {
     }
   }
 
-  // Handle refund processed event
   private static async handleRefundProcessed(refundEntity: any): Promise<void> {
     try {
-      // Find refund by Razorpay refund ID
       const [refund] = await db
         .select()
         .from(refunds)
@@ -89,7 +84,6 @@ export class RefundWebhookService {
         return;
       }
 
-      // Update refund status to completed
       await refundService.processRefundManually(refund.id, "completed");
       
       console.log(`Refund ${refund.id} marked as completed via webhook`);
@@ -98,10 +92,8 @@ export class RefundWebhookService {
     }
   }
 
-  // Handle refund failed event
   private static async handleRefundFailed(refundEntity: any): Promise<void> {
     try {
-      // Find refund by Razorpay refund ID
       const [refund] = await db
         .select()
         .from(refunds)
@@ -112,7 +104,6 @@ export class RefundWebhookService {
         return;
       }
 
-      // Update refund status to failed with reason
       await db
         .update(refunds)
         .set({
@@ -127,10 +118,8 @@ export class RefundWebhookService {
     }
   }
 
-  // Handle refund created event
   private static async handleRefundCreated(refundEntity: any): Promise<void> {
     try {
-      // Find refund by Razorpay refund ID
       const [refund] = await db
         .select()
         .from(refunds)
@@ -141,7 +130,6 @@ export class RefundWebhookService {
         return;
       }
 
-      // Update refund with Razorpay details if not already set
       await db
         .update(refunds)
         .set({
@@ -157,7 +145,6 @@ export class RefundWebhookService {
     }
   }
 
-  // Manual webhook status check (for debugging)
   static async checkPendingRefunds(): Promise<void> {
     try {
       const pendingRefunds = await db
