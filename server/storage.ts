@@ -271,6 +271,15 @@ export interface IStorage {
     sareeId?: string;
     limit?: number;
   }): Promise<StockMovement[]>;
+
+  // Item status history tracking
+  itemHistory(
+    orderItemId: string,
+    currentStatus: string,
+    newStatus: string,
+    note: string,
+    updatedBy?: string
+  ): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -1654,6 +1663,23 @@ export class DatabaseStorage implements IStorage {
       .innerJoin(orderItems, eq(itemStatusHistory.orderItemId, orderItems.id))
       .where(eq(orderItems.orderId, orderId))
       .orderBy(desc(itemStatusHistory.createdAt));
+  }
+
+  async itemHistory(
+    orderItemId: string,
+    currentStatus: string,
+    newStatus: string,
+    note: string,
+    updatedBy?: string
+  ): Promise<void> {
+    await db.insert(itemStatusHistory).values({
+      orderItemId,
+      status: currentStatus,
+      newStatus,
+      note,
+      updatedBy,
+      createdAt: new Date(),
+    });
   }
 }
 

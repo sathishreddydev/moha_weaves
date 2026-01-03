@@ -267,14 +267,13 @@ export class ReturnStorage implements IReturnStorage {
           updatedAt: new Date(),
         }).where(eq(orderItems.id, item.orderItemId));
 
-        await tx.insert(itemStatusHistory).values({
-          orderItemId: item.orderItemId,
-          status: "delivered",
-          newStatus: "return_requested",
-          note: "Return request created",
-          updatedBy: request.userId,
-          createdAt: new Date(),
-        });
+        await storage.itemHistory(
+          item.orderItemId,
+          "delivered",
+          "return_requested",
+          "Return request created",
+          request.userId
+        );
       }
 
       return newRequest;
@@ -324,14 +323,13 @@ export class ReturnStorage implements IReturnStorage {
           updatedAt: new Date(),
         }).where(eq(orderItems.id, item.orderItemId));
 
-        await tx.insert(itemStatusHistory).values({
-          orderItemId: item.orderItemId,
-          status: item.orderItem.status,
-          newStatus: newItemStatus,
-          note: `Return request ${status}${status === "return_completed" ? " - refund initiated" : ""}`,
-          updatedBy: processedBy,
-          createdAt: new Date(),
-        });
+        await storage.itemHistory(
+          item.orderItemId,
+          item.orderItem.status,
+          newItemStatus,
+          `Return request ${status}${status === "return_completed" ? " - refund initiated" : ""}`,
+          processedBy
+        );
 
         if (status === "return_completed" && item.isRestockable) {
           await tx.insert(stockMovements).values({

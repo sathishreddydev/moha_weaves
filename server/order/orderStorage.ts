@@ -64,13 +64,12 @@ export class OrderRepository implements OrderStorage {
       }).returning();
 
       // Create initial item status history
-      await db.insert(itemStatusHistory).values({
-        orderItemId: newOrderItem.id,
-        status: "pending",
-        newStatus: "pending",
-        note: "Order created",
-        createdAt: new Date(),
-      });
+      await storage.itemHistory(
+        newOrderItem.id,
+        "pending",
+        "pending",
+        "Order created"
+      );
 
       // Deduct from online stock and total stock
       await db
@@ -209,14 +208,13 @@ export class OrderRepository implements OrderStorage {
         .returning();
 
       // Create status history record
-      await tx.insert(itemStatusHistory).values({
+      await storage.itemHistory(
         orderItemId,
-        status: currentItem.status,
-        newStatus: status as any,
-        note: note || `Status updated to ${status}`,
-        updatedBy,
-        createdAt: new Date(),
-      });
+        currentItem.status,
+        status,
+        note || `Status updated to ${status}`,
+        updatedBy
+      );
 
       return updatedItem;
     });

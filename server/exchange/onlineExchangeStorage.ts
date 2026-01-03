@@ -21,6 +21,7 @@ import {
 } from "@shared/schema";
 import { eq, and, desc, inArray, sql } from "drizzle-orm";
 import { db } from "../db";
+import { storage } from "../storage";
 import { orderService } from "../order/orderStorage";
 import { userService } from "../auth/authStorage";
 import { itemStatusConfig } from "@/constants/itemStatusConfig";
@@ -203,14 +204,13 @@ export class OnlineExchangeStorage implements IOnlineExchangeStorage {
           .where(eq(orderItems.id, item.orderItemId));
 
         // Create item status history
-        await tx.insert(itemStatusHistory).values({
-          orderItemId: item.orderItemId,
-          status: "delivered", // Previous status
-          newStatus: "exchange_requested",
-          note: "Online exchange created",
-          updatedBy: exchange.userId,
-          createdAt: new Date(),
-        });
+        await storage.itemHistory(
+          item.orderItemId,
+          "delivered", // Previous status
+          "exchange_requested",
+          "Online exchange created",
+          exchange.userId
+        );
       }
 
       return newExchange;
@@ -264,14 +264,13 @@ export class OnlineExchangeStorage implements IOnlineExchangeStorage {
           updatedAt: new Date(),
         }).where(eq(orderItems.id, item.orderItemId));
 
-        await tx.insert(itemStatusHistory).values({
-          orderItemId: item.orderItemId,
-          status: item.orderItem.status,
-          newStatus: newItemStatus,
-          note: `Exchange request ${status}`,
-          updatedBy: processedBy,
-          createdAt: new Date(),
-        });
+        await storage.itemHistory(
+          item.orderItemId,
+          item.orderItem.status,
+          newItemStatus,
+          `Exchange request ${status}`,
+          processedBy
+        );
         await tx.insert(notifications).values({
           userId: onlineExchange.userId,
           type: "order",
