@@ -19,6 +19,7 @@ import { reviewRoutes } from "./review/reviewRoutes";
 import { refundRoutes } from "./refund/refundRoutes";
 import { returnRoutes } from "./return/returnRoutes";
 import { onlineExchangeRoutes } from "./exchange/onlineExchangeRoutes";
+import { contactRoutes } from "./contact/contactRoutes";
 
 const authAny = createAuthMiddleware(["user", "admin", "inventory", "store"]);
 
@@ -42,6 +43,7 @@ export async function registerRoutes(
   refundRoutes(app);
   returnRoutes(app);
   onlineExchangeRoutes(app);
+  contactRoutes(app);
 
   // Serve uploaded files
   app.get("/objects/:objectPath(*)", async (req, res) => {

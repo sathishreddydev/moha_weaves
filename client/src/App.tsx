@@ -33,6 +33,8 @@ const ShippingPolicy = lazy(() => import("@/pages/user/ShippingPolicy"));
 const ReturnsExchangePolicy = lazy(
   () => import("@/pages/user/ReturnsExchangePolicy")
 );
+const ContactUs = lazy(() => import("@/pages/user/ContactUs"));
+const FAQ = lazy(() => import("@/pages/user/FAQ"));
 
 // Import Sales components
 const Sales = lazy(() => import("@/pages/user/Sales"));
@@ -254,6 +256,8 @@ function Router() {
             path="/returns-exchange-policy"
             element={<ReturnsExchangePolicy />}
           />
+          <Route path="/contact" element={<ContactUs />} />
+          <Route path="/faq" element={<FAQ />} />
 
           <Route path="*" element={<NotFound />} />
         </Routes>
