@@ -16,21 +16,24 @@ import {
   OnlineExchangeItem,
   InsertOnlineExchangeItem,
   onlineExchangeStatusEnum,
-  returnReasonEnum
+  returnReasonEnum,
+  itemStatusEnum
 } from "@shared/schema";
 import { eq, and, desc, inArray, sql } from "drizzle-orm";
 import { db } from "../db";
 import { orderService } from "../order/orderStorage";
 import { userService } from "../auth/authStorage";
+import { itemStatusConfig } from "@/constants/itemStatusConfig";
 
 export type OnlineExchangeWithDetails = OnlineExchange & {
   order: any;
   user: any;
-  items: (Omit<OnlineExchangeItem, 'id'> & {
+  items: (any & {
     orderItem: {
       saree: any;
     };
   })[];
+
 };
 
 export interface IOnlineExchangeStorage {
@@ -64,7 +67,7 @@ export interface IOnlineExchangeStorage {
 export class OnlineExchangeStorage implements IOnlineExchangeStorage {
   private readonly activeExchangeStatuses = [
     "requested",
-    "approved", 
+    "approved",
     "pickup_scheduled",
     "picked_up",
     "in_transit",
@@ -216,7 +219,7 @@ export class OnlineExchangeStorage implements IOnlineExchangeStorage {
 
   async updateOnlineExchangeStatus(
     id: string,
-    status: string,
+    status: any,
     processedBy?: string,
     inspectionNotes?: string,
     exchangeOrderId?: string
@@ -235,73 +238,84 @@ export class OnlineExchangeStorage implements IOnlineExchangeStorage {
 
       if (!result) return undefined;
 
-      // Handle exchange completion logic
-      if (status === "completed") {
-        const onlineExchange = await this.getOnlineExchange(id);
-        if (!onlineExchange) return result;
+      const onlineExchange = await this.getOnlineExchange(id);
+      if (!onlineExchange) return result;
 
-        // Update item-level status for exchanged items
-        for (const item of onlineExchange.items) {
-          await tx
-            .update(orderItems)
-            .set({
-              status: "exchange_completed",
-              updatedAt: new Date(),
-            })
-            .where(eq(orderItems.id, item.orderItemId));
+      // Map exchange status to order item status
+      const statusMap: Record<string, string> = {
+        exchange_requested: "exchange_requested",
+        exchange_approved: "exchange_approved",
+        exchange_processing: "exchange_processing",
+        exchange_pickup_scheduled: "exchange_pickup_scheduled",
+        exchange_picked_up: "exchange_picked_up",
+        exchange_in_transit: "exchange_in_transit",
+        exchange_received: "exchange_received",
+        exchange_inspected: "exchange_inspected",
+        exchange_shipped: "exchange_shipped",
+        exchange_delivered: "exchange_delivered",
+        exchange_completed: "exchange_completed",
+        exchange_cancelled: "exchange_cancelled",
+      };
 
-          // Create item status history
-          await tx.insert(itemStatusHistory).values({
-            orderItemId: item.orderItemId,
-            status: "delivered", // Previous status
-            newStatus: "exchange_completed",
-            note: "Online exchange completed",
-            updatedBy: processedBy,
-            createdAt: new Date(),
-          });
-        }
+      for (const item of onlineExchange.items) {
+        const newItemStatus = statusMap[status] || "exchange_requested";
+        await tx.update(orderItems).set({
+          status: newItemStatus as any,
+          updatedAt: new Date(),
+        }).where(eq(orderItems.id, item.orderItemId));
 
-        // Handle inventory management for returned items
-        for (const item of onlineExchange.items) {
-          if (item.isRestockable) {
-            // Add returned item back to stock
-            await tx.insert(stockMovements).values({
-              sareeId: item.orderItem.saree.id,
-              quantity: item.quantity, // Positive quantity for stock addition
-              movementType: "return",
-              source: "online",
-              orderRefId: onlineExchange.orderId,
-              createdAt: new Date(),
-            });
-          }
-
-          // Record stock movement for exchanged item (deduction)
-          if (item.exchangeSareeId) {
-            await tx.insert(stockMovements).values({
-              sareeId: item.exchangeSareeId,
-              quantity: -item.quantity, // Negative quantity for stock deduction
-              movementType: "sale",
-              source: "online",
-              orderRefId: onlineExchange.orderId,
-              createdAt: new Date(),
-            });
-          }
-        }
-
+        await tx.insert(itemStatusHistory).values({
+          orderItemId: item.orderItemId,
+          status: item.orderItem.status,
+          newStatus: newItemStatus,
+          note: `Exchange request ${status}`,
+          updatedBy: processedBy,
+          createdAt: new Date(),
+        });
         // Create customer notification
         await tx.insert(notifications).values({
           userId: onlineExchange.userId,
           type: "order",
-          title: "Online Exchange Completed",
-          message: `Your online exchange request for order #${onlineExchange.orderId} has been completed. Your exchanged items will be shipped soon.`,
+          title: "Online Exchange Update",
+          message: `Your online exchange request for order #${String(onlineExchange.orderId)} has been updated to "${String(newItemStatus)}".`,
           relatedId: onlineExchange.orderId,
           createdAt: new Date(),
         });
       }
 
+      // Handle inventory management
+      for (const item of onlineExchange.items) {
+        if (item.isRestockable) {
+          // Add returned item back to stock
+          await tx.insert(stockMovements).values({
+            sareeId: item.orderItem.saree.id,
+            quantity: item.quantity,
+            movementType: "return",
+            source: "online",
+            orderRefId: onlineExchange.orderId,
+            createdAt: new Date(),
+          });
+        }
+
+        if (item.exchangeSareeId) {
+          // Deduct exchanged item from stock
+          await tx.insert(stockMovements).values({
+            sareeId: item.exchangeSareeId,
+            quantity: -item.quantity,
+            movementType: "sale",
+            source: "online",
+            orderRefId: onlineExchange.orderId,
+            createdAt: new Date(),
+          });
+        }
+      }
+
+
+
       return result;
     });
   }
+
 
   async updateOnlineExchange(
     id: string,
@@ -331,7 +345,7 @@ export class OnlineExchangeStorage implements IOnlineExchangeStorage {
     // If specific order item IDs provided, check only those items
     if (orderItemIds && orderItemIds.length > 0) {
       const eligibleItems: string[] = [];
-      
+
       for (const orderItemId of orderItemIds) {
         const orderItem = order.items.find((item: any) => item.id === orderItemId);
         if (!orderItem) {
@@ -351,7 +365,7 @@ export class OnlineExchangeStorage implements IOnlineExchangeStorage {
         const existingExchange = await this.getExchangedQuantityByOrderItem(orderItemId);
         const purchasedQty = Number(orderItem.quantity || 0);
         const exchangedQty = Number(existingExchange || 0);
-        
+
         if (purchasedQty <= exchangedQty) {
           return { eligible: false, reason: `Item ${orderItem.saree.name} has already been fully exchanged` };
         }
@@ -454,7 +468,18 @@ export class OnlineExchangeStorage implements IOnlineExchangeStorage {
       .where(
         and(
           eq(onlineExchangeItems.orderItemId, orderItemId),
-          inArray(onlineExchanges.status, ["requested", "approved", "pickup_scheduled", "picked_up", "in_transit", "received", "inspected"])
+          inArray(onlineExchanges.status, ["exchange_requested",
+            "exchange_approved",
+            "exchange_processing",
+            "exchange_pickup_scheduled",
+            "exchange_picked_up",
+            "exchange_in_transit",
+            "exchange_received",
+            "exchange_inspected",
+            "exchange_shipped",
+            "exchange_delivered",
+            "exchange_completed",
+            "exchange_cancelled",])
         )
       );
 

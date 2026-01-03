@@ -22,7 +22,6 @@ import {
   AccordionTrigger,
 } from "@/components/ui/accordion";
 import { ReusableDialog } from "@/components/common/ReusableDialog";
-import { StatusDialog } from "@/pages/user/common/StatusDialog";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import {
@@ -38,8 +37,7 @@ import { useAuth } from "@/lib/auth";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import type { OrderWithItems, ItemStatusHistory, ReturnRequestWithDetails, Refund, SareeWithDetails, OnlineExchangeWithDetails } from "@shared/schema";
-import { returnStatusConfig, refundStatusConfig, inProgressReturnStatuses, activeAndCompletedStatuses, allReturnStatuses, refundSteps } from "@/constants/statusConfig";
-import { itemStatusConfig, isItemDelivered, returnReasons } from "@/constants/itemStatusConfig";
+import { itemStatusConfig, isItemDelivered, returnReasons, getItemStatusConfig } from "@/constants/itemStatusConfig";
 
 
 export default function OrderDetail() {
@@ -115,10 +113,6 @@ export default function OrderDetail() {
     return itemEligibility?.eligible ?? false;
   };
 
-  const { data: orderHistory } = useQuery<ItemStatusHistory[]>({
-    queryKey: ["/api/user/orders", id, "history"],
-    enabled: !!user && !!id,
-  });
 
   const { data: razorpayPaymentDetails } = useQuery<{
     available: boolean;
@@ -139,29 +133,6 @@ export default function OrderDetail() {
   const { data: userExchanges } = useQuery<OnlineExchangeWithDetails[]>({
     queryKey: ["/api/user/online-exchanges"],
     enabled: !!user,
-  });
-
-  const { data: userRefunds } = useQuery<Refund[]>({
-    queryKey: ["/api/user/refunds"],
-    enabled: !!user,
-  });
-
-  const syncRefundStatusMutation = useMutation({
-    mutationFn: async ({ id }: { id: string }) => {
-      const response = await apiRequest("POST", `/api/user/refunds/${id}/check-status`);
-      return response.json();
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/user/refunds"], exact: false });
-      toast({ title: "Success", description: "Refund status refreshed" });
-    },
-    onError: () => {
-      toast({
-        title: "Error",
-        description: "Failed to refresh refund status",
-        variant: "destructive",
-      });
-    },
   });
 
   const createReturnMutation = useMutation({
@@ -275,45 +246,9 @@ export default function OrderDetail() {
     setModalItemId(preselectOrderItemId || null);
     setSelectedItems({}); // Reset selection state
 
-    if (order?.items) {
-      setSelectedItems(() => {
-        const next: Record<string, { selected: boolean; quantity: number }> = {};
-        for (const item of order.items) {
-          const remainingQty = Number(
-            remainingQtyByOrderItemId.get(String(item.id)) ?? item.quantity
-          );
-
-          if (preselectOrderItemId) {
-            const isTarget = item.id === preselectOrderItemId;
-            next[item.id] = {
-              selected: isTarget && remainingQty > 0,
-              quantity: isTarget ? remainingQty : 0,
-            };
-            continue;
-          }
-
-          // If opened from CTA, start with no selection.
-          next[item.id] = { selected: false, quantity: 0 };
-        }
-        return next;
-      });
-    }
-
     setShowReturnDialog(true);
   };
 
-  const toggleItemSelection = (itemId: string, maxQty: number) => {
-    const locked = activeOrderItemIds.has(String(itemId));
-    const remainingQty = Number(remainingQtyByOrderItemId.get(String(itemId)) ?? maxQty);
-    if (locked || remainingQty <= 0) return;
-
-    setSelectedItems((prev) => ({
-      ...prev,
-      [itemId]: prev[itemId]?.selected
-        ? { selected: false, quantity: 0 }
-        : { selected: true, quantity: remainingQty },
-    }));
-  };
 
   if (!user) {
     return (
@@ -350,144 +285,6 @@ export default function OrderDetail() {
       </div>
     );
   }
-
-  const returnsForThisOrder = (userReturns || []).filter(
-    (r: ReturnRequestWithDetails) => r.orderId === id && r.resolution !== "exchange"
-  );
-
-  const exchangesForThisOrder = (userExchanges || []).filter(
-    (r: OnlineExchangeWithDetails) => r.orderId === id
-  );
-
-  const latestReturnForThisOrder = returnsForThisOrder.length > 0 ? returnsForThisOrder[0] : undefined;
-  const latestExchangeForThisOrder = exchangesForThisOrder.length > 0 ? exchangesForThisOrder[0] : undefined;
-
-  const hasAnyReturnOrExchange = returnsForThisOrder.length > 0 || exchangesForThisOrder.length > 0;
-
-  const hasActiveExchange = exchangesForThisOrder.some(
-    (r: OnlineExchangeWithDetails) =>
-      inProgressReturnStatuses.includes(r.status as any)
-  );
-
-  const activeOrderItemIds = new Set<string>();
-  for (const rr of [...returnsForThisOrder, ...exchangesForThisOrder]) {
-    if (!inProgressReturnStatuses.includes(rr.status as any)) continue;
-    for (const item of rr.items || []) {
-      activeOrderItemIds.add(String(item.orderItemId));
-    }
-  }
-
-  const returnedQtyByOrderItemId = new Map<string, number>();
-  for (const rr of [...returnsForThisOrder, ...exchangesForThisOrder]) {
-    if (!activeAndCompletedStatuses.includes(rr.status as any)) continue;
-    for (const ri of rr.items || []) {
-      const key = String(ri.orderItemId);
-      returnedQtyByOrderItemId.set(
-        key,
-        (returnedQtyByOrderItemId.get(key) || 0) + Number(ri.quantity || 0)
-      );
-    }
-  }
-
-  const remainingQtyByOrderItemId = new Map<string, number>();
-  for (const item of order.items || []) {
-    const purchasedQty = Number(item.quantity || 0);
-    const returnedQty = Number(returnedQtyByOrderItemId.get(String(item.id)) || 0);
-    remainingQtyByOrderItemId.set(String(item.id), Math.max(0, purchasedQty - returnedQty));
-  }
-
-
-  const returnedOrderItemIds = new Set<string>();
-  for (const rr of [...returnsForThisOrder, ...exchangesForThisOrder]) {
-    for (const ri of rr.items || []) {
-      returnedOrderItemIds.add(ri.orderItemId);
-    }
-  }
-
-  const refundByReturnRequestId = new Map<string, Refund>();
-  for (const rf of userRefunds || []) {
-    if (rf.returnRequestId) refundByReturnRequestId.set(rf.returnRequestId, rf);
-  }
-
-  const refundForThisOrder = latestReturnForThisOrder
-    ? refundByReturnRequestId.get(latestReturnForThisOrder.id) || (userRefunds || []).find((rf) => rf.orderId === order.id)
-    : (userRefunds || []).find((rf) => rf.orderId === order.id);
-
-  const itemStatusByOrderItemId = new Map<string, { label: string; color: string; updatedAt: string | Date }>();
-
-  // First, set current item statuses from order items
-  for (const item of order.items || []) {
-    const currentItemStatusConfig = itemStatusConfig[item.status as any] || itemStatusConfig.pending;
-    itemStatusByOrderItemId.set(item.id, {
-      label: currentItemStatusConfig.label,
-      color: currentItemStatusConfig.color,
-      updatedAt: item.updatedAt || order.updatedAt
-    });
-  }
-
-  // Then, override with return/exchange statuses if they exist and are more recent
-  for (const rr of [...returnsForThisOrder, ...exchangesForThisOrder]) {
-    for (const ri of rr.items || []) {
-      const existing = itemStatusByOrderItemId.get(ri.orderItemId);
-      const rrUpdated = rr.updatedAt || rr.createdAt;
-      if (!existing || new Date(rrUpdated).getTime() > new Date(existing.updatedAt).getTime()) {
-        const isExchange = !('resolution' in rr); // Online exchanges don't have resolution field
-        const base = isExchange ? "Exchange" : "Return";
-        const label =
-          rr.status === "completed"
-            ? `${base} Completed`
-            : rr.status === "rejected"
-              ? `${base} Rejected`
-              : rr.status === "pickup_scheduled"
-                ? `${base} Pickup Scheduled`
-                : rr.status === "picked_up"
-                  ? `${base} Picked Up`
-                  : rr.status === "received"
-                    ? `${base} Received`
-                    : rr.status === "approved"
-                      ? `${base} Approved`
-                      : rr.status === "cancelled"
-                        ? `${base} Cancelled`
-                        : `${base} Requested`;
-
-        const color =
-          rr.status === "completed"
-            ? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-100"
-            : rr.status === "rejected"
-              ? "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-100"
-              : isExchange
-                ? "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-100"
-                : "bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-100";
-
-        itemStatusByOrderItemId.set(ri.orderItemId, { label, color, updatedAt: rrUpdated });
-
-        const refund = !isExchange ? refundByReturnRequestId.get(rr.id) : undefined;
-        if (refund) {
-          const refundUpdated = refund.completedAt || refund.initiatedAt || refund.createdAt;
-          if (refundUpdated && new Date(refundUpdated).getTime() >= new Date(rrUpdated).getTime()) {
-            const refundLabel =
-              refund.status === "completed"
-                ? "Refunded"
-                : refund.status === "failed"
-                  ? "Refund Failed"
-                  : "Refund Processing";
-            const refundColor =
-              refund.status === "completed"
-                ? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-100"
-                : refund.status === "failed"
-                  ? "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-100"
-                  : "bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-100";
-            itemStatusByOrderItemId.set(ri.orderItemId, { label: refundLabel, color: refundColor, updatedAt: refundUpdated });
-          }
-        }
-      }
-    }
-  }
-
-  const refundBadge = refundForThisOrder
-    ? refundStatusConfig[refundForThisOrder.status] || refundStatusConfig.pending
-    : null;
-  const RefundBadgeIcon = refundBadge ? refundBadge.icon : Clock;
 
 
   const handleDownloadInvoice = async () => {
@@ -648,72 +445,6 @@ export default function OrderDetail() {
           </Card>
         );
 
-        const refundStatusCard =
-          refundForThisOrder && latestReturnForThisOrder?.resolution !== "exchange" ? (
-            <Card className="p-4">
-              <div className="flex items-start justify-between gap-3">
-                <div>
-                  <h3 className="font-semibold">Refund Status</h3>
-                  <p className="text-sm text-muted-foreground mt-1">
-                    Refund updates are synced from Razorpay.
-                  </p>
-                </div>
-                {refundBadge ? (
-                  <Badge className={refundBadge.color}>
-                    <RefundBadgeIcon className="h-3 w-3 mr-1" />
-                    {refundBadge.label}
-                  </Badge>
-                ) : null}
-              </div>
-
-              <div className="mt-4 space-y-2 text-sm">
-                <p>
-                  <span className="text-muted-foreground">Amount:</span> {formatPrice(refundForThisOrder.amount)}
-                </p>
-                {refundForThisOrder.razorpayRefundId ? (
-                  <p>
-                    <span className="text-muted-foreground">Razorpay refund:</span> {maskId(refundForThisOrder.razorpayRefundId)}
-                  </p>
-                ) : null}
-                <p>
-                  <span className="text-muted-foreground">Created:</span> {formatDate(refundForThisOrder.createdAt)}
-                </p>
-                {refundForThisOrder.initiatedAt ? (
-                  <p>
-                    <span className="text-muted-foreground">Initiated:</span> {formatDate(refundForThisOrder.initiatedAt)}
-                  </p>
-                ) : null}
-                {refundForThisOrder.completedAt ? (
-                  <p>
-                    <span className="text-muted-foreground">Completed:</span> {formatDate(refundForThisOrder.completedAt)}
-                  </p>
-                ) : null}
-                {refundForThisOrder.failureReason ? (
-                  <p className="text-red-600">
-                    <span className="text-muted-foreground">Failure:</span> {refundForThisOrder.failureReason}
-                  </p>
-                ) : null}
-              </div>
-
-              <div className="mt-4">
-                <div className="grid grid-cols-1 gap-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="w-full"
-                    onClick={() => syncRefundStatusMutation.mutate({ id: refundForThisOrder.id })}
-                    disabled={syncRefundStatusMutation.isPending}
-                  >
-                    Refresh refund status
-                  </Button>
-                  <Button variant="outline" size="sm" className="w-full" onClick={() => setShowStatusDialog(true)}>
-                    View full status timeline
-                  </Button>
-                </div>
-              </div>
-            </Card>
-          ) : null;
-
         const customerSupportCard = (
           <Card className="p-4">
             <h3 className="font-semibold mb-4">Customer Support</h3>
@@ -769,24 +500,6 @@ export default function OrderDetail() {
                         ? `You can return or exchange eligible items within ${firstEligibleItem.remainingDays} day${firstEligibleItem.remainingDays !== 1 ? "s" : ""}.`
                         : "You can return or exchange eligible items within the return window."}
                     </p>
-                    {hasAnyReturnOrExchange ? (
-                      <div className="space-y-2">
-                        {returnsForThisOrder.length > 0 && (
-                          <Link to="/user/returns" className="w-full">
-                            <Button variant="outline" className="w-full">
-                              View return requests
-                            </Button>
-                          </Link>
-                        )}
-                        {exchangesForThisOrder.length > 0 && (
-                          <Link to="/user/exchanges" className="w-full">
-                            <Button variant="outline" className="w-full">
-                              View exchange requests
-                            </Button>
-                          </Link>
-                        )}
-                      </div>
-                    ) : null}
                   </>
                 );
               } else {
@@ -833,10 +546,7 @@ export default function OrderDetail() {
                       <Link to={`/sarees/${item.saree.id}`} className="flex-shrink-0">
                         <div className="w-20 h-24 rounded-md overflow-hidden bg-muted">
                           <img
-                            src={
-                              item.saree.imageUrl ||
-                              "https://images.unsplash.com/photo-1610030469983-98e550d6193c?w=100&h=150&fit=crop"
-                            }
+                            src={item.saree.imageUrl || ""}
                             alt={item.saree.name}
                             className="w-full h-full object-cover"
                           />
@@ -858,7 +568,7 @@ export default function OrderDetail() {
                         </p>
                       </div>
                       {(() => {
-                        const itemStatus = itemStatusByOrderItemId.get(item.id);
+                        const itemStatus = getItemStatusConfig(item.status);
                         const fallback = { label: "No status", color: "bg-gray-100 text-gray-800", updatedAt: order.updatedAt };
                         const displayStatus = itemStatus || fallback;
                         return (
@@ -873,45 +583,16 @@ export default function OrderDetail() {
                             size="sm"
                             variant="outline"
                             onClick={() => openReturnExchangeModal("refund", item.id)}
-                            disabled={activeOrderItemIds.has(String(item.id))}
-                            title={
-                              (stockBySareeId.get(item.saree.id) ?? 0) <= 0
-                                ? "You can return this item even if out of stock."
-                                : undefined
-                            }
                           >
                             Return
                           </Button>
-                          {(() => {
-                            const isLocked = activeOrderItemIds.has(String(item.id));
-                            const stock = stockBySareeId.get(item.saree.id) ?? 0;
-                            const disabled = hasActiveExchange || isLocked || stock <= 0;
-                            if (id === "dbbfcea8-c88d-4f1b-832c-3ea128604e71") {
-                              console.log("Exchange debug", {
-                                itemId: item.id,
-                                itemName: item.saree.name,
-                                hasActiveExchange,
-                                isLocked,
-                                stock,
-                                disabled,
-                              });
-                            }
-                            return (
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                onClick={() => openReturnExchangeModal("exchange", item.id)}
-                                disabled={disabled}
-                                title={
-                                  stock <= 0
-                                    ? "This product is out of stock. You can return it instead."
-                                    : undefined
-                                }
-                              >
-                                Exchange
-                              </Button>
-                            );
-                          })()}
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => openReturnExchangeModal("exchange", item.id)}
+                          >
+                            Exchange
+                          </Button>
                         </div>
                       ) : null}
 
@@ -926,7 +607,6 @@ export default function OrderDetail() {
                 {orderSummaryCard}
                 {shippingDeliveryCard}
                 {paymentDetailsCard}
-                {refundStatusCard}
                 {needHelpCard}
                 {customerSupportCard}
                 {securityTransparencyCard}
@@ -949,12 +629,6 @@ export default function OrderDetail() {
                     <AccordionContent>{paymentDetailsCard}</AccordionContent>
                   </AccordionItem>
 
-                  {refundStatusCard ? (
-                    <AccordionItem value="refund">
-                      <AccordionTrigger>Refund Status</AccordionTrigger>
-                      <AccordionContent>{refundStatusCard}</AccordionContent>
-                    </AccordionItem>
-                  ) : null}
 
                   {needHelpCard ? (
                     <AccordionItem value="returns">
@@ -1045,29 +719,13 @@ export default function OrderDetail() {
                 : order.items
               ).map((item) => (
                 (() => {
-                  const locked = activeOrderItemIds.has(String(item.id));
-                  const remainingQty = Number(
-                    remainingQtyByOrderItemId.get(String(item.id)) ?? item.quantity
-                  );
-                  const disabled = locked || remainingQty <= 0;
 
                   return (
                     <div
                       key={item.id}
                       className="flex items-center gap-3 p-2 border rounded-md"
                     >
-                      {modalItemId ? (
-                        <div className="w-4" />
-                      ) : (
-                        <Checkbox
-                          checked={selectedItems[item.id]?.selected || false}
-                          disabled={disabled}
-                          onCheckedChange={() =>
-                            toggleItemSelection(item.id, item.quantity)
-                          }
-                          data-testid={`checkbox-item-${item.id}`}
-                        />
-                      )}
+
                       <div className="w-10 h-12 rounded overflow-hidden bg-muted flex-shrink-0">
                         <img
                           src={
@@ -1082,18 +740,7 @@ export default function OrderDetail() {
                         <p className="text-sm font-medium line-clamp-1">
                           {item.saree.name}
                         </p>
-                        <p className="text-xs text-muted-foreground">
-                          Qty: {item.quantity} {remainingQty < item.quantity ? `(Remaining: ${remainingQty})` : null}
-                        </p>
-                        {locked ? (
-                          <p className="text-[11px] text-muted-foreground mt-1">
-                            This item already has a return/exchange in progress.
-                          </p>
-                        ) : remainingQty <= 0 ? (
-                          <p className="text-[11px] text-muted-foreground mt-1">
-                            No remaining quantity eligible for return/exchange.
-                          </p>
-                        ) : null}
+
                         {resolutionType === "exchange" && selectedItems[item.id]?.selected ? (
                           <p className="text-[11px] text-muted-foreground mt-1">
                             Exchange will be processed for the same product.
@@ -1108,18 +755,6 @@ export default function OrderDetail() {
           </div>
         </div>
       </ReusableDialog>
-
-      <StatusDialog
-        showStatusDialog={showStatusDialog}
-        setShowStatusDialog={setShowStatusDialog}
-        order={order}
-        orderHistory={orderHistory || []}
-        latestReturnForThisOrder={latestReturnForThisOrder}
-        latestExchangeForThisOrder={latestExchangeForThisOrder}
-        refundForThisOrder={refundForThisOrder}
-        formatPrice={formatPrice}
-        maskId={maskId}
-      />
     </div>
   );
 }

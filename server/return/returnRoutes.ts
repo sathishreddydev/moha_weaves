@@ -13,7 +13,11 @@ export const returnRoutes = (app: Express) => {
   const authInventory = createAuthMiddleware(["inventory", "admin"]);
   const authUser = createAuthMiddleware(["user"]);
 
-  // Admin: Get all return requests with filtering
+  // ======================
+  // Admin Routes
+  // ======================
+
+  // Get all return requests with filtering
   app.get("/api/inventory/returns", authInventory, async (req: Request, res: Response) => {
     try {
       const { status, userId, reason, resolution } = req.query;
@@ -32,13 +36,11 @@ export const returnRoutes = (app: Express) => {
     }
   });
 
-  // Admin: Get specific return request details
+  // Get specific return request details
   app.get("/api/inventory/returns/:id", authInventory, async (req: Request, res: Response) => {
     try {
       const returnRequest = await returnStorage.getReturnRequest(req.params.id);
-      if (!returnRequest) {
-        return res.status(404).json({ message: "Return request not found" });
-      }
+      if (!returnRequest) return res.status(404).json({ message: "Return request not found" });
       res.json(returnRequest);
     } catch (error) {
       console.error("Error fetching return request:", error);
@@ -46,7 +48,7 @@ export const returnRoutes = (app: Express) => {
     }
   });
 
-  // Admin: Update return request status
+  // Update return request status
   app.patch("/api/inventory/returns/:id/status", authInventory, async (req: Request, res: Response) => {
     try {
       const { status, inspectionNotes } = req.body;
@@ -63,9 +65,7 @@ export const returnRoutes = (app: Express) => {
         inspectionNotes
       );
 
-      if (!updated) {
-        return res.status(404).json({ message: "Return request not found" });
-      }
+      if (!updated) return res.status(404).json({ message: "Return request not found" });
 
       res.json(updated);
     } catch (error) {
@@ -74,7 +74,7 @@ export const returnRoutes = (app: Express) => {
     }
   });
 
-  // Admin: Update return request details
+  // Update return request details
   app.patch("/api/inventory/returns/:id", authInventory, async (req: Request, res: Response) => {
     try {
       const { pickupAddress, pickupScheduledAt, refundAmount, exchangeOrderId } = req.body;
@@ -87,9 +87,7 @@ export const returnRoutes = (app: Express) => {
 
       const updated = await returnStorage.updateReturnRequest(req.params.id, updateData);
 
-      if (!updated) {
-        return res.status(404).json({ message: "Return request not found" });
-      }
+      if (!updated) return res.status(404).json({ message: "Return request not found" });
 
       res.json(updated);
     } catch (error) {
@@ -98,23 +96,17 @@ export const returnRoutes = (app: Express) => {
     }
   });
 
-  // Admin: Get return statistics
+  // Return statistics
   app.get("/api/inventory/returns/stats", authInventory, async (req: Request, res: Response) => {
     try {
       const allReturns = await returnStorage.getReturnRequests();
 
       const stats = {
         total: allReturns.length,
-        requested: allReturns.filter(r => r.status === "requested").length,
-        approved: allReturns.filter(r => r.status === "approved").length,
-        rejected: allReturns.filter(r => r.status === "rejected").length,
-        pickup_scheduled: allReturns.filter(r => r.status === "pickup_scheduled").length,
-        picked_up: allReturns.filter(r => r.status === "picked_up").length,
-        in_transit: allReturns.filter(r => r.status === "in_transit").length,
-        received: allReturns.filter(r => r.status === "received").length,
-        inspected: allReturns.filter(r => r.status === "inspected").length,
-        completed: allReturns.filter(r => r.status === "completed").length,
-        cancelled: allReturns.filter(r => r.status === "cancelled").length,
+        ...returnStatusEnum.enumValues.reduce((acc, status) => {
+          acc[status] = allReturns.filter(r => r.status === status).length;
+          return acc;
+        }, {} as Record<string, number>),
         byReason: allReturns.reduce((acc, r) => {
           acc[r.reason] = (acc[r.reason] || 0) + 1;
           return acc;
@@ -132,11 +124,14 @@ export const returnRoutes = (app: Express) => {
     }
   });
 
-  // User: Get their return requests
+  // ======================
+  // User Routes
+  // ======================
+
+  // Get all returns for user
   app.get("/api/user/returns", authUser, async (req: Request, res: Response) => {
     try {
       const userId = (req as any).user?.id;
-
       const returns = await returnStorage.getUserReturnRequests(userId);
       res.json(returns);
     } catch (error) {
@@ -145,13 +140,12 @@ export const returnRoutes = (app: Express) => {
     }
   });
 
-  // User: Create new return request
+  // Create a new return request
   app.post("/api/user/returns", authUser, async (req: Request, res: Response) => {
     try {
       const userId = (req as any).user?.id;
       const { orderId, reason, reasonDetails, resolution, items } = req.body;
 
-      // Validate input
       if (!orderId || !reason || !resolution || !items || !Array.isArray(items)) {
         return res.status(400).json({ message: "Missing required fields" });
       }
@@ -167,7 +161,7 @@ export const returnRoutes = (app: Express) => {
       const returnData: InsertReturnRequest = {
         orderId,
         userId,
-        status: "requested",
+        status: "return_requested",
         reason,
         reasonDetails,
         resolution,
@@ -191,7 +185,7 @@ export const returnRoutes = (app: Express) => {
     }
   });
 
-  // User: Get specific return request
+  // Get a specific return request for user
   app.get("/api/user/returns/:id", authUser, async (req: Request, res: Response) => {
     try {
       const userId = (req as any).user?.id;
@@ -208,13 +202,12 @@ export const returnRoutes = (app: Express) => {
     }
   });
 
-  // User: Check order return eligibility
+  // Check return eligibility for an order
   app.get("/api/user/orders/:orderId/return-eligibility", authUser, async (req: Request, res: Response) => {
     try {
       const userId = (req as any).user?.id;
       const { orderId } = req.params;
 
-      // Verify user owns the order
       const order = await returnStorage.getOrder(orderId);
       if (!order || order.userId !== userId) {
         return res.status(404).json({ message: "Order not found" });
@@ -228,7 +221,7 @@ export const returnRoutes = (app: Express) => {
     }
   });
 
-  // User: Cancel return request (only if in requested status)
+  // Cancel return request (only if requested)
   app.patch("/api/user/returns/:id/cancel", authUser, async (req: Request, res: Response) => {
     try {
       const userId = (req as any).user?.id;
@@ -238,7 +231,7 @@ export const returnRoutes = (app: Express) => {
         return res.status(404).json({ message: "Return request not found" });
       }
 
-      if (returnRequest.status !== "requested") {
+      if (returnRequest.status !== "return_requested") {
         return res.status(400).json({ message: "Cannot cancel return request in current status" });
       }
 

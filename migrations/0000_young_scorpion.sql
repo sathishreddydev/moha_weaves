@@ -1,15 +1,23 @@
+CREATE TYPE "public"."balance_direction" AS ENUM('refund_to_customer', 'due_from_customer', 'even');--> statement-breakpoint
 CREATE TYPE "public"."coupon_type" AS ENUM('percentage', 'fixed', 'free_shipping');--> statement-breakpoint
 CREATE TYPE "public"."distribution_channel" AS ENUM('shop', 'online', 'both');--> statement-breakpoint
+CREATE TYPE "public"."item_status" AS ENUM('pending', 'confirmed', 'processing', 'shipped', 'delivered', 'return_requested', 'exchange_requested', 'cancelled');--> statement-breakpoint
 CREATE TYPE "public"."notification_type" AS ENUM('order', 'return', 'refund', 'promotion', 'system');--> statement-breakpoint
-CREATE TYPE "public"."order_status" AS ENUM('pending', 'confirmed', 'processing', 'shipped', 'delivered', 'cancelled');--> statement-breakpoint
-CREATE TYPE "public"."payment_method" AS ENUM('cod', 'online', 'upi', 'card', 'netbanking');--> statement-breakpoint
+CREATE TYPE "public"."offer_type" AS ENUM('percentage', 'flat', 'category', 'product', 'flash_sale');--> statement-breakpoint
+CREATE TYPE "public"."online_exchange_status" AS ENUM('exchange_requested', 'exchange_approved', 'exchange_processing', 'exchange_pickup_scheduled', 'exchange_picked_up', 'exchange_in_transit', 'exchange_received', 'exchange_inspected', 'exchange_shipped', 'exchange_delivered', 'exchange_completed', 'exchange_cancelled');--> statement-breakpoint
+CREATE TYPE "public"."order_status" AS ENUM('created', 'processing', 'completed', 'cancelled');--> statement-breakpoint
+CREATE TYPE "public"."payment_method" AS ENUM('razorpay');--> statement-breakpoint
 CREATE TYPE "public"."payment_status" AS ENUM('pending', 'paid', 'failed', 'refunded', 'partially_refunded');--> statement-breakpoint
-CREATE TYPE "public"."refund_status" AS ENUM('pending', 'initiated', 'processing', 'completed', 'failed');--> statement-breakpoint
+CREATE TYPE "public"."refund_status" AS ENUM('pending', 'initiated', 'processing', 'completed', 'failed', 'cancelled');--> statement-breakpoint
 CREATE TYPE "public"."request_status" AS ENUM('pending', 'approved', 'dispatched', 'received', 'rejected');--> statement-breakpoint
-CREATE TYPE "public"."return_reason" AS ENUM('defective', 'wrong_item', 'not_as_described', 'size_issue', 'color_mismatch', 'damaged_in_shipping', 'changed_mind', 'other');--> statement-breakpoint
+CREATE TYPE "public"."return_reason" AS ENUM('defective', 'wrong_item', 'not_as_described', 'size_issue', 'color_mismatch', 'damaged_in_shipping', 'changed_mind', 'quality_issue', 'other');--> statement-breakpoint
 CREATE TYPE "public"."return_resolution" AS ENUM('refund', 'exchange', 'store_credit');--> statement-breakpoint
-CREATE TYPE "public"."return_status" AS ENUM('requested', 'approved', 'rejected', 'pickup_scheduled', 'picked_up', 'received', 'inspected', 'completed', 'cancelled');--> statement-breakpoint
+CREATE TYPE "public"."return_status" AS ENUM('return_requested', 'return_approved', 'return_rejected', 'return_pickup_scheduled', 'return_picked_up', 'return_in_transit', 'return_received', 'return_inspected', 'return_completed', 'return_cancelled');--> statement-breakpoint
+CREATE TYPE "public"."stock_movement_source" AS ENUM('online', 'store');--> statement-breakpoint
+CREATE TYPE "public"."stock_movement_type" AS ENUM('sale', 'return', 'restock', 'transfer', 'adjustment');--> statement-breakpoint
+CREATE TYPE "public"."store_exchange_status" AS ENUM('pending', 'completed', 'cancelled');--> statement-breakpoint
 CREATE TYPE "public"."store_sale_type" AS ENUM('walk_in', 'reserved');--> statement-breakpoint
+CREATE TYPE "public"."transfer_status" AS ENUM('pending', 'approved', 'in_transit', 'received', 'rejected', 'cancelled');--> statement-breakpoint
 CREATE TYPE "public"."user_role" AS ENUM('user', 'admin', 'inventory', 'store');--> statement-breakpoint
 CREATE TABLE "app_settings" (
 	"key" text PRIMARY KEY NOT NULL,
@@ -81,6 +89,27 @@ CREATE TABLE "fabrics" (
 	CONSTRAINT "fabrics_name_unique" UNIQUE("name")
 );
 --> statement-breakpoint
+CREATE TABLE "inventory_adjustments" (
+	"id" varchar PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+	"saree_id" varchar NOT NULL,
+	"store_id" varchar,
+	"quantity" integer NOT NULL,
+	"reason" text NOT NULL,
+	"adjusted_by" varchar NOT NULL,
+	"notes" text,
+	"created_at" timestamp DEFAULT now() NOT NULL
+);
+--> statement-breakpoint
+CREATE TABLE "item_status_history" (
+	"id" varchar PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+	"order_item_id" varchar NOT NULL,
+	"status" text NOT NULL,
+	"new_status" text,
+	"note" text,
+	"updated_by" varchar,
+	"created_at" timestamp DEFAULT now() NOT NULL
+);
+--> statement-breakpoint
 CREATE TABLE "notifications" (
 	"id" varchar PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
 	"user_id" varchar NOT NULL,
@@ -89,7 +118,38 @@ CREATE TABLE "notifications" (
 	"message" text NOT NULL,
 	"data" text,
 	"is_read" boolean DEFAULT false,
+	"related_id" varchar,
+	"related_type" text,
+	"read_at" timestamp,
 	"created_at" timestamp DEFAULT now() NOT NULL
+);
+--> statement-breakpoint
+CREATE TABLE "online_exchange_items" (
+	"id" varchar PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+	"exchange_id" varchar NOT NULL,
+	"order_item_id" varchar NOT NULL,
+	"quantity" integer NOT NULL,
+	"exchange_saree_id" varchar,
+	"condition" text,
+	"is_restockable" boolean DEFAULT true
+);
+--> statement-breakpoint
+CREATE TABLE "online_exchanges" (
+	"id" varchar PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+	"order_id" varchar NOT NULL,
+	"user_id" varchar NOT NULL,
+	"status" "online_exchange_status" DEFAULT 'exchange_requested' NOT NULL,
+	"reason" "return_reason" NOT NULL,
+	"reason_details" text,
+	"pickup_address" text,
+	"pickup_scheduled_at" timestamp,
+	"picked_up_at" timestamp,
+	"received_at" timestamp,
+	"inspection_notes" text,
+	"processed_by" varchar,
+	"exchange_order_id" varchar,
+	"created_at" timestamp DEFAULT now() NOT NULL,
+	"updated_at" timestamp DEFAULT now() NOT NULL
 );
 --> statement-breakpoint
 CREATE TABLE "order_items" (
@@ -97,16 +157,14 @@ CREATE TABLE "order_items" (
 	"order_id" varchar NOT NULL,
 	"saree_id" varchar NOT NULL,
 	"quantity" integer NOT NULL,
-	"price" numeric(10, 2) NOT NULL
-);
---> statement-breakpoint
-CREATE TABLE "order_status_history" (
-	"id" varchar PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
-	"order_id" varchar NOT NULL,
-	"status" "order_status" NOT NULL,
-	"note" text,
-	"updated_by" varchar,
-	"created_at" timestamp DEFAULT now() NOT NULL
+	"price" numeric(10, 2) NOT NULL,
+	"status" text DEFAULT 'pending' NOT NULL,
+	"tracking_number" text,
+	"shipped_at" timestamp,
+	"delivered_at" timestamp,
+	"return_eligible_until" timestamp,
+	"created_at" timestamp DEFAULT now() NOT NULL,
+	"updated_at" timestamp DEFAULT now() NOT NULL
 );
 --> statement-breakpoint
 CREATE TABLE "orders" (
@@ -115,11 +173,12 @@ CREATE TABLE "orders" (
 	"total_amount" numeric(10, 2) NOT NULL,
 	"discount_amount" numeric(10, 2) DEFAULT '0',
 	"final_amount" numeric(10, 2) DEFAULT '0' NOT NULL,
-	"status" "order_status" DEFAULT 'pending' NOT NULL,
+	"status" "order_status" DEFAULT 'created' NOT NULL,
 	"payment_status" "payment_status" DEFAULT 'pending' NOT NULL,
-	"payment_method" "payment_method" DEFAULT 'cod',
+	"payment_method" "payment_method" DEFAULT 'razorpay',
 	"payment_id" text,
 	"stripe_payment_intent_id" text,
+	"razorpay_payment_id" text,
 	"shipping_address" text NOT NULL,
 	"phone" text NOT NULL,
 	"tracking_number" text,
@@ -166,11 +225,14 @@ CREATE TABLE "refunds" (
 	"amount" numeric(10, 2) NOT NULL,
 	"status" "refund_status" DEFAULT 'pending' NOT NULL,
 	"refund_method" text,
-	"stripe_refund_id" text,
+	"razorpay_refund_id" text,
+	"razorpay_payment_id" text,
 	"reason" text,
 	"processed_by" varchar,
 	"initiated_at" timestamp,
 	"completed_at" timestamp,
+	"failure_reason" text,
+	"retry_count" integer DEFAULT 0,
 	"created_at" timestamp DEFAULT now() NOT NULL
 );
 --> statement-breakpoint
@@ -187,7 +249,7 @@ CREATE TABLE "return_requests" (
 	"id" varchar PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
 	"order_id" varchar NOT NULL,
 	"user_id" varchar NOT NULL,
-	"status" "return_status" DEFAULT 'requested' NOT NULL,
+	"status" "return_status" DEFAULT 'return_requested' NOT NULL,
 	"reason" "return_reason" NOT NULL,
 	"reason_details" text,
 	"resolution" "return_resolution" DEFAULT 'refund' NOT NULL,
@@ -199,6 +261,31 @@ CREATE TABLE "return_requests" (
 	"inspection_notes" text,
 	"processed_by" varchar,
 	"exchange_order_id" varchar,
+	"created_at" timestamp DEFAULT now() NOT NULL,
+	"updated_at" timestamp DEFAULT now() NOT NULL
+);
+--> statement-breakpoint
+CREATE TABLE "sale_products" (
+	"id" varchar PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+	"sale_id" varchar NOT NULL,
+	"saree_id" varchar NOT NULL,
+	"created_at" timestamp DEFAULT now() NOT NULL
+);
+--> statement-breakpoint
+CREATE TABLE "sales" (
+	"id" varchar PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+	"name" text NOT NULL,
+	"description" text,
+	"offer_type" "offer_type" NOT NULL,
+	"discount_value" numeric(10, 2) NOT NULL,
+	"category_id" varchar,
+	"min_order_amount" numeric(10, 2),
+	"max_discount" numeric(10, 2),
+	"valid_from" timestamp NOT NULL,
+	"valid_until" timestamp NOT NULL,
+	"is_active" boolean DEFAULT true NOT NULL,
+	"is_featured" boolean DEFAULT false NOT NULL,
+	"banner_image" text,
 	"created_at" timestamp DEFAULT now() NOT NULL,
 	"updated_at" timestamp DEFAULT now() NOT NULL
 );
@@ -218,7 +305,7 @@ CREATE TABLE "sarees" (
 	"total_stock" integer DEFAULT 0 NOT NULL,
 	"online_stock" integer DEFAULT 0 NOT NULL,
 	"distribution_channel" "distribution_channel" DEFAULT 'both' NOT NULL,
-	"is_active" boolean DEFAULT true NOT NULL,
+	"is_active" boolean DEFAULT false NOT NULL,
 	"is_featured" boolean DEFAULT false NOT NULL,
 	"created_at" timestamp DEFAULT now() NOT NULL,
 	CONSTRAINT "sarees_sku_unique" UNIQUE("sku")
@@ -235,6 +322,18 @@ CREATE TABLE "serviceable_pincodes" (
 	CONSTRAINT "serviceable_pincodes_pincode_unique" UNIQUE("pincode")
 );
 --> statement-breakpoint
+CREATE TABLE "stock_movements" (
+	"id" varchar PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+	"saree_id" varchar NOT NULL,
+	"quantity" integer NOT NULL,
+	"movement_type" "stock_movement_type" DEFAULT 'sale' NOT NULL,
+	"source" "stock_movement_source" NOT NULL,
+	"order_ref_id" varchar NOT NULL,
+	"store_id" varchar,
+	"notes" text,
+	"created_at" timestamp DEFAULT now() NOT NULL
+);
+--> statement-breakpoint
 CREATE TABLE "stock_requests" (
 	"id" varchar PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
 	"store_id" varchar NOT NULL,
@@ -246,6 +345,56 @@ CREATE TABLE "stock_requests" (
 	"notes" text,
 	"created_at" timestamp DEFAULT now() NOT NULL,
 	"updated_at" timestamp DEFAULT now() NOT NULL
+);
+--> statement-breakpoint
+CREATE TABLE "stock_transfers" (
+	"id" varchar PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+	"saree_id" varchar NOT NULL,
+	"from_store_id" varchar,
+	"to_store_id" varchar NOT NULL,
+	"quantity" integer NOT NULL,
+	"status" "transfer_status" DEFAULT 'pending' NOT NULL,
+	"requested_by" varchar NOT NULL,
+	"approved_by" varchar,
+	"notes" text,
+	"created_at" timestamp DEFAULT now() NOT NULL,
+	"updated_at" timestamp DEFAULT now() NOT NULL
+);
+--> statement-breakpoint
+CREATE TABLE "store_exchange_new_items" (
+	"id" varchar PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+	"exchange_id" varchar NOT NULL,
+	"saree_id" varchar NOT NULL,
+	"quantity" integer NOT NULL,
+	"unit_price" numeric(10, 2) NOT NULL,
+	"line_amount" numeric(10, 2) NOT NULL
+);
+--> statement-breakpoint
+CREATE TABLE "store_exchange_return_items" (
+	"id" varchar PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+	"exchange_id" varchar NOT NULL,
+	"sale_item_id" varchar NOT NULL,
+	"saree_id" varchar NOT NULL,
+	"quantity" integer NOT NULL,
+	"unit_price" numeric(10, 2) NOT NULL,
+	"return_amount" numeric(10, 2) NOT NULL
+);
+--> statement-breakpoint
+CREATE TABLE "store_exchanges" (
+	"id" varchar PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+	"store_id" varchar NOT NULL,
+	"original_sale_id" varchar NOT NULL,
+	"processed_by" varchar NOT NULL,
+	"customer_name" text,
+	"customer_phone" text,
+	"reason" text,
+	"notes" text,
+	"return_amount" numeric(10, 2) DEFAULT '0' NOT NULL,
+	"new_items_amount" numeric(10, 2) DEFAULT '0' NOT NULL,
+	"balance_amount" numeric(10, 2) DEFAULT '0' NOT NULL,
+	"balance_direction" "balance_direction" DEFAULT 'even' NOT NULL,
+	"status" "store_exchange_status" DEFAULT 'completed' NOT NULL,
+	"created_at" timestamp DEFAULT now() NOT NULL
 );
 --> statement-breakpoint
 CREATE TABLE "store_inventory" (
@@ -261,7 +410,8 @@ CREATE TABLE "store_sale_items" (
 	"sale_id" varchar NOT NULL,
 	"saree_id" varchar NOT NULL,
 	"quantity" integer NOT NULL,
-	"price" numeric(10, 2) NOT NULL
+	"price" numeric(10, 2) NOT NULL,
+	"returned_quantity" integer DEFAULT 0 NOT NULL
 );
 --> statement-breakpoint
 CREATE TABLE "store_sales" (
@@ -323,11 +473,18 @@ ALTER TABLE "cart" ADD CONSTRAINT "cart_saree_id_sarees_id_fk" FOREIGN KEY ("sar
 ALTER TABLE "coupon_usage" ADD CONSTRAINT "coupon_usage_coupon_id_coupons_id_fk" FOREIGN KEY ("coupon_id") REFERENCES "public"."coupons"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "coupon_usage" ADD CONSTRAINT "coupon_usage_user_id_users_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."users"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "coupon_usage" ADD CONSTRAINT "coupon_usage_order_id_orders_id_fk" FOREIGN KEY ("order_id") REFERENCES "public"."orders"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "inventory_adjustments" ADD CONSTRAINT "inventory_adjustments_saree_id_sarees_id_fk" FOREIGN KEY ("saree_id") REFERENCES "public"."sarees"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "inventory_adjustments" ADD CONSTRAINT "inventory_adjustments_store_id_stores_id_fk" FOREIGN KEY ("store_id") REFERENCES "public"."stores"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "inventory_adjustments" ADD CONSTRAINT "inventory_adjustments_adjusted_by_users_id_fk" FOREIGN KEY ("adjusted_by") REFERENCES "public"."users"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "item_status_history" ADD CONSTRAINT "item_status_history_order_item_id_order_items_id_fk" FOREIGN KEY ("order_item_id") REFERENCES "public"."order_items"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "notifications" ADD CONSTRAINT "notifications_user_id_users_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."users"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "online_exchange_items" ADD CONSTRAINT "online_exchange_items_exchange_id_online_exchanges_id_fk" FOREIGN KEY ("exchange_id") REFERENCES "public"."online_exchanges"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "online_exchange_items" ADD CONSTRAINT "online_exchange_items_order_item_id_order_items_id_fk" FOREIGN KEY ("order_item_id") REFERENCES "public"."order_items"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "online_exchange_items" ADD CONSTRAINT "online_exchange_items_exchange_saree_id_sarees_id_fk" FOREIGN KEY ("exchange_saree_id") REFERENCES "public"."sarees"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "online_exchanges" ADD CONSTRAINT "online_exchanges_order_id_orders_id_fk" FOREIGN KEY ("order_id") REFERENCES "public"."orders"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "online_exchanges" ADD CONSTRAINT "online_exchanges_user_id_users_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."users"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "order_items" ADD CONSTRAINT "order_items_order_id_orders_id_fk" FOREIGN KEY ("order_id") REFERENCES "public"."orders"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "order_items" ADD CONSTRAINT "order_items_saree_id_sarees_id_fk" FOREIGN KEY ("saree_id") REFERENCES "public"."sarees"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "order_status_history" ADD CONSTRAINT "order_status_history_order_id_orders_id_fk" FOREIGN KEY ("order_id") REFERENCES "public"."orders"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "orders" ADD CONSTRAINT "orders_user_id_users_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."users"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "product_reviews" ADD CONSTRAINT "product_reviews_saree_id_sarees_id_fk" FOREIGN KEY ("saree_id") REFERENCES "public"."sarees"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "product_reviews" ADD CONSTRAINT "product_reviews_user_id_users_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."users"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "product_reviews" ADD CONSTRAINT "product_reviews_order_id_orders_id_fk" FOREIGN KEY ("order_id") REFERENCES "public"."orders"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
@@ -339,12 +496,30 @@ ALTER TABLE "return_items" ADD CONSTRAINT "return_items_return_request_id_return
 ALTER TABLE "return_items" ADD CONSTRAINT "return_items_order_item_id_order_items_id_fk" FOREIGN KEY ("order_item_id") REFERENCES "public"."order_items"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "return_requests" ADD CONSTRAINT "return_requests_order_id_orders_id_fk" FOREIGN KEY ("order_id") REFERENCES "public"."orders"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "return_requests" ADD CONSTRAINT "return_requests_user_id_users_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."users"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "sale_products" ADD CONSTRAINT "sale_products_sale_id_sales_id_fk" FOREIGN KEY ("sale_id") REFERENCES "public"."sales"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "sale_products" ADD CONSTRAINT "sale_products_saree_id_sarees_id_fk" FOREIGN KEY ("saree_id") REFERENCES "public"."sarees"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "sales" ADD CONSTRAINT "sales_category_id_categories_id_fk" FOREIGN KEY ("category_id") REFERENCES "public"."categories"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "sarees" ADD CONSTRAINT "sarees_category_id_categories_id_fk" FOREIGN KEY ("category_id") REFERENCES "public"."categories"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "sarees" ADD CONSTRAINT "sarees_color_id_colors_id_fk" FOREIGN KEY ("color_id") REFERENCES "public"."colors"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "sarees" ADD CONSTRAINT "sarees_fabric_id_fabrics_id_fk" FOREIGN KEY ("fabric_id") REFERENCES "public"."fabrics"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "stock_movements" ADD CONSTRAINT "stock_movements_saree_id_sarees_id_fk" FOREIGN KEY ("saree_id") REFERENCES "public"."sarees"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "stock_movements" ADD CONSTRAINT "stock_movements_store_id_stores_id_fk" FOREIGN KEY ("store_id") REFERENCES "public"."stores"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "stock_requests" ADD CONSTRAINT "stock_requests_store_id_stores_id_fk" FOREIGN KEY ("store_id") REFERENCES "public"."stores"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "stock_requests" ADD CONSTRAINT "stock_requests_requested_by_users_id_fk" FOREIGN KEY ("requested_by") REFERENCES "public"."users"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "stock_requests" ADD CONSTRAINT "stock_requests_saree_id_sarees_id_fk" FOREIGN KEY ("saree_id") REFERENCES "public"."sarees"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "stock_transfers" ADD CONSTRAINT "stock_transfers_saree_id_sarees_id_fk" FOREIGN KEY ("saree_id") REFERENCES "public"."sarees"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "stock_transfers" ADD CONSTRAINT "stock_transfers_from_store_id_stores_id_fk" FOREIGN KEY ("from_store_id") REFERENCES "public"."stores"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "stock_transfers" ADD CONSTRAINT "stock_transfers_to_store_id_stores_id_fk" FOREIGN KEY ("to_store_id") REFERENCES "public"."stores"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "stock_transfers" ADD CONSTRAINT "stock_transfers_requested_by_users_id_fk" FOREIGN KEY ("requested_by") REFERENCES "public"."users"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "stock_transfers" ADD CONSTRAINT "stock_transfers_approved_by_users_id_fk" FOREIGN KEY ("approved_by") REFERENCES "public"."users"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "store_exchange_new_items" ADD CONSTRAINT "store_exchange_new_items_exchange_id_store_exchanges_id_fk" FOREIGN KEY ("exchange_id") REFERENCES "public"."store_exchanges"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "store_exchange_new_items" ADD CONSTRAINT "store_exchange_new_items_saree_id_sarees_id_fk" FOREIGN KEY ("saree_id") REFERENCES "public"."sarees"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "store_exchange_return_items" ADD CONSTRAINT "store_exchange_return_items_exchange_id_store_exchanges_id_fk" FOREIGN KEY ("exchange_id") REFERENCES "public"."store_exchanges"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "store_exchange_return_items" ADD CONSTRAINT "store_exchange_return_items_sale_item_id_store_sale_items_id_fk" FOREIGN KEY ("sale_item_id") REFERENCES "public"."store_sale_items"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "store_exchange_return_items" ADD CONSTRAINT "store_exchange_return_items_saree_id_sarees_id_fk" FOREIGN KEY ("saree_id") REFERENCES "public"."sarees"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "store_exchanges" ADD CONSTRAINT "store_exchanges_store_id_stores_id_fk" FOREIGN KEY ("store_id") REFERENCES "public"."stores"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "store_exchanges" ADD CONSTRAINT "store_exchanges_original_sale_id_store_sales_id_fk" FOREIGN KEY ("original_sale_id") REFERENCES "public"."store_sales"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "store_exchanges" ADD CONSTRAINT "store_exchanges_processed_by_users_id_fk" FOREIGN KEY ("processed_by") REFERENCES "public"."users"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "store_inventory" ADD CONSTRAINT "store_inventory_store_id_stores_id_fk" FOREIGN KEY ("store_id") REFERENCES "public"."stores"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "store_inventory" ADD CONSTRAINT "store_inventory_saree_id_sarees_id_fk" FOREIGN KEY ("saree_id") REFERENCES "public"."sarees"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "store_sale_items" ADD CONSTRAINT "store_sale_items_sale_id_store_sales_id_fk" FOREIGN KEY ("sale_id") REFERENCES "public"."store_sales"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint

@@ -11,30 +11,8 @@ import { and, eq, inArray, sql } from "drizzle-orm";
 
 const authUser = createAuthMiddleware(["user"]);
 export const userRoutes = (app: Express) => {
-  // User: Check return eligibility for an order
-  app.get(
-    "/api/user/orders/:id/return-eligibility",
-    authUser,
-    async (req, res) => {
-      try {
-        const user = (req as any).user;
-        const order = await orderService.getOrder(req.params.id);
+ 
 
-        if (!order || order.userId !== user.id) {
-          return res.status(404).json({ message: "Order not found" });
-        }
-
-        const eligibility = await returnService.checkOrderReturnEligibility(
-          req.params.id
-        );
-        res.json(eligibility);
-      } catch (error) {
-        res.status(500).json({ message: "Failed to check return eligibility" });
-      }
-    }
-  );
-
-  // User: Validate coupon
   app.post("/api/user/coupons/validate", authUser, async (req, res) => {
     try {
       const user = (req as any).user;

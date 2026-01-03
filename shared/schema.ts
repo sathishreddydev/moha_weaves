@@ -29,33 +29,30 @@ export const orderStatusEnum = pgEnum("order_status", [
 ]);
 
 export const itemStatusEnum = pgEnum("item_status", [
+  // Order lifecycle
   "pending",
   "confirmed",
   "processing",
   "shipped",
   "delivered",
+  'return_requested',
+  'exchange_requested',
   "cancelled",
+]);
+
+
+export const returnStatusEnum = pgEnum("return_status", [
+  // Return flow
   "return_requested",
   "return_approved",
+  "return_rejected",
+  "return_pickup_scheduled",
+  "return_picked_up",
+  "return_in_transit",
+  "return_received",
+  "return_inspected",
   "return_completed",
-  "exchange_requested",
-  "exchange_approved",
-  "exchange_processing",
-  "exchange_shipped",
-  "exchange_delivered",
-  "exchange_completed",
-]);
-export const returnStatusEnum = pgEnum("return_status", [
-  "requested",
-  "approved",
-  "rejected",
-  "pickup_scheduled",
-  "picked_up",
-  "in_transit",
-  "received",
-  "inspected",
-  "completed",
-  "cancelled",
+  "return_cancelled",
 ]);
 
 export const distributionChannelEnum = pgEnum("distribution_channel", [
@@ -102,15 +99,19 @@ export const returnResolutionEnum = pgEnum("return_resolution", [
 ]);
 
 export const onlineExchangeStatusEnum = pgEnum("online_exchange_status", [
-  "requested",
-  "approved",
-  "pickup_scheduled",
-  "picked_up",
-  "in_transit",
-  "received",
-  "inspected",
-  "completed",
-  "cancelled",
+  // Exchange flow
+  "exchange_requested",
+  "exchange_approved",
+  "exchange_processing",
+  "exchange_pickup_scheduled",
+  "exchange_picked_up",
+  "exchange_in_transit",
+  "exchange_received",
+  "exchange_inspected",
+  "exchange_shipped",
+  "exchange_delivered",
+  "exchange_completed",
+  "exchange_cancelled",
 ]);
 export const refundStatusEnum = pgEnum("refund_status", [
   "pending",
@@ -359,7 +360,7 @@ export const orderItems = pgTable("order_items", {
     .notNull(),
   quantity: integer("quantity").notNull(),
   price: decimal("price", { precision: 10, scale: 2 }).notNull(),
-  status: itemStatusEnum("status").notNull().default("pending"),
+  status: text("status").notNull().default("pending"),
   trackingNumber: text("tracking_number"),
   shippedAt: timestamp("shipped_at"),
   deliveredAt: timestamp("delivered_at"),
@@ -465,7 +466,7 @@ export const returnRequests = pgTable("return_requests", {
   userId: varchar("user_id")
     .references(() => users.id)
     .notNull(),
-  status: returnStatusEnum("status").notNull().default("requested"),
+  status: returnStatusEnum("status").notNull().default("return_requested"),
   reason: returnReasonEnum("reason").notNull(),
   reasonDetails: text("reason_details"),
   resolution: returnResolutionEnum("resolution").notNull().default("refund"),
@@ -508,7 +509,7 @@ export const onlineExchanges = pgTable("online_exchanges", {
   userId: varchar("user_id")
     .references(() => users.id)
     .notNull(),
-  status: onlineExchangeStatusEnum("status").notNull().default("requested"),
+  status: onlineExchangeStatusEnum("status").notNull().default("exchange_requested"),
   reason: returnReasonEnum("reason").notNull(),
   reasonDetails: text("reason_details"),
   pickupAddress: text("pickup_address"),
@@ -698,8 +699,8 @@ export const itemStatusHistory = pgTable("item_status_history", {
   orderItemId: varchar("order_item_id")
     .references(() => orderItems.id)
     .notNull(),
-  status: itemStatusEnum("status").notNull(),
-  newStatus: itemStatusEnum("new_status"),
+  status: text("status").notNull(),
+  newStatus: text("new_status"),
   note: text("note"),
   updatedBy: varchar("updated_by"),
   createdAt: timestamp("created_at").notNull().defaultNow(),

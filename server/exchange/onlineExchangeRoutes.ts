@@ -97,7 +97,7 @@ export const onlineExchangeRoutes = (app: Express) => {
       const exchangeData: InsertOnlineExchange = {
         orderId: validatedData.orderId,
         userId,
-        status: "requested",
+        status: "exchange_requested",
         reason: validatedData.reason,
         reasonDetails: validatedData.reasonDetails,
         pickupAddress: validatedData.pickupAddress,
@@ -151,7 +151,7 @@ export const onlineExchangeRoutes = (app: Express) => {
         return res.status(403).json({ error: "Access denied" });
       }
 
-      if (existingExchange.status !== "requested") {
+      if (existingExchange.status !== "exchange_requested") {
         return res.status(400).json({ error: "Cannot update exchange after it's been processed" });
       }
 
@@ -231,7 +231,7 @@ export const onlineExchangeRoutes = (app: Express) => {
 
       // Validate request body
       const updateStatusSchema = z.object({
-        status: z.enum(["requested", "approved", "pickup_scheduled", "picked_up", "in_transit", "received", "inspected", "completed", "cancelled"]),
+        status: z.enum(["exchange_requested", "exchange_approved", "exchange_processing", "exchange_pickup_scheduled", "exchange_picked_up", "exchange_in_transit", "exchange_received", "exchange_inspected", "exchange_shipped", "exchange_delivered", "exchange_completed", "exchange_cancelled"]),
         inspectionNotes: z.string().optional(),
         exchangeOrderId: z.string().optional(),
       });

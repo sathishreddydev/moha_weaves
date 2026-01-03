@@ -7,11 +7,12 @@ import {
   RotateCcw
 } from "lucide-react";
 
-// Item-level status configuration for timeline and order displays
+
 export const itemStatusConfig: Record<
   string,
   { icon: typeof Clock; label: string; color: string }
 > = {
+  // -------- Order flow --------
   pending: {
     icon: Clock,
     label: "Pending",
@@ -42,7 +43,8 @@ export const itemStatusConfig: Record<
     label: "Cancelled",
     color: "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-100",
   },
-  // Return statuses
+
+  // -------- Return flow --------
   return_requested: {
     icon: RotateCcw,
     label: "Return Requested",
@@ -53,25 +55,86 @@ export const itemStatusConfig: Record<
     label: "Return Approved",
     color: "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-100",
   },
+  return_rejected: {
+    icon: XCircle,
+    label: "Return Rejected",
+    color: "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-100",
+  },
+  return_pickup_scheduled: {
+    icon: Clock,
+    label: "Return Pickup Scheduled",
+    color: "bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-100",
+  },
+  return_picked_up: {
+    icon: Truck,
+    label: "Return Picked Up",
+    color: "bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-100",
+  },
+  return_in_transit: {
+    icon: Truck,
+    label: "Return In Transit",
+    color: "bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-100",
+  },
+  return_received: {
+    icon: Package,
+    label: "Return Received",
+    color: "bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-100",
+  },
+  return_inspected: {
+    icon: CheckCircle,
+    label: "Return Inspected",
+    color: "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-100",
+  },
   return_completed: {
     icon: CheckCircle,
     label: "Return Completed",
     color: "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-100",
   },
-  // Exchange statuses
+  return_cancelled: {
+    icon: XCircle,
+    label: "Return Cancelled",
+    color: "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-100",
+  },
+
+  // -------- Exchange flow --------
   exchange_requested: {
     icon: RotateCcw,
     label: "Exchange Requested",
-    color: "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-100",
+    color: "bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-100",
   },
   exchange_approved: {
     icon: CheckCircle,
     label: "Exchange Approved",
-    color: "bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-100",
+    color: "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-100",
   },
   exchange_processing: {
     icon: Package,
     label: "Exchange Processing",
+    color: "bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-100",
+  },
+  exchange_pickup_scheduled: {
+    icon: Clock,
+    label: "Exchange Pickup Scheduled",
+    color: "bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-100",
+  },
+  exchange_picked_up: {
+    icon: Truck,
+    label: "Exchange Picked Up",
+    color: "bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-100",
+  },
+  exchange_in_transit: {
+    icon: Truck,
+    label: "Exchange In Transit",
+    color: "bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-100",
+  },
+  exchange_received: {
+    icon: Package,
+    label: "Exchange Received",
+    color: "bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-100",
+  },
+  exchange_inspected: {
+    icon: CheckCircle,
+    label: "Exchange Inspected",
     color: "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-100",
   },
   exchange_shipped: {
@@ -89,7 +152,35 @@ export const itemStatusConfig: Record<
     label: "Exchange Completed",
     color: "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-100",
   },
+  exchange_cancelled: {
+    icon: XCircle,
+    label: "Exchange Cancelled",
+    color: "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-100",
+  },
+
+  // -------- Refund flow --------
+  refund_requested: {
+    icon: RotateCcw,
+    label: "Refund Requested",
+    color: "bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-100",
+  },
+  refund_approved: {
+    icon: CheckCircle,
+    label: "Refund Approved",
+    color: "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-100",
+  },
+  refund_completed: {
+    icon: CheckCircle,
+    label: "Refund Completed",
+    color: "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-100",
+  },
+  refund_rejected: {
+    icon: XCircle,
+    label: "Refund Rejected",
+    color: "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-100",
+  },
 };
+
 
 // Helper function to get status configuration
 export const getItemStatusConfig = (status: string) => {

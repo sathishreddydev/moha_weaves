@@ -46,8 +46,8 @@ export class OrderRepository implements OrderStorage {
     const [newOrder] = await db.insert(orders).values(order).returning();
 
     for (const item of items) {
-      const [newOrderItem] = await db.insert(orderItems).values({ 
-        ...item, 
+      const [newOrderItem] = await db.insert(orderItems).values({
+        ...item,
         orderId: newOrder.id,
         status: "pending"
       }).returning();
@@ -126,7 +126,7 @@ export class OrderRepository implements OrderStorage {
     const [order] = await db.select().from(orders).where(eq(orders.id, id));
     if (!order) return undefined;
 
-    const items = await db
+    const itemsRows = await db
       .select()
       .from(orderItems)
       .innerJoin(sarees, eq(orderItems.sareeId, sarees.id))
@@ -134,18 +134,37 @@ export class OrderRepository implements OrderStorage {
       .leftJoin(colors, eq(sarees.colorId, colors.id))
       .leftJoin(fabrics, eq(sarees.fabricId, fabrics.id))
       .where(eq(orderItems.orderId, order.id));
+    const itemStatuses = await Promise.all(
+      itemsRows.map(async (itemRow) => {
+        const [latestStatus] = await db
+          .select({ newStatus: itemStatusHistory.newStatus })
+          .from(itemStatusHistory)
+          .where(eq(itemStatusHistory.orderItemId, itemRow.order_items.id))
+          .orderBy(desc(itemStatusHistory.createdAt))
+          .limit(1);
 
+        return {
+          orderItemId: itemRow.order_items.id,
+          currentStatus: latestStatus?.newStatus ?? itemRow.order_items.status,
+        };
+      })
+    );
     return {
       ...order,
-      items: items.map((row) => ({
-        ...row.order_items,
-        saree: {
-          ...row.sarees,
-          category: row.categories,
-          color: row.colors,
-          fabric: row.fabrics,
-        },
-      })),
+      items: itemsRows.map((row) => {
+        const statusObj = itemStatuses.find((s) => s.orderItemId === row.order_items.id);
+        return {
+          ...row.order_items,
+          status: row.order_items.status,
+          currentStatus: statusObj?.currentStatus || row.order_items.status,
+          saree: {
+            ...row.sarees,
+            category: row.categories,
+            color: row.colors,
+            fabric: row.fabrics,
+          },
+        };
+      }),
     };
   }
 
@@ -167,7 +186,7 @@ export class OrderRepository implements OrderStorage {
       // Update item status
       const [updatedItem] = await tx
         .update(orderItems)
-        .set({ 
+        .set({
           status: status as any,
           updatedAt: new Date(),
           ...(status === "shipped" && { shippedAt: new Date() }),
@@ -208,7 +227,7 @@ export class OrderRepository implements OrderStorage {
       // Update order status
       const [updatedOrder] = await tx
         .update(orders)
-        .set({ 
+        .set({
           status: status as any,
           updatedAt: new Date(),
         })

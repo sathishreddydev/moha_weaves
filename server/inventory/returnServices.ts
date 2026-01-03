@@ -41,14 +41,7 @@ interface IStorage {
     data: Partial<InsertReturnRequest>
   ): Promise<ReturnRequest | undefined>;
   getUserReturnRequests(userId: string): Promise<ReturnRequestWithDetails[]>;
-  checkOrderReturnEligibility(
-    orderId: string
-  ): Promise<{
-    itemId: string;
-    eligible: boolean;
-    reason?: string;
-    remainingDays?: number;
-  }[]>;
+  
 
 
 }
@@ -258,70 +251,7 @@ export class ReturnRepo implements IStorage {
     return this.getReturnRequests({ userId });
   }
 
-  async checkOrderReturnEligibility(
-    orderId: string
-  ): Promise<
-    { itemId: string; eligible: boolean; reason?: string; remainingDays?: number }[]
-  > {
-    const order = await orderService.getOrder(orderId);
-
-    if (!order) {
-      return [
-        {
-          itemId: "",
-          eligible: false,
-          reason: "Order not found",
-        },
-      ];
-    }
-
-    const returnedByItem = await this.getReturnedQuantitiesByOrderItem(orderId);
-
-    const windowDays = await storage.getSetting("return_window_days");
-    const days = windowDays ? parseInt(windowDays) : 7;
-
-    const now = new Date();
-
-    return order.items.map((item: any) => {
-      if (!item.deliveredAt) {
-        return {
-          itemId: item.id,
-          eligible: false,
-          reason: "Item delivery date missing",
-        };
-      }
-
-      const deliveredAt = new Date(item.deliveredAt);
-      const eligibleUntil = new Date(deliveredAt);
-      eligibleUntil.setDate(eligibleUntil.getDate() + days);
-
-      if (now > eligibleUntil) {
-        return {
-          itemId: item.id,
-          eligible: false,
-          reason: "Return window has expired",
-        };
-      }
-
-      const purchasedQty = Number(item.quantity || 0);
-      const returnedQty = Number(returnedByItem[String(item.id)] || 0);
-      const hasRemaining = purchasedQty > returnedQty;
-
-      return {
-        itemId: item.id,
-        eligible: hasRemaining,
-        reason: !hasRemaining
-          ? "All items in this order have already been returned or exchanged"
-          : undefined,
-        remainingDays: hasRemaining
-          ? Math.max(
-            0,
-            Math.floor((eligibleUntil.getTime() - now.getTime()) / (1000 * 60 * 60 * 24))
-          )
-          : 0,
-      };
-    });
-  }
+ 
 
 
 }

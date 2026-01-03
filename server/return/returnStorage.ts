@@ -8,21 +8,17 @@ import {
   fabrics,
   refunds,
   orders,
-  users,
   itemStatusHistory,
-  itemStatusEnum,
   stockMovements,
   InsertReturnRequest,
   InsertReturnItem,
   ReturnRequest,
-  returnStatusEnum,
-  returnReasonEnum,
-  returnResolutionEnum
 } from "@shared/schema";
 import { eq, and, desc, inArray, sql } from "drizzle-orm";
 import { db } from "../db";
 import { orderService } from "../order/orderStorage";
 import { userService } from "../auth/authStorage";
+import { storage } from "server/storage";
 
 export type ReturnRequestWithDetails = ReturnRequest & {
   order: any;
@@ -58,22 +54,29 @@ export interface IReturnStorage {
     data: Partial<InsertReturnRequest>
   ): Promise<ReturnRequest | undefined>;
   getUserReturnRequests(userId: string): Promise<ReturnRequestWithDetails[]>;
-  checkOrderReturnEligibility(
+checkOrderReturnEligibility(
     orderId: string
-  ): Promise<{ eligible: boolean; reason?: string; remainingDays?: number }>;
+  ): Promise<{
+    itemId: string;
+    eligible: boolean;
+    reason?: string;
+    remainingDays?: number;
+  }[]>;
   getOrder(orderId: string): Promise<any>;
 }
 
 export class ReturnStorage implements IReturnStorage {
   private readonly activeReturnStatuses = [
-    "requested",
-    "approved",
-    "pickup_scheduled",
-    "picked_up",
-    "in_transit",
-    "received",
-    "inspected",
-    "completed",
+    "return_requested",
+    "return_approved",
+    "return_rejected",
+    "return_pickup_scheduled",
+    "return_picked_up",
+    "return_in_transit",
+    "return_received",
+    "return_inspected",
+    "return_completed",
+    "return_cancelled",
   ] as const;
 
   private async getReturnedQuantitiesByOrderItem(
@@ -233,19 +236,16 @@ export class ReturnStorage implements IReturnStorage {
           returnRequestId: newRequest.id,
         });
 
-        // Update item status to "return_requested"
-        await tx
-          .update(orderItems)
-          .set({ 
-            status: "return_requested",
-            updatedAt: new Date(),
-          })
-          .where(eq(orderItems.id, item.orderItemId));
+        // Update order item to return_requested
+        await tx.update(orderItems).set({
+          status: "return_requested",
+          updatedAt: new Date(),
+        }).where(eq(orderItems.id, item.orderItemId));
 
-        // Create item status history
+        // Insert item status history
         await tx.insert(itemStatusHistory).values({
           orderItemId: item.orderItemId,
-          status: "delivered", // Previous status
+          status: "delivered",
           newStatus: "return_requested",
           note: "Return request created",
           updatedBy: request.userId,
@@ -276,42 +276,49 @@ export class ReturnStorage implements IReturnStorage {
 
       if (!result) return undefined;
 
-      // Get return request details to update item statuses
       const returnRequest = await this.getReturnRequest(id);
       if (!returnRequest) return result;
 
-      // Handle return completion - update item statuses
-      if (status === "completed") {
-        for (const item of returnRequest.items) {
-          await tx
-            .update(orderItems)
-            .set({ 
-              status: "return_completed",
-              updatedAt: new Date(),
-            })
-            .where(eq(orderItems.id, item.orderItemId));
+      // Map return request status to order item status
+      const statusMap: Record<string, string> = {
+        return_requested: "return_requested",
+        return_approved: "return_approved",
+        return_pickup_scheduled: "return_pickup_scheduled",
+        return_picked_up: "return_picked_up",
+        return_in_transit: "return_in_transit",
+        return_received: "return_received",
+        return_inspected: "return_inspected",
+        return_completed: "return_completed",
+        return_cancelled: "return_cancelled",
+      };
 
-          // Create item status history
-          await tx.insert(itemStatusHistory).values({
-            orderItemId: item.orderItemId,
-            status: "return_requested", // Previous status
-            newStatus: "return_completed",
-            note: "Return completed",
-            updatedBy: processedBy,
+      for (const item of returnRequest.items) {
+        const newItemStatus = statusMap[status] || "return_requested";
+
+        await tx.update(orderItems).set({
+          status: newItemStatus as any,
+          updatedAt: new Date(),
+        }).where(eq(orderItems.id, item.orderItemId));
+
+        await tx.insert(itemStatusHistory).values({
+          orderItemId: item.orderItemId,
+          status: item.orderItem.status,
+          newStatus: newItemStatus,
+          note: `Return request ${status}`,
+          updatedBy: processedBy,
+          createdAt: new Date(),
+        });
+
+        // Only restock when completed
+        if (status === "completed" && item.isRestockable) {
+          await tx.insert(stockMovements).values({
+            sareeId: item.orderItem.saree.id,
+            quantity: item.quantity,
+            movementType: "return",
+            source: "online",
+            orderRefId: returnRequest.orderId,
             createdAt: new Date(),
           });
-
-          // Handle inventory restocking if applicable
-          if (item.isRestockable) {
-            await tx.insert(stockMovements).values({
-              sareeId: item.orderItem.saree.id,
-              quantity: item.quantity, // Positive quantity for stock addition
-              movementType: "return",
-              source: "online",
-              orderRefId: returnRequest.orderId,
-              createdAt: new Date(),
-            });
-          }
         }
       }
 
@@ -337,71 +344,69 @@ export class ReturnStorage implements IReturnStorage {
     return this.getReturnRequests({ userId });
   }
 
-  async checkOrderReturnEligibility(
+   async checkOrderReturnEligibility(
     orderId: string
-  ): Promise<{ eligible: boolean; reason?: string; remainingDays?: number }> {
+  ): Promise<
+    { itemId: string; eligible: boolean; reason?: string; remainingDays?: number }[]
+  > {
     const order = await orderService.getOrder(orderId);
-    if (!order) return { eligible: false, reason: "Order not found" };
-    
-    // Check if at least one item is delivered
-    const hasDeliveredItem = order.items.some((item: any) => 
-      item.status === "delivered" || 
-      item.status === "exchange_completed" ||
-      item.status === "return_completed"
-    );
-    
-    if (!hasDeliveredItem) {
-      return {
-        eligible: false,
-        reason: "At least one item must be delivered to initiate return",
-      };
-    }
 
-    let eligibleUntil: Date;
-    // Handle missing return window - calculate from deliveredAt if available
-    if (!order.returnEligibleUntil) {
-      if (order.deliveredAt) {
-        // Get return window setting, default to 7 days
-        const windowDays = 7; // Default value, could be from settings
-        eligibleUntil = new Date(order.deliveredAt);
-        eligibleUntil.setDate(eligibleUntil.getDate() + windowDays);
-
-        // Update the order with the calculated return window
-        await db
-          .update(orders)
-          .set({ returnEligibleUntil: eligibleUntil })
-          .where(eq(orders.id, orderId));
-      } else {
-        return {
+    if (!order) {
+      return [
+        {
+          itemId: "",
           eligible: false,
-          reason: "Return window not set - order delivery date missing",
-        };
-      }
-    } else {
-      eligibleUntil = new Date(order.returnEligibleUntil);
+          reason: "Order not found",
+        },
+      ];
     }
+
+    const returnedByItem = await this.getReturnedQuantitiesByOrderItem(orderId);
+
+    const windowDays = await storage.getSetting("return_window_days");
+    const days = windowDays ? parseInt(windowDays) : 7;
 
     const now = new Date();
-    if (now > eligibleUntil) {
-      return { eligible: false, reason: "Return window has expired" };
-    }
 
-    // Compute remaining days (floor to whole days)
-    const remainingMs = eligibleUntil.getTime() - now.getTime();
-    const remainingDays = Math.max(0, Math.floor(remainingMs / (1000 * 60 * 60 * 24)));
+    return order.items.map((item: any) => {
+      if (!item.deliveredAt) {
+        return {
+          itemId: item.id,
+          eligible: false,
+          reason: "Item delivery date missing",
+        };
+      }
 
-    // Eligible if at least one order item still has remaining quantity not already covered by active returns
-    const returnedByItem = await this.getReturnedQuantitiesByOrderItem(orderId);
-    const hasRemaining = order.items.some((item: any) => {
+      const deliveredAt = new Date(item.deliveredAt);
+      const eligibleUntil = new Date(deliveredAt);
+      eligibleUntil.setDate(eligibleUntil.getDate() + days);
+
+      if (now > eligibleUntil) {
+        return {
+          itemId: item.id,
+          eligible: false,
+          reason: "Return window has expired",
+        };
+      }
+
       const purchasedQty = Number(item.quantity || 0);
       const returnedQty = Number(returnedByItem[String(item.id)] || 0);
-      return purchasedQty > returnedQty;
-    });
-    if (!hasRemaining) {
-      return { eligible: false, reason: "All items in this order have already been returned or exchanged", remainingDays };
-    }
+      const hasRemaining = purchasedQty > returnedQty;
 
-    return { eligible: true, remainingDays };
+      return {
+        itemId: item.id,
+        eligible: hasRemaining,
+        reason: !hasRemaining
+          ? "All items in this order have already been returned or exchanged"
+          : undefined,
+        remainingDays: hasRemaining
+          ? Math.max(
+            0,
+            Math.floor((eligibleUntil.getTime() - now.getTime()) / (1000 * 60 * 60 * 24))
+          )
+          : 0,
+      };
+    });
   }
 
   async getOrder(orderId: string): Promise<any> {
