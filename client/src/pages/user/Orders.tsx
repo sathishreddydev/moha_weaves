@@ -391,22 +391,26 @@ export default function Orders() {
                               <h4 className="font-medium text-sm line-clamp-1 hover:text-primary">
                                 {item.saree.name}
                               </h4>
-
+                              <Badge className={displayStatus.color}>
+                                {displayStatus.label}
+                              </Badge>
                             </div>
-                            <p className="text-sm text-muted-foreground">
-                              Qty: {item.quantity}
-                            </p>
-                            {item.status === "delivered" && (
-                              <WriteReview saree={item.saree} />
-                            )}
+                            <div className="flex items-center justify-between">
+                              <div>
+                                <p className="text-sm text-muted-foreground">
+                                  Qty: {item.quantity}
+                                </p>
+                                {item.status === "delivered" && (
+                                  <WriteReview saree={item.saree} />
+                                )}
+                              </div>
+                              <div className="mt-3">
+                                <ChevronRight className="h-5 w-5 text-muted-foreground" />
+                              </div>
+                            </div>
+
                           </div>
 
-                          <div >
-                            <Badge className={displayStatus.color}>
-                              {displayStatus.label}
-                            </Badge>
-                            <ChevronRight className="h-5 w-5 text-muted-foreground" />
-                          </div>
 
                         </div>
                       </>
