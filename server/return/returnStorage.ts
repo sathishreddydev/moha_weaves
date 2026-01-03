@@ -19,6 +19,7 @@ import { db } from "../db";
 import { orderService } from "../order/orderStorage";
 import { userService } from "../auth/authStorage";
 import { storage } from "server/storage";
+import { refundService } from "../refund/refundService";
 
 export type ReturnRequestWithDetails = ReturnRequest & {
   order: any;
@@ -225,9 +226,34 @@ export class ReturnStorage implements IReturnStorage {
     items: Omit<InsertReturnItem, 'returnRequestId'>[]
   ): Promise<ReturnRequest> {
     return await db.transaction(async (tx) => {
+      let calculatedRefundAmount = request.refundAmount;
+      if (!calculatedRefundAmount && request.resolution === "refund") {
+        const orderItemsWithSarees = await tx
+          .select({
+            orderItemId: orderItems.id,
+            price: orderItems.price,
+            quantity: orderItems.quantity,
+          })
+          .from(orderItems)
+          .where(eq(orderItems.orderId, request.orderId));
+
+        const totalRefund = items.reduce((total, item) => {
+          const orderItem = orderItemsWithSarees.find(oi => oi.orderItemId === item.orderItemId);
+          if (orderItem) {
+            return total + (parseFloat(orderItem.price.toString()) * item.quantity);
+          }
+          return total;
+        }, 0);
+
+        calculatedRefundAmount = totalRefund.toString();
+      }
+
       const [newRequest] = await tx
         .insert(returnRequests)
-        .values(request)
+        .values({
+          ...request,
+          refundAmount: calculatedRefundAmount,
+        })
         .returning();
 
       for (const item of items) {
@@ -236,13 +262,11 @@ export class ReturnStorage implements IReturnStorage {
           returnRequestId: newRequest.id,
         });
 
-        // Update order item to return_requested
         await tx.update(orderItems).set({
           status: "return_requested",
           updatedAt: new Date(),
         }).where(eq(orderItems.id, item.orderItemId));
 
-        // Insert item status history
         await tx.insert(itemStatusHistory).values({
           orderItemId: item.orderItemId,
           status: "delivered",
@@ -304,12 +328,12 @@ export class ReturnStorage implements IReturnStorage {
           orderItemId: item.orderItemId,
           status: item.orderItem.status,
           newStatus: newItemStatus,
-          note: `Return request ${status}`,
+          note: `Return request ${status}${status === "return_completed" ? " - refund initiated" : ""}`,
           updatedBy: processedBy,
           createdAt: new Date(),
         });
 
-        if (status === "completed" && item.isRestockable) {
+        if (status === "return_completed" && item.isRestockable) {
           await tx.insert(stockMovements).values({
             sareeId: item.orderItem.saree.id,
             quantity: item.quantity,
@@ -320,6 +344,29 @@ export class ReturnStorage implements IReturnStorage {
           });
         }
       }
+
+      if (status === "return_completed" && returnRequest.resolution === "refund") {
+        try {
+          const refundAmount = returnRequest.refundAmount || 
+            returnRequest.items.reduce((total, item) => {
+              return total + (item.orderItem.price * item.quantity);
+            }, 0).toString();
+
+          await refundService.createAndProcessRefund({
+            returnRequestId: id,
+            orderId: returnRequest.orderId,
+            userId: returnRequest.userId,
+            amount: refundAmount,
+            reason: `return_completed - ${returnRequest.reason}`,
+            processedBy: processedBy,
+          });
+
+          console.log(`Auto-refund initiated for return request: ${id}, amount: ₹${refundAmount}`);
+        } catch (error) {
+          console.error("Failed to initiate auto-refund for return:", id, error);
+        }
+      }
+      
 
       return result;
     });
