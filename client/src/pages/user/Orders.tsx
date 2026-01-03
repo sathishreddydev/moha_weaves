@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import {
   Package,
   ChevronRight,
@@ -20,6 +20,7 @@ import { isItemDelivered, isItemInProgress, isItemShipped, isItemCancelled, getI
 export default function Orders() {
   const { user } = useAuth();
   const { toast } = useToast();
+  const navigate = useNavigate();
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [timeFilter, setTimeFilter] = useState("any");
@@ -73,6 +74,10 @@ export default function Orders() {
         variant: "destructive",
       });
     }
+  };
+
+  const handleItemClick = (orderId: string, itemId: string) => {
+    navigate(`/user/orders/${orderId}/items/${itemId}`);
   };
 
   const formatPrice = (price: string | number) => {
@@ -373,7 +378,8 @@ export default function Orders() {
                       <>
                         <div
                           key={item.id}
-                          className="flex flex-col sm:flex-row sm:items-center gap-4"
+                          className="flex flex-col sm:flex-row sm:items-center gap-4 cursor-pointer hover:bg-muted/50 transition-colors p-2 rounded-md"
+                          onClick={() => handleItemClick(order.id, item.id)}
                         >
                           <div className="w-16 h-20 rounded-md overflow-hidden bg-muted flex-shrink-0">
                             <img
@@ -404,7 +410,13 @@ export default function Orders() {
                                   <WriteReview saree={item.saree} />
                                 )}
                               </div>
-                              <div className="mt-3">
+                              <div 
+                                className="mt-3 p-1 hover:bg-muted rounded-md transition-colors cursor-pointer"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleItemClick(order.id, item.id);
+                                }}
+                              >
                                 <ChevronRight className="h-5 w-5 text-muted-foreground" />
                               </div>
                             </div>
