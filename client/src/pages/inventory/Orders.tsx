@@ -33,92 +33,8 @@ import { useDataTable } from "@/hooks/use-data-table";
 import { ColumnDef } from "@tanstack/react-table";
 import type { OrderWithItems } from "@shared/schema";
 import { Button } from "@/components/ui/button";
+import { itemStatusConfig } from "@/constants/itemStatusConfig";
 
-const statusConfig: Record<
-  string,
-  { icon: React.ComponentType<any>; label: string; color: string }
-> = {
-  pending: {
-    icon: Clock,
-    label: "Pending",
-    color:
-      "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-100",
-  },
-  confirmed: {
-    icon: CheckCircle,
-    label: "Confirmed",
-    color: "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-100",
-  },
-  processing: {
-    icon: Package,
-    label: "Processing",
-    color:
-      "bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-100",
-  },
-  shipped: {
-    icon: Truck,
-    label: "Shipped",
-    color:
-      "bg-indigo-100 text-indigo-800 dark:bg-indigo-900 dark:text-indigo-100",
-  },
-  delivered: {
-    icon: CheckCircle,
-    label: "Delivered",
-    color: "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-100",
-  },
-  cancelled: {
-    icon: XCircle,
-    label: "Cancelled",
-    color: "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-100",
-  },
-  // Return statuses
-  return_requested: {
-    icon: Clock,
-    label: "Return Requested",
-    color: "bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-100",
-  },
-  return_approved: {
-    icon: CheckCircle,
-    label: "Return Approved",
-    color: "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-100",
-  },
-  return_completed: {
-    icon: CheckCircle,
-    label: "Return Completed",
-    color: "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-100",
-  },
-  // Exchange statuses
-  exchange_requested: {
-    icon: Clock,
-    label: "Exchange Requested",
-    color: "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-100",
-  },
-  exchange_approved: {
-    icon: CheckCircle,
-    label: "Exchange Approved",
-    color: "bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-100",
-  },
-  exchange_processing: {
-    icon: Package,
-    label: "Exchange Processing",
-    color: "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-100",
-  },
-  exchange_shipped: {
-    icon: Truck,
-    label: "Exchange Shipped",
-    color: "bg-indigo-100 text-indigo-800 dark:bg-indigo-900 dark:text-indigo-100",
-  },
-  exchange_delivered: {
-    icon: CheckCircle,
-    label: "Exchange Delivered",
-    color: "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-100",
-  },
-  exchange_completed: {
-    icon: CheckCircle,
-    label: "Exchange Completed",
-    color: "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-100",
-  },
-};
 
 const orderStatuses = [
   "pending",
@@ -126,7 +42,6 @@ const orderStatuses = [
   "processing",
   "shipped",
   "delivered",
-  "cancelled",
 ];
 
 const statusFlow = ["pending", "confirmed", "processing", "shipped", "delivered"] as const;
@@ -281,12 +196,10 @@ export default function InventoryOrders() {
         accessorKey: "status",
         header: "Status",
         cell: ({ row }) => {
-          // Show item-level statuses for all items in the order
           const itemStatuses = row.original.items?.map(item => item.status as any) || [];
           const uniqueStatuses = Array.from(new Set(itemStatuses));
-          
           if (uniqueStatuses.length === 0) {
-            const status = statusConfig.pending;
+            const status = itemStatusConfig.pending;
             const StatusIcon = status.icon;
             return (
               <Badge className={status.color}>
@@ -295,10 +208,8 @@ export default function InventoryOrders() {
               </Badge>
             );
           }
-          
-          // If all items have the same status, show one badge
           if (uniqueStatuses.length === 1) {
-            const status = statusConfig[uniqueStatuses[0] as keyof typeof statusConfig] || statusConfig.pending;
+            const status = itemStatusConfig[uniqueStatuses[0] as keyof typeof itemStatusConfig] || itemStatusConfig.pending;
             const StatusIcon = status.icon;
             return (
               <Badge className={status.color}>
@@ -307,17 +218,16 @@ export default function InventoryOrders() {
               </Badge>
             );
           }
-          
-          // If items have different statuses, show a summary
+
           const statusCounts = itemStatuses.reduce((acc, status) => {
             acc[status] = (acc[status] || 0) + 1;
             return acc;
           }, {} as Record<string, number>);
-          
+
           return (
             <div className="flex flex-col gap-1">
               {Object.entries(statusCounts).map(([status, count]) => {
-                const currentStatusConfig = statusConfig[status as keyof typeof statusConfig] || statusConfig.pending;
+                const currentStatusConfig = itemStatusConfig[status as keyof typeof itemStatusConfig] || itemStatusConfig.pending;
                 const StatusIcon = currentStatusConfig.icon;
                 return (
                   <Badge key={status} className={currentStatusConfig.color}>

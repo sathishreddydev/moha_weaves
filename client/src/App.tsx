@@ -67,7 +67,6 @@ const InventoryOrderDetail = lazy(
 );
 const InventoryReturns = lazy(() => import("@/pages/inventory/Returns"));
 const InventoryExchanges = lazy(() => import("@/pages/inventory/Exchanges"));
-const InventoryOnlineExchanges = lazy(() => import("@/pages/inventory/OnlineExchanges"));
 const InventoryRefunds = lazy(() => import("@/pages/inventory/Refunds"));
 const InventoryStoreOrders = lazy(
   () => import("@/pages/inventory/StoreOrders")
@@ -193,7 +192,6 @@ function Router() {
                 <Route path="store-orders" element={<InventoryStoreOrders />} />
                 <Route path="returns" element={<InventoryReturns />} />
                 <Route path="exchanges" element={<InventoryExchanges />} />
-                <Route path="online-exchanges" element={<InventoryOnlineExchanges />} />
                 <Route path="refunds" element={<InventoryRefunds />} />
               </Route>
             </Route>

@@ -68,6 +68,11 @@ export default function ItemOrderDetails() {
     enabled: !!user && !!orderId && !!item && isItemDelivered(item.status as any),
   });
 
+  const { data: userReturns } = useQuery<ReturnRequestWithDetails[]>({
+    queryKey: ["/api/user/returns"],
+    enabled: !!user,
+  });
+
   const { data: razorpayPaymentDetails } = useQuery<{
     available: boolean;
     method?: string;
@@ -235,6 +240,15 @@ export default function ItemOrderDetails() {
   const fallback = { label: "No status", color: "bg-gray-100 text-gray-800", updatedAt: order.updatedAt };
   const displayStatus = itemStatus || fallback;
 
+  // Check if this item has a completed return with refund
+  const itemReturn = userReturns?.find(
+    (returnRequest) => 
+      returnRequest.orderId === orderId && 
+      returnRequest.items.some((returnItem) => returnItem.orderItemId === item.id) &&
+      returnRequest.status === "return_completed" &&
+      returnRequest.resolution === "refund"
+  );
+
   return (
     <div className="max-w-6xl mx-auto px-4 py-6 sm:py-8">
       <Link
@@ -382,6 +396,35 @@ export default function ItemOrderDetails() {
               )}
             </div>
           </Card>
+
+          {itemReturn && (
+            <Card className="p-4 border-green-200 bg-green-50">
+              <div className="flex items-center gap-2 mb-2">
+                <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                <h3 className="font-semibold text-green-800">Refund Information</h3>
+              </div>
+              <div className="text-sm space-y-2">
+                <p className="text-green-700">
+                  <span className="font-medium">Refund Amount:</span> {formatPrice(itemReturn.refundAmount || "0")}
+                </p>
+                <p className="text-green-600">
+                  Your refund has been processed and will be credited to your original payment method within 5-7 working days.
+                </p>
+                {itemReturn.refund && (
+                  <div className="mt-2 pt-2 border-t border-green-200">
+                    <p className="text-xs text-green-600">
+                      Refund Status: <Badge variant="secondary" className="text-xs">{itemReturn.refund.status.replace(/_/g, " ")}</Badge>
+                    </p>
+                    {itemReturn.refund.razorpayRefundId && (
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Refund ID: {itemReturn.refund.razorpayRefundId.slice(0, 12)}...
+                      </p>
+                    )}
+                  </div>
+                )}
+              </div>
+            </Card>
+          )}
 
           <Card className="p-4">
             <h3 className="font-semibold mb-4">Need Help?</h3>

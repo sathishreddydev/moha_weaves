@@ -26,6 +26,5 @@ export const NavItems = [
   { icon: Store, label: "Store Orders", href: "/inventory/store-orders" },
   { icon: RotateCcw, label: "Returns", href: "/inventory/returns" },
   { icon: ArrowLeftRight, label: "Exchanges", href: "/inventory/exchanges" },
-  { icon: ArrowLeftRight, label: "Online Exchanges", href: "/inventory/online-exchanges" },
   { icon: CreditCard, label: "Refunds", href: "/inventory/refunds" },
 ];
