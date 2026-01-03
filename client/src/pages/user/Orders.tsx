@@ -3,12 +3,6 @@ import { Link } from "react-router-dom";
 import {
   Package,
   ChevronRight,
-  Clock,
-  CheckCircle,
-  Truck,
-  XCircle,
-  RefreshCw,
-  RotateCcw,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -21,8 +15,7 @@ import type { OrderWithItems, ReturnRequestWithDetails, Refund, OnlineExchangeWi
 import { WriteReview } from "@/components/product/WriteReview";
 import { useDebounce } from "@/components/common/useDebounceHook";
 import { useToast } from "@/hooks/use-toast";
-import { orderStatusConfig, returnStatusConfig, refundStatusConfig, inProgressReturnStatuses, activeAndCompletedStatuses, allReturnStatuses, refundSteps } from "@/constants/statusConfig";
-import { itemStatusConfig, isItemDelivered, isItemInProgress, isItemShipped, isItemCancelled } from "@/constants/itemStatusConfig";
+import { isItemDelivered, isItemInProgress, isItemShipped, isItemCancelled, getItemStatusConfig } from "@/constants/itemStatusConfig";
 
 export default function Orders() {
   const { user } = useAuth();
@@ -30,7 +23,7 @@ export default function Orders() {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [timeFilter, setTimeFilter] = useState("any");
-  const [currentPage, setCurrentPage] = useState(1); // Pagination state
+  const [currentPage, setCurrentPage] = useState(1);
   const ordersPerPage = 5;
   const debouncedSearch = useDebounce(search, 300);
 
@@ -39,20 +32,6 @@ export default function Orders() {
     enabled: !!user,
   });
 
-  const { data: userReturns } = useQuery<ReturnRequestWithDetails[]>({
-    queryKey: ["/api/user/returns"],
-    enabled: !!user,
-  });
-
-  const { data: userExchanges } = useQuery<OnlineExchangeWithDetails[]>({
-    queryKey: ["/api/user/online-exchanges"],
-    enabled: !!user,
-  });
-
-  const { data: userRefunds } = useQuery<Refund[]>({
-    queryKey: ["/api/user/refunds"],
-    enabled: !!user,
-  });
 
   const handleDownloadInvoice = async (orderId: string) => {
     try {
@@ -137,7 +116,7 @@ export default function Orders() {
           const hasShipped = itemStatuses.some(isItemShipped);
           const hasDelivered = itemStatuses.some(isItemDelivered);
           const hasCancelled = itemStatuses.some(isItemCancelled);
-          
+
           if (statusFilter === "in_progress" && !inProgress) return false;
           if (statusFilter === "shipped" && !hasShipped) return false;
           if (statusFilter === "delivered" && !hasDelivered) return false;
@@ -181,7 +160,7 @@ export default function Orders() {
     for (const o of orders) {
       // Count based on item-level statuses
       const itemStatuses = o.items.map(item => item.status as any);
-      
+
       if (["pending", "confirmed", "processing"].some(s => itemStatuses.includes(s))) counts.in_progress++;
       if (["exchange_processing", "exchange_shipped"].some(s => itemStatuses.includes(s))) counts.in_progress++;
       if (["shipped", "exchange_shipped"].some(s => itemStatuses.includes(s))) counts.shipped++;
@@ -191,135 +170,6 @@ export default function Orders() {
 
     return counts;
   }, [orders]);
-
-  const displayMetaByOrderId = useMemo(() => {
-    const map = new Map<
-      string,
-      {
-        itemStatusByOrderItemId: Map<
-          string,
-          {
-            label: string;
-            color: string;
-            updatedAt: string | Date;
-          }
-        >;
-      }
-    >();
-
-    if (!orders) return map;
-
-    const refundByReturnRequestId = new Map<string, Refund>();
-    for (const rf of userRefunds || []) {
-      if (rf.returnRequestId) refundByReturnRequestId.set(rf.returnRequestId, rf);
-    }
-
-    const getReturnLabelColor = (resolution: string | undefined, status: string) => {
-      const isExchange = resolution === "exchange";
-      const base = isExchange ? "Exchange" : "Return";
-      const label =
-        status === "completed"
-          ? `${base} Completed`
-          : status === "rejected"
-            ? `${base} Rejected`
-            : status === "pickup_scheduled"
-              ? `${base} Pickup Scheduled`
-              : status === "picked_up"
-                ? `${base} Picked Up`
-                : status === "received"
-                  ? `${base} Received`
-                  : status === "approved"
-                    ? `${base} Approved`
-                    : status === "cancelled"
-                      ? `${base} Cancelled`
-                      : `${base} Requested`;
-
-      const color =
-        status === "completed"
-          ? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-100"
-          : status === "rejected"
-            ? "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-100"
-            : isExchange
-              ? "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-100"
-              : "bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-100";
-
-      return { label, color };
-    };
-
-    const getRefundLabelColor = (status: string) => {
-      const label =
-        status === "completed"
-          ? "Refunded"
-          : status === "failed"
-            ? "Refund Failed"
-            : "Refund Processing";
-      const color =
-        status === "completed"
-          ? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-100"
-          : status === "failed"
-            ? "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-100"
-            : "bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-100";
-      return { label, color };
-    };
-
-    for (const o of orders) {
-      const itemStatusByOrderItemId = new Map<
-        string,
-        { label: string; color: string; updatedAt: string | Date }
-      >();
-
-      // First, set current item statuses from order items
-      for (const item of o.items || []) {
-        const currentItemStatusConfig = itemStatusConfig[item.status as any] || itemStatusConfig.pending;
-        itemStatusByOrderItemId.set(item.id, {
-          label: currentItemStatusConfig.label,
-          color: currentItemStatusConfig.color,
-          updatedAt: item.updatedAt || o.updatedAt
-        });
-      }
-
-      const returnsForOrder = (userReturns || [])
-        .filter((r) => r.orderId === o.id)
-        .slice()
-        .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
-
-      const exchangesForOrder = (userExchanges || [])
-        .filter((r) => r.orderId === o.id)
-        .slice()
-        .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
-
-      // Process both returns and exchanges
-      for (const rr of [...returnsForOrder, ...exchangesForOrder]) {
-        for (const ri of rr.items || []) {
-          const existing = itemStatusByOrderItemId.get(ri.orderItemId);
-          const rrUpdated = rr.updatedAt || rr.createdAt;
-          if (!existing || new Date(rrUpdated).getTime() > new Date(existing.updatedAt).getTime()) {
-            // Online exchanges don't have resolution field, so check if it's an exchange by absence of resolution
-            const isExchange = !('resolution' in rr);
-            const { label, color } = getReturnLabelColor(isExchange ? undefined : rr.resolution, rr.status);
-            itemStatusByOrderItemId.set(ri.orderItemId, { label, color, updatedAt: rrUpdated });
-
-            const refund = isExchange ? undefined : refundByReturnRequestId.get(rr.id);
-            if (refund) {
-              const refundMeta = getRefundLabelColor(refund.status);
-              const refundUpdated = refund.completedAt || refund.initiatedAt || refund.createdAt;
-              if (refundUpdated && new Date(refundUpdated).getTime() >= new Date(rrUpdated).getTime()) {
-                itemStatusByOrderItemId.set(ri.orderItemId, {
-                  label: refundMeta.label,
-                  color: refundMeta.color,
-                  updatedAt: refundUpdated,
-                });
-              }
-            }
-          }
-        }
-      }
-
-      map.set(o.id, { itemStatusByOrderItemId });
-    }
-
-    return map;
-  }, [orders, userReturns, userExchanges, userRefunds]);
 
   const totalPages = Math.ceil(filteredOrders.length / ordersPerPage);
   const paginatedOrders = filteredOrders.slice(
@@ -468,9 +318,6 @@ export default function Orders() {
 
       <div className="space-y-6">
         {paginatedOrders.map((order) => {
-          const meta = displayMetaByOrderId.get(order.id);
-          const hasReturnOrExchange = (userReturns || []).some((r) => r.orderId === order.id) || (userExchanges || []).some((r) => r.orderId === order.id);
-
           return (
             <Card
               key={order.id}
@@ -513,20 +360,22 @@ export default function Orders() {
               </div>
 
               <div className="p-4">
-                <div className="space-y-3">
-                  {order.items.slice(0, 2).map((item) => {
-                    const itemStatus = meta?.itemStatusByOrderItemId?.get(item.id);
-                    // Use item's own status instead of order status
-                    const currentStatusConfig = itemStatusConfig[item.status as any] || itemStatusConfig.pending;
-                    const effective = itemStatus || currentStatusConfig;
-
+                <div className="space-y-2">
+                  {order.items.map((item) => {
+                    const itemStatus = getItemStatusConfig(item.status);
+                    const fallback = {
+                      label: "No status",
+                      color: "bg-gray-100 text-gray-800",
+                      updatedAt: order.updatedAt,
+                    };
+                    const displayStatus = itemStatus || fallback;
                     return (
-                      <div
-                        key={item.id}
-                        className="flex flex-col sm:flex-row gap-4"
-                      >
-                        <Link to={`/sarees/${item.saree.id}`} className="flex-shrink-0">
-                          <div className="w-16 h-20 rounded-md overflow-hidden bg-muted">
+                      <>
+                        <div
+                          key={item.id}
+                          className="flex flex-col sm:flex-row sm:items-center gap-4"
+                        >
+                          <div className="w-16 h-20 rounded-md overflow-hidden bg-muted flex-shrink-0">
                             <img
                               src={
                                 item.saree.imageUrl ||
@@ -536,33 +385,35 @@ export default function Orders() {
                               className="w-full h-full object-cover"
                             />
                           </div>
-                        </Link>
-                        <div className="flex-1 min-w-0">
-                          <Link to={`/sarees/${item.saree.id}`}>
-                            <h4 className="font-medium text-sm line-clamp-1 hover:text-primary">
-                              {item.saree.name}
-                            </h4>
-                          </Link>
-                          <div className="mt-1">
-                            <Badge className={effective.color}>{effective.label}</Badge>
+
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center justify-between">
+                              <h4 className="font-medium text-sm line-clamp-1 hover:text-primary">
+                                {item.saree.name}
+                              </h4>
+
+                            </div>
+                            <p className="text-sm text-muted-foreground">
+                              Qty: {item.quantity}
+                            </p>
+                            {item.status === "delivered" && (
+                              <WriteReview saree={item.saree} />
+                            )}
                           </div>
-                          <p className="text-sm text-muted-foreground">
-                            Qty: {item.quantity}
-                          </p>
+
+                          <div >
+                            <Badge className={displayStatus.color}>
+                              {displayStatus.label}
+                            </Badge>
+                            <ChevronRight className="h-5 w-5 text-muted-foreground" />
+                          </div>
+
                         </div>
-                        {item.status === "delivered" ? (
-                          <div className="sm:self-center">
-                            <WriteReview saree={item.saree} />
-                          </div>
-                        ) : null}
-                      </div>
+                      </>
+
                     );
                   })}
-                  {order.items.length > 2 ? (
-                    <p className="text-sm text-muted-foreground">
-                      +{order.items.length - 2} more item(s)
-                    </p>
-                  ) : null}
+
                 </div>
 
                 <Separator className="my-4" />
@@ -579,30 +430,6 @@ export default function Orders() {
                   </div>
 
                   <div className="flex flex-col sm:flex-row gap-2 sm:items-center">
-                    {(() => {
-                      const isReturnWindowOpen = order.returnEligibleUntil
-                        ? new Date(order.returnEligibleUntil).getTime() >= Date.now()
-                        : true;
-                      // Check if at least one item is delivered and eligible for return
-                      const hasDeliveredItem = order.items.some(item => 
-                        (item.status as any) === "delivered" || 
-                        (item.status as any) === "exchange_completed" ||
-                        (item.status as any) === "return_completed"
-                      );
-                      const showReturnExchange = hasDeliveredItem && isReturnWindowOpen && !hasReturnOrExchange;
-                      return showReturnExchange ? (
-                        <Link to={`/user/orders/${order.id}`} className="w-full sm:w-auto">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            className="w-full sm:w-auto"
-                          >
-                            Return / Exchange
-                          </Button>
-                        </Link>
-                      ) : null;
-                    })()}
-
                     {order.trackingNumber ? (
                       <Button
                         variant="outline"
@@ -624,18 +451,6 @@ export default function Orders() {
                         Download invoice
                       </Button>
                     ) : null}
-
-                    <Link to={`/user/orders/${order.id}`} className="w-full sm:w-auto">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="w-full sm:w-auto"
-                        data-testid={`button-view-order-${order.id}`}
-                      >
-                        View Details
-                        <ChevronRight className="h-4 w-4 ml-1" />
-                      </Button>
-                    </Link>
                   </div>
                 </div>
               </div>

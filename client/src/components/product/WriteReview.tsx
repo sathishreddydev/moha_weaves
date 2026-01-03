@@ -76,11 +76,10 @@ export function WriteReview({ saree }: ReviewsProps) {
             data-testid={interactive ? `star-rating-${star}` : undefined}
           >
             <Star
-              className={`h-5 w-5 ${
-                star <= (interactive ? hoverRating || rating : value)
+              className={`h-5 w-5 ${star <= (interactive ? hoverRating || rating : value)
                   ? "fill-yellow-400 text-yellow-400"
                   : "text-muted-foreground"
-              }`}
+                }`}
             />
           </button>
         ))}
@@ -91,14 +90,15 @@ export function WriteReview({ saree }: ReviewsProps) {
   return (
     <>
       {user && user.role === "user" && (
-        <Button
-          variant={'ghost'}
+        <span
           onClick={() => setShowForm(true)}
-          data-testid="button-write-review"
+          data-testid="text-write-review"
+          className="cursor-pointer text-xs hover:text-primary"
         >
           Write a Review
-        </Button>
+        </span>
       )}
+
       <AdaptiveModal
         title="Write Your Review"
         open={showForm}
