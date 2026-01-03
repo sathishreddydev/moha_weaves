@@ -142,7 +142,7 @@ export default function ItemOrderDetails() {
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = `invoice-${orderId?.slice(0, 8).toUpperCase()}.pdf`;
+      a.download = `invoice-${orderId}.pdf`;
       document.body.appendChild(a);
       a.click();
       a.remove();

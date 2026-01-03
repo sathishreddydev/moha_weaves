@@ -72,7 +72,7 @@ export default function InventoryOrderDetail() {
 
   const safeShortId = useMemo(() => {
     if (!id) return "";
-    return String(id).slice(0, 8).toUpperCase();
+    return String(id);
   }, [id]);
 
   const order = orderQuery.data;
@@ -208,7 +208,7 @@ export default function InventoryOrderDetail() {
               <ArrowLeft className="h-4 w-4 mr-2" />
               Back
             </Button>
-            <span className="font-mono text-sm text-muted-foreground">#{order.id.slice(0, 8).toUpperCase()}</span>
+            <span className="font-mono text-sm text-muted-foreground">#{order.id}</span>
           </div>
           <h1 className="text-2xl font-semibold">Order Details</h1>
           <div className="text-sm text-muted-foreground">Placed on {formatDate(order.createdAt)}</div>

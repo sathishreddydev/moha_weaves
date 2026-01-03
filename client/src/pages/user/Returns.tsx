@@ -119,7 +119,7 @@ export default function Returns() {
                   <div>
                     <span className="text-muted-foreground">Order:</span>{" "}
                     <Link to={`/user/orders/${returnRequest.orderId}`} className="font-medium hover:text-primary">
-                      #{returnRequest.orderId.slice(0, 8).toUpperCase()}
+                      #{returnRequest.orderId}
                     </Link>
                   </div>
                   <Separator orientation="vertical" className="h-4" />

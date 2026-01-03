@@ -201,7 +201,7 @@ export default function InventoryReturns() {
 
   const getNextAction = (request: ReturnRequestWithDetails) => {
     switch (request.status) {
-      case "requested":
+      case "return_requested":
         return (
           <div className="flex gap-2">
             <Button
@@ -223,7 +223,7 @@ export default function InventoryReturns() {
             </Button>
           </div>
         );
-      case "approved":
+      case "return_approved":
         return (
           <Button
             size="sm"
@@ -234,7 +234,7 @@ export default function InventoryReturns() {
             Mark In Transit
           </Button>
         );
-      case "in_transit":
+      case "return_in_transit":
         return (
           <Button
             size="sm"
@@ -245,7 +245,7 @@ export default function InventoryReturns() {
             Mark as Received
           </Button>
         );
-      case "received":
+      case "return_received":
         return (
           <Button
             size="sm"
@@ -256,7 +256,7 @@ export default function InventoryReturns() {
             Mark as Inspected
           </Button>
         );
-      case "inspected":
+      case "return_inspected":
         return (
           <Button
             size="sm"

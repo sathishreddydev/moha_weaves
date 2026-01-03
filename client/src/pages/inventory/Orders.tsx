@@ -227,7 +227,7 @@ export default function InventoryOrders() {
             className="font-mono text-sm text-primary underline-offset-4 hover:underline"
             onClick={() => navigate(`/inventory/orders/${row.original.id}`)}
           >
-            #{row.original.id.slice(0, 8).toUpperCase()}
+            #{row.original.id}
           </button>
         ),
       },
@@ -431,7 +431,7 @@ export default function InventoryOrders() {
           <DialogHeader>
             <DialogTitle>Order Details</DialogTitle>
             <DialogDescription>
-              Order #{selectedOrder?.id.slice(0, 8).toUpperCase()}
+              Order #{selectedOrder?.id}
             </DialogDescription>
           </DialogHeader>
           {selectedOrder && (

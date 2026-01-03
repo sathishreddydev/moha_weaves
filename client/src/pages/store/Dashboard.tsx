@@ -111,7 +111,7 @@ export default function StoreDashboard() {
       header: "Sale ID",
       cell: ({ row }) => (
         <span className="font-mono text-sm">
-          #{row.original.id.slice(0, 8).toUpperCase()}
+          #{row.original.id}
         </span>
       ),
     },

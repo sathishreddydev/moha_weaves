@@ -156,7 +156,7 @@ const formatDate = (date: string | Date) => {
                   <div>
                     <span className="text-muted-foreground">Order:</span>{" "}
                     <Link to={`/user/orders/${exchange.orderId}`} className="font-medium hover:text-primary">
-                      #{exchange.orderId.slice(0, 8).toUpperCase()}
+                      #{exchange.orderId}
                     </Link>
                   </div>
                   <Separator orientation="vertical" className="h-4" />
@@ -213,7 +213,7 @@ const formatDate = (date: string | Date) => {
                   </div>
                 )}
 
-                {exchange.status === "completed" && (
+                {exchange.status === "exchange_completed" && (
                   <div className="mt-4 p-3 bg-green-50 dark:bg-green-900/20 rounded-md border border-green-200 dark:border-green-800">
                     <p className="text-sm font-medium text-green-800 dark:text-green-200">Exchange Completed</p>
                     <p className="text-xs text-green-600 dark:text-green-400 mt-1">

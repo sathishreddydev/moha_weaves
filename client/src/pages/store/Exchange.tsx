@@ -467,7 +467,7 @@ export default function StoreExchange() {
                   </Button>
                 </div>
                 <p className="text-sm text-muted-foreground">
-                  Sale #{selectedSaleId?.slice(0, 8).toUpperCase()}
+                  Sale #{selectedSaleId}
                 </p>
               </CardHeader>
               <CardContent>

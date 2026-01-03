@@ -186,7 +186,7 @@ export default function InventoryExchangesPage() {
           to={`/admin/orders/${row.original.orderId}`}
           className="font-medium hover:text-primary"
         >
-          #{row.original.orderId?.slice(0, 8).toUpperCase()}
+          #{row.original.orderId}
         </Link>
       ),
     },
@@ -310,7 +310,7 @@ export default function InventoryExchangesPage() {
           <DialogHeader>
             <DialogTitle>Update Exchange Status</DialogTitle>
             <DialogDescription>
-              Update the status for exchange request #{selectedExchange?.orderId?.slice(0, 8).toUpperCase()}
+              Update the status for exchange request #{selectedExchange?.orderId}
             </DialogDescription>
           </DialogHeader>
 

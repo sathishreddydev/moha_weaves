@@ -21,7 +21,7 @@ const OrderSuccess: React.FC<OrderSuccessProps> = ({ orderId }) => {
       <p className="text-sm text-muted-foreground mb-6">
         Order ID:{" "}
         <span className="font-medium" data-testid="text-order-id">
-          #{orderId.slice(0, 8).toUpperCase()}
+          #{orderId}
         </span>
       </p>
       <div className="flex flex-col gap-3">

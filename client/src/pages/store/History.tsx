@@ -64,7 +64,7 @@ export default function StoreHistory() {
       header: "Sale ID",
       cell: ({ row }) => (
         <span className="font-mono text-sm">
-          #{row.original.id.slice(0, 8).toUpperCase()}
+          #{row.original.id}
         </span>
       ),
     },
@@ -237,7 +237,7 @@ export default function StoreHistory() {
               Sale Details
             </DialogTitle>
             <DialogDescription>
-              #{selectedSale?.id.slice(0, 8).toUpperCase()} -{" "}
+              #{selectedSale?.id} - {" "}
               {selectedSale && formatDate(selectedSale.createdAt)}
             </DialogDescription>
           </DialogHeader>
