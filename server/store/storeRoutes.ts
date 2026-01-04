@@ -47,22 +47,6 @@ export const storeRoutes = (app: Express) => {
     }
   });
 
-  app.get("/api/store/sales", authStore, async (req, res) => {
-    try {
-      const user = (req as any).user;
-      if (!user.storeId) {
-        return res.status(400).json({ message: "No store assigned" });
-      }
-      const { limit } = req.query;
-      const sales = await storeService.getStoreSales(
-        user.storeId,
-        limit ? parseInt(limit as string) : undefined
-      );
-      res.json(sales);
-    } catch (error) {
-      res.status(500).json({ message: "Failed to fetch sales" });
-    }
-  });
 
   app.get("/api/store/sales/paginated", authStore, async (req, res) => {
     try {
@@ -205,64 +189,7 @@ export const storeRoutes = (app: Express) => {
     }
   });
 
-  // Create store sale
-  app.post("/api/store/sales", authStore, async (req, res) => {
-    try {
-      const user = (req as any).user;
-      if (!user.storeId) {
-        return res.status(400).json({ message: "No store assigned" });
-      }
 
-      const { customerName, customerPhone, items, saleType } = req.body;
-
-      if (!items || items.length === 0) {
-        return res.status(400).json({ message: "No items in sale" });
-      }
-
-      // Verify stock availability and deduct from store inventory
-      for (const item of items) {
-        const inventory = await storeService.getStoreInventoryItem(user.storeId, item.sareeId);
-        if (!inventory || inventory.quantity < item.quantity) {
-          return res.status(400).json({ 
-            message: `Insufficient stock for item ${item.sareeId}` 
-          });
-        }
-      }
-
-      // Calculate total amount
-      const totalAmount = items.reduce((sum:any, item:any) => {
-        const price = typeof item.price === "string" ? parseFloat(item.price) : item.price;
-        return sum + (price * item.quantity);
-      }, 0);
-
-      // Create the sale and deduct stock
-      const sale = await storeService.createStoreSale(
-        user.storeId,
-        user.id,
-        {
-          customerName,
-          customerPhone,
-          items: items.map(item => ({
-            sareeId: item.sareeId,
-            quantity: item.quantity,
-            unitPrice: typeof item.price === "string" ? parseFloat(item.price) : item.price,
-            lineAmount: (typeof item.price === "string" ? parseFloat(item.price) : item.price) * item.quantity,
-          })),
-          discountAmount: 0,
-          taxAmount: 0,
-          totalAmount,
-          paymentMode: "cash",
-        }
-      );
-
-      res.json(sale);
-    } catch (error) {
-      console.error("Error creating sale:", error);
-      res.status(500).json({ message: "Failed to create sale" });
-    }
-  });
-
-  // Get sale details for exchange (with available quantities)
   app.get("/api/store/sales/:id", authStore, async (req, res) => {
     try {
       const user = (req as any).user;

@@ -150,6 +150,25 @@ export const storeCartRoutes = (app: Express) => {
     }
   });
 
+  app.delete("/api/store/cart/:sareeId", authStore, async (req: Request, res: Response) => {
+    try {
+      const storeId = req.user?.storeId;
+      if (!storeId) return res.status(401).json({ error: "Store not authenticated" });
+
+      const { sareeId } = req.params;
+      const storeRepo = new StoreRepository();
+      const currentCart = await storeRepo.getStoreCart(storeId);
+
+      const updatedItems = currentCart.items.filter(item => item.sareeId !== sareeId);
+      await storeRepo.updateStoreCart(storeId, updatedItems);
+
+      res.json({ message: "Item removed from cart successfully" });
+    } catch (error) {
+      console.error("Error removing item from cart:", error);
+      res.status(500).json({ error: "Failed to remove item from cart" });
+    }
+  });
+
   app.post("/api/store/apply-coupon", authStore, async (req: Request, res: Response) => {
     try {
       const storeId = req.user?.storeId;
@@ -196,10 +215,8 @@ export const storeCartRoutes = (app: Express) => {
         discountCode: validatedData.discount?.code,
       });
 
-      // Clear cart
       await storeRepo.updateStoreCart(storeId, []);
 
-      // Update coupon usage if applicable
       if (validatedData.discount?.code && validatedData.discount?.couponId) {
         await storeRepo.updateCouponUsage(
           validatedData.discount.couponId,

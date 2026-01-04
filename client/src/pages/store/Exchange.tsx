@@ -133,7 +133,6 @@ export default function StoreExchange() {
       return response.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/store/sales"] });
       queryClient.invalidateQueries({ queryKey: ["/api/store/products"] });
       queryClient.invalidateQueries({ queryKey: ["/api/store/inventory"] });
       queryClient.invalidateQueries({ queryKey: ["/api/store/store-exchanges"] });

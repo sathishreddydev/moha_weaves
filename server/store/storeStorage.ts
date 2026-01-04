@@ -1005,10 +1005,7 @@ export class StoreRepository implements StoreStorage {
 
   async updateStoreCart(storeId: string, items: any[]): Promise<{ items: any[] }> {
     return await db.transaction(async (tx) => {
-      // Clear existing cart items for this store
       await tx.delete(storeCart).where(eq(storeCart.storeId, storeId));
-
-      // Insert new cart items
       if (items.length > 0) {
         const cartItemsToInsert = items.map((item) => ({
           storeId,
@@ -1021,7 +1018,6 @@ export class StoreRepository implements StoreStorage {
         await tx.insert(storeCart).values(cartItemsToInsert);
       }
 
-      // Return the updated cart
       return await this.getStoreCart(storeId);
     });
   }
@@ -1029,7 +1025,6 @@ export class StoreRepository implements StoreStorage {
   async applyCoupon(storeId: string, code: string): Promise<any> {
     const now = new Date();
     
-    // Find active coupon
     const [coupon] = await db
       .select()
       .from(coupons)
@@ -1046,7 +1041,6 @@ export class StoreRepository implements StoreStorage {
       throw new Error("Invalid or expired coupon code");
     }
 
-    // Check usage limits
     if (coupon.usageLimit) {
       const [totalUsage] = await db
         .select({ count: sql<number>`count(*)::int` })
