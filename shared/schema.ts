@@ -298,6 +298,24 @@ export const wishlist = pgTable("wishlist", {
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
+// Store cart (for in-store sales)
+export const storeCart = pgTable("store_cart", {
+  id: varchar("id")
+    .primaryKey()
+    .default(sql`gen_random_uuid()`),
+  storeId: varchar("store_id")
+    .references(() => stores.id)
+    .notNull(),
+  sareeId: varchar("saree_id")
+    .references(() => sarees.id)
+    .notNull(),
+  quantity: integer("quantity").notNull().default(1),
+  unitPrice: decimal("unit_price", { precision: 10, scale: 2 }).notNull(),
+  lineAmount: decimal("line_amount", { precision: 10, scale: 2 }).notNull(),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
 // Cart
 export const cart = pgTable("cart", {
   id: varchar("id")
@@ -383,6 +401,9 @@ export const storeSales = pgTable("store_sales", {
   customerName: text("customer_name"),
   customerPhone: text("customer_phone"),
   totalAmount: decimal("total_amount", { precision: 10, scale: 2 }).notNull(),
+  discountAmount: decimal("discount_amount", { precision: 10, scale: 2 }).default("0"),
+  taxAmount: decimal("tax_amount", { precision: 10, scale: 2 }).default("0"),
+  paymentMode: varchar("payment_mode").default("cash"),
   saleType: storeSaleTypeEnum("sale_type").notNull().default("walk_in"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
@@ -919,6 +940,11 @@ export const cartRelations = relations(cart, ({ one }) => ({
   saree: one(sarees, { fields: [cart.sareeId], references: [sarees.id] }),
 }));
 
+export const storeCartRelations = relations(storeCart, ({ one }) => ({
+  store: one(stores, { fields: [storeCart.storeId], references: [stores.id] }),
+  saree: one(sarees, { fields: [storeCart.sareeId], references: [sarees.id] }),
+}));
+
 export const ordersRelations = relations(orders, ({ one, many }) => ({
   user: one(users, { fields: [orders.userId], references: [users.id] }),
   items: many(orderItems),
@@ -1225,6 +1251,11 @@ export const insertCartSchema = createInsertSchema(cart).omit({
   id: true,
   createdAt: true,
 });
+export const insertStoreCartSchema = createInsertSchema(storeCart).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
 export const insertOrderSchema = createInsertSchema(orders).omit({
   id: true,
   createdAt: true,
@@ -1340,6 +1371,8 @@ export type WishlistItem = typeof wishlist.$inferSelect;
 export type InsertWishlistItem = z.infer<typeof insertWishlistSchema>;
 export type CartItem = typeof cart.$inferSelect;
 export type InsertCartItem = z.infer<typeof insertCartSchema>;
+export type StoreCartItem = typeof storeCart.$inferSelect;
+export type InsertStoreCartItem = z.infer<typeof insertStoreCartSchema>;
 export type Order = typeof orders.$inferSelect;
 export type InsertOrder = z.infer<typeof insertOrderSchema>;
 export type OrderItem = typeof orderItems.$inferSelect;

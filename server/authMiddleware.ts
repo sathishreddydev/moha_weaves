@@ -10,6 +10,7 @@ declare module "express-serve-static-core" {
     user?: {
       id: string;
       role: string;
+      storeId?: string;
       tokenVersion: number;
       isActive: boolean;
     };
@@ -58,7 +59,13 @@ export function createAuthMiddleware(allowedRoles: string[]) {
         return res.status(401).json({ message: "Account disabled" });
       }
 
-      req.user = user;
+      req.user = {
+      id: user.id,
+      role: user.role,
+      storeId: user.storeId || undefined,
+      tokenVersion: user.tokenVersion,
+      isActive: user.isActive,
+    };
       next();
     } catch (error) {
       if (error instanceof jwt.TokenExpiredError) {

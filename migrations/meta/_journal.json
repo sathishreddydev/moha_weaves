@@ -15,6 +15,13 @@
       "when": 1767463252323,
       "tag": "0001_big_lilith",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1767528869279,
+      "tag": "0002_heavy_hairball",
+      "breakpoints": true
     }
   ]
 }

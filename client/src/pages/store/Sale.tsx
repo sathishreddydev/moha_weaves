@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   ShoppingCart,
   Package,
@@ -7,6 +7,9 @@ import {
   Minus,
   Trash2,
   Check,
+  CreditCard,
+  Smartphone,
+  Wallet,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -21,6 +24,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
+import { Separator } from "@/components/ui/separator";
 import { useAuth } from "@/lib/auth";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
@@ -40,6 +44,18 @@ interface CartItem {
   maxQuantity: number;
 }
 
+interface Discount {
+  type: "percentage" | "fixed" | "coupon";
+  value: number;
+  description: string;
+  code?: string;
+}
+
+interface TaxRule {
+  name: string;
+  rate: number;
+}
+
 export default function StoreSale() {
   const { user } = useAuth();
   const { toast } = useToast();
@@ -50,32 +66,121 @@ export default function StoreSale() {
   const [customerName, setCustomerName] = useState("");
   const [customerPhone, setCustomerPhone] = useState("");
   const [saleType, setSaleType] = useState<"walk_in" | "reserved">("walk_in");
+  const [paymentMode, setPaymentMode] = useState<"cash" | "card" | "upi">("cash");
+  const [discount, setDiscount] = useState<Discount | null>(null);
+  const [couponCode, setCouponCode] = useState("");
+
+  // Tax rules (can be made configurable)
+  const taxRules: TaxRule[] = [
+    { name: "GST", rate: 18 },
+    { name: "Service Charge", rate: 10 },
+  ];
 
   const { data: products, isLoading } = useQuery<ShopProduct[]>({
     queryKey: ["/api/store/products"],
     enabled: !!user && user.role === "store",
   });
 
+  const { data: cartData } = useQuery<any>({
+    queryKey: ["/api/store/cart"],
+    enabled: !!user?.storeId,
+  });
+
+  // Add to cart mutation
+  const addToCartMutation = useMutation({
+    mutationFn: async (item: { sareeId: string; quantity: number; unitPrice: number }) => {
+      const res = await apiRequest("POST", "/api/store/cart", item);
+      return await res.json();
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/store/cart"] });
+      toast({
+        title: "Added to cart",
+        description: data.message || "Item added to cart successfully",
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
+  // Update cart mutation
+  const updateCartMutation = useMutation({
+    mutationFn: async (items: CartItem[]) => {
+      const res = await apiRequest("PUT", "/api/store/cart", { 
+        items: items.map(item => ({
+          id: item.sareeId,
+          sareeId: item.sareeId,
+          quantity: item.quantity,
+          unitPrice: parseFloat(item.price),
+          lineAmount: item.quantity * parseFloat(item.price),
+        }))
+      });
+      return await res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/store/cart"] });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
+  useEffect(() => {
+    if (cartData?.items) {
+      const mappedCart = cartData.items.map((item: any) => ({
+        sareeId: item.sareeId,
+        saree: item.saree,
+        quantity: item.quantity,
+        price: item.unitPrice.toString(),
+        maxQuantity: item.saree.totalStock || 999, // Fallback max quantity
+      }));
+      setCart(mappedCart);
+    }
+  }, [cartData]);
+
   const createSaleMutation = useMutation({
     mutationFn: async (data: {
       customerName: string;
       customerPhone: string;
-      items: { sareeId: string; quantity: number; price: string }[];
-      saleType: "walk_in" | "reserved";
+      items: { sareeId: string; quantity: number; unitPrice: number; lineAmount: number }[];
+      total: number;
+      tax: number;
+      discount?: Discount;
+      paymentMode: "cash" | "card" | "upi";
     }) => {
-      const response = await apiRequest("POST", "/api/store/sales", data);
+      const response = await apiRequest("POST", "/api/store/checkout", data);
       return response.json();
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/store/stats"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/store/sales"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/store/products"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/store/inventory"] });
-      toast({ title: "Success", description: "Sale completed successfully" });
+    onSuccess: (data) => {
+      toast({
+        title: "Sale completed",
+        description: `Order #${data.orderId} completed successfully`
+      });
+      // Clear local cart
       setCart([]);
       setCustomerName("");
       setCustomerPhone("");
       setSaleType("walk_in");
+      setPaymentMode("cash");
+      setDiscount(null);
+      setCouponCode("");
+      
+      // Clear persistent cart
+      updateCartMutation.mutate([]);
+      
+      // Open receipt in new window
+      if (data.receiptUrl) {
+        window.open(data.receiptUrl, "_blank");
+      }
     },
     onError: () => {
       toast({
@@ -104,16 +209,17 @@ export default function StoreSale() {
       });
       return;
     }
+    
     const existing = cart.find((item) => item.sareeId === product.saree.id);
+    
     if (existing) {
       if (existing.quantity < product.storeStock) {
-        setCart(
-          cart.map((item) =>
-            item.sareeId === product.saree.id
-              ? { ...item, quantity: item.quantity + 1 }
-              : item
-          )
-        );
+        // Use the add to cart mutation to increment quantity
+        addToCartMutation.mutate({
+          sareeId: product.saree.id,
+          quantity: 1,
+          unitPrice: parseFloat(product.saree.price),
+        });
       } else {
         toast({
           title: "Limit reached",
@@ -121,39 +227,42 @@ export default function StoreSale() {
         });
       }
     } else {
-      setCart([
-        ...cart,
-        {
-          sareeId: product.saree.id,
-          saree: product.saree,
-          quantity: 1,
-          price: product.saree.price,
-          maxQuantity: product.storeStock,
-        },
-      ]);
+      // Add new item to cart
+      addToCartMutation.mutate({
+        sareeId: product.saree.id,
+        quantity: 1,
+        unitPrice: parseFloat(product.saree.price),
+      });
     }
   };
 
   const updateQuantity = (sareeId: string, delta: number) => {
-    setCart(
-      cart.map((item) => {
-        if (item.sareeId !== sareeId) return item;
-        const newQty = item.quantity + delta;
-        if (newQty < 1) return item;
-        if (newQty > item.maxQuantity) {
-          toast({
-            title: "Limit reached",
-            description: "Cannot exceed available stock",
-          });
-          return item;
-        }
-        return { ...item, quantity: newQty };
-      })
-    );
+    const updatedCart = cart.map((item) => {
+      if (item.sareeId !== sareeId) return item;
+      const newQty = item.quantity + delta;
+      if (newQty < 1) return item;
+      if (newQty > item.maxQuantity) {
+        toast({
+          title: "Limit reached",
+          description: "Cannot exceed available stock",
+        });
+        return item;
+      }
+      return { ...item, quantity: newQty };
+    });
+    setCart(updatedCart);
+    updateCartMutation.mutate(updatedCart);
   };
 
   const removeFromCart = (sareeId: string) => {
-    setCart(cart.filter((item) => item.sareeId !== sareeId));
+    const updatedCart = cart.filter((item) => item.sareeId !== sareeId);
+    setCart(updatedCart);
+    updateCartMutation.mutate(updatedCart);
+    
+    toast({
+      title: "Removed from cart",
+      description: "Item removed from cart",
+    });
   };
 
   const cartTotal = cart.reduce((sum, item) => {
@@ -161,6 +270,17 @@ export default function StoreSale() {
       typeof item.price === "string" ? parseFloat(item.price) : item.price;
     return sum + price * item.quantity;
   }, 0);
+
+  // Calculate final total with discounts and taxes
+  const subtotal = cartTotal;
+  const discountAmount = discount
+    ? discount.type === "percentage"
+      ? (discount.value / 100) * subtotal
+      : discount.value
+    : 0;
+  const discountedSubtotal = subtotal - discountAmount;
+  const taxAmount = taxRules.reduce((sum, tax) => sum + (tax.rate / 100) * discountedSubtotal, 0);
+  const finalTotal = discountedSubtotal + taxAmount;
 
   const handleCompleteSale = () => {
     if (cart.length === 0) {
@@ -171,15 +291,35 @@ export default function StoreSale() {
       return;
     }
 
+    // Calculate totals
+    const subtotal = cart.reduce((sum, item) => {
+      const price = typeof item.price === "string" ? parseFloat(item.price) : item.price;
+      return sum + price * item.quantity;
+    }, 0);
+
+    const discountAmount = discount
+      ? discount.type === "percentage"
+        ? (discount.value / 100) * subtotal
+        : discount.value
+      : 0;
+
+    const discountedSubtotal = subtotal - discountAmount;
+    const taxAmount = taxRules.reduce((sum, tax) => sum + (tax.rate / 100) * discountedSubtotal, 0);
+    const totalAmount = discountedSubtotal + taxAmount;
+
     createSaleMutation.mutate({
       customerName,
       customerPhone,
-      saleType,
       items: cart.map((item) => ({
         sareeId: item.sareeId,
         quantity: item.quantity,
-        price: item.price,
+        unitPrice: typeof item.price === "string" ? parseFloat(item.price) : item.price,
+        lineAmount: (typeof item.price === "string" ? parseFloat(item.price) : item.price) * item.quantity,
       })),
+      total: totalAmount,
+      tax: taxAmount,
+      discount: discount || undefined,
+      paymentMode,
     });
   };
 
@@ -199,8 +339,7 @@ export default function StoreSale() {
         <p className="text-muted-foreground">Process a new in-store sale</p>
       </div>
 
-      <div className="grid lg:grid-cols-2 gap-6">
-        {/* Product Selection */}
+      <div>
         <Card className="h-fit">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
@@ -229,38 +368,54 @@ export default function StoreSale() {
             ) : (
               <div className="space-y-2 max-h-[400px] overflow-y-auto">
                 {filteredProducts?.map((item) => {
-                  const inCart = cart.find((c) => c.sareeId === item.saree.id);
+                  const inCart = cart.some(c => c.sareeId === item.saree.id);
+                  const outOfStock = item.storeStock === 0;
+
                   return (
                     <div
                       key={item.saree.id}
-                      className="flex items-center justify-between p-3 rounded-lg border hover-elevate cursor-pointer"
-                      onClick={() => addToCart(item)}
+                      className={`flex items-center justify-between p-3 rounded-lg border transition
+          ${outOfStock ? "opacity-50 cursor-not-allowed" : "hover:shadow-sm"}`}
                       data-testid={`product-${item.saree.id}`}
                     >
                       <div className="flex items-center gap-3">
                         <img
-                          src={
-                            item.saree.imageUrl ||
-                            "https://images.unsplash.com/photo-1610030469983-98e550d6193c?w=50"
-                          }
-                          alt=""
+                          src={item.saree.imageUrl || "https://images.unsplash.com/photo-1610030469983-98e550d6193c?w=50"}
+                          alt={item.saree.name}
                           className="w-12 h-16 rounded object-cover"
                         />
+
                         <div>
                           <p className="font-medium text-sm line-clamp-1">
                             {item.saree.name}
                           </p>
-                          <p className="text-sm text-primary font-semibold">
+
+                          <p className="text-sm font-semibold text-primary">
                             {formatPrice(item.saree.price)}
                           </p>
-                          <Badge variant="secondary" className="text-xs">
-                            {item.storeStock} in stock
-                          </Badge>
+
+                          {outOfStock ? (
+                            <Badge variant="destructive" className="text-xs">
+                              Out of stock
+                            </Badge>
+                          ) : (
+                            <Badge variant="secondary" className="text-xs">
+                              {item.storeStock} in stock
+                            </Badge>
+                          )}
                         </div>
                       </div>
-                      <Button variant="ghost" size="icon">
+
+                      {/* Action */}
+                      <Button
+                        variant={inCart ? "secondary" : "ghost"}
+                        size="icon"
+                        disabled={outOfStock}
+                        aria-label={inCart ? "Added to cart" : "Add to cart"}
+                        onClick={() => addToCart(item)}
+                      >
                         {inCart ? (
-                          <Check className="h-4 w-4 text-green-500" />
+                          <Check className="h-4 w-4 text-green-600" />
                         ) : (
                           <Plus className="h-4 w-4" />
                         )}
@@ -268,161 +423,17 @@ export default function StoreSale() {
                     </div>
                   );
                 })}
+
                 {filteredProducts?.length === 0 && (
                   <p className="text-center text-muted-foreground py-4">
                     No products in stock
                   </p>
                 )}
               </div>
+
             )}
           </CardContent>
         </Card>
-
-        {/* Cart and Checkout */}
-        <div className="space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <ShoppingCart className="h-5 w-5" />
-                Cart ({cart.length} items)
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              {cart.length > 0 ? (
-                <div className="space-y-3 mb-4">
-                  {cart.map((item) => (
-                    <div
-                      key={item.sareeId}
-                      className="flex items-center gap-3 p-2 border rounded-lg"
-                    >
-                      <img
-                        src={
-                          item.saree.imageUrl ||
-                          "https://images.unsplash.com/photo-1610030469983-98e550d6193c?w=50"
-                        }
-                        alt=""
-                        className="w-12 h-16 rounded object-cover"
-                      />
-                      <div className="flex-1">
-                        <p className="font-medium text-sm line-clamp-1">
-                          {item.saree.name}
-                        </p>
-                        <p className="text-sm text-muted-foreground">
-                          {formatPrice(item.price)}
-                        </p>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <Button
-                          variant="outline"
-                          size="icon"
-                          className="h-8 w-8"
-                          onClick={() => updateQuantity(item.sareeId, -1)}
-                          data-testid={`button-decrease-${item.sareeId}`}
-                        >
-                          <Minus className="h-3 w-3" />
-                        </Button>
-                        <span className="w-8 text-center font-medium">
-                          {item.quantity}
-                        </span>
-                        <Button
-                          variant="outline"
-                          size="icon"
-                          className="h-8 w-8"
-                          onClick={() => updateQuantity(item.sareeId, 1)}
-                          data-testid={`button-increase-${item.sareeId}`}
-                        >
-                          <Plus className="h-3 w-3" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-8 w-8 text-destructive"
-                          onClick={() => removeFromCart(item.sareeId)}
-                          data-testid={`button-remove-${item.sareeId}`}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <p className="text-center text-muted-foreground py-6">
-                  No items in cart. Select products to add.
-                </p>
-              )}
-
-              {cart.length > 0 && (
-                <div className="flex justify-between items-center py-3 border-t font-bold">
-                  <span>Total</span>
-                  <span className="text-primary text-lg">
-                    {formatPrice(cartTotal)}
-                  </span>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-
-          {cart.length > 0 && (
-            <Card>
-              <CardHeader>
-                <CardTitle>Customer Details</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div>
-                  <Label htmlFor="saleType">Sale Type</Label>
-                  <Select
-                    value={saleType}
-                    onValueChange={(v: "walk_in" | "reserved") =>
-                      setSaleType(v)
-                    }
-                  >
-                    <SelectTrigger data-testid="select-sale-type">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="walk_in">Walk-in Customer</SelectItem>
-                      <SelectItem value="reserved">
-                        Reserved / Pre-ordered
-                      </SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div>
-                  <Label htmlFor="customerName">Customer Name (Optional)</Label>
-                  <Input
-                    id="customerName"
-                    value={customerName}
-                    onChange={(e) => setCustomerName(e.target.value)}
-                    placeholder="Enter customer name"
-                    data-testid="input-customer-name"
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="customerPhone">Phone Number (Optional)</Label>
-                  <Input
-                    id="customerPhone"
-                    value={customerPhone}
-                    onChange={(e) => setCustomerPhone(e.target.value)}
-                    placeholder="+91 XXXXX XXXXX"
-                    data-testid="input-customer-phone"
-                  />
-                </div>
-                <Button
-                  className="w-full"
-                  size="lg"
-                  onClick={handleCompleteSale}
-                  disabled={createSaleMutation.isPending}
-                  data-testid="button-complete-sale"
-                >
-                  {createSaleMutation.isPending
-                    ? "Processing..."
-                    : `Complete Sale - ${formatPrice(cartTotal)}`}
-                </Button>
-              </CardContent>
-            </Card>
-          )}
-        </div>
       </div>
     </div>
   );

@@ -129,14 +129,14 @@ export default function StoreExchange() {
       customerName: string;
       customerPhone: string;
     }) => {
-      const response = await apiRequest("POST", "/api/store/exchanges", data);
+      const response = await apiRequest("POST", "/api/store/store-exchanges", data);
       return response.json();
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/store/sales"] });
       queryClient.invalidateQueries({ queryKey: ["/api/store/products"] });
       queryClient.invalidateQueries({ queryKey: ["/api/store/inventory"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/store/exchanges"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/store/store-exchanges"] });
       toast({
         title: "Success",
         description: "Exchange completed successfully",
@@ -347,13 +347,288 @@ export default function StoreExchange() {
       ? "due"
       : "even";
 
-  const handleCompleteExchange = () => {
+  // Validation function to check if exchange can be completed
+  const canCompleteExchange = () => {
+    // Basic requirements
+    if (!selectedSaleId || !saleData) return false;
+    if (returnItems.length === 0) return false;
+    if (createExchangeMutation.isPending) return false;
+
+    // Check if any return item has invalid quantity
+    for (const returnItem of returnItems) {
+      if (returnItem.quantity <= 0 || returnItem.quantity > returnItem.maxQuantity) {
+        return false;
+      }
+      if (parseFloat(returnItem.returnAmount) <= 0) {
+        return false;
+      }
+    }
+
+    // Check if new items have valid quantities and amounts
+    for (const newItem of newItems) {
+      if (newItem.quantity <= 0) return false;
+      if (parseFloat(newItem.lineAmount) <= 0) return false;
+      
+      // Check inventory availability
+      const inventory = products?.find(p => p.saree.id === newItem.sareeId);
+      if (!inventory || inventory.storeStock < newItem.quantity) {
+        return false;
+      }
+    }
+
+    // Check exchange period (7 days)
+    const saleDate = new Date(saleData.createdAt);
+    const currentDate = new Date();
+    const daysSinceSale = Math.floor((currentDate.getTime() - saleDate.getTime()) / (1000 * 60 * 60 * 24));
+    
+    if (daysSinceSale > 7) return false;
+
+    return true;
+  };
+
+  const validateExchange = () => {
     if (returnItems.length === 0) {
       toast({
         title: "No return items",
         description: "Select at least one item to return",
+        variant: "destructive",
+      });
+      return false;
+    }
+
+    for (const returnItem of returnItems) {
+      const saleItem = saleItems.find(item => item.id === returnItem.saleItemId);
+      if (!saleItem) {
+        toast({
+          title: "Invalid item",
+          description: "This item does not belong to the original order",
+          variant: "destructive",
+        });
+        return false;
+      }
+
+      const saleDate = new Date(saleData?.createdAt || "");
+      const currentDate = new Date();
+      const daysSinceSale = Math.floor((currentDate.getTime() - saleDate.getTime()) / (1000 * 60 * 60 * 24));
+      
+      if (daysSinceSale > 7) {
+        toast({
+          title: "Exchange period expired",
+          description: "Items can only be exchanged within 7 days of purchase",
+          variant: "destructive",
+        });
+        return false;
+      }
+
+      if (returnItem.quantity > returnItem.maxQuantity) {
+        toast({
+          title: "Invalid quantity",
+          description: `Cannot return more than ${returnItem.maxQuantity} items for ${returnItem.saree.name}`,
+          variant: "destructive",
+        });
+        return false;
+      }
+
+      const returnAmount = parseFloat(returnItem.returnAmount);
+      if (returnAmount <= 0 || isNaN(returnAmount)) {
+        toast({
+          title: "Invalid return amount",
+          description: "Return amount must be greater than 0",
+          variant: "destructive",
+        });
+        return false;
+      }
+    }
+
+    const totalReturnAmount = returnItems.reduce((sum, item) => sum + parseFloat(item.returnAmount), 0);
+    const totalNewAmount = newItems.reduce((sum, item) => sum + parseFloat(item.lineAmount), 0);
+
+    if (totalReturnAmount <= 0) {
+      toast({
+        title: "Invalid exchange",
+        description: "Zero-value exchanges are not allowed",
+        variant: "destructive",
+      });
+      return false;
+    }
+
+    // New Items are truly optional - only validate if present
+    if (newItems.length > 0) {
+      for (const newItem of newItems) {
+        const inventory = products?.find(p => p.saree.id === newItem.sareeId);
+        if (!inventory || inventory.storeStock < newItem.quantity) {
+          toast({
+            title: "Insufficient stock",
+            description: `Only ${inventory?.storeStock || 0} units available for ${newItem.saree.name}`,
+            variant: "destructive",
+          });
+          return false;
+        }
+
+        const newAmount = parseFloat(newItem.lineAmount);
+        if (newAmount <= 0 || isNaN(newAmount)) {
+          toast({
+            title: "Invalid new item amount",
+            description: "New item amount must be greater than 0",
+            variant: "destructive",
+          });
+          return false;
+        }
+      }
+    }
+
+    // Exchange Amount Validation with Mandatory New Items
+    if (totalNewAmount > totalReturnAmount) {
+      // Customer pays extra for higher value items
+      const difference = totalNewAmount - totalReturnAmount;
+      toast({
+        title: "Payment Required",
+        description: `Exchange items value (${formatPrice(totalNewAmount)}) > Returned items value (${formatPrice(totalReturnAmount)}). Customer must pay ${formatPrice(difference)}`,
+      });
+    } else if (totalNewAmount < totalReturnAmount) {
+      // NO REFUND POLICY: Customer gets better value but no cash refund
+      const difference = totalReturnAmount - totalNewAmount;
+      toast({
+        title: "No Refund Policy",
+        description: `Returned items value (${formatPrice(totalReturnAmount)}) > Exchange items value (${formatPrice(totalNewAmount)}). No refund for ${formatPrice(difference)} difference`,
+        variant: "default",
+      });
+    } else {
+      // Even exchange
+      toast({
+        title: "Even Exchange",
+        description: `Equal value exchange: ${formatPrice(totalReturnAmount)}`,
+      });
+    }
+
+    return true;
+  };
+
+  const handleCompleteExchange = () => {
+
+    if (!selectedSaleId || !saleData) {
+      toast({
+        title: "No Sale Selected",
+        description: "Please select a valid sale to process exchange",
+        variant: "destructive",
       });
       return;
+    }
+
+    if (returnItems.length === 0) {
+      toast({
+        title: "No Return Items",
+        description: "Please select at least one item to return",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (newItems.length === 0) {
+      toast({
+        title: "Exchange Items Required",
+        description: "Please select at least one new item for exchange",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (createExchangeMutation.isPending) {
+      toast({
+        title: "Processing",
+        description: "Exchange is already being processed",
+        variant: "default",
+      });
+      return;
+    }
+
+    for (const returnItem of returnItems) {
+      if (returnItem.quantity <= 0 || returnItem.quantity > returnItem.maxQuantity) {
+        toast({
+          title: "Invalid Quantity",
+          description: `Invalid quantity for ${returnItem.saree.name}. Max: ${returnItem.maxQuantity}`,
+          variant: "destructive",
+        });
+        return;
+      }
+      if (parseFloat(returnItem.returnAmount) <= 0) {
+        toast({
+          title: "Invalid Amount",
+          description: `Invalid return amount for ${returnItem.saree.name}`,
+          variant: "destructive",
+        });
+        return;
+      }
+    }
+
+    for (const newItem of newItems) {
+      if (newItem.quantity <= 0) {
+        toast({
+          title: "Invalid Quantity",
+          description: `Invalid quantity for new item`,
+          variant: "destructive",
+        });
+        return;
+      }
+      if (parseFloat(newItem.lineAmount) <= 0) {
+        toast({
+          title: "Invalid Amount",
+          description: `Invalid amount for new item`,
+          variant: "destructive",
+        });
+        return;
+      }
+      
+      const inventory = products?.find(p => p.saree.id === newItem.sareeId);
+      if (!inventory || inventory.storeStock < newItem.quantity) {
+        toast({
+          title: "Insufficient Stock",
+          description: `Only ${inventory?.storeStock || 0} units available for ${newItem.saree.name}`,
+          variant: "destructive",
+        });
+        return;
+      }
+    }
+
+    const saleDate = new Date(saleData.createdAt);
+    const currentDate = new Date();
+    const daysSinceSale = Math.floor((currentDate.getTime() - saleDate.getTime()) / (1000 * 60 * 60 * 24));
+    
+    if (daysSinceSale > 7) {
+      toast({
+        title: "Exchange Period Expired",
+        description: "Items can only be exchanged within 7 days of purchase",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const totalReturnAmount = returnItems.reduce((sum, item) => sum + parseFloat(item.returnAmount), 0);
+    const totalNewAmount = newItems.reduce((sum, item) => sum + parseFloat(item.lineAmount), 0);
+
+    // Block unfavorable exchanges where returned value is significantly higher than new items
+    if (totalReturnAmount > totalNewAmount) {
+      const difference = totalReturnAmount - totalNewAmount;
+      toast({
+        title: "Unfavorable Exchange Blocked",
+        description: `Returned items value (${formatPrice(totalReturnAmount)}) > Exchange items value (${formatPrice(totalNewAmount)}). This exchange would result in a loss of ${formatPrice(difference)} for the store.`,
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Show exchange amount summary for valid exchanges
+    if (totalNewAmount > totalReturnAmount) {
+      const difference = totalNewAmount - totalReturnAmount;
+      toast({
+        title: "Payment Required",
+        description: `Exchange items value (${formatPrice(totalNewAmount)}) > Returned items value (${formatPrice(totalReturnAmount)}). Customer must pay ${formatPrice(difference)}`,
+      });
+    } else {
+      toast({
+        title: "Even Exchange",
+        description: `Equal value exchange: ${formatPrice(totalReturnAmount)}`,
+      });
     }
 
     createExchangeMutation.mutate({
@@ -618,7 +893,7 @@ export default function StoreExchange() {
                     size="sm"
                     onClick={() => setShowNewItemsSection(!showNewItemsSection)}
                   >
-                    {showNewItemsSection ? "Hide" : "Add Items"}
+                     Add Items
                   </Button>
                 </div>
               </CardHeader>
@@ -856,9 +1131,7 @@ export default function StoreExchange() {
                   className="w-full"
                   size="lg"
                   onClick={handleCompleteExchange}
-                  disabled={
-                    createExchangeMutation.isPending || returnItems.length === 0
-                  }
+                  disabled={createExchangeMutation.isPending}
                   data-testid="button-complete-exchange"
                 >
                   {createExchangeMutation.isPending

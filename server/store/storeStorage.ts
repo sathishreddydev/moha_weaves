@@ -27,6 +27,11 @@ import {
   StoreInventory,
   sales,
   saleProducts,
+  storeCart,
+  StoreCartItem,
+  coupons,
+  Coupon,
+  couponUsage,
 } from "@shared/schema";
 import { and, desc, eq, gte, ilike, lte, sql } from "drizzle-orm";
 import { db } from "server/db";
@@ -42,8 +47,23 @@ export interface StoreStorage {
   ): Promise<Store | undefined>;
 
   createStoreSale(
-    sale: InsertStoreSale,
-    items: InsertStoreSaleItem[]
+    storeId: string,
+    processedBy: string,
+    data: {
+      customerName: string;
+      customerPhone: string;
+      items: Array<{
+        sareeId: string;
+        quantity: number;
+        unitPrice: number;
+        lineAmount: number;
+      }>;
+      discountAmount: number;
+      taxAmount: number;
+      totalAmount: number;
+      paymentMode: string;
+      discountCode?: string;
+    }
   ): Promise<StoreSale>;
   // Store Exchanges
   getStoreSaleForExchange(
@@ -58,6 +78,30 @@ export interface StoreStorage {
     exchange: InsertStoreExchange,
     returnItems: Omit<InsertStoreExchangeReturnItem, "exchangeId">[],
     newItems: Omit<InsertStoreExchangeNewItem, "exchangeId">[]
+  ): Promise<StoreExchange>;
+  createStoreExchangeWithValidation(
+    storeId: string,
+    processedBy: string,
+    data: {
+      originalSaleId: string;
+      returnItems: {
+        saleItemId: string;
+        sareeId: string;
+        quantity: number;
+        unitPrice: string;
+        returnAmount: string;
+      }[];
+      newItems?: {
+        sareeId: string;
+        quantity: number;
+        unitPrice: string;
+        lineAmount: string;
+      }[];
+      reason?: string;
+      notes?: string;
+      customerName?: string;
+      customerPhone?: string;
+    }
   ): Promise<StoreExchange>;
   getShopAvailableProducts(
     storeId: string
@@ -82,6 +126,15 @@ export interface StoreStorage {
   getStoreInventory(
     storeId: string
   ): Promise<(StoreInventory & { saree: SareeWithDetails })[]>;
+  getStoreInventoryItem(
+    storeId: string,
+    sareeId: string
+  ): Promise<StoreInventory | undefined>;
+  getStoreCart(storeId: string): Promise<{ items: any[] }>;
+  updateStoreCart(storeId: string, items: any[]): Promise<{ items: any[] }>;
+  applyCoupon(storeId: string, code: string): Promise<any>;
+  updateCouponUsage(couponId: string, userId: string, orderId: string, discountAmount: string): Promise<void>;
+  generateReceipt(storeId: string, orderId: string): Promise<any>;
 }
 export class StoreRepository implements StoreStorage {
   async getStores(): Promise<Store[]> {
@@ -111,13 +164,43 @@ export class StoreRepository implements StoreStorage {
   }
 
   async createStoreSale(
-    sale: InsertStoreSale,
-    items: InsertStoreSaleItem[]
+    storeId: string,
+    processedBy: string,
+    data: {
+      customerName: string;
+      customerPhone: string;
+      items: Array<{
+        sareeId: string;
+        quantity: number;
+        unitPrice: number;
+        lineAmount: number;
+      }>;
+      discountAmount: number;
+      taxAmount: number;
+      totalAmount: number;
+      paymentMode: string;
+      discountCode?: string;
+    }
   ): Promise<StoreSale> {
-    const [newSale] = await db.insert(storeSales).values(sale).returning();
+    const [newSale] = await db.insert(storeSales).values({
+      storeId,
+      soldBy: processedBy,
+      customerName: data.customerName,
+      customerPhone: data.customerPhone,
+      totalAmount: data.totalAmount.toString(),
+      discountAmount: data.discountAmount.toString(),
+      taxAmount: data.taxAmount.toString(),
+      paymentMode: data.paymentMode,
+      saleType: "walk_in",
+    }).returning();
 
-    for (const item of items) {
-      await db.insert(storeSaleItems).values({ ...item, saleId: newSale.id });
+    for (const item of data.items) {
+      await db.insert(storeSaleItems).values({
+        saleId: newSale.id,
+        sareeId: item.sareeId,
+        quantity: item.quantity,
+        price: item.unitPrice.toString(),
+      });
 
       // Deduct from store inventory
       await db
@@ -125,7 +208,7 @@ export class StoreRepository implements StoreStorage {
         .set({ quantity: sql`${storeInventory.quantity} - ${item.quantity}` })
         .where(
           and(
-            eq(storeInventory.storeId, sale.storeId),
+            eq(storeInventory.storeId, storeId),
             eq(storeInventory.sareeId, item.sareeId)
           )
         );
@@ -143,7 +226,7 @@ export class StoreRepository implements StoreStorage {
         movementType: "sale",
         source: "store",
         orderRefId: newSale.id,
-        storeId: sale.storeId,
+        storeId,
       });
     }
 
@@ -367,6 +450,146 @@ export class StoreRepository implements StoreStorage {
       return createdExchange;
     });
   }
+
+  async createStoreExchangeWithValidation(
+    storeId: string,
+    processedBy: string,
+    data: {
+      originalSaleId: string;
+      returnItems: {
+        saleItemId: string;
+        sareeId: string;
+        quantity: number;
+        unitPrice: string;
+        returnAmount: string;
+      }[];
+      newItems?: {
+        sareeId: string;
+        quantity: number;
+        unitPrice: string;
+        lineAmount: string;
+      }[];
+      reason?: string;
+      notes?: string;
+      customerName?: string;
+      customerPhone?: string;
+    }
+  ): Promise<StoreExchange> {
+    // Validate required fields
+    if (!data.originalSaleId || !data.returnItems || data.returnItems.length === 0) {
+      throw new Error("Original sale ID and at least one return item are required");
+    }
+
+    // Verify original sale exists and belongs to this store
+    const originalSale = await this.getStoreSaleForExchange(data.originalSaleId);
+    if (!originalSale) {
+      throw new Error("Original sale not found");
+    }
+    if (originalSale.storeId !== storeId) {
+      throw new Error("Sale belongs to different store");
+    }
+
+    // Check exchange eligibility (within 7 days)
+    const saleDate = new Date(originalSale.createdAt);
+    const currentDate = new Date();
+    const daysSinceSale = Math.floor((currentDate.getTime() - saleDate.getTime()) / (1000 * 60 * 60 * 24));
+    
+    if (daysSinceSale > 7) {
+      throw new Error("Items can only be exchanged within 7 days of purchase");
+    }
+
+    // Validate return items
+    for (const returnItem of data.returnItems) {
+      if (!returnItem.saleItemId || !returnItem.sareeId || !returnItem.quantity || !returnItem.unitPrice || !returnItem.returnAmount) {
+        throw new Error("Invalid return item data");
+      }
+
+      // Check if sale item exists and has sufficient quantity
+      const saleItem = originalSale.items.find(item => item.id === returnItem.saleItemId);
+      if (!saleItem) {
+        throw new Error(`Sale item ${returnItem.saleItemId} not found`);
+      }
+
+      const availableQuantity = saleItem.quantity - (saleItem.returnedQuantity || 0);
+      if (returnItem.quantity > availableQuantity) {
+        throw new Error(`Cannot return more than available quantity for item ${returnItem.saleItemId}`);
+      }
+
+      // Validate return amount
+      const returnAmount = parseFloat(returnItem.returnAmount);
+      if (returnAmount <= 0 || isNaN(returnAmount)) {
+        throw new Error("Return amount must be greater than 0");
+      }
+    }
+
+    // Validate new items and check store inventory
+    if (data.newItems && data.newItems.length > 0) {
+      for (const newItem of data.newItems) {
+        if (!newItem.sareeId || !newItem.quantity || !newItem.unitPrice || !newItem.lineAmount) {
+          throw new Error("Invalid new item data");
+        }
+
+        // Check store inventory
+        const inventory = await this.getStoreInventoryItem(storeId, newItem.sareeId);
+        if (!inventory || inventory.quantity < newItem.quantity) {
+          throw new Error(`Insufficient stock for item ${newItem.sareeId}`);
+        }
+
+        // Validate new item amount
+        const newAmount = parseFloat(newItem.lineAmount);
+        if (newAmount <= 0 || isNaN(newAmount)) {
+          throw new Error("New item amount must be greater than 0");
+        }
+      }
+    }
+
+    // Calculate totals
+    const returnAmount = data.returnItems.reduce((sum: number, item: any) => {
+      return sum + (parseFloat(item.returnAmount) || (parseFloat(item.unitPrice) * item.quantity));
+    }, 0);
+
+    const newItemsAmount = data.newItems ? data.newItems.reduce((sum: number, item: any) => {
+      return sum + (parseFloat(item.lineAmount) || (parseFloat(item.unitPrice) * item.quantity));
+    }, 0) : 0;
+
+    // Mandatory amount checks
+    if (returnAmount <= 0) {
+      throw new Error("Zero-value exchanges are not allowed");
+    }
+
+    // Block unfavorable exchanges where returned value is higher than new items
+    if (returnAmount > newItemsAmount) {
+      throw new Error(`Unfavorable exchange: Returned items value (${returnAmount}) > Exchange items value (${newItemsAmount}). This would result in a loss of ${returnAmount - newItemsAmount} for the store.`);
+    }
+
+    // Balance calculation for valid exchanges only
+    const balanceAmount = Math.abs(returnAmount - newItemsAmount);
+    let balanceDirection: "refund_to_customer" | "due_from_customer" | "even";
+    
+    if (newItemsAmount > returnAmount) {
+      balanceDirection = "due_from_customer";
+    } else {
+      balanceDirection = "even";
+    }
+
+    return await this.createStoreExchange(
+      {
+        storeId,
+        originalSaleId: data.originalSaleId,
+        processedBy,
+        customerName: data.customerName,
+        customerPhone: data.customerPhone,
+        reason: data.reason,
+        notes: data.notes,
+        returnAmount: returnAmount.toString(),
+        newItemsAmount: newItemsAmount.toString(),
+        balanceAmount: balanceAmount.toString(),
+        balanceDirection,
+      },
+      data.returnItems,
+      data.newItems || []
+    );
+  }
   async getStoreExchanges(
     storeId: string,
     limit?: number
@@ -449,7 +672,6 @@ export class StoreRepository implements StoreStorage {
       .leftJoin(fabrics, eq(sarees.fabricId, fabrics.id))
       .where(eq(storeInventory.storeId, storeId));
 
-    // Fetch active sales
     const now = new Date();
     const activeSales = await db
       .select()
@@ -748,6 +970,137 @@ export class StoreRepository implements StoreStorage {
         )
       );
     return result || undefined;
+  }
+
+  // Cart functionality
+  async getStoreCart(storeId: string): Promise<{ items: any[] }> {
+    const cartItems = await db
+      .select()
+      .from(storeCart)
+      .innerJoin(sarees, eq(storeCart.sareeId, sarees.id))
+      .leftJoin(categories, eq(sarees.categoryId, categories.id))
+      .leftJoin(colors, eq(sarees.colorId, colors.id))
+      .leftJoin(fabrics, eq(sarees.fabricId, fabrics.id))
+      .where(eq(storeCart.storeId, storeId));
+
+    return {
+      items: cartItems.map((item) => ({
+        id: item.store_cart.id,
+        sareeId: item.store_cart.sareeId,
+        quantity: item.store_cart.quantity,
+        unitPrice: Number(item.store_cart.unitPrice),
+        lineAmount: Number(item.store_cart.lineAmount),
+        saree: {
+          id: item.sarees.id,
+          name: item.sarees.name,
+          code: item.sarees.sku || item.sarees.id,
+          image: item.sarees.imageUrl,
+          category: item.categories,
+          color: item.colors,
+          fabric: item.fabrics,
+        },
+      })),
+    };
+  }
+
+  async updateStoreCart(storeId: string, items: any[]): Promise<{ items: any[] }> {
+    return await db.transaction(async (tx) => {
+      // Clear existing cart items for this store
+      await tx.delete(storeCart).where(eq(storeCart.storeId, storeId));
+
+      // Insert new cart items
+      if (items.length > 0) {
+        const cartItemsToInsert = items.map((item) => ({
+          storeId,
+          sareeId: item.sareeId,
+          quantity: item.quantity,
+          unitPrice: item.unitPrice.toString(),
+          lineAmount: item.lineAmount.toString(),
+        }));
+
+        await tx.insert(storeCart).values(cartItemsToInsert);
+      }
+
+      // Return the updated cart
+      return await this.getStoreCart(storeId);
+    });
+  }
+
+  async applyCoupon(storeId: string, code: string): Promise<any> {
+    const now = new Date();
+    
+    // Find active coupon
+    const [coupon] = await db
+      .select()
+      .from(coupons)
+      .where(
+        and(
+          eq(coupons.code, code.toUpperCase()),
+          eq(coupons.isActive, true),
+          lte(coupons.validFrom || now, now),
+          gte(coupons.validUntil || now, now)
+        )
+      );
+
+    if (!coupon) {
+      throw new Error("Invalid or expired coupon code");
+    }
+
+    // Check usage limits
+    if (coupon.usageLimit) {
+      const [totalUsage] = await db
+        .select({ count: sql<number>`count(*)::int` })
+        .from(couponUsage)
+        .where(eq(couponUsage.couponId, coupon.id));
+
+      if (totalUsage && totalUsage.count >= coupon.usageLimit) {
+        throw new Error("Coupon usage limit exceeded");
+      }
+    }
+
+    return {
+      discount: {
+        type: coupon.type,
+        value: Number(coupon.value),
+        code: coupon.code,
+        description: coupon.name || coupon.code,
+        minOrderAmount: coupon.minOrderAmount ? Number(coupon.minOrderAmount) : null,
+        maxDiscount: coupon.maxDiscount ? Number(coupon.maxDiscount) : null,
+        couponId: coupon.id,
+      },
+    };
+  }
+
+  async updateCouponUsage(couponId: string, userId: string, orderId: string, discountAmount: string): Promise<void> {
+    await db.insert(couponUsage).values({
+      couponId,
+      userId,
+      orderId,
+      discountAmount,
+    });
+  }
+
+  async generateReceipt(storeId: string, orderId: string): Promise<any> {
+    // Generate receipt data - in a real implementation, this would create a printable receipt
+    const sales = await this.getStoreSales(storeId);
+    const sale = sales.find(s => s.id === orderId);
+    if (!sale) {
+      throw new Error("Sale not found");
+    }
+
+    return {
+      orderId: sale.id,
+      customerName: sale.customerName,
+      customerPhone: sale.customerPhone,
+      items: sale.items,
+      subtotal: sale.items.reduce((sum: number, item: any) => sum + item.lineAmount, 0),
+      discountAmount: (sale as any).discountAmount || 0,
+      taxAmount: (sale as any).taxAmount || 0,
+      totalAmount: sale.totalAmount,
+      paymentMode: (sale as any).paymentMode || "cash",
+      createdAt: sale.createdAt,
+      store: sale.store,
+    };
   }
 }
 

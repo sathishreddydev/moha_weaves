@@ -49,7 +49,6 @@ const AdminFabrics = lazy(() => import("@/pages/admin/Fabrics"));
 const AdminUsers = lazy(() => import("@/pages/admin/Users"));
 const AdminStaff = lazy(() => import("@/pages/admin/Staff"));
 const AdminStores = lazy(() => import("@/pages/admin/Stores"));
-const AdminOrders = lazy(() => import("@/pages/admin/Orders"));
 const AdminCoupons = lazy(() => import("@/pages/admin/Coupons"));
 const AdminSales = lazy(() => import("@/pages/admin/Sales"));
 const AdminReviews = lazy(() => import("@/pages/admin/Reviews"));
@@ -77,10 +76,12 @@ const InventoryStoreOrders = lazy(
 const StoreLogin = lazy(() => import("@/pages/store/Login"));
 const StoreDashboard = lazy(() => import("@/pages/store/Dashboard"));
 const StoreSale = lazy(() => import("@/pages/store/Sale"));
+const StoreCart = lazy(() => import("@/pages/store/Cart"));
 const StoreInventoryPage = lazy(() => import("@/pages/store/Inventory"));
 const StoreRequests = lazy(() => import("@/pages/store/Requests"));
 const StoreHistory = lazy(() => import("@/pages/store/History"));
 const StoreExchange = lazy(() => import("@/pages/store/Exchange"));
+const StoreExchangeHistory = lazy(() => import("@/pages/store/ExchangeHistory"));
 
 function LoadingFallback() {
   return (
@@ -157,8 +158,6 @@ function Router() {
                 <Route path="users" element={<AdminUsers />} />
                 <Route path="staff" element={<AdminStaff />} />
                 <Route path="stores" element={<AdminStores />} />
-                <Route path="orders" element={<AdminOrders />} />
-                <Route path="store-orders" element={<InventoryStoreOrders />} />
                 <Route path="coupons" element={<AdminCoupons />} />
                 <Route path="sales" element={<AdminSales />} />
                 <Route path="reviews" element={<AdminReviews />} />
@@ -214,11 +213,13 @@ function Router() {
 
                 <Route path="dashboard" element={<StoreDashboard />} />
                 <Route path="sale" element={<StoreSale />} />
+                <Route path="cart" element={<StoreCart />} />
                 <Route path="inventory" element={<StoreInventoryPage />} />
                 <Route path="requests" element={<StoreRequests />} />
                 <Route path="history" element={<StoreHistory />} />
                 <Route path="exchange" element={<StoreExchange />} />
                 <Route path="exchange/:saleId" element={<StoreExchange />} />
+                <Route path="exchanges" element={<StoreExchangeHistory />} />
               </Route>
             </Route>
           </Route>

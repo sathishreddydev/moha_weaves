@@ -237,15 +237,22 @@ export const storeRoutes = (app: Express) => {
 
       // Create the sale and deduct stock
       const sale = await storeService.createStoreSale(
+        user.storeId,
+        user.id,
         {
-          storeId: user.storeId,
-          soldBy: user.id,
           customerName,
           customerPhone,
-          saleType,
-          totalAmount: totalAmount.toString(),
-        },
-        items
+          items: items.map(item => ({
+            sareeId: item.sareeId,
+            quantity: item.quantity,
+            unitPrice: typeof item.price === "string" ? parseFloat(item.price) : item.price,
+            lineAmount: (typeof item.price === "string" ? parseFloat(item.price) : item.price) * item.quantity,
+          })),
+          discountAmount: 0,
+          taxAmount: 0,
+          totalAmount,
+          paymentMode: "cash",
+        }
       );
 
       res.json(sale);
@@ -276,8 +283,7 @@ export const storeRoutes = (app: Express) => {
     }
   });
 
-  // Get all exchanges for store
-  app.get("/api/store/exchanges", authStore, async (req, res) => {
+  app.get("/api/store/store-exchanges", authStore, async (req, res) => {
     try {
       const user = (req as any).user;
       if (!user.storeId) {
@@ -292,6 +298,45 @@ export const storeRoutes = (app: Express) => {
     } catch (error) {
       console.error("Error fetching exchanges:", error);
       res.status(500).json({ message: "Failed to fetch exchanges" });
+    }
+  });
+
+  app.post("/api/store/store-exchanges", authStore, async (req, res) => {
+    try {
+      const user = (req as any).user;
+      if (!user.storeId) {
+        return res.status(400).json({ message: "No store assigned" });
+      }
+
+      const {
+        originalSaleId,
+        returnItems,
+        newItems,
+        reason,
+        notes,
+        customerName,
+        customerPhone,
+      } = req.body;
+
+      const exchange = await storeService.createStoreExchangeWithValidation(
+        user.storeId,
+        user.id,
+        {
+          originalSaleId,
+          returnItems,
+          newItems,
+          reason,
+          notes,
+          customerName,
+          customerPhone,
+        }
+      );
+
+      res.status(201).json(exchange);
+    } catch (error) {
+      console.error("Error creating store exchange:", error);
+      const message = error instanceof Error ? error.message : "Failed to create exchange";
+      res.status(400).json({ message });
     }
   });
 };
