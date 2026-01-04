@@ -188,19 +188,27 @@ export const onlineExchangeRoutes = (app: Express) => {
 
   app.get("/api/inventory/online-exchanges", authInventory, async (req: Request, res: Response) => {
     try {
-      const { status, userId } = req.query;
+      const { status, userId, page, pageSize, search, dateFrom, dateTo } = req.query;
 
       const filters: any = {};
       if (typeof status === "string" && status.length > 0) filters.status = status;
       if (typeof userId === "string" && userId.length > 0) filters.userId = userId;
+      if (page && pageSize) {
+        filters.page = parseInt(page as string);
+        filters.pageSize = parseInt(pageSize as string);
+      }
+      if (typeof search === "string" && search.length > 0) filters.search = search;
+      if (typeof dateFrom === "string" && dateFrom.length > 0) filters.dateFrom = dateFrom;
+      if (typeof dateTo === "string" && dateTo.length > 0) filters.dateTo = dateTo;
 
-      const exchanges = await onlineExchangeStorage.getOnlineExchanges(filters);
-      res.json(exchanges);
+      const result = await onlineExchangeStorage.getOnlineExchanges(filters);
+      res.json(result);
     } catch (error) {
       console.error("Error fetching admin online exchanges:", error);
       res.status(500).json({ error: "Failed to fetch online exchanges" });
     }
   });
+
 
   app.get("/api/inventory/online-exchanges/:id", authInventory, async (req: Request, res: Response) => {
     try {
@@ -219,8 +227,7 @@ export const onlineExchangeRoutes = (app: Express) => {
     }
   });
 
-  // Admin: Update online exchange status
-  app.patch("/api/inventory/online-exchanges/:id/status", authInventory, async (req: Request, res: Response) => {
+  app.patch("/api/inventory/exchanges/:id/status", authInventory, async (req: Request, res: Response) => {
     try {
       const { id } = req.params;
       const processedBy = req.user?.id;
@@ -262,6 +269,33 @@ export const onlineExchangeRoutes = (app: Express) => {
     } catch (error) {
       console.error("Error updating online exchange status:", error);
       res.status(500).json({ error: "Failed to update online exchange status" });
+    }
+  });
+
+  // Add exchange statistics endpoint
+  app.get("/api/inventory/exchanges/stats", authInventory, async (req: Request, res: Response) => {
+    try {
+      const allExchanges = await onlineExchangeStorage.getOnlineExchanges();
+      
+      // Handle both array and paginated response types
+      const exchangesArray = Array.isArray(allExchanges) ? allExchanges : allExchanges.data || [];
+
+      const stats = {
+        total: exchangesArray.length,
+        ...onlineExchangeStatusEnum.enumValues.reduce((acc, status) => {
+          acc[status] = exchangesArray.filter((r: any) => r.status === status).length;
+          return acc;
+        }, {} as Record<string, number>),
+        byReason: exchangesArray.reduce((acc: any, r: any) => {
+          acc[r.reason] = (acc[r.reason] || 0) + 1;
+          return acc;
+        }, {} as Record<string, number>),
+      };
+
+      res.json(stats);
+    } catch (error) {
+      console.error("Error fetching exchange stats:", error);
+      res.status(500).json({ message: "Failed to fetch exchange statistics" });
     }
   });
 };

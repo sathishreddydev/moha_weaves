@@ -41,7 +41,18 @@ export interface IOnlineExchangeStorage {
   getOnlineExchanges(filters?: {
     userId?: string;
     status?: string;
-  }): Promise<OnlineExchangeWithDetails[]>;
+    page?: number;
+    pageSize?: number;
+    search?: string;
+    dateFrom?: string;
+    dateTo?: string;
+  }): Promise<OnlineExchangeWithDetails[] | {
+    data: OnlineExchangeWithDetails[];
+    total: number;
+    page: number;
+    pageSize: number;
+    totalPages: number;
+  }>;
   getOnlineExchange(id: string): Promise<OnlineExchangeWithDetails | undefined>;
   createOnlineExchange(
     exchange: InsertOnlineExchange,
@@ -80,7 +91,18 @@ export class OnlineExchangeStorage implements IOnlineExchangeStorage {
   async getOnlineExchanges(filters?: {
     userId?: string;
     status?: string;
-  }): Promise<OnlineExchangeWithDetails[]> {
+    page?: number;
+    pageSize?: number;
+    search?: string;
+    dateFrom?: string;
+    dateTo?: string;
+  }): Promise<OnlineExchangeWithDetails[] | {
+    data: OnlineExchangeWithDetails[];
+    total: number;
+    page: number;
+    pageSize: number;
+    totalPages: number;
+  }> {
     const conditions: any[] = [];
     if (filters?.userId)
       conditions.push(eq(onlineExchanges.userId, filters.userId));
@@ -130,7 +152,44 @@ export class OnlineExchangeStorage implements IOnlineExchangeStorage {
         });
       }
     }
-    return result;
+
+    // Apply search filter if provided
+    let filteredExchanges = result;
+    if (filters?.search) {
+      const searchTerm = filters.search.toLowerCase();
+      filteredExchanges = result.filter(exchange => 
+        exchange.id.toLowerCase().includes(searchTerm) ||
+        exchange.orderId.toLowerCase().includes(searchTerm) ||
+        (exchange.user?.name && exchange.user.name.toLowerCase().includes(searchTerm)) ||
+        (exchange.user?.email && exchange.user.email.toLowerCase().includes(searchTerm))
+      );
+    }
+
+    // Apply date filters if provided
+    if (filters?.dateFrom || filters?.dateTo) {
+      filteredExchanges = filteredExchanges.filter(exchange => {
+        const createdAt = new Date(exchange.createdAt);
+        if (filters.dateFrom && createdAt < new Date(filters.dateFrom)) return false;
+        if (filters.dateTo && createdAt > new Date(filters.dateTo)) return false;
+        return true;
+      });
+    }
+
+    // Return paginated response if page and pageSize are provided
+    if (filters?.page && filters?.pageSize) {
+      const offset = (filters.page - 1) * filters.pageSize;
+      const paginatedExchanges = filteredExchanges.slice(offset, offset + filters.pageSize);
+      
+      return {
+        data: paginatedExchanges,
+        total: filteredExchanges.length,
+        page: filters.page,
+        pageSize: filters.pageSize,
+        totalPages: Math.ceil(filteredExchanges.length / filters.pageSize)
+      };
+    }
+
+    return filteredExchanges;
   }
 
   async getOnlineExchange(
@@ -327,7 +386,8 @@ export class OnlineExchangeStorage implements IOnlineExchangeStorage {
   async getUserOnlineExchanges(
     userId: string
   ): Promise<OnlineExchangeWithDetails[]> {
-    return this.getOnlineExchanges({ userId });
+    const result = await this.getOnlineExchanges({ userId });
+    return Array.isArray(result) ? result : result.data || [];
   }
 
   async checkOrderOnlineExchangeEligibility(
