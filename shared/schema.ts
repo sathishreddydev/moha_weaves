@@ -391,7 +391,7 @@ export const orderItems = pgTable("order_items", {
 export const storeSales = pgTable("store_sales", {
   id: varchar("id")
     .primaryKey()
-    .default(sql`gen_random_uuid()`),
+    .notNull(),
   storeId: varchar("store_id")
     .references(() => stores.id)
     .notNull(),

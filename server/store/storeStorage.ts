@@ -137,6 +137,28 @@ export interface StoreStorage {
   generateReceipt(storeId: string, orderId: string): Promise<any>;
 }
 export class StoreRepository implements StoreStorage {
+  async generateStoreSaleId(storeId: string): Promise<string> {
+    const store = await this.getStore(storeId);
+    if (!store) {
+      throw new Error("Store not found");
+    }
+
+    const cleanStoreName = store.name
+      .replace(/[^a-zA-Z0-9]/g, '')
+      .toLowerCase();
+
+    // Get the count of existing sales for this store to determine the next number
+    const existingSalesCount = await db
+      .select({ count: sql<number>`count(*)::int` })
+      .from(storeSales)
+      .where(eq(storeSales.storeId, storeId));
+
+    const nextNumber = (existingSalesCount[0]?.count || 0) + 1;
+
+    // Format: MOHA + store name + sequential number (padded to 2 digits)
+    return `MOHA${cleanStoreName}${nextNumber.toString().padStart(2, '0')}`;
+  }
+
   async getStores(): Promise<Store[]> {
     return db.select().from(stores).where(eq(stores.isActive, true));
   }
@@ -182,7 +204,11 @@ export class StoreRepository implements StoreStorage {
       discountCode?: string;
     }
   ): Promise<StoreSale> {
+    // Generate custom sale ID
+    const saleId = await this.generateStoreSaleId(storeId);
+
     const [newSale] = await db.insert(storeSales).values({
+      id: saleId,
       storeId,
       soldBy: processedBy,
       customerName: data.customerName,
