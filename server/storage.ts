@@ -147,7 +147,7 @@ export interface IStorage {
     status: string,
     approvedBy?: string
   ): Promise<StockRequest | undefined>;
- 
+
   getStoreStats(storeId: string): Promise<{
     todaySales: number;
     todayRevenue: number;
@@ -374,6 +374,7 @@ export class DatabaseStorage implements IStorage {
     const orderList = await db
       .select()
       .from(orders)
+      .innerJoin(users, eq(orders.userId, users.id))
       .where(whereClause)
       .orderBy(desc(orders.createdAt))
       .limit(pageSize)
@@ -382,6 +383,8 @@ export class DatabaseStorage implements IStorage {
     const result: OrderWithItems[] = [];
 
     for (const order of orderList) {
+      const customerName = order.users.name;
+
       const items = await db
         .select()
         .from(orderItems)
@@ -389,10 +392,11 @@ export class DatabaseStorage implements IStorage {
         .leftJoin(categories, eq(sarees.categoryId, categories.id))
         .leftJoin(colors, eq(sarees.colorId, colors.id))
         .leftJoin(fabrics, eq(sarees.fabricId, fabrics.id))
-        .where(eq(orderItems.orderId, order.id));
+        .where(eq(orderItems.orderId, order.orders.id));
 
       result.push({
-        ...order,
+        ...order.orders,        customerName,
+
         items: items.map((row) => ({
           ...row.order_items,
           saree: {
@@ -1629,12 +1633,12 @@ export class DatabaseStorage implements IStorage {
           fabric: row.fabrics,
           activeSale: applicableSale
             ? {
-                id: applicableSale.id,
-                name: applicableSale.name,
-                offerType: applicableSale.offerType,
-                discountValue: applicableSale.discountValue,
-                maxDiscount: applicableSale.maxDiscount || undefined,
-              }
+              id: applicableSale.id,
+              name: applicableSale.name,
+              offerType: applicableSale.offerType,
+              discountValue: applicableSale.discountValue,
+              maxDiscount: applicableSale.maxDiscount || undefined,
+            }
             : null,
           discountedPrice: applicableSale ? discountedPrice : undefined,
         },

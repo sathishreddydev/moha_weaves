@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
+import React from "react";
 import {
   ColumnDef,
   flexRender,
@@ -39,6 +40,8 @@ import {
   ChevronRight,
   ChevronsLeft,
   ChevronsRight,
+  ChevronUp,
+  ChevronDown,
   Search,
   Calendar as CalendarIcon,
   X,
@@ -79,6 +82,12 @@ export interface DataTableProps<TData, TValue> {
   filters?: FilterConfig[];
   dateFilter?: DateFilterConfig;
   emptyMessage?: string;
+  // Accordion props
+  accordion?: boolean;
+  accordionContent?: (row: TData) => React.ReactNode;
+  accordionPosition?: 'below' | 'inline';
+  defaultExpandedRows?: string[];
+  onRowExpand?: (rowId: string, isExpanded: boolean) => void;
 }
 
 export function DataTable<TData, TValue>({
@@ -96,6 +105,11 @@ export function DataTable<TData, TValue>({
   filters = [],
   dateFilter,
   emptyMessage = "No results found.",
+  accordion = false,
+  accordionContent,
+  accordionPosition = 'below',
+  defaultExpandedRows = [],
+  onRowExpand,
 }: DataTableProps<TData, TValue>) {
   const [sorting, setSorting] = useState<SortingState>([]);
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
@@ -104,6 +118,7 @@ export function DataTable<TData, TValue>({
   const [activeFilters, setActiveFilters] = useState<Record<string, string>>({});
   const [dateRange, setDateRange] = useState<DateRange | undefined>();
   const [searchTimeout, setSearchTimeout] = useState<NodeJS.Timeout | null>(null);
+  const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set(defaultExpandedRows));
 
   const pageCount = Math.ceil(totalCount / pageSize);
 
@@ -181,6 +196,17 @@ export function DataTable<TData, TValue>({
     onFiltersChange?.({});
     onDateFilterChange?.(null);
   }, [onSearchChange, onFiltersChange, onDateFilterChange]);
+
+  const toggleRowExpansion = useCallback((rowId: string) => {
+    const newExpandedRows = new Set(expandedRows);
+    if (newExpandedRows.has(rowId)) {
+      newExpandedRows.delete(rowId);
+    } else {
+      newExpandedRows.add(rowId);
+    }
+    setExpandedRows(newExpandedRows);
+    onRowExpand?.(rowId, newExpandedRows.has(rowId));
+  }, [expandedRows, onRowExpand]);
 
   const hasActiveFilters =
     searchValue !== "" ||
@@ -366,21 +392,57 @@ export function DataTable<TData, TValue>({
                 </TableRow>
               ))
             ) : table.getRowModel().rows?.length ? (
-              table.getRowModel().rows.map((row) => (
-                <TableRow
-                  key={row.id}
-                  data-state={row.getIsSelected() && "selected"}
-                >
-                  {row.getVisibleCells().map((cell) => (
-                    <TableCell key={cell.id}>
-                      {flexRender(
-                        cell.column.columnDef.cell,
-                        cell.getContext()
+              table.getRowModel().rows.map((row) => {
+                const rowId = String(row.id);
+                const isExpanded = expandedRows.has(rowId);
+                const rowData = row.original;
+                
+                return (
+                  <React.Fragment key={row.id}>
+                    <TableRow
+                      className={accordion && accordionPosition === 'inline' ? "cursor-pointer hover:bg-muted/50" : ""}
+                      onClick={() => accordion && accordionPosition === 'inline' && toggleRowExpansion(rowId)}
+                      data-state={row.getIsSelected() && "selected"}
+                    >
+                      {row.getVisibleCells().map((cell) => (
+                        <TableCell key={cell.id}>
+                          {flexRender(
+                            cell.column.columnDef.cell,
+                            cell.getContext()
+                          )}
+                        </TableCell>
+                      ))}
+                      {accordion && accordionPosition === 'inline' && (
+                        <TableCell className="w-12">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              toggleRowExpansion(rowId);
+                            }}
+                            className="p-1 h-8 w-8"
+                          >
+                            {isExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                          </Button>
+                        </TableCell>
                       )}
-                    </TableCell>
-                  ))}
-                </TableRow>
-              ))
+                    </TableRow>
+                    {accordion && isExpanded && accordionContent && (
+                      <TableRow>
+                        <TableCell 
+                          colSpan={columns.length + (accordionPosition === 'inline' ? 1 : 0)}
+                          className="p-0"
+                        >
+                          <div className="p-4 bg-muted/30 border-b">
+                            {accordionContent(rowData)}
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    )}
+                  </React.Fragment>
+                );
+              })
             ) : (
               <TableRow>
                 <TableCell

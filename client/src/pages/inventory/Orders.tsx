@@ -1,9 +1,9 @@
 import React, { useState, useMemo } from 'react';
 import { useNavigate } from "react-router-dom";
-import { 
-  Package, 
-  ChevronDown, 
-  ChevronUp, 
+import {
+  Package,
+  ChevronDown,
+  ChevronUp,
   Calendar,
   User,
   ExternalLink,
@@ -65,7 +65,7 @@ interface StatusBadgeProps {
 const StatusBadge = ({ status }: StatusBadgeProps) => {
   const config = itemStatusConfig[status] || itemStatusConfig.pending;
   const StatusIcon = config.icon;
-  
+
   return (
     <span className={`px-2.5 py-0.5 rounded-full text-xs font-medium border flex items-center w-fit capitalize ${config.color}`}>
       <StatusIcon size={12} className="mr-1" />
@@ -79,7 +79,7 @@ export default function InventoryOrders() {
   const { user } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
-
+  
   const {
     data: orders,
     totalCount,
@@ -171,7 +171,7 @@ export default function InventoryOrders() {
         ),
       },
       {
-        accessorKey: "shippingAddress",
+        accessorKey: "customerName",
         header: "Customer",
         cell: ({ row }) => (
           <div className="flex items-center gap-3">
@@ -180,7 +180,7 @@ export default function InventoryOrders() {
             </div>
             <div>
               <div className="font-medium text-sm text-slate-800">
-                {row.original.shippingAddress?.split(',')[0] || 'Customer'}
+                {row.original.customerName || 'Unknown Customer'}
               </div>
               <div className="text-xs text-slate-500">{row.original.phone || 'No phone'}</div>
             </div>
@@ -197,7 +197,7 @@ export default function InventoryOrders() {
               <div className="flex -space-x-2">
                 {(order.items || []).slice(0, 3).map((item, idx) => (
                   <div key={idx} className="h-7 w-7 rounded border-2 border-white bg-blue-100 flex items-center justify-center text-[10px] font-bold text-blue-600 overflow-hidden">
-                    <img 
+                    <img
                       src={item.saree?.imageUrl || "https://images.unsplash.com/photo-1610030469983-98e550d6193c?w=20"}
                       alt={item.saree?.name || "Item"}
                       className="w-full h-full object-cover"
@@ -224,111 +224,89 @@ export default function InventoryOrders() {
           </div>
         ),
       },
-      {
-        id: "actions",
-        header: "Action",
-        cell: ({ row }) => {
-          const order = row.original;
-          const [isExpanded, setIsExpanded] = useState(false);
-          
-          return (
-            <div>
-              <Button 
-                variant="ghost" 
-                size="sm"
-                className="p-2 hover:bg-white rounded-full transition-colors border border-transparent hover:border-slate-200 text-slate-400"
-                onClick={() => setIsExpanded(!isExpanded)}
-              >
-                {isExpanded ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
-              </Button>
-              
-              {isExpanded && (
-                <div className="absolute right-0 mt-2 w-full max-w-4xl bg-white border border-slate-200 rounded-lg shadow-lg z-50 p-6">
-                  <div className="animate-in fade-in slide-in-from-top-2 duration-200">
-                    <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
-                      <h3 className="font-bold text-lg flex items-center gap-2">
-                        <Package size={20} className="text-slate-400" />
-                        Order Details
-                      </h3>
-                      <div className="flex items-center gap-3 bg-white p-2 rounded-lg border border-slate-200 shadow-sm">
-                        <span className="text-xs font-semibold text-slate-500 px-2 uppercase tracking-wider">Bulk Update Order:</span>
-                        <div className="flex gap-1">
-                          {itemStatuses.map(status => (
-                            <Button
-                              variant={'ghost'}
-                              key={status}
-                              onClick={() => updateAllItemsStatus(order.id, status)}
-                            >
-                              {status}
-                            </Button>
-                          ))}
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="space-y-3">
-                      {(order.items || []).map((item) => (
-                        <div 
-                          key={item.id} 
-                          className="flex flex-col md:flex-row md:items-center justify-between p-4 bg-white rounded-xl border border-slate-200 shadow-sm hover:shadow-md transition-shadow"
-                        >
-                          <div className="flex items-center gap-4 mb-4 md:mb-0">
-                            <div className="p-3 bg-slate-50 rounded-lg border border-slate-100 overflow-hidden">
-                              <img 
-                                src={item.saree?.imageUrl || "https://images.unsplash.com/photo-1610030469983-98e550d6193c?w=40"}
-                                alt={item.saree?.name || "Item"}
-                                className="w-8 h-8 object-cover rounded"
-                              />
-                            </div>
-                            <div>
-                              <h4 className="font-semibold text-slate-800">{item.saree?.name || 'Unknown Item'}</h4>
-                              <div className="text-xs text-slate-500 flex items-center gap-2">
-                                <span>SKU: {item.id}</span>
-                                <span className="h-1 w-1 bg-slate-300 rounded-full"></span>
-                                <span>Qty: {item.quantity}</span>
-                                <span className="h-1 w-1 bg-slate-300 rounded-full"></span>
-                                <span>{formatPrice(item.price)} each</span>
-                              </div>
-                            </div>
-                          </div>
-
-                          <div className="flex flex-col md:flex-row items-start md:items-center gap-4">
-                            <div className="flex flex-col items-start md:items-end">
-                              <span className="text-[10px] font-bold text-slate-400 uppercase mb-1">Current Status</span>
-                              <StatusBadge status={item.status} />
-                            </div>
-                            
-                            <div className="h-8 w-[1px] bg-slate-200 hidden md:block"></div>
-
-                            <div className="w-full md:w-auto">
-                              <span className="text-[10px] font-bold text-slate-400 uppercase mb-1 block md:text-right">Change Status</span>
-                              <select
-                                value={item.status}
-                                onChange={(e) => updateItemStatus(order.id, item.id, e.target.value)}
-                                className="w-full md:w-auto text-sm bg-slate-50 border border-slate-200 rounded-lg px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-500 font-medium"
-                                disabled={updateItemStatusMutation.isPending}
-                              >
-                                {itemStatuses.map(status => {
-                                  const config = itemStatusConfig[status];
-                                  return (
-                                    <option key={status} value={status} className="capitalize">{config?.label || status}</option>
-                                  );
-                                })}
-                              </select>
-                            </div>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-              )}
-            </div>
-          );
-        },
-      },
+      
     ],
     [navigate, updateAllItemsStatus, updateItemStatus, updateItemStatusMutation.isPending]
+  );
+
+  const accordionContent = (order: OrderWithItems) => (
+    <div className="space-y-4">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
+        <h3 className="font-bold text-lg flex items-center gap-2">
+          <Package size={20} className="text-slate-400" />
+          Order Details
+        </h3>
+        <div className="flex items-center gap-3 bg-white p-2 rounded-lg border border-slate-200 shadow-sm">
+          <span className="text-xs font-semibold text-slate-500 px-2 uppercase tracking-wider">Bulk Update Order:</span>
+          <div className="flex gap-1">
+            {itemStatuses.map(status => (
+              <Button
+                variant={'ghost'}
+                key={status}
+                onClick={() => updateAllItemsStatus(order.id, status)}
+              >
+                {status}
+              </Button>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      <div className="space-y-3">
+        {(order.items || []).map((item) => (
+          <div
+            key={item.id}
+            className="flex flex-col md:flex-row md:items-center justify-between p-4 bg-white rounded-xl border border-slate-200 shadow-sm hover:shadow-md transition-shadow"
+          >
+            <div className="flex items-center gap-4 mb-4 md:mb-0">
+              <div className="p-3 bg-slate-50 rounded-lg border border-slate-100 overflow-hidden">
+                <img
+                  src={item.saree?.imageUrl || "https://images.unsplash.com/photo-1610030469983-98e550d6193c?w=40"}
+                  alt={item.saree?.name || "Item"}
+                  className="w-8 h-8 object-cover rounded"
+                />
+              </div>
+              <div>
+                <h4 className="font-semibold text-slate-800">{item.saree?.name || 'Unknown Item'}</h4>
+                <div className="text-xs text-slate-500 flex items-center gap-2">
+                  <span>SKU: {item.id}</span>
+                  <span className="h-1 w-1 bg-slate-300 rounded-full"></span>
+                  <span>Qty: {item.quantity}</span>
+                  <span className="h-1 w-1 bg-slate-300 rounded-full"></span>
+                  <span>{formatPrice(item.price)} each</span>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex flex-col md:flex-row items-start md:items-center gap-4">
+              <div className="flex flex-col items-start md:items-end">
+                <span className="text-[10px] font-bold text-slate-400 uppercase mb-1">Current Status</span>
+                <StatusBadge status={item.status} />
+              </div>
+
+              <div className="h-8 w-[1px] bg-slate-200 hidden md:block"></div>
+
+              <div className="w-full md:w-auto">
+                <span className="text-[10px] font-bold text-slate-400 uppercase mb-1 block md:text-right">Change Status</span>
+                <select
+                  value={item.status}
+                  onChange={(e) => updateItemStatus(order.id, item.id, e.target.value)}
+                  className="w-full md:w-auto text-sm bg-slate-50 border border-slate-200 rounded-lg px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-500 font-medium"
+                  disabled={updateItemStatusMutation.isPending}
+                >
+                  {itemStatuses.map(status => {
+                    const config = itemStatusConfig[status];
+                    return (
+                      <option key={status} value={status} className="capitalize">{config?.label || status}</option>
+                    );
+                  })}
+                </select>
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
   );
 
   const filters: FilterConfig[] = [
@@ -359,6 +337,9 @@ export default function InventoryOrders() {
           searchPlaceholder="Search by Order ID or Customer..."
           filters={filters}
           emptyMessage="No orders found"
+          accordion={true}
+          accordionContent={accordionContent}
+          accordionPosition="inline"
         />
       </div>
     </div>

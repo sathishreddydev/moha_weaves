@@ -1443,6 +1443,7 @@ export type WishlistItemWithSaree = WishlistItem & {
 };
 
 export type OrderWithItems = Order & {
+  customerName?: string;
   items: (OrderItem & { saree: SareeWithDetails })[];
 };
 

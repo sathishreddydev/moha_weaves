@@ -15,6 +15,7 @@ import {
   stockMovements,
   itemStatusHistory,
   itemStatusEnum,
+  users,
 } from "@shared/schema";
 import { IdGenerator } from "server/utils/idGenerator";
 
@@ -102,12 +103,15 @@ export class OrderRepository implements OrderStorage {
     const orderList = await db
       .select()
       .from(orders)
+      .innerJoin(users, eq(orders.userId, users.id))
       .where(eq(orders.userId, userId))
       .orderBy(desc(orders.createdAt));
 
     const result: OrderWithItems[] = [];
 
     for (const order of orderList) {
+        const customerName = order.users.name;
+
       const items = await db
         .select()
         .from(orderItems)
@@ -115,10 +119,11 @@ export class OrderRepository implements OrderStorage {
         .leftJoin(categories, eq(sarees.categoryId, categories.id))
         .leftJoin(colors, eq(sarees.colorId, colors.id))
         .leftJoin(fabrics, eq(sarees.fabricId, fabrics.id))
-        .where(eq(orderItems.orderId, order.id));
+        .where(eq(orderItems.orderId, order.orders.id));
 
       result.push({
-        ...order,
+        ...order.orders,
+        customerName,
         items: items.map((row) => ({
           ...row.order_items,
           saree: {
