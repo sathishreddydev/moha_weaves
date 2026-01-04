@@ -38,7 +38,18 @@ export interface IReturnStorage {
     status?: string;
     reason?: string;
     resolution?: string;
-  }): Promise<ReturnRequestWithDetails[]>;
+    page?: number;
+    pageSize?: number;
+    search?: string;
+    dateFrom?: string;
+    dateTo?: string;
+  }): Promise<ReturnRequestWithDetails[] | {
+    data: ReturnRequestWithDetails[];
+    total: number;
+    page: number;
+    pageSize: number;
+    totalPages: number;
+  }>;
   getReturnRequest(id: string): Promise<ReturnRequestWithDetails | undefined>;
   createReturnRequest(
     request: InsertReturnRequest,
@@ -113,7 +124,18 @@ export class ReturnStorage implements IReturnStorage {
     status?: string;
     reason?: string;
     resolution?: string;
-  }): Promise<ReturnRequestWithDetails[]> {
+    page?: number;
+    pageSize?: number;
+    search?: string;
+    dateFrom?: string;
+    dateTo?: string;
+  }): Promise<ReturnRequestWithDetails[] | {
+    data: ReturnRequestWithDetails[];
+    total: number;
+    page: number;
+    pageSize: number;
+    totalPages: number;
+  }> {
     const conditions: any[] = [];
     if (filters?.userId)
       conditions.push(eq(returnRequests.userId, filters.userId));
@@ -170,7 +192,41 @@ export class ReturnStorage implements IReturnStorage {
         });
       }
     }
-    return result;
+
+    let filteredReturns = result;
+    if (filters?.search) {
+      const searchTerm = filters.search.toLowerCase();
+      filteredReturns = result.filter(returnRequest => 
+        returnRequest.id.toLowerCase().includes(searchTerm) ||
+        returnRequest.orderId.toLowerCase().includes(searchTerm) ||
+        (returnRequest.user?.name && returnRequest.user.name.toLowerCase().includes(searchTerm)) ||
+        (returnRequest.user?.email && returnRequest.user.email.toLowerCase().includes(searchTerm))
+      );
+    }
+
+    if (filters?.dateFrom || filters?.dateTo) {
+      filteredReturns = filteredReturns.filter(returnRequest => {
+        const createdAt = new Date(returnRequest.createdAt);
+        if (filters.dateFrom && createdAt < new Date(filters.dateFrom)) return false;
+        if (filters.dateTo && createdAt > new Date(filters.dateTo)) return false;
+        return true;
+      });
+    }
+
+    if (filters?.page && filters?.pageSize) {
+      const offset = (filters.page - 1) * filters.pageSize;
+      const paginatedReturns = filteredReturns.slice(offset, offset + filters.pageSize);
+      
+      return {
+        data: paginatedReturns,
+        total: filteredReturns.length,
+        page: filters.page,
+        pageSize: filters.pageSize,
+        totalPages: Math.ceil(filteredReturns.length / filters.pageSize)
+      };
+    }
+
+    return filteredReturns;
   }
 
   async getReturnRequest(
@@ -385,7 +441,8 @@ export class ReturnStorage implements IReturnStorage {
   async getUserReturnRequests(
     userId: string
   ): Promise<ReturnRequestWithDetails[]> {
-    return this.getReturnRequests({ userId });
+    const result = await this.getReturnRequests({ userId });
+    return Array.isArray(result) ? result : result.data || [];
   }
 
    async checkOrderReturnEligibility(

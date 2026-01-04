@@ -20,16 +20,23 @@ export const returnRoutes = (app: Express) => {
   // Get all return requests with filtering
   app.get("/api/inventory/returns", authInventory, async (req: Request, res: Response) => {
     try {
-      const { status, userId, reason, resolution } = req.query;
+      const { status, userId, reason, resolution, page, pageSize, search, dateFrom, dateTo } = req.query;
 
       const filters: any = {};
       if (typeof status === "string" && status.length > 0) filters.status = status;
       if (typeof userId === "string" && userId.length > 0) filters.userId = userId;
       if (typeof reason === "string" && reason.length > 0) filters.reason = reason;
       if (typeof resolution === "string" && resolution.length > 0) filters.resolution = resolution;
+      if (page && pageSize) {
+        filters.page = parseInt(page as string);
+        filters.pageSize = parseInt(pageSize as string);
+      }
+      if (typeof search === "string" && search.length > 0) filters.search = search;
+      if (typeof dateFrom === "string" && dateFrom.length > 0) filters.dateFrom = dateFrom;
+      if (typeof dateTo === "string" && dateTo.length > 0) filters.dateTo = dateTo;
 
-      const returns = await returnStorage.getReturnRequests(filters);
-      res.json(returns);
+      const result = await returnStorage.getReturnRequests(filters);
+      res.json(result);
     } catch (error) {
       console.error("Error fetching return requests:", error);
       res.status(500).json({ message: "Failed to fetch return requests" });
@@ -100,18 +107,21 @@ export const returnRoutes = (app: Express) => {
   app.get("/api/inventory/returns/stats", authInventory, async (req: Request, res: Response) => {
     try {
       const allReturns = await returnStorage.getReturnRequests();
+      
+      // Handle both array and paginated response types
+      const returnsArray = Array.isArray(allReturns) ? allReturns : allReturns.data || [];
 
       const stats = {
-        total: allReturns.length,
+        total: returnsArray.length,
         ...returnStatusEnum.enumValues.reduce((acc, status) => {
-          acc[status] = allReturns.filter(r => r.status === status).length;
+          acc[status] = returnsArray.filter((r: any) => r.status === status).length;
           return acc;
         }, {} as Record<string, number>),
-        byReason: allReturns.reduce((acc, r) => {
+        byReason: returnsArray.reduce((acc: any, r: any) => {
           acc[r.reason] = (acc[r.reason] || 0) + 1;
           return acc;
         }, {} as Record<string, number>),
-        byResolution: allReturns.reduce((acc, r) => {
+        byResolution: returnsArray.reduce((acc: any, r: any) => {
           acc[r.resolution] = (acc[r.resolution] || 0) + 1;
           return acc;
         }, {} as Record<string, number>),
@@ -124,11 +134,7 @@ export const returnRoutes = (app: Express) => {
     }
   });
 
-  // ======================
-  // User Routes
-  // ======================
 
-  // Get all returns for user
   app.get("/api/user/returns", authUser, async (req: Request, res: Response) => {
     try {
       const userId = (req as any).user?.id;
