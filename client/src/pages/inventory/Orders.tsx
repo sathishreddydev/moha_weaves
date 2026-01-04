@@ -7,6 +7,11 @@ import {
   XCircle,
   MapPin,
   Truck,
+  ChevronDown,
+  ChevronUp,
+  Eye,
+  Edit,
+  MoreHorizontal,
 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -24,6 +29,18 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
 import { useAuth } from "@/lib/auth";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
@@ -36,7 +53,7 @@ import { Button } from "@/components/ui/button";
 import { itemStatusConfig } from "@/constants/itemStatusConfig";
 
 
-const orderStatuses = [
+const itemStatuses = [
   "pending",
   "confirmed",
   "processing",
@@ -44,23 +61,15 @@ const orderStatuses = [
   "delivered",
 ];
 
-const statusFlow = ["pending", "confirmed", "processing", "shipped", "delivered"] as const;
-
-const getAllowedNextStatuses = (currentStatus: string) => {
-  const current = String(currentStatus);
-
-  if (current === "delivered" || current === "cancelled") {
-    return [current];
-  }
-
-  const inFlow = statusFlow.includes(current as any);
-  if (!inFlow) {
-    return ["pending", "cancelled"];
-  }
-
-  const idx = statusFlow.indexOf(current as any);
-  const forward = statusFlow.slice(idx) as unknown as string[];
-  return Array.from(new Set([...forward, "cancelled"]));
+const getItemStatusFlow = (currentStatus: string) => {
+  const flow: Record<string, string[]> = {
+    pending: ["confirmed"],
+    confirmed: ["processing"],
+    processing: ["shipped"],
+    shipped: ["delivered"],
+    delivered: [],
+  };
+  return flow[currentStatus] || [];
 };
 
 const formatPrice = (price: string | number) => {
@@ -87,6 +96,7 @@ export default function InventoryOrders() {
   const { user } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const [expandedOrders, setExpandedOrders] = useState<Set<string>>(new Set());
   const [selectedOrder, setSelectedOrder] = useState<OrderWithItems | null>(
     null
   );
@@ -107,25 +117,25 @@ export default function InventoryOrders() {
     initialPageSize: 10,
   });
 
-  const updateStatusMutation = useMutation({
-    mutationFn: async ({ id, status }: { id: string; status: string }) => {
+  const updateItemStatusMutation = useMutation({
+    mutationFn: async ({ orderId, itemId, status }: { orderId: string; itemId: string; status: string }) => {
       const response = await apiRequest(
         "PATCH",
-        `/api/inventory/orders/${id}/status`,
+        `/api/inventory/orders/${orderId}/items/${itemId}/status`,
         { status }
       );
       return response.json();
     },
     onSuccess: () => {
       refetch();
-      toast({ title: "Success", description: "Order status updated" });
+      toast({ title: "Success", description: "Item status updated" });
     },
     onError: (err: unknown) => {
       const message = err instanceof Error ? err.message : "";
       const extracted = message.includes(":") ? message.split(":").slice(1).join(":").trim() : "";
       toast({
         title: "Error",
-        description: extracted || "Failed to update order",
+        description: extracted || "Failed to update item status",
         variant: "destructive",
       });
     },
@@ -158,30 +168,82 @@ export default function InventoryOrders() {
       {
         accessorKey: "items",
         header: "Items",
-        cell: ({ row }) => (
-          <div className="flex items-center gap-1">
-            {(row.original.items || []).slice(0, 2).map((item) => (
-              <div
-                key={item.id}
-                className="w-10 h-12 rounded overflow-hidden bg-muted"
-              >
-                <img
-                  src={
-                    item.saree?.imageUrl ||
-                    "https://images.unsplash.com/photo-1610030469983-98e550d6193c?w=50"
-                  }
-                  alt={item.saree?.name || "Saree"}
-                  className="w-full h-full object-cover"
-                />
+        cell: ({ row }) => {
+          const order = row.original;
+          const isExpanded = expandedOrders.has(order.id);
+          
+          return (
+            <div className="space-y-2">
+              <div className="flex items-center gap-2">
+                <div className="flex items-center gap-1">
+                  {(order.items || []).slice(0, 2).map((item) => (
+                    <div
+                      key={item.id}
+                      className="w-8 h-10 rounded overflow-hidden bg-muted border"
+                    >
+                      <img
+                        src={
+                          item.saree?.imageUrl ||
+                          "https://images.unsplash.com/photo-1610030469983-98e550d6193c?w=50"
+                        }
+                        alt={item.saree?.name || "Saree"}
+                        className="w-full h-full object-cover"
+                      />
+                    </div>
+                  ))}
+                  {(order.items?.length || 0) > 2 && (
+                    <span className="text-xs text-muted-foreground font-medium">
+                      +{(order.items?.length || 0) - 2}
+                    </span>
+                  )}
+                </div>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => {
+                    const newExpanded = new Set(expandedOrders);
+                    if (isExpanded) {
+                      newExpanded.delete(order.id);
+                    } else {
+                      newExpanded.add(order.id);
+                    }
+                    setExpandedOrders(newExpanded);
+                  }}
+                  className="h-6 w-6 p-0"
+                >
+                  {isExpanded ? (
+                    <ChevronUp className="h-3 w-3" />
+                  ) : (
+                    <ChevronDown className="h-3 w-3" />
+                  )}
+                </Button>
               </div>
-            ))}
-            {(row.original.items?.length || 0) > 2 && (
-              <span className="text-xs text-muted-foreground">
-                +{(row.original.items?.length || 0) - 2}
-              </span>
-            )}
-          </div>
-        ),
+              
+              {isExpanded && (
+                <div className="space-y-2 mt-2 pl-2 border-l-2 border-muted">
+                  {order.items?.map((item) => (
+                    <div key={item.id} className="flex items-center gap-2 text-xs">
+                      <img
+                        src={
+                          item.saree?.imageUrl ||
+                          "https://images.unsplash.com/photo-1610030469983-98e550d6193c?w=30"
+                        }
+                        alt={item.saree?.name || "Saree"}
+                        className="w-6 h-8 rounded object-cover"
+                      />
+                      <span className="font-medium truncate max-w-32">
+                        {item.saree?.name || "Unknown"}
+                      </span>
+                      <span className="text-muted-foreground">
+                        Qty: {item.quantity}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          );
+        },
       },
       {
         accessorKey: "totalAmount",
@@ -194,27 +256,27 @@ export default function InventoryOrders() {
       },
       {
         accessorKey: "status",
-        header: "Status",
+        header: "Item Statuses",
         cell: ({ row }) => {
-          const itemStatuses = row.original.items?.map(item => item.status as any) || [];
+          const order = row.original;
+          const itemStatuses = order.items?.map(item => item.status) || [];
           const uniqueStatuses = Array.from(new Set(itemStatuses));
+          
           if (uniqueStatuses.length === 0) {
-            const status = itemStatusConfig.pending;
-            const StatusIcon = status.icon;
             return (
-              <Badge className={status.color}>
-                <StatusIcon className="h-3 w-3 mr-1" />
-                {status.label}
+              <Badge variant="outline" className="text-xs">
+                No items
               </Badge>
             );
           }
+          
           if (uniqueStatuses.length === 1) {
-            const status = itemStatusConfig[uniqueStatuses[0] as keyof typeof itemStatusConfig] || itemStatusConfig.pending;
+            const status = itemStatusConfig[uniqueStatuses[0]] || itemStatusConfig.pending;
             const StatusIcon = status.icon;
             return (
-              <Badge className={status.color}>
+              <Badge className={`${status.color} text-xs`}>
                 <StatusIcon className="h-3 w-3 mr-1" />
-                {status.label}
+                {status.label} ({order.items?.length || 0})
               </Badge>
             );
           }
@@ -225,14 +287,14 @@ export default function InventoryOrders() {
           }, {} as Record<string, number>);
 
           return (
-            <div className="flex flex-col gap-1">
+            <div className="flex flex-wrap gap-1 max-w-48">
               {Object.entries(statusCounts).map(([status, count]) => {
-                const currentStatusConfig = itemStatusConfig[status as keyof typeof itemStatusConfig] || itemStatusConfig.pending;
+                const currentStatusConfig = itemStatusConfig[status] || itemStatusConfig.pending;
                 const StatusIcon = currentStatusConfig.icon;
                 return (
-                  <Badge key={status} className={currentStatusConfig.color}>
+                  <Badge key={status} className={`${currentStatusConfig.color} text-xs`}>
                     <StatusIcon className="h-3 w-3 mr-1" />
-                    {currentStatusConfig.label} ({String(count)})
+                    {currentStatusConfig.label} ({count})
                   </Badge>
                 );
               })}
@@ -243,55 +305,100 @@ export default function InventoryOrders() {
       {
         id: "actions",
         header: "Actions",
-        cell: ({ row }) => (
-          <div className="flex items-center gap-2">
-            <Select
-              value={row.original.items?.[0]?.status as string || "pending"}
-              onValueChange={(value) =>
-                updateStatusMutation.mutate({
-                  id: row.original.id,
-                  status: value,
-                })
-              }
-              disabled={updateStatusMutation.isPending}
-            >
-              <SelectTrigger
-                className="w-36"
-                data-testid={`select-status-${row.original.id}`}
-              >
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {orderStatuses.map((s) => (
-                  <SelectItem key={s} value={s} className="capitalize">
-                    {s.charAt(0).toUpperCase() + s.slice(1)}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => navigate(`/inventory/orders/${row.original.id}?print=1`)}
-            >
-              Print
-            </Button>
-          </div>
-        ),
+        cell: ({ row }) => {
+          const order = row.original;
+          
+          return (
+            <div className="flex items-center gap-2">
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" size="sm" className="h-8">
+                    <MoreHorizontal className="h-3 w-3" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-56">
+                  <DropdownMenuItem onClick={() => navigate(`/inventory/orders/${order.id}`)}>
+                    <Eye className="h-4 w-4 mr-2" />
+                    View Order Details
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => navigate(`/inventory/orders/${order.id}?print=1`)}>
+                    <Package className="h-4 w-4 mr-2" />
+                    Print Order
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  {order.items?.map((item) => {
+                    const currentStatusConfig = itemStatusConfig[item.status] || itemStatusConfig.pending;
+                    const StatusIcon = currentStatusConfig.icon;
+                    const nextStatuses = getItemStatusFlow(item.status);
+                    
+                    return (
+                      <div key={item.id} className="px-2 py-1">
+                        <div className="flex items-center gap-2 mb-1">
+                          <img
+                            src={
+                              item.saree?.imageUrl ||
+                              "https://images.unsplash.com/photo-1610030469983-98e550d6193c?w=20"
+                            }
+                            alt={item.saree?.name || "Saree"}
+                            className="w-5 h-6 rounded object-cover"
+                          />
+                          <span className="text-xs font-medium truncate max-w-24">
+                            {item.saree?.name || "Unknown"}
+                          </span>
+                          <Badge className={`${currentStatusConfig.color} text-xs`}>
+                            <StatusIcon className="h-2 w-2 mr-1" />
+                            {currentStatusConfig.label}
+                          </Badge>
+                        </div>
+                        {nextStatuses.length > 0 && (
+                          <div className="flex flex-wrap gap-1">
+                            {nextStatuses.map((nextStatus) => {
+                              const nextStatusConfig = itemStatusConfig[nextStatus];
+                              return (
+                                <Button
+                                  key={nextStatus}
+                                  variant="ghost"
+                                  size="sm"
+                                  className="h-6 px-2 text-xs"
+                                  onClick={() => {
+                                    updateItemStatusMutation.mutate({
+                                      orderId: order.id,
+                                      itemId: item.id,
+                                      status: nextStatus,
+                                    });
+                                  }}
+                                  disabled={updateItemStatusMutation.isPending}
+                                >
+                                  {nextStatusConfig.label}
+                                </Button>
+                              );
+                            })}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
+          );
+        },
       },
     ],
-    [navigate, updateStatusMutation]
+    [navigate, updateItemStatusMutation, expandedOrders]
   );
 
   const filters: FilterConfig[] = [
     {
       key: "status",
-      label: "Status",
-      options: orderStatuses.map((status) => ({
-        label: status.charAt(0).toUpperCase() + status.slice(1),
-        value: status,
-      })),
+      label: "Item Status",
+      options: itemStatuses.map((status) => {
+        const config = itemStatusConfig[status];
+        return {
+          label: config?.label || status,
+          value: status,
+        };
+      }),
     },
   ];
 
