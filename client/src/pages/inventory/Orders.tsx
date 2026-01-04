@@ -1,58 +1,25 @@
-import { useState, useMemo } from "react";
+import React, { useState, useMemo } from 'react';
 import { useNavigate } from "react-router-dom";
-import {
-  Package,
-  Clock,
-  CheckCircle,
-  XCircle,
-  MapPin,
-  Truck,
-  ChevronDown,
-  ChevronUp,
-  Eye,
-  Edit,
-  MoreHorizontal,
-} from "lucide-react";
-import { Card, CardContent } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from "@/components/ui/collapsible";
+import { 
+  Package, 
+  ChevronDown, 
+  ChevronUp, 
+  Calendar,
+  User,
+  ExternalLink,
+} from 'lucide-react';
 import { useAuth } from "@/lib/auth";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { DataTable, FilterConfig } from "@/components/ui/data-table";
 import { useDataTable } from "@/hooks/use-data-table";
-import { ColumnDef } from "@tanstack/react-table";
 import type { OrderWithItems } from "@shared/schema";
-import { Button } from "@/components/ui/button";
 import { itemStatusConfig } from "@/constants/itemStatusConfig";
+import { ColumnDef } from "@tanstack/react-table";
+import { Button } from "@/components/ui/button";
 
-
+// Status options provided by user
 const itemStatuses = [
   "pending",
   "confirmed",
@@ -91,15 +58,27 @@ const formatDate = (date: string | Date) => {
   });
 };
 
+interface StatusBadgeProps {
+  status: string;
+}
+
+const StatusBadge = ({ status }: StatusBadgeProps) => {
+  const config = itemStatusConfig[status] || itemStatusConfig.pending;
+  const StatusIcon = config.icon;
+  
+  return (
+    <span className={`px-2.5 py-0.5 rounded-full text-xs font-medium border flex items-center w-fit capitalize ${config.color}`}>
+      <StatusIcon size={12} className="mr-1" />
+      {config.label}
+    </span>
+  );
+};
+
 export default function InventoryOrders() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  const [expandedOrders, setExpandedOrders] = useState<Set<string>>(new Set());
-  const [selectedOrder, setSelectedOrder] = useState<OrderWithItems | null>(
-    null
-  );
 
   const {
     data: orders,
@@ -141,28 +120,71 @@ export default function InventoryOrders() {
     },
   });
 
+  const updateAllItemsStatusMutation = useMutation({
+    mutationFn: async ({ orderId, status }: { orderId: string; status: string }) => {
+      const response = await apiRequest(
+        "PATCH",
+        `/api/inventory/orders/${orderId}/status`,
+        { status }
+      );
+      return response.json();
+    },
+    onSuccess: () => {
+      refetch();
+      toast({ title: "Success", description: "All items status updated" });
+    },
+    onError: (err: unknown) => {
+      const message = err instanceof Error ? err.message : "";
+      const extracted = message.includes(":") ? message.split(":").slice(1).join(":").trim() : "";
+      toast({
+        title: "Error",
+        description: extracted || "Failed to update order status",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const updateItemStatus = (orderId: string, itemId: string, newStatus: string) => {
+    updateItemStatusMutation.mutate({ orderId, itemId, status: newStatus });
+  };
+
+  const updateAllItemsStatus = (orderId: string, newStatus: string) => {
+    updateAllItemsStatusMutation.mutate({ orderId, status: newStatus });
+  };
+
   const columns: ColumnDef<OrderWithItems>[] = useMemo(
     () => [
       {
         accessorKey: "id",
-        header: "Order ID",
+        header: "Order",
         cell: ({ row }) => (
-          <button
-            type="button"
-            className="font-mono text-sm text-primary underline-offset-4 hover:underline"
-            onClick={() => navigate(`/inventory/orders/${row.original.id}`)}
-          >
-            #{row.original.id}
-          </button>
+          <div>
+            <div className="font-bold text-primary flex items-center gap-1 cursor-pointer hover:underline" onClick={() => navigate(`/inventory/orders/${row.original.id}`)}>
+              #{row.original.id}
+              <ExternalLink size={12} className="opacity-40" />
+            </div>
+            <div className="text-xs text-slate-400 mt-1 flex items-center gap-1">
+              <Calendar size={12} />
+              {formatDate(row.original.createdAt)}
+            </div>
+          </div>
         ),
       },
       {
-        accessorKey: "createdAt",
-        header: "Date",
+        accessorKey: "shippingAddress",
+        header: "Customer",
         cell: ({ row }) => (
-          <span className="text-sm text-muted-foreground">
-            {formatDate(row.original.createdAt)}
-          </span>
+          <div className="flex items-center gap-3">
+            <div className="h-8 w-8 rounded-full bg-slate-200 flex items-center justify-center text-slate-600">
+              <User size={16} />
+            </div>
+            <div>
+              <div className="font-medium text-sm text-slate-800">
+                {row.original.shippingAddress?.split(',')[0] || 'Customer'}
+              </div>
+              <div className="text-xs text-slate-500">{row.original.phone || 'No phone'}</div>
+            </div>
+          </div>
         ),
       },
       {
@@ -170,77 +192,25 @@ export default function InventoryOrders() {
         header: "Items",
         cell: ({ row }) => {
           const order = row.original;
-          const isExpanded = expandedOrders.has(order.id);
-          
           return (
-            <div className="space-y-2">
-              <div className="flex items-center gap-2">
-                <div className="flex items-center gap-1">
-                  {(order.items || []).slice(0, 2).map((item) => (
-                    <div
-                      key={item.id}
-                      className="w-8 h-10 rounded overflow-hidden bg-muted border"
-                    >
-                      <img
-                        src={
-                          item.saree?.imageUrl ||
-                          "https://images.unsplash.com/photo-1610030469983-98e550d6193c?w=50"
-                        }
-                        alt={item.saree?.name || "Saree"}
-                        className="w-full h-full object-cover"
-                      />
-                    </div>
-                  ))}
-                  {(order.items?.length || 0) > 2 && (
-                    <span className="text-xs text-muted-foreground font-medium">
-                      +{(order.items?.length || 0) - 2}
-                    </span>
-                  )}
-                </div>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => {
-                    const newExpanded = new Set(expandedOrders);
-                    if (isExpanded) {
-                      newExpanded.delete(order.id);
-                    } else {
-                      newExpanded.add(order.id);
-                    }
-                    setExpandedOrders(newExpanded);
-                  }}
-                  className="h-6 w-6 p-0"
-                >
-                  {isExpanded ? (
-                    <ChevronUp className="h-3 w-3" />
-                  ) : (
-                    <ChevronDown className="h-3 w-3" />
-                  )}
-                </Button>
+            <div>
+              <div className="flex -space-x-2">
+                {(order.items || []).slice(0, 3).map((item, idx) => (
+                  <div key={idx} className="h-7 w-7 rounded border-2 border-white bg-blue-100 flex items-center justify-center text-[10px] font-bold text-blue-600 overflow-hidden">
+                    <img 
+                      src={item.saree?.imageUrl || "https://images.unsplash.com/photo-1610030469983-98e550d6193c?w=20"}
+                      alt={item.saree?.name || "Item"}
+                      className="w-full h-full object-cover"
+                    />
+                  </div>
+                ))}
+                {(order.items?.length || 0) > 3 && (
+                  <div className="h-7 w-7 rounded border-2 border-white bg-slate-100 flex items-center justify-center text-[10px] font-bold text-slate-600">
+                    +{(order.items?.length || 0) - 3}
+                  </div>
+                )}
               </div>
-              
-              {isExpanded && (
-                <div className="space-y-2 mt-2 pl-2 border-l-2 border-muted">
-                  {order.items?.map((item) => (
-                    <div key={item.id} className="flex items-center gap-2 text-xs">
-                      <img
-                        src={
-                          item.saree?.imageUrl ||
-                          "https://images.unsplash.com/photo-1610030469983-98e550d6193c?w=30"
-                        }
-                        alt={item.saree?.name || "Saree"}
-                        className="w-6 h-8 rounded object-cover"
-                      />
-                      <span className="font-medium truncate max-w-32">
-                        {item.saree?.name || "Unknown"}
-                      </span>
-                      <span className="text-muted-foreground">
-                        Qty: {item.quantity}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              )}
+              <div className="mt-1 text-xs text-slate-500">{(order.items?.length || 0)} product(s)</div>
             </div>
           );
         },
@@ -249,271 +219,148 @@ export default function InventoryOrders() {
         accessorKey: "totalAmount",
         header: "Total",
         cell: ({ row }) => (
-          <span className="font-medium">
+          <div className="font-bold text-slate-900">
             {formatPrice(row.original.totalAmount)}
-          </span>
+          </div>
         ),
       },
       {
-        accessorKey: "status",
-        header: "Item Statuses",
-        cell: ({ row }) => {
-          const order = row.original;
-          const itemStatuses = order.items?.map(item => item.status) || [];
-          const uniqueStatuses = Array.from(new Set(itemStatuses));
-          
-          if (uniqueStatuses.length === 0) {
-            return (
-              <Badge variant="outline" className="text-xs">
-                No items
-              </Badge>
-            );
-          }
-          
-          if (uniqueStatuses.length === 1) {
-            const status = itemStatusConfig[uniqueStatuses[0]] || itemStatusConfig.pending;
-            const StatusIcon = status.icon;
-            return (
-              <Badge className={`${status.color} text-xs`}>
-                <StatusIcon className="h-3 w-3 mr-1" />
-                {status.label} ({order.items?.length || 0})
-              </Badge>
-            );
-          }
-
-          const statusCounts = itemStatuses.reduce((acc, status) => {
-            acc[status] = (acc[status] || 0) + 1;
-            return acc;
-          }, {} as Record<string, number>);
-
-          return (
-            <div className="flex flex-wrap gap-1 max-w-48">
-              {Object.entries(statusCounts).map(([status, count]) => {
-                const currentStatusConfig = itemStatusConfig[status] || itemStatusConfig.pending;
-                const StatusIcon = currentStatusConfig.icon;
-                return (
-                  <Badge key={status} className={`${currentStatusConfig.color} text-xs`}>
-                    <StatusIcon className="h-3 w-3 mr-1" />
-                    {currentStatusConfig.label} ({count})
-                  </Badge>
-                );
-              })}
-            </div>
-          );
-        },
-      },
-      {
         id: "actions",
-        header: "Actions",
+        header: "Action",
         cell: ({ row }) => {
           const order = row.original;
+          const [isExpanded, setIsExpanded] = useState(false);
           
           return (
-            <div className="flex items-center gap-2">
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="outline" size="sm" className="h-8">
-                    <MoreHorizontal className="h-3 w-3" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-56">
-                  <DropdownMenuItem onClick={() => navigate(`/inventory/orders/${order.id}`)}>
-                    <Eye className="h-4 w-4 mr-2" />
-                    View Order Details
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => navigate(`/inventory/orders/${order.id}?print=1`)}>
-                    <Package className="h-4 w-4 mr-2" />
-                    Print Order
-                  </DropdownMenuItem>
-                  <DropdownMenuSeparator />
-                  {order.items?.map((item) => {
-                    const currentStatusConfig = itemStatusConfig[item.status] || itemStatusConfig.pending;
-                    const StatusIcon = currentStatusConfig.icon;
-                    const nextStatuses = getItemStatusFlow(item.status);
-                    
-                    return (
-                      <div key={item.id} className="px-2 py-1">
-                        <div className="flex items-center gap-2 mb-1">
-                          <img
-                            src={
-                              item.saree?.imageUrl ||
-                              "https://images.unsplash.com/photo-1610030469983-98e550d6193c?w=20"
-                            }
-                            alt={item.saree?.name || "Saree"}
-                            className="w-5 h-6 rounded object-cover"
-                          />
-                          <span className="text-xs font-medium truncate max-w-24">
-                            {item.saree?.name || "Unknown"}
-                          </span>
-                          <Badge className={`${currentStatusConfig.color} text-xs`}>
-                            <StatusIcon className="h-2 w-2 mr-1" />
-                            {currentStatusConfig.label}
-                          </Badge>
+            <div>
+              <Button 
+                variant="ghost" 
+                size="sm"
+                className="p-2 hover:bg-white rounded-full transition-colors border border-transparent hover:border-slate-200 text-slate-400"
+                onClick={() => setIsExpanded(!isExpanded)}
+              >
+                {isExpanded ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
+              </Button>
+              
+              {isExpanded && (
+                <div className="absolute right-0 mt-2 w-full max-w-4xl bg-white border border-slate-200 rounded-lg shadow-lg z-50 p-6">
+                  <div className="animate-in fade-in slide-in-from-top-2 duration-200">
+                    <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
+                      <h3 className="font-bold text-lg flex items-center gap-2">
+                        <Package size={20} className="text-slate-400" />
+                        Order Details
+                      </h3>
+                      <div className="flex items-center gap-3 bg-white p-2 rounded-lg border border-slate-200 shadow-sm">
+                        <span className="text-xs font-semibold text-slate-500 px-2 uppercase tracking-wider">Bulk Update Order:</span>
+                        <div className="flex gap-1">
+                          {itemStatuses.map(status => (
+                            <Button
+                              variant={'ghost'}
+                              key={status}
+                              onClick={() => updateAllItemsStatus(order.id, status)}
+                            >
+                              {status}
+                            </Button>
+                          ))}
                         </div>
-                        {nextStatuses.length > 0 && (
-                          <div className="flex flex-wrap gap-1">
-                            {nextStatuses.map((nextStatus) => {
-                              const nextStatusConfig = itemStatusConfig[nextStatus];
-                              return (
-                                <Button
-                                  key={nextStatus}
-                                  variant="ghost"
-                                  size="sm"
-                                  className="h-6 px-2 text-xs"
-                                  onClick={() => {
-                                    updateItemStatusMutation.mutate({
-                                      orderId: order.id,
-                                      itemId: item.id,
-                                      status: nextStatus,
-                                    });
-                                  }}
-                                  disabled={updateItemStatusMutation.isPending}
-                                >
-                                  {nextStatusConfig.label}
-                                </Button>
-                              );
-                            })}
-                          </div>
-                        )}
                       </div>
-                    );
-                  })}
-                </DropdownMenuContent>
-              </DropdownMenu>
+                    </div>
+
+                    <div className="space-y-3">
+                      {(order.items || []).map((item) => (
+                        <div 
+                          key={item.id} 
+                          className="flex flex-col md:flex-row md:items-center justify-between p-4 bg-white rounded-xl border border-slate-200 shadow-sm hover:shadow-md transition-shadow"
+                        >
+                          <div className="flex items-center gap-4 mb-4 md:mb-0">
+                            <div className="p-3 bg-slate-50 rounded-lg border border-slate-100 overflow-hidden">
+                              <img 
+                                src={item.saree?.imageUrl || "https://images.unsplash.com/photo-1610030469983-98e550d6193c?w=40"}
+                                alt={item.saree?.name || "Item"}
+                                className="w-8 h-8 object-cover rounded"
+                              />
+                            </div>
+                            <div>
+                              <h4 className="font-semibold text-slate-800">{item.saree?.name || 'Unknown Item'}</h4>
+                              <div className="text-xs text-slate-500 flex items-center gap-2">
+                                <span>SKU: {item.id}</span>
+                                <span className="h-1 w-1 bg-slate-300 rounded-full"></span>
+                                <span>Qty: {item.quantity}</span>
+                                <span className="h-1 w-1 bg-slate-300 rounded-full"></span>
+                                <span>{formatPrice(item.price)} each</span>
+                              </div>
+                            </div>
+                          </div>
+
+                          <div className="flex flex-col md:flex-row items-start md:items-center gap-4">
+                            <div className="flex flex-col items-start md:items-end">
+                              <span className="text-[10px] font-bold text-slate-400 uppercase mb-1">Current Status</span>
+                              <StatusBadge status={item.status} />
+                            </div>
+                            
+                            <div className="h-8 w-[1px] bg-slate-200 hidden md:block"></div>
+
+                            <div className="w-full md:w-auto">
+                              <span className="text-[10px] font-bold text-slate-400 uppercase mb-1 block md:text-right">Change Status</span>
+                              <select
+                                value={item.status}
+                                onChange={(e) => updateItemStatus(order.id, item.id, e.target.value)}
+                                className="w-full md:w-auto text-sm bg-slate-50 border border-slate-200 rounded-lg px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-500 font-medium"
+                                disabled={updateItemStatusMutation.isPending}
+                              >
+                                {itemStatuses.map(status => {
+                                  const config = itemStatusConfig[status];
+                                  return (
+                                    <option key={status} value={status} className="capitalize">{config?.label || status}</option>
+                                  );
+                                })}
+                              </select>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
           );
         },
       },
     ],
-    [navigate, updateItemStatusMutation, expandedOrders]
+    [navigate, updateAllItemsStatus, updateItemStatus, updateItemStatusMutation.isPending]
   );
 
   const filters: FilterConfig[] = [
     {
       key: "status",
       label: "Item Status",
-      options: itemStatuses.map((status) => {
-        const config = itemStatusConfig[status];
-        return {
-          label: config?.label || status,
-          value: status,
-        };
-      }),
+      options: itemStatuses.map(status => ({
+        value: status,
+        label: itemStatusConfig[status]?.label || status,
+      })),
     },
   ];
 
   return (
-    <div>
-      <div className="max-w-7xl mx-auto">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
-          <div>
-            <h1
-              className="text-2xl font-semibold"
-              data-testid="text-page-title"
-            >
-              Online Orders
-            </h1>
-            <p className="text-muted-foreground">
-              Process and dispatch online orders
-            </p>
-          </div>
-        </div>
-
-        <Card>
-          <CardContent className="p-4">
-            <DataTable
-              columns={columns}
-              data={orders}
-              totalCount={totalCount}
-              pageIndex={pageIndex}
-              pageSize={pageSize}
-              onPaginationChange={handlePaginationChange}
-              onSearchChange={handleSearchChange}
-              onFiltersChange={handleFiltersChange}
-              onDateFilterChange={handleDateFilterChange}
-              isLoading={isLoading}
-              searchPlaceholder="Search orders..."
-              filters={filters}
-              dateFilter={{ key: "date", label: "Filter by date" }}
-              emptyMessage="No orders found"
-            />
-          </CardContent>
-        </Card>
+    <div className="min-h-screen bg-slate-50 p-4 md:p-8 font-sans text-slate-900">
+      <div className="max-w-6xl mx-auto">
+        <DataTable
+          columns={columns}
+          data={orders || []}
+          totalCount={totalCount || 0}
+          pageSize={pageSize}
+          pageIndex={pageIndex}
+          onPaginationChange={handlePaginationChange}
+          onSearchChange={handleSearchChange}
+          onFiltersChange={handleFiltersChange}
+          onDateFilterChange={handleDateFilterChange}
+          isLoading={isLoading}
+          searchPlaceholder="Search by Order ID or Customer..."
+          filters={filters}
+          emptyMessage="No orders found"
+        />
       </div>
-      <Dialog
-        open={!!selectedOrder}
-        onOpenChange={() => setSelectedOrder(null)}
-      >
-        <DialogContent className="max-w-lg">
-          <DialogHeader>
-            <DialogTitle>Order Details</DialogTitle>
-            <DialogDescription>
-              Order #{selectedOrder?.id}
-            </DialogDescription>
-          </DialogHeader>
-          {selectedOrder && (
-            <div className="space-y-4">
-              <div className="flex items-start gap-2">
-                <MapPin className="h-4 w-4 mt-1 text-muted-foreground" />
-                <div>
-                  <p className="font-medium text-sm">Shipping Address</p>
-                  <p className="text-sm text-muted-foreground">
-                    {selectedOrder.shippingAddress}
-                  </p>
-                  {selectedOrder.phone && (
-                    <p className="text-sm text-muted-foreground">
-                      Phone: {selectedOrder.phone}
-                    </p>
-                  )}
-                </div>
-              </div>
-
-              <div>
-                <p className="font-medium text-sm mb-2">Items</p>
-                <div className="space-y-2">
-                  {(selectedOrder.items || []).map((item) => (
-                    <div
-                      key={item.id}
-                      className="flex items-center gap-3 p-2 border rounded"
-                    >
-                      <img
-                        src={
-                          item.saree?.imageUrl ||
-                          "https://images.unsplash.com/photo-1610030469983-98e550d6193c?w=60"
-                        }
-                        alt={item.saree?.name || "Saree"}
-                        className="w-12 h-16 rounded object-cover"
-                      />
-                      <div className="flex-1">
-                        <p className="font-medium text-sm line-clamp-1">
-                          {item.saree?.name || "Unknown Saree"}
-                        </p>
-                        <p className="text-xs text-muted-foreground">
-                          Qty: {item.quantity} x {formatPrice(item.price)}
-                        </p>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              <div className="flex justify-between pt-2 border-t">
-                <span className="font-medium">Total</span>
-                <span className="font-bold">
-                  {formatPrice(selectedOrder.totalAmount)}
-                </span>
-              </div>
-
-              {selectedOrder.notes && (
-                <div className="text-sm">
-                  <p className="font-medium">Notes</p>
-                  <p className="text-muted-foreground">{selectedOrder.notes}</p>
-                </div>
-              )}
-            </div>
-          )}
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }

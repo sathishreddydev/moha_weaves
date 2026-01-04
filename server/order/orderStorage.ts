@@ -216,6 +216,45 @@ export class OrderRepository implements OrderStorage {
         updatedBy
       );
 
+      // Create notification for user if this is a significant status change
+      let notificationMessage = "";
+      switch (status) {
+        case "confirmed":
+          notificationMessage = "An item in your order has been confirmed and is being processed.";
+          break;
+        case "processing":
+          notificationMessage = "An item in your order is being prepared for shipment.";
+          break;
+        case "shipped":
+          notificationMessage = "An item in your order has been shipped!";
+          break;
+        case "delivered":
+          notificationMessage = "An item in your order has been delivered.";
+          break;
+        case "cancelled":
+          notificationMessage = "An item in your order has been cancelled.";
+          break;
+      }
+
+      if (notificationMessage) {
+        // Get order to find userId for notification
+        const [order] = await tx
+          .select()
+          .from(orders)
+          .where(eq(orders.id, currentItem.orderId));
+
+        if (order) {
+          await storage.createNotification({
+            userId: order.userId,
+            type: "order",
+            title: `Item ${status.charAt(0).toUpperCase() + status.slice(1)}`,
+            message: notificationMessage,
+            relatedId: currentItem.orderId,
+            relatedType: "order",
+          });
+        }
+      }
+
       return updatedItem;
     });
   }

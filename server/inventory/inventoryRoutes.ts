@@ -640,6 +640,74 @@ export const inventoryRoutes = (app: Express) => {
     }
   );
 
+  // Inventory: Update individual item status
+  app.patch(
+    "/api/inventory/orders/:orderId/items/:itemId/status",
+    authInventory,
+    async (req, res) => {
+      try {
+        const user = (req as any).user;
+        const { status, note } = req.body;
+        const { orderId, itemId } = req.params;
+
+        console.log("Updating individual item status:", {
+          orderId,
+          itemId,
+          status,
+          note,
+          userId: user.id
+        });
+
+        // Validate input
+        if (!status) {
+          return res.status(400).json({ message: "Status is required" });
+        }
+
+        // Check if order exists
+        const order = await orderService.getOrder(orderId);
+        if (!order) {
+          return res.status(404).json({ message: "Order not found" });
+        }
+
+        // Check if item exists in the order
+        const orderItem = order.items.find(item => item.id === itemId);
+        if (!orderItem) {
+          return res.status(404).json({ message: "Order item not found" });
+        }
+
+        // Update the item status
+        const updatedItem = await orderService.updateItemStatus(
+          itemId,
+          status,
+          user.id,
+          note || `Status updated to ${status}`
+        );
+
+        if (!updatedItem) {
+          return res.status(500).json({ message: "Failed to update item status" });
+        }
+
+        console.log("Item status updated successfully:", updatedItem.id);
+
+        res.json({
+          message: "Item status updated successfully",
+          item: updatedItem
+        });
+
+      } catch (error) {
+        console.error("Error updating individual item status:", error);
+        const message = error instanceof Error ? error.message : String(error);
+        if (message.startsWith("INVALID_STATUS_TRANSITION:")) {
+          return res
+            .status(400)
+            .json({ message: message.replace("INVALID_STATUS_TRANSITION:", "").trim() });
+        }
+
+        res.status(500).json({ message: "Failed to update item status" });
+      }
+    }
+  );
+
   // Stock Movement Endpoints
   app.get("/api/inventory/stock-movements", authInventory, async (req, res) => {
     try {
