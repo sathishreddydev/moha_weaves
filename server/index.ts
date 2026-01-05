@@ -17,6 +17,15 @@ declare module "http" {
 
 app.use(cookieParser());
 
+// Health check endpoint for Render
+app.get('/health', (req, res) => {
+  res.status(200).json({ 
+    status: 'ok', 
+    timestamp: new Date().toISOString(),
+    uptime: process.uptime()
+  });
+});
+
 app.use(
   express.json({
     limit: "1mb",
