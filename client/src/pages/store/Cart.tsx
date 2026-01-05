@@ -170,7 +170,11 @@ export default function Cart() {
 
     const updatedItems = cartItems.map(item =>
       item.id === itemId
-        ? { ...item, quantity: newQuantity, lineAmount: newQuantity * item.unitPrice }
+        ? {
+          ...item,
+          quantity: newQuantity,
+          lineAmount: newQuantity * item.unitPrice
+        }
         : item
     );
     setCartItems(updatedItems);

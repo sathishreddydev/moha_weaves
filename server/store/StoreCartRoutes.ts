@@ -24,6 +24,7 @@ export const updateCartSchema = z.object({
       id: z.string(),
       quantity: z.number().min(1).optional(),
       unitPrice: z.number().min(0).optional(),
+      sareeId: z.string(),
     })
   ),
 });
@@ -122,10 +123,8 @@ export const storeCartRoutes = (app: Express) => {
       const storeId = req.user?.storeId;
       if (!storeId) return res.status(401).json({ error: "Store not authenticated" });
 
-      const validatedData = updateCartSchema.parse(req.body);
       const storeRepo = new StoreRepository();
-
-      const updatedCart = await storeRepo.updateStoreCart(storeId, validatedData.items);
+      const updatedCart = await storeRepo.updateStoreCart(storeId, req.body.items);
       res.json(updatedCart);
     } catch (error) {
       if (error instanceof z.ZodError) {

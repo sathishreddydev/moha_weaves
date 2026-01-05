@@ -1039,7 +1039,7 @@ export class StoreRepository implements StoreStorage {
 
   async updateStoreCart(storeId: string, items: any[]): Promise<{ items: any[] }> {
     return await db.transaction(async (tx) => {
-      for (const item of items) {
+      for (const item of items) {        
         const [existingItem] = await tx
           .select()
           .from(storeCart)
@@ -1053,8 +1053,8 @@ export class StoreRepository implements StoreStorage {
             .update(storeCart)
             .set({
               quantity: item.quantity,
-              unitPrice: item.unitPrice.toString(),
-              lineAmount: item.lineAmount.toString(),
+              unitPrice: (item.unitPrice || 0).toString(),
+              lineAmount: (item.lineAmount || 0).toString(),
             })
             .where(and(
               eq(storeCart.storeId, storeId),
@@ -1065,8 +1065,8 @@ export class StoreRepository implements StoreStorage {
             storeId,
             sareeId: item.sareeId,
             quantity: item.quantity,
-            unitPrice: item.unitPrice.toString(),
-            lineAmount: item.lineAmount.toString(),
+            unitPrice: (item.unitPrice || 0).toString(),
+            lineAmount: (item.lineAmount || 0).toString(),
           });
         }
       }

@@ -203,7 +203,11 @@ export default function StoreSale() {
         });
         return item;
       }
-      return { ...item, quantity: newQty };
+      return { 
+        ...item, 
+        quantity: newQty,
+        lineAmount: newQty * parseFloat(item.price)
+      };
     });
     setCart(updatedCart);
     updateCartMutation.mutate(updatedCart);
