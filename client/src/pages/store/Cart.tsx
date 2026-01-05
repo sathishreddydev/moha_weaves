@@ -162,9 +162,9 @@ export default function Cart() {
     }
   }, [cartData]);
 
-  const updateQuantity = (itemId: string, newQuantity: number) => {
+  const updateQuantity = (itemId: string, newQuantity: number, sareeId: string) => {
     if (newQuantity <= 0) {
-      removeFromCart(itemId);
+      removeFromCart(itemId, sareeId);
       return;
     }
 
@@ -197,11 +197,11 @@ export default function Cart() {
       });
     },
   });
- 
-    const removeFromCart = (itemId: string) => {
-      const updatedItems = cartItems.filter(item => item.id !== itemId);
+
+  const removeFromCart = (itemId: string, sareeId: string) => {
+    const updatedItems = cartItems.filter(item => item.id !== itemId);
     setCartItems(updatedItems);
-    deleteCartMutation.mutate(itemId);
+    deleteCartMutation.mutate(sareeId);
   };
 
   const applyCoupon = () => {
@@ -271,7 +271,7 @@ export default function Cart() {
             <Button
               variant="outline"
               size="icon"
-              onClick={() => updateQuantity(item.id, item.quantity - 1)}
+              onClick={() => updateQuantity(item.id, item.quantity - 1, item.sareeId)}
               disabled={item.quantity <= 1}
               className="h-6 w-6"
             >
@@ -281,7 +281,7 @@ export default function Cart() {
             <Button
               variant="outline"
               size="icon"
-              onClick={() => updateQuantity(item.id, item.quantity + 1)}
+              onClick={() => updateQuantity(item.id, item.quantity + 1, item.sareeId)}
               className="h-6 w-6"
             >
               <Plus className="h-3 w-3" />
@@ -322,7 +322,7 @@ export default function Cart() {
         const item = row.original;
         return (
           <Button
-            onClick={() => removeFromCart(item.id)}
+            onClick={() => removeFromCart(item.id, item.sareeId)}
             variant="ghost"
             size="sm"
             className="text-red-600 h-6 w-6 p-0"
@@ -410,6 +410,16 @@ export default function Cart() {
 
       <div className="bg-white shadow-xl rounded-xl overflow-hidden border border-slate-200 print:shadow-none print:border-none">
         <div className="p-8">
+          <div className="flex justify-end">
+            <Button
+              onClick={() => { navigate('/store/sale') }}
+              disabled={applyCouponMutation.isPending}
+              variant="outline"
+            >
+              <Plus /> Add Item
+            </Button>
+          </div>
+
           <DataTable
             columns={columns}
             data={cartItems}

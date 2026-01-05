@@ -23,6 +23,7 @@ type ShopProduct = {
 };
 
 interface CartItem {
+  id: string;
   sareeId: string;
   saree: SareeWithDetails;
   quantity: number;
@@ -43,7 +44,6 @@ export default function StoreSale() {
     enabled: !!user && user.role === "store",
   });
 
-  // Use data table hook for paginated products
   const {
     data: tableProducts,
     totalCount,
@@ -89,7 +89,7 @@ export default function StoreSale() {
     mutationFn: async (items: CartItem[]) => {
       const res = await apiRequest("PUT", "/api/store/cart", {
         items: items.map(item => ({
-          id: item.sareeId,
+          id: item.id,
           sareeId: item.sareeId,
           quantity: item.quantity,
           unitPrice: parseFloat(item.price),
@@ -135,6 +135,7 @@ export default function StoreSale() {
   useEffect(() => {
     if (cartData?.items) {
       const mappedCart = cartData.items.map((item: any) => ({
+        id: item.id, // Cart item ID from database
         sareeId: item.sareeId,
         saree: item.saree,
         quantity: item.quantity,
@@ -332,18 +333,18 @@ export default function StoreSale() {
         </h1>
         <Button
           variant="outline"
-          className="relative"
           onClick={() => navigate("/store/cart")}
+          className="gap-2"
         >
-          <ShoppingCart className="h-4 w-4 mr-2" />
+          <ShoppingCart className="h-4 w-4" />
           Cart
           {cart.length > 0 && (
-            <Badge
-              variant="destructive"
-              className="absolute -top-2 -right-2 h-5 w-5 flex items-center justify-center p-0 text-xs"
-            >
-              {cart.reduce((sum, item) => sum + item.quantity, 0)}
-            </Badge>
+            <>
+              <span>-</span>
+              <span className="text-primary">
+                {cart.reduce((sum, item) => sum + item.quantity, 0)}
+              </span>
+            </>
           )}
         </Button>
       </div>

@@ -93,16 +93,6 @@ export const storeRoutes = (app: Express) => {
       const params = parsePaginationParams(req.query);
       const offset = getOffset(params.page, params.pageSize);
       
-      console.log("Fetching paginated products for store:", user.storeId, "with params:", {
-        page: params.page,
-        pageSize: params.pageSize,
-        search: params.search,
-        categoryId: req.query.categoryId,
-        colorId: req.query.colorId,
-        fabricId: req.query.fabricId,
-        dateFrom: params.dateFrom,
-        dateTo: params.dateTo,
-      });
       
       const result = await storage.getShopProductsPaginated(
         user.storeId,

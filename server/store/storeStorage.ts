@@ -131,6 +131,7 @@ export interface StoreStorage {
     sareeId: string
   ): Promise<StoreInventory | undefined>;
   getStoreCart(storeId: string): Promise<{ items: any[] }>;
+  deleteFromStoreCart(storeId: string, sareeId: string): Promise<void>;
   updateStoreCart(storeId: string, items: any[]): Promise<{ items: any[] }>;
   applyCoupon(storeId: string, code: string): Promise<any>;
   updateCouponUsage(couponId: string, userId: string, orderId: string, discountAmount: string): Promise<void>;
@@ -1029,22 +1030,49 @@ export class StoreRepository implements StoreStorage {
     };
   }
 
+  async deleteFromStoreCart(storeId: string, sareeId: string): Promise<void> {
+    await db.delete(storeCart).where(and(
+      eq(storeCart.storeId, storeId),
+      eq(storeCart.sareeId, sareeId)
+    ));
+  }
+
   async updateStoreCart(storeId: string, items: any[]): Promise<{ items: any[] }> {
     return await db.transaction(async (tx) => {
-      await tx.delete(storeCart).where(eq(storeCart.storeId, storeId));
-      if (items.length > 0) {
-        const cartItemsToInsert = items.map((item) => ({
-          storeId,
-          sareeId: item.sareeId,
-          quantity: item.quantity,
-          unitPrice: item.unitPrice.toString(),
-          lineAmount: item.lineAmount.toString(),
-        }));
+      for (const item of items) {
+        const [existingItem] = await tx
+          .select()
+          .from(storeCart)
+          .where(and(
+            eq(storeCart.storeId, storeId),
+            eq(storeCart.sareeId, item.sareeId)
+          ));
 
-        await tx.insert(storeCart).values(cartItemsToInsert);
+        if (existingItem) {
+          await tx
+            .update(storeCart)
+            .set({
+              quantity: item.quantity,
+              unitPrice: item.unitPrice.toString(),
+              lineAmount: item.lineAmount.toString(),
+            })
+            .where(and(
+              eq(storeCart.storeId, storeId),
+              eq(storeCart.sareeId, item.sareeId)
+            ));
+        } else {
+          await tx.insert(storeCart).values({
+            storeId,
+            sareeId: item.sareeId,
+            quantity: item.quantity,
+            unitPrice: item.unitPrice.toString(),
+            lineAmount: item.lineAmount.toString(),
+          });
+        }
       }
 
-      return await this.getStoreCart(storeId);
+      const result = await this.getStoreCart(storeId);
+      return result;
     });
   }
 

@@ -77,14 +77,15 @@ export const storeCartRoutes = (app: Express) => {
       if (!storeId) return res.status(401).json({ error: "Store not authenticated" });
 
       const validatedData = addToCartSchema.parse(req.body);
-
       const storeRepo = new StoreRepository();
-      const currentCart = await storeRepo.getStoreCart(storeId);
 
+      // Use the new updateStoreCart method which handles insert/update properly
+      const currentCart = await storeRepo.getStoreCart(storeId);
       const existingItem = currentCart.items.find(item => item.sareeId === validatedData.sareeId);
 
       let updatedItems;
       if (existingItem) {
+        // Update existing item quantity
         updatedItems = currentCart.items.map(item =>
           item.sareeId === validatedData.sareeId
             ? {
@@ -95,8 +96,8 @@ export const storeCartRoutes = (app: Express) => {
             : item
         );
       } else {
+        // Add new item (don't set ID, let database generate it)
         const newItem = {
-          id: validatedData.sareeId, 
           sareeId: validatedData.sareeId,
           quantity: validatedData.quantity,
           unitPrice: validatedData.unitPrice,
@@ -123,24 +124,8 @@ export const storeCartRoutes = (app: Express) => {
 
       const validatedData = updateCartSchema.parse(req.body);
       const storeRepo = new StoreRepository();
-      const currentCart = await storeRepo.getStoreCart(storeId);
 
-      const updatedItems = currentCart.items.map(item => {
-        const update = validatedData.items.find(i => i.id === item.id);
-        if (!update) return item;
-
-        const newQuantity = update.quantity ?? item.quantity;
-        const newUnitPrice = update.unitPrice ?? item.unitPrice;
-
-        return {
-          ...item,
-          quantity: newQuantity,
-          unitPrice: newUnitPrice,
-          lineAmount: newQuantity * newUnitPrice,
-        };
-      });
-
-      const updatedCart = await storeRepo.updateStoreCart(storeId, updatedItems);
+      const updatedCart = await storeRepo.updateStoreCart(storeId, validatedData.items);
       res.json(updatedCart);
     } catch (error) {
       if (error instanceof z.ZodError) {
@@ -158,10 +143,8 @@ export const storeCartRoutes = (app: Express) => {
 
       const { sareeId } = req.params;
       const storeRepo = new StoreRepository();
-      const currentCart = await storeRepo.getStoreCart(storeId);
-
-      const updatedItems = currentCart.items.filter(item => item.sareeId !== sareeId);
-      await storeRepo.updateStoreCart(storeId, updatedItems);
+      
+      await storeRepo.deleteFromStoreCart(storeId, sareeId);
 
       res.json({ message: "Item removed from cart successfully" });
     } catch (error) {
