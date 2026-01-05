@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { Link, useNavigate } from "react-router-dom";
 import {
   ShoppingCart,
   Package,
@@ -63,6 +64,7 @@ export default function StoreSale() {
   const { user } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [cart, setCart] = useState<CartItem[]>([]);
   const [customerName, setCustomerName] = useState("");
@@ -366,10 +368,26 @@ export default function StoreSale() {
 
   return (
     <div className="max-w-6xl mx-auto">
-      <div className="mb-4">
+      <div className="mb-4 flex items-center justify-between">
         <h1 className="text-2xl font-semibold" data-testid="text-page-title">
           New Sale
         </h1>
+        <Button
+          variant="outline"
+          className="relative"
+          onClick={() => navigate("/store/cart")}
+        >
+          <ShoppingCart className="h-4 w-4 mr-2" />
+          Cart
+          {cart.length > 0 && (
+            <Badge
+              variant="destructive"
+              className="absolute -top-2 -right-2 h-5 w-5 flex items-center justify-center p-0 text-xs"
+            >
+              {cart.reduce((sum, item) => sum + item.quantity, 0)}
+            </Badge>
+          )}
+        </Button>
       </div>
 
       <div>

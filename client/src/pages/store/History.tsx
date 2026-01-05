@@ -1,7 +1,7 @@
 
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { Receipt, User, Phone, ArrowLeftRight } from "lucide-react";
+import { Receipt, User, Phone, ArrowLeftRight, Download } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -16,6 +16,8 @@ import { useAuth } from "@/lib/auth";
 import { DataTable } from "@/components/ui/data-table";
 import { useDataTable } from "@/hooks/use-data-table";
 import { ColumnDef } from "@tanstack/react-table";
+import * as XLSX from "xlsx";
+import { saveAs } from "file-saver";
 import type { StoreSaleWithItems } from "@shared/schema";
 
 export default function StoreHistory() {
@@ -56,6 +58,41 @@ export default function StoreHistory() {
       hour: "2-digit",
       minute: "2-digit",
     });
+  };
+
+  const exportToExcel = () => {
+    if (!sales || sales.length === 0) {
+      return;
+    }
+
+    // Prepare data for Excel export
+    const excelData = sales.map((sale) => {
+      const items = sale.items.map((item: any) => 
+        `${item.saree.name} (${item.quantity} x ${formatPrice(item.price)})`
+      ).join("; ");
+      
+      return {
+        "Sale ID": `#${sale.id}`,
+        "Date": formatDate(sale.createdAt),
+        "Customer Name": sale.customerName || "Walk-in Customer",
+        "Customer Phone": sale.customerPhone || "-",
+        "Items": items,
+        "Items Count": sale.items.length,
+        "Sale Type": sale.saleType === "walk_in" ? "Walk-in" : "Reserved",
+        "Total Amount": parseFloat(sale.totalAmount.toString()),
+        "Payment Mode": sale.paymentMode || "-"
+      };
+    });
+
+    const ws = XLSX.utils.json_to_sheet(excelData);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Sales History");
+
+    const excelBuffer = XLSX.write(wb, { bookType: "xlsx", type: "array" });
+    const data = new Blob([excelBuffer], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
+    
+    const fileName = `sales_history_${new Date().toISOString().split('T')[0]}.xlsx`;
+    saveAs(data, fileName);
   };
 
   const salesColumns: ColumnDef<StoreSaleWithItems>[] = [
@@ -200,13 +237,24 @@ export default function StoreHistory() {
   return (
     <div>
       <div className="max-w-6xl mx-auto">
-        <div className="mb-8">
-          <h1 className="text-2xl font-semibold" data-testid="text-page-title">
-            Sales History
-          </h1>
-          <p className="text-muted-foreground">
-            View all past in-store transactions
-          </p>
+        <div className="mb-8 flex items-center justify-between">
+          <div>
+            <h1 className="text-2xl font-semibold" data-testid="text-page-title">
+              Sales History
+            </h1>
+            <p className="text-muted-foreground">
+              View all past in-store transactions
+            </p>
+          </div>
+          <Button
+            variant="outline"
+            onClick={exportToExcel}
+            disabled={!sales || sales.length === 0}
+            className="flex items-center gap-2"
+          >
+            <Download className="h-4 w-4" />
+            Download Excel
+          </Button>
         </div>
 
         <Card>

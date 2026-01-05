@@ -6,10 +6,12 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { Plus, Minus, Trash2, ShoppingCart, CreditCard, Smartphone, Wallet } from "lucide-react";
+import { Plus, Minus, Trash2, ShoppingCart, CreditCard, Smartphone, Wallet, FileText, Download } from "lucide-react";
 import { apiRequest, getQueryFn } from "@/lib/queryClient";
 import { toast } from "@/hooks/use-toast";
 import { useAuth } from "@/lib/auth";
+import { generateInvoicePDF, type InvoiceData } from "@/utils/invoiceGenerator";
+import { testInvoiceGeneration } from "@/utils/invoiceTest";
 
 interface CartItem {
   id: string;
@@ -58,6 +60,7 @@ export default function Cart() {
   const [paymentMode, setPaymentMode] = useState<"cash" | "card" | "upi">("cash");
   const [customerName, setCustomerName] = useState("");
   const [customerPhone, setCustomerPhone] = useState("");
+  const [lastOrder, setLastOrder] = useState<any>(null);
 
   const { data: cartData, isLoading } = useQuery<any>({
     queryKey: ["/api/store/cart"],
@@ -125,6 +128,18 @@ export default function Cart() {
       toast({
         title: "Order Completed",
         description: `Order #${data.orderId} completed successfully`,
+      });
+      setLastOrder({
+        orderId: data.orderId,
+        items: cartItems,
+        customerName,
+        customerPhone,
+        subtotal,
+        discountAmount,
+        taxAmount,
+        totalAmount,
+        paymentMode,
+        createdAt: new Date()
       });
       setCartItems([]);
       setDiscount(null);
@@ -212,11 +227,25 @@ export default function Cart() {
     }
 
     if (!customerName.trim() || !customerPhone.trim()) {
-      toast({
-        title: "Customer Information Required",
-        description: "Please enter customer name and phone number",
-        variant: "destructive",
-      });
+      if (!customerName.trim() && !customerPhone.trim()) {
+        toast({
+          title: "Customer Information Required",
+          description: "Please enter customer name and phone number",
+          variant: "destructive",
+        });
+      } else if (!customerName.trim()) {
+        toast({
+          title: "Customer Name Required",
+          description: "Please enter customer name",
+          variant: "destructive",
+        });
+      } else {
+        toast({
+          title: "Phone Number Required",
+          description: "Please enter phone number",
+          variant: "destructive",
+        });
+      }
       return;
     }
 
@@ -229,6 +258,76 @@ export default function Cart() {
       customerName,
       customerPhone,
     });
+  };
+
+  const generateInvoice = async () => {
+    if (!lastOrder) {
+      toast({
+        title: "No Order Available",
+        description: "Please complete an order first",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      const invoiceData: InvoiceData = {
+        orderId: lastOrder.orderId,
+        customerName: lastOrder.customerName,
+        customerPhone: lastOrder.customerPhone,
+        items: lastOrder.items.map((item: CartItem) => ({
+          name: item.saree.name,
+          code: item.saree.code,
+          quantity: item.quantity,
+          unitPrice: item.unitPrice,
+          lineAmount: item.lineAmount,
+        })),
+        subtotal: lastOrder.subtotal,
+        discountAmount: lastOrder.discountAmount,
+        taxAmount: lastOrder.taxAmount,
+        totalAmount: lastOrder.totalAmount,
+        paymentMode: lastOrder.paymentMode,
+        createdAt: lastOrder.createdAt,
+        store: {
+          name: "MOHA WEAVES",
+          address: "123 Fashion Street, Textile Market",
+          phone: "+91 98765 43210",
+          email: "info@mohaweaves.com"
+        }
+      };
+
+      await generateInvoicePDF(invoiceData);
+      toast({
+        title: "Invoice Generated",
+        description: "Invoice has been downloaded successfully",
+      });
+    } catch (error) {
+      console.error("Error generating invoice:", error);
+      toast({
+        title: "Invoice Generation Failed",
+        description: "Failed to generate invoice. Please try again.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const testInvoice = async () => {
+    try {
+      const success = await testInvoiceGeneration();
+      if (success) {
+        toast({
+          title: "Test Invoice Generated",
+          description: "Test invoice has been downloaded successfully",
+        });
+      }
+    } catch (error) {
+      console.error("Error generating test invoice:", error);
+      toast({
+        title: "Test Invoice Failed",
+        description: "Failed to generate test invoice.",
+        variant: "destructive",
+      });
+    }
   };
 
   const getPaymentIcon = (mode: string) => {
@@ -257,10 +356,23 @@ export default function Cart() {
 
   return (
     <div className="container mx-auto p-6">
-      <div className="flex items-center gap-2 mb-6">
-        <ShoppingCart className="h-6 w-6" />
-        <h1 className="text-2xl font-bold">Shopping Cart</h1>
-        <Badge variant="secondary">{cartItems.length} items</Badge>
+      <div className="flex items-center justify-between mb-6">
+        <div className="flex items-center gap-2">
+          <ShoppingCart className="h-6 w-6" />
+          <h1 className="text-xl font-bold">Shopping Cart</h1>
+          <Badge variant="secondary">{cartItems.length} items</Badge>
+        </div>
+        
+        {/* Development Test Button */}
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={testInvoice}
+          className="text-xs"
+        >
+          <FileText className="h-4 w-4 mr-1" />
+          Test Invoice
+        </Button>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -285,9 +397,9 @@ export default function Cart() {
                       className="w-16 h-16 object-cover rounded"
                     />
                     <div className="flex-1">
-                      <h3 className="font-medium">{item.saree.name}</h3>
-                      <p className="text-sm text-gray-500">{item.saree.code}</p>
-                      <p className="font-medium text-green-600">{formatPrice(item.unitPrice)}</p>
+                      <h3 className="font-medium text-sm ">{item.saree.name}</h3>
+                      <p className="text-xs text-gray-500">{item.saree.code}</p>
+                      <p className="font-sm text-green-600">{formatPrice(item.unitPrice)}</p>
                     </div>
                     <div className="flex items-center gap-2">
                       <Button
@@ -369,8 +481,8 @@ export default function Cart() {
               {discount ? (
                 <div className="flex items-center justify-between p-3 bg-green-50 rounded">
                   <div>
-                    <p className="font-medium text-green-800">{discount.description}</p>
-                    <p className="text-sm text-green-600">Saved: {formatPrice(discountAmount)}</p>
+                    <p className="font-sm text-green-800">{discount.description}</p>
+                    <p className="text-xs text-green-600">Saved: {formatPrice(discountAmount)}</p>
                   </div>
                   <Button variant="ghost" size="sm" onClick={removeDiscount}>
                     <Trash2 className="h-4 w-4" />
@@ -423,21 +535,23 @@ export default function Cart() {
             </CardHeader>
             <CardContent className="space-y-4">
               <div>
-                <Label htmlFor="customerName">Customer Name</Label>
+                <Label htmlFor="customerName">Customer Name *</Label>
                 <Input
                   id="customerName"
                   value={customerName}
                   onChange={(e) => setCustomerName(e.target.value)}
                   placeholder="Enter customer name"
+                  required
                 />
               </div>
               <div>
-                <Label htmlFor="customerPhone">Phone Number</Label>
+                <Label htmlFor="customerPhone">Phone Number *</Label>
                 <Input
                   id="customerPhone"
                   value={customerPhone}
                   onChange={(e) => setCustomerPhone(e.target.value)}
                   placeholder="Enter phone number"
+                  required
                 />
               </div>
             </CardContent>
@@ -452,6 +566,48 @@ export default function Cart() {
           >
             {checkoutMutation.isPending ? "Processing..." : `Complete Order ${formatPrice(totalAmount)}`}
           </Button>
+
+          {/* Invoice Generation Button */}
+          {lastOrder && (
+            <Button
+              variant="outline"
+              size="lg"
+              className="w-full"
+              onClick={generateInvoice}
+              disabled={!lastOrder}
+            >
+              <FileText className="h-4 w-4 mr-2" />
+              Generate Invoice
+            </Button>
+          )}
+
+          {/* Order Success Message */}
+          {lastOrder && (
+            <Card className="border-green-200 bg-green-50">
+              <CardContent className="p-4">
+                <div className="text-center">
+                  <div className="text-green-600 font-medium mb-2">
+                    Order #{lastOrder.orderId} Completed Successfully!
+                  </div>
+                  <div className="text-sm text-gray-600">
+                    Customer: {lastOrder.customerName}
+                  </div>
+                  <div className="text-sm text-gray-600">
+                    Total: {formatPrice(lastOrder.totalAmount)}
+                  </div>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="mt-3"
+                    onClick={generateInvoice}
+                  >
+                    <Download className="h-4 w-4 mr-2" />
+                    Download Invoice
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          )}
         </div>
       </div>
     </div>
