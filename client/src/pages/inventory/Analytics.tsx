@@ -19,16 +19,7 @@ import {
   ChartTooltip,
   ChartTooltipContent,
 } from "@/components/ui/chart";
-import {
-  Bar,
-  BarChart,
-  XAxis,
-  YAxis,
-  ResponsiveContainer,
-  PieChart,
-  Pie,
-  Cell,
-} from "recharts";
+import { BarChart, Bar, XAxis, YAxis, PieChart, Pie, Cell, ResponsiveContainer } from "@/components/ui/charts";
 
 interface StockMovementStats {
   totalOnlineCleared: number;
@@ -225,9 +216,10 @@ export default function InventoryAnalytics() {
                           cx="50%"
                           cy="50%"
                           labelLine={false}
-                          label={({ name, percent }) =>
-                            `${name}: ${(percent * 100).toFixed(0)}%`
-                          }
+                          label={(entry: any) => {
+                            const percent = (entry.value / pieData.reduce((sum, item) => sum + item.value, 0)) * 100
+                            return `${entry.name}: ${percent.toFixed(0)}%`
+                          }}
                           outerRadius={80}
                           fill="#8884d8"
                           dataKey="value"
