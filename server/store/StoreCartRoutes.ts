@@ -44,6 +44,7 @@ export const checkoutSchema = z.object({
       minOrderAmount: z.number().optional(),
       maxDiscount: z.number().optional(),
     })
+    .nullable()
     .optional(),
   tax: z.number().min(0),
   total: z.number().min(0),

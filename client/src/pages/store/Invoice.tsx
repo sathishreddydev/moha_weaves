@@ -1,14 +1,11 @@
 import { useState, useEffect } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useMutation } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Plus, Minus, Trash2, ShoppingCart, CreditCard, Loader2, ShoppingBag } from "lucide-react";
 import { apiRequest, getQueryFn } from "@/lib/queryClient";
 import { toast } from "@/hooks/use-toast";
 import { useAuth } from "@/lib/auth";
-import { DataTable } from "@/components/ui/data-table";
-import { ColumnDef } from "@tanstack/react-table";
-import { useNavigate } from "react-router-dom";
 
 interface CartItem {
   id: string;
@@ -45,22 +42,19 @@ const formatPrice = (price: number | string) =>
     currency: "INR",
     maximumFractionDigits: 0,
   }).format(Number(price));
-export default function Cart() {
-  const queryClient = useQueryClient();
-  const navigate = useNavigate();
+
+export default function Invoice() {
   const { user } = useAuth();
   const [cartItems, setCartItems] = useState<CartItem[]>([]);
   const [discount, setDiscount] = useState<Discount | null>(null);
   const [couponCode, setCouponCode] = useState("");
   const [taxRules] = useState<TaxRule[]>([
     { name: "GST", rate: 18, type: "percentage" },
-    { name: "Service Charge", rate: 10, type: "percentage" }
   ]);
   const [paymentMode, setPaymentMode] = useState<"cash" | "card" | "upi">("cash");
   const [customerName, setCustomerName] = useState("");
   const [customerPhone, setCustomerPhone] = useState("");
   const [lastOrder, setLastOrder] = useState<any>(null);
-  const [pagination, setPagination] = useState({ pageIndex: 0, pageSize: 10 });
 
   const { data: cartData, isLoading } = useQuery<any>({
     queryKey: ["/api/store/cart"],
@@ -164,7 +158,7 @@ export default function Cart() {
 
   const updateQuantity = (itemId: string, newQuantity: number) => {
     if (newQuantity <= 0) {
-      removeFromCart(itemId);
+      removeItem(itemId);
       return;
     }
 
@@ -176,32 +170,11 @@ export default function Cart() {
     setCartItems(updatedItems);
     updateCartMutation.mutate({ items: updatedItems });
   };
-  // Delete cart item mutation
-  const deleteCartMutation = useMutation({
-    mutationFn: async (sareeId: string) => {
-      const res = await apiRequest("DELETE", `/api/store/cart/${sareeId}`);
-      return await res.json();
-    },
-    onSuccess: (data) => {
-      queryClient.invalidateQueries({ queryKey: ["/api/store/cart"] });
-      toast({
-        title: "Item removed",
-        description: data.message || "Item removed from cart successfully",
-      });
-    },
-    onError: (error: Error) => {
-      toast({
-        title: "Error",
-        description: error.message,
-        variant: "destructive",
-      });
-    },
-  });
- 
-    const removeFromCart = (itemId: string) => {
-      const updatedItems = cartItems.filter(item => item.id !== itemId);
+
+  const removeItem = (itemId: string) => {
+    const updatedItems = cartItems.filter(item => item.id !== itemId);
     setCartItems(updatedItems);
-    deleteCartMutation.mutate(itemId);
+    updateCartMutation.mutate({ items: updatedItems });
   };
 
   const applyCoupon = () => {
@@ -224,6 +197,7 @@ export default function Cart() {
     });
   };
 
+  // Calculate totals
   const subtotal = cartItems.reduce((sum, item) => sum + item.lineAmount, 0);
   const discountAmount = discount
     ? discount.type === "percentage"
@@ -235,108 +209,6 @@ export default function Cart() {
     return sum + (tax.type === "percentage" ? (tax.rate / 100) * discountedSubtotal : tax.rate);
   }, 0);
   const totalAmount = discountedSubtotal + taxAmount;
-
-  const columns: ColumnDef<CartItem>[] = [
-    {
-      accessorKey: "saree.code",
-      header: "Item Code",
-      cell: ({ row }) => {
-        const item = row.original;
-        return (
-          <span className="text-sm font-medium text-slate-700">
-            {item.saree?.code || item.sareeId}
-          </span>
-        );
-      },
-    },
-    {
-      accessorKey: "saree.name",
-      header: "Description",
-      cell: ({ row }) => {
-        const item = row.original;
-        return (
-          <span className="text-sm text-slate-600">
-            {item.saree?.name || 'Product'}
-          </span>
-        );
-      },
-    },
-    {
-      accessorKey: "quantity",
-      header: "Qty",
-      cell: ({ row }) => {
-        const item = row.original;
-        return (
-          <div className="flex items-center gap-2">
-            <Button
-              variant="outline"
-              size="icon"
-              onClick={() => updateQuantity(item.id, item.quantity - 1)}
-              disabled={item.quantity <= 1}
-              className="h-6 w-6"
-            >
-              <Minus className="h-3 w-3" />
-            </Button>
-            <span className="w-6 text-xs text-center">{item.quantity}</span>
-            <Button
-              variant="outline"
-              size="icon"
-              onClick={() => updateQuantity(item.id, item.quantity + 1)}
-              className="h-6 w-6"
-            >
-              <Plus className="h-3 w-3" />
-            </Button>
-          </div>
-        );
-      },
-    },
-    {
-      accessorKey: "unitPrice",
-      header: "Price",
-      cell: ({ row }) => {
-        const item = row.original;
-        return (
-          <div className="flex items-center justify-end">
-            <span className="text-xs text-slate-400 mr-1">₹</span>
-            {item.unitPrice}
-          </div>
-        );
-      },
-    },
-    {
-      accessorKey: "lineAmount",
-      header: "Total",
-      cell: ({ row }) => {
-        const item = row.original;
-        return (
-          <span className="text-sm font-semibold text-slate-800">
-            ₹{item.lineAmount}
-          </span>
-        );
-      },
-    },
-    {
-      id: "actions",
-      header: "Action",
-      cell: ({ row }) => {
-        const item = row.original;
-        return (
-          <Button
-            onClick={() => removeFromCart(item.id)}
-            variant="ghost"
-            size="sm"
-            className="text-red-600 h-6 w-6 p-0"
-          >
-            <Trash2 size={14} />
-          </Button>
-        );
-      },
-    },
-  ];
-
-  const handlePaginationChange = (pageIndex: number, pageSize: number) => {
-    setPagination({ pageIndex, pageSize });
-  };
 
   const handleCheckout = () => {
     if (cartItems.length === 0) {
@@ -402,24 +274,86 @@ export default function Cart() {
     <div className="max-w-6xl mx-auto">
 
       <div className="mb-6 flex justify-between items-center print:hidden">
-        <h1 className="text-lg font-bold text-slate-800 flex items-center gap-2">
+        <h1 className="text-2xl font-bold text-slate-800 flex items-center gap-2">
           <ShoppingCart />
           Cart
         </h1>
+
       </div>
 
       <div className="bg-white shadow-xl rounded-xl overflow-hidden border border-slate-200 print:shadow-none print:border-none">
+
+
         <div className="p-8">
-          <DataTable
-            columns={columns}
-            data={cartItems}
-            totalCount={cartItems.length}
-            pageSize={pagination.pageSize}
-            pageIndex={pagination.pageIndex}
-            onPaginationChange={handlePaginationChange}
-            isLoading={isLoading}
-            emptyMessage="No items in cart"
-          />
+          <div className="overflow-x-auto">
+            <table className="w-full text-left border-collapse">
+              <thead>
+                <tr className="border-b-2 border-slate-100 text-slate-500 text-xs uppercase tracking-wider">
+                  <th className="py-4 font-semibold px-2">Item Code</th>
+                  <th className="py-4 font-semibold px-2">Description</th>
+                  <th className="py-4 font-semibold px-2 text-center">Qty</th>
+                  <th className="py-4 font-semibold px-2 text-right">Price</th>
+                  <th className="py-4 font-semibold px-2 text-right">Total</th>
+                  <th className="py-4 font-semibold px-2 text-right print:hidden">Action</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-50">
+                {cartItems.map((item) => (
+                  <tr key={item.id} className="group">
+                    <td className="py-4 px-2">
+                      <span className="font-medium text-slate-700">
+                        {item.saree?.code || item.sareeId}
+                      </span>
+                    </td>
+                    <td className="py-4 px-2">
+                      <span className="text-slate-600">
+                        {item.saree?.name || 'Product'}
+                      </span>
+                    </td>
+                    <td className="py-4 px-2 text-center">
+                      <div className="flex items-center gap-2">
+                        <Button
+                          variant="outline"
+                          size="icon"
+                          onClick={() => updateQuantity(item.id, item.quantity - 1)}
+                          disabled={item.quantity <= 1}
+                        >
+                          <Minus className="h-4 w-4" />
+                        </Button>
+                        <span className="w-8 text-center">{item.quantity}</span>
+                        <Button
+                          variant="outline"
+                          size="icon"
+                          onClick={() => updateQuantity(item.id, item.quantity + 1)}
+                        >
+                          <Plus className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </td>
+                    <td className="py-4 px-2 text-right">
+                      <div className="flex items-center justify-end">
+                        <span className="text-slate-400 mr-1 text-sm">₹</span>
+                        {item.unitPrice}
+                      </div>
+                    </td>
+                    <td className="py-4 px-2 text-right font-semibold text-slate-800">
+                      ₹{item.lineAmount}
+                    </td>
+                    <td className="py-4 px-2 text-right print:hidden">
+                      <Button
+                        onClick={() => removeItem(item.id)}
+                        variant="ghost"
+                        size="sm"
+                        className="text-red-600"
+                      >
+                        <Trash2 size={18} />
+                      </Button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
 
 
 
@@ -427,7 +361,7 @@ export default function Cart() {
 
             <div className="flex-1 space-y-6">
               <div>
-                <h4 className="text-xs font-bold text-slate-800 uppercase tracking-widest mb-2">Customer Information</h4>
+                <h4 className="text-sm font-bold text-slate-800 uppercase tracking-widest mb-3">Customer Information</h4>
                 <div className="space-y-3">
                   <Input
                     placeholder="Customer Name"
@@ -445,7 +379,7 @@ export default function Cart() {
               </div>
 
               <div>
-                <h4 className="text-xs font-bold text-slate-800 uppercase tracking-widest mb-2 flex items-center gap-2">
+                <h4 className="text-sm font-bold text-slate-800 uppercase tracking-widest mb-3 flex items-center gap-2">
                   <CreditCard size={16} className="text-slate-400" />
                   Payment Mode
                 </h4>
@@ -465,7 +399,7 @@ export default function Cart() {
               </div>
 
               <div>
-                <h4 className="text-xs font-bold text-slate-800 uppercase tracking-widest mb-2">Coupon Code</h4>
+                <h4 className="text-sm font-bold text-slate-800 uppercase tracking-widest mb-3">Coupon Code</h4>
                 <div className="flex gap-2">
                   <Input
                     placeholder="Enter coupon code"
@@ -513,14 +447,14 @@ export default function Cart() {
             </div>
 
             <div className="w-full md:w-80 space-y-3 bg-slate-50 p-6 rounded-xl print:bg-white print:border print:border-slate-100">
-              <h4 className="text-xs font-bold text-slate-800 uppercase tracking-widest mb-3">Order Summary</h4>
+              <h4 className="text-sm font-bold text-slate-800 uppercase tracking-widest mb-4">Order Summary</h4>
 
-              <div className="flex justify-between text-xs text-slate-600">
+              <div className="flex justify-between text-slate-600">
                 <span>Subtotal</span>
                 <span>₹{subtotal.toLocaleString()}</span>
               </div>
 
-              <div className="flex justify-between text-xs text-slate-600 items-center">
+              <div className="flex justify-between text-slate-600 items-center">
                 <span>Discount</span>
                 <div className="flex items-center print:hidden">
                   <span className="text-xs mr-1">-₹</span>
@@ -529,17 +463,33 @@ export default function Cart() {
                 <span className="hidden print:block">-₹{discountAmount.toLocaleString()}</span>
               </div>
 
-              <div className="flex justify-between text-xs text-slate-600">
+              <div className="flex justify-between text-slate-600">
                 <span>Tax (GST 18%)</span>
                 <span>₹{taxAmount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
               </div>
 
-              <div className="pt-2 mt-1 border-t border-slate-200 flex justify-between items-center">
-                <span className="text-sm font-bold">Total Amount</span>
-                <span className="text-sm font-bold">₹{totalAmount.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}</span>
+              <div className="pt-4 mt-2 border-t border-slate-200 flex justify-between items-center">
+                <span className="text-lg font-bold">Total Amount</span>
+                <span className="text-xl font-bold">₹{totalAmount.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}</span>
               </div>
             </div>
           </div>
+
+          <div className="mt-16 flex justify-between items-end">
+            <div className="text-center">
+              <div className="w-48 border-b border-slate-300 mb-2"></div>
+              <p className="text-xs text-slate-400 uppercase tracking-widest font-bold">Customer Signature</p>
+            </div>
+            <div className="text-center">
+              <div className="text-sm font-script mb-2 italic text-slate-400">(Authorized Signatory)</div>
+              <div className="w-48 border-b border-slate-300 mb-2"></div>
+              <p className="text-xs text-slate-400 uppercase tracking-widest font-bold">For MOHA Store</p>
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-slate-50 p-4 text-center text-[10px] text-slate-400 border-t border-slate-100">
+          Thank you for shopping at MOHA. Visit us again!
         </div>
       </div>
     </div>

@@ -1,31 +1,13 @@
 import { useState, useEffect } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import {
   ShoppingCart,
-  Package,
   Plus,
-  Search,
   Minus,
   Trash2,
-  Check,
-  CreditCard,
-  Smartphone,
-  Wallet,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Skeleton } from "@/components/ui/skeleton";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { Label } from "@/components/ui/label";
-import { Separator } from "@/components/ui/separator";
 import { DataTable } from "@/components/ui/data-table";
 import { useDataTable } from "@/hooks/use-data-table";
 import { ColumnDef } from "@tanstack/react-table";
@@ -48,37 +30,13 @@ interface CartItem {
   maxQuantity: number;
 }
 
-interface Discount {
-  type: "percentage" | "fixed" | "coupon";
-  value: number;
-  description: string;
-  code?: string;
-}
-
-interface TaxRule {
-  name: string;
-  rate: number;
-}
 
 export default function StoreSale() {
   const { user } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const navigate = useNavigate();
-  const [sidebarOpen, setSidebarOpen] = useState(false);
   const [cart, setCart] = useState<CartItem[]>([]);
-  const [customerName, setCustomerName] = useState("");
-  const [customerPhone, setCustomerPhone] = useState("");
-  const [saleType, setSaleType] = useState<"walk_in" | "reserved">("walk_in");
-  const [paymentMode, setPaymentMode] = useState<"cash" | "card" | "upi">("cash");
-  const [discount, setDiscount] = useState<Discount | null>(null);
-  const [couponCode, setCouponCode] = useState("");
-
-  // Tax rules (can be made configurable)
-  const taxRules: TaxRule[] = [
-    { name: "GST", rate: 18 },
-    { name: "Service Charge", rate: 10 },
-  ];
 
   const { data: products, isLoading } = useQuery<ShopProduct[]>({
     queryKey: ["/api/store/products"],
