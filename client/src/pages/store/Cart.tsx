@@ -16,6 +16,7 @@ interface CartItem {
   quantity: number;
   unitPrice: number;
   lineAmount: number;
+  storeStock: number;
   saree: {
     id: string;
     name: string;
@@ -161,10 +162,18 @@ export default function Cart() {
       setCartItems(cartData.items);
     }
   }, [cartData]);
-
-  const updateQuantity = (itemId: string, newQuantity: number, sareeId: string) => {
+  const updateQuantity = (itemId: string, newQuantity: number, sareeId: string, storeStock: number) => {
     if (newQuantity <= 0) {
       removeFromCart(itemId, sareeId);
+      return;
+    }
+
+    if (newQuantity > storeStock) {
+      toast({
+        title: "Stock Limit",
+        description: `Cannot add more than ${storeStock} items`,
+        variant: "destructive",
+      });
       return;
     }
 
@@ -275,7 +284,7 @@ export default function Cart() {
             <Button
               variant="outline"
               size="icon"
-              onClick={() => updateQuantity(item.id, item.quantity - 1, item.sareeId)}
+              onClick={() => updateQuantity(item.id, item.quantity - 1, item.sareeId, item.storeStock)}
               disabled={item.quantity <= 1}
               className="h-6 w-6"
             >
@@ -285,7 +294,8 @@ export default function Cart() {
             <Button
               variant="outline"
               size="icon"
-              onClick={() => updateQuantity(item.id, item.quantity + 1, item.sareeId)}
+              onClick={() => updateQuantity(item.id, item.quantity + 1, item.sareeId, item.storeStock)}
+              disabled={item.quantity >= item.storeStock}
               className="h-6 w-6"
             >
               <Plus className="h-3 w-3" />
@@ -404,60 +414,54 @@ export default function Cart() {
 
   return (
     <div className="max-w-6xl mx-auto">
+      <div >
+        <div className="flex justify-between items-center">
+          <h1 className="text-lg font-bold text-slate-800 flex items-center gap-2">
+            <ShoppingCart />
+            Cart
+          </h1>
+          <Button
+            onClick={() => { navigate('/store/sale') }}
+            disabled={applyCouponMutation.isPending}
+            variant="outline"
+          >
+            <Plus /> Add Item
+          </Button>
+        </div>
 
-      <div className="mb-6 flex justify-between items-center print:hidden">
-        <h1 className="text-lg font-bold text-slate-800 flex items-center gap-2">
-          <ShoppingCart />
-          Cart
-        </h1>
-      </div>
-
-      <div className="bg-white shadow-xl rounded-xl overflow-hidden border border-slate-200 print:shadow-none print:border-none">
-        <div className="p-8">
-          <div className="flex justify-end">
-            <Button
-              onClick={() => { navigate('/store/sale') }}
-              disabled={applyCouponMutation.isPending}
-              variant="outline"
-            >
-              <Plus /> Add Item
-            </Button>
-          </div>
-
-          <DataTable
-            columns={columns}
-            data={cartItems}
-            totalCount={cartItems.length}
-            pageSize={pagination.pageSize}
-            pageIndex={pagination.pageIndex}
-            onPaginationChange={handlePaginationChange}
-            isLoading={isLoading}
-            emptyMessage="No items in cart"
-          />
+        <DataTable
+          columns={columns}
+          data={cartItems}
+          totalCount={cartItems.length}
+          pageSize={pagination.pageSize}
+          pageIndex={pagination.pageIndex}
+          onPaginationChange={handlePaginationChange}
+          isLoading={isLoading}
+          emptyMessage="No items in cart"
+        />
 
 
 
-          <div className="mt-12 flex flex-col md:flex-row justify-between gap-8 border-t border-slate-100 pt-8">
-
-            <div className="flex-1 space-y-6">
-              <div>
-                <h4 className="text-xs font-bold text-slate-800 uppercase tracking-widest mb-2">Customer Information</h4>
-                <div className="space-y-3">
-                  <Input
-                    placeholder="Customer Name"
-                    value={customerName}
-                    onChange={(e) => setCustomerName(e.target.value)}
-                    className="w-full"
-                  />
-                  <Input
-                    placeholder="Customer Phone"
-                    value={customerPhone}
-                    onChange={(e) => setCustomerPhone(e.target.value)}
-                    className="w-full"
-                  />
-                </div>
+        <div className="flex mt-8 flex-col md:flex-row justify-between gap-8 border-t border-slate-100 pt-8">
+          <div className="flex-1 space-y-6">
+            <div>
+              <h4 className="text-xs font-bold text-slate-800 uppercase tracking-widest mb-2">Customer Information</h4>
+              <div className="space-y-3">
+                <Input
+                  placeholder="Customer Name"
+                  value={customerName}
+                  onChange={(e) => setCustomerName(e.target.value)}
+                  className="w-full"
+                />
+                <Input
+                  placeholder="Customer Phone"
+                  value={customerPhone}
+                  onChange={(e) => setCustomerPhone(e.target.value)}
+                  className="w-full"
+                />
               </div>
-
+            </div>
+            <div className="flex justify-between align-center">
               <div>
                 <h4 className="text-xs font-bold text-slate-800 uppercase tracking-widest mb-2 flex items-center gap-2">
                   <CreditCard size={16} className="text-slate-400" />
@@ -477,7 +481,6 @@ export default function Cart() {
                   ))}
                 </div>
               </div>
-
               <div>
                 <h4 className="text-xs font-bold text-slate-800 uppercase tracking-widest mb-2">Coupon Code</h4>
                 <div className="flex gap-2">
@@ -501,58 +504,56 @@ export default function Cart() {
                   </div>
                 )}
               </div>
+            </div>
+            <div className="text-[11px] text-slate-500 leading-relaxed max-w-sm">
+              <h4 className="font-bold text-slate-700 mb-1 uppercase tracking-tighter">Return Policy</h4>
+              <ul className="list-disc pl-4 space-y-1">
+                <li>Items must be in unused condition with all tags attached.</li>
+                <li>Exchanges are subject to availability of stock.</li>
+                <li>No exchanges on customized orders.</li>
+                <li>Store management reserves the right to refuse exchanges that don't meet policy criteria.</li>
+              </ul>
+            </div>
+          </div>
 
-              <Button
-                onClick={handleCheckout}
-                disabled={checkoutMutation.isPending}
-                className="w-full"
-                size="lg"
-              >
-                {checkoutMutation.isPending ? (
-                  <><Loader2 className="h-4 w-4 animate-spin mr-2" /> Processing...</>
-                ) : (
-                  <><ShoppingBag className="h-4 w-4 mr-2" /> Complete Checkout</>
-                )}
-              </Button>
+          <div className="w-full md:w-80 space-y-3 bg-slate-50 rounded-xl print:bg-white print:border print:border-slate-100">
+            <h4 className="text-xs font-bold text-slate-800 uppercase tracking-widest mb-3">Order Summary</h4>
 
-              <div className="text-[11px] text-slate-500 leading-relaxed max-w-sm">
-                <h4 className="font-bold text-slate-700 mb-1 uppercase tracking-tighter">Return Policy</h4>
-                <ul className="list-disc pl-4 space-y-1">
-                  <li>Items must be in unused condition with all tags attached.</li>
-                  <li>Exchanges are subject to availability of stock.</li>
-                  <li>No exchanges on customized orders.</li>
-                  <li>Store management reserves the right to refuse exchanges that don't meet policy criteria.</li>
-                </ul>
-              </div>
+            <div className="flex justify-between text-xs text-slate-600">
+              <span>Subtotal</span>
+              <span>₹{subtotal.toLocaleString()}</span>
             </div>
 
-            <div className="w-full md:w-80 space-y-3 bg-slate-50 p-6 rounded-xl print:bg-white print:border print:border-slate-100">
-              <h4 className="text-xs font-bold text-slate-800 uppercase tracking-widest mb-3">Order Summary</h4>
-
-              <div className="flex justify-between text-xs text-slate-600">
-                <span>Subtotal</span>
-                <span>₹{subtotal.toLocaleString()}</span>
+            <div className="flex justify-between text-xs text-slate-600 items-center">
+              <span>Discount</span>
+              <div className="flex items-center print:hidden">
+                <span className="text-xs mr-1">-₹</span>
+                {discountAmount.toLocaleString()}
               </div>
-
-              <div className="flex justify-between text-xs text-slate-600 items-center">
-                <span>Discount</span>
-                <div className="flex items-center print:hidden">
-                  <span className="text-xs mr-1">-₹</span>
-                  {discountAmount.toLocaleString()}
-                </div>
-                <span className="hidden print:block">-₹{discountAmount.toLocaleString()}</span>
-              </div>
-
-              <div className="flex justify-between text-xs text-slate-600">
-                <span>Tax (GST 18%)</span>
-                <span>₹{taxAmount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
-              </div>
-
-              <div className="pt-2 mt-1 border-t border-slate-200 flex justify-between items-center">
-                <span className="text-sm font-bold">Total Amount</span>
-                <span className="text-sm font-bold">₹{totalAmount.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}</span>
-              </div>
+              <span className="hidden print:block">-₹{discountAmount.toLocaleString()}</span>
             </div>
+
+            <div className="flex justify-between text-xs text-slate-600">
+              <span>Tax (GST 18%)</span>
+              <span>₹{taxAmount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+            </div>
+
+            <div className="pt-2 mt-1 border-t border-slate-200 flex justify-between items-center">
+              <span className="text-sm font-bold">Total Amount</span>
+              <span className="text-sm font-bold">₹{totalAmount.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}</span>
+            </div>
+            <Button
+              onClick={handleCheckout}
+              disabled={checkoutMutation.isPending}
+              className="w-full mt-4"
+              size="lg"
+            >
+              {checkoutMutation.isPending ? (
+                <><Loader2 className="h-4 w-4 animate-spin mr-2" /> Processing...</>
+              ) : (
+                <><ShoppingBag className="h-4 w-4 mr-2" /> Complete Checkout</>
+              )}
+            </Button>
           </div>
         </div>
       </div>

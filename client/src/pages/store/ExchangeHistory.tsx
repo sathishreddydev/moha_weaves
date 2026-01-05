@@ -180,9 +180,7 @@ export default function StoreExchangeHistory() {
           </p>
         </div>
 
-        <Card>
-          <CardContent className="p-4">
-            <DataTable
+        <DataTable
               columns={exchangesColumns}
               data={exchanges}
               totalCount={totalCount}
@@ -196,8 +194,6 @@ export default function StoreExchangeHistory() {
               dateFilter={{ key: "date", label: "Filter by date" }}
               emptyMessage="No exchange history yet"
             />
-          </CardContent>
-        </Card>
       </div>
     </div>
   );

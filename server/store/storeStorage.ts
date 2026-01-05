@@ -1008,6 +1008,10 @@ export class StoreRepository implements StoreStorage {
       .leftJoin(categories, eq(sarees.categoryId, categories.id))
       .leftJoin(colors, eq(sarees.colorId, colors.id))
       .leftJoin(fabrics, eq(sarees.fabricId, fabrics.id))
+      .leftJoin(storeInventory, and(
+        eq(storeInventory.sareeId, sarees.id),
+        eq(storeInventory.storeId, storeId)
+      ))
       .where(eq(storeCart.storeId, storeId));
 
     return {
@@ -1017,6 +1021,7 @@ export class StoreRepository implements StoreStorage {
         quantity: item.store_cart.quantity,
         unitPrice: Number(item.store_cart.unitPrice),
         lineAmount: Number(item.store_cart.lineAmount),
+        storeStock: item.store_inventory?.quantity || 0,
         saree: {
           id: item.sarees.id,
           name: item.sarees.name,

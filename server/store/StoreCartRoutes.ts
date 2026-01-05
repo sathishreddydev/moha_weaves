@@ -10,6 +10,7 @@ const cartItemSchema = z.object({
   quantity: z.number().min(1),
   unitPrice: z.number().min(0),
   lineAmount: z.number().min(0),
+  storeStock: z.number().min(0),
 });
 
 export const addToCartSchema = z.object({
@@ -80,19 +81,37 @@ export const storeCartRoutes = (app: Express) => {
       const validatedData = addToCartSchema.parse(req.body);
       const storeRepo = new StoreRepository();
 
+      // Check store inventory before adding to cart
+      const inventory = await storeRepo.getStoreInventoryItem(storeId, validatedData.sareeId);
+      if (!inventory || inventory.quantity < validatedData.quantity) {
+        return res.status(400).json({ 
+          error: "Insufficient stock", 
+          message: `Only ${inventory?.quantity || 0} items available in stock` 
+        });
+      }
+
       // Use the new updateStoreCart method which handles insert/update properly
       const currentCart = await storeRepo.getStoreCart(storeId);
       const existingItem = currentCart.items.find(item => item.sareeId === validatedData.sareeId);
 
       let updatedItems;
       if (existingItem) {
+        // Check if adding quantity would exceed available stock
+        const newQuantity = existingItem.quantity + validatedData.quantity;
+        if (newQuantity > (inventory?.quantity || 0)) {
+          return res.status(400).json({ 
+            error: "Insufficient stock", 
+            message: `Cannot add ${validatedData.quantity} more items. Only ${inventory?.quantity || 0} available in stock, ${existingItem.quantity} already in cart` 
+          });
+        }
+
         // Update existing item quantity
         updatedItems = currentCart.items.map(item =>
           item.sareeId === validatedData.sareeId
             ? {
                 ...item,
-                quantity: item.quantity + validatedData.quantity,
-                lineAmount: (item.quantity + validatedData.quantity) * validatedData.unitPrice,
+                quantity: newQuantity,
+                lineAmount: newQuantity * validatedData.unitPrice,
               }
             : item
         );
@@ -123,8 +142,23 @@ export const storeCartRoutes = (app: Express) => {
       const storeId = req.user?.storeId;
       if (!storeId) return res.status(401).json({ error: "Store not authenticated" });
 
+      const validatedData = updateCartSchema.parse(req.body);
       const storeRepo = new StoreRepository();
-      const updatedCart = await storeRepo.updateStoreCart(storeId, req.body.items);
+
+      // Validate stock availability for all items
+      for (const item of validatedData.items) {
+        if (item.quantity === undefined) continue; // Skip items without quantity
+        
+        const inventory = await storeRepo.getStoreInventoryItem(storeId, item.sareeId);
+        if (!inventory || inventory.quantity < item.quantity) {
+          return res.status(400).json({ 
+            error: "Insufficient stock", 
+            message: `Only ${inventory?.quantity || 0} items available for item ${item.sareeId}` 
+          });
+        }
+      }
+
+      const updatedCart = await storeRepo.updateStoreCart(storeId, validatedData.items);
       res.json(updatedCart);
     } catch (error) {
       if (error instanceof z.ZodError) {
@@ -179,6 +213,17 @@ export const storeCartRoutes = (app: Express) => {
 
       const validatedData = checkoutSchema.parse(req.body);
       const storeRepo = new StoreRepository();
+
+      // Validate stock availability for all checkout items
+      for (const item of validatedData.items) {
+        const inventory = await storeRepo.getStoreInventoryItem(storeId, item.sareeId);
+        if (!inventory || inventory.quantity < item.quantity) {
+          return res.status(400).json({ 
+            error: "Insufficient stock", 
+            message: `Only ${inventory?.quantity || 0} items available for item ${item.sareeId}. Cannot complete checkout.` 
+          });
+        }
+      }
 
       const subtotal = validatedData.items.reduce((sum, item) => sum + item.lineAmount, 0);
       const discountAmount = validatedData.discount

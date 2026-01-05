@@ -67,10 +67,10 @@ export default function StoreHistory() {
 
     // Prepare data for Excel export
     const excelData = sales.map((sale) => {
-      const items = sale.items.map((item: any) => 
+      const items = sale.items.map((item: any) =>
         `${item.saree.name} (${item.quantity} x ${formatPrice(item.price)})`
       ).join("; ");
-      
+
       return {
         "Sale ID": `#${sale.id}`,
         "Date": formatDate(sale.createdAt),
@@ -90,7 +90,7 @@ export default function StoreHistory() {
 
     const excelBuffer = XLSX.write(wb, { bookType: "xlsx", type: "array" });
     const data = new Blob([excelBuffer], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
-    
+
     const fileName = `sales_history_${new Date().toISOString().split('T')[0]}.xlsx`;
     saveAs(data, fileName);
   };
@@ -177,13 +177,13 @@ export default function StoreHistory() {
             {sale.items.some(
               (item: any) => (item.returnedQuantity || 0) > 0
             ) && (
-              <Badge
-                variant="outline"
-                className="text-orange-600 border-orange-600"
-              >
-                Exchanged
-              </Badge>
-            )}
+                <Badge
+                  variant="outline"
+                  className="text-orange-600 border-orange-600"
+                >
+                  Exchanged
+                </Badge>
+              )}
           </div>
         );
       },
@@ -257,24 +257,20 @@ export default function StoreHistory() {
           </Button>
         </div>
 
-        <Card>
-          <CardContent className="p-4">
-            <DataTable
-              columns={salesColumns}
-              data={sales}
-              totalCount={totalCount}
-              pageIndex={pageIndex}
-              pageSize={pageSize}
-              onPaginationChange={handlePaginationChange}
-              onSearchChange={handleSearchChange}
-              onDateFilterChange={handleDateFilterChange}
-              isLoading={isLoading}
-              searchPlaceholder="Search by sale ID..."
-              dateFilter={{ key: "date", label: "Filter by date" }}
-              emptyMessage="No sales history yet"
-            />
-          </CardContent>
-        </Card>
+        <DataTable
+          columns={salesColumns}
+          data={sales}
+          totalCount={totalCount}
+          pageIndex={pageIndex}
+          pageSize={pageSize}
+          onPaginationChange={handlePaginationChange}
+          onSearchChange={handleSearchChange}
+          onDateFilterChange={handleDateFilterChange}
+          isLoading={isLoading}
+          searchPlaceholder="Search by sale ID..."
+          dateFilter={{ key: "date", label: "Filter by date" }}
+          emptyMessage="No sales history yet"
+        />
       </div>
 
       <Dialog open={!!selectedSale} onOpenChange={() => setSelectedSale(null)}>

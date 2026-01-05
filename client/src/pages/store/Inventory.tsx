@@ -278,26 +278,22 @@ export default function StoreInventoryPage() {
         </Card>
       </div>
 
-      <Card>
-        <CardContent className="p-4">
-          <DataTable
-            columns={inventoryColumns}
-            data={products}
-            totalCount={totalCount}
-            pageIndex={pageIndex}
-            pageSize={pageSize}
-            onPaginationChange={handlePaginationChange}
-            onSearchChange={handleSearchChange}
-            onFiltersChange={handleFiltersChange}
-            onDateFilterChange={handleDateFilterChange}
-            isLoading={isLoading}
-            searchPlaceholder="Search by name or SKU..."
-            filters={filters}
-            dateFilter={{ key: "date", label: "Filter by date added" }}
-            emptyMessage="No products available for shop"
-          />
-        </CardContent>
-      </Card>
+      <DataTable
+        columns={inventoryColumns}
+        data={products}
+        totalCount={totalCount}
+        pageIndex={pageIndex}
+        pageSize={pageSize}
+        onPaginationChange={handlePaginationChange}
+        onSearchChange={handleSearchChange}
+        onFiltersChange={handleFiltersChange}
+        onDateFilterChange={handleDateFilterChange}
+        isLoading={isLoading}
+        searchPlaceholder="Search by name or SKU..."
+        filters={filters}
+        dateFilter={{ key: "date", label: "Filter by date added" }}
+        emptyMessage="No products available for shop"
+      />
     </div>
   );
 }
