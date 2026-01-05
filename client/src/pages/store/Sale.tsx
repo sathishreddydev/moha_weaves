@@ -5,6 +5,7 @@ import {
   Plus,
   Minus,
   Trash2,
+  Tag,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -39,9 +40,12 @@ export default function StoreSale() {
   const navigate = useNavigate();
   const [cart, setCart] = useState<CartItem[]>([]);
 
-  const { data: products, isLoading } = useQuery<ShopProduct[]>({
-    queryKey: ["/api/store/products"],
-    enabled: !!user && user.role === "store",
+  const { data: filterOptions } = useQuery<{
+    categories: { id: string; name: string }[];
+    colors: { id: string; name: string; hexCode: string }[];
+    fabrics: { id: string; name: string }[];
+  }>({
+    queryKey: ["/api/filters"],
   });
 
   const {
@@ -52,6 +56,7 @@ export default function StoreSale() {
     isLoading: tableLoading,
     handlePaginationChange,
     handleSearchChange,
+    handleFiltersChange,
   } = useDataTable<ShopProduct>({
     queryKey: "/api/store/products/paginated",
     initialPageSize: 20,
@@ -217,8 +222,8 @@ export default function StoreSale() {
     deleteCartMutation.mutate(sareeId);
   };
 
-  const displayProducts = tableProducts.length > 0 ? tableProducts : (products || []);
-  const displayLoading = tableLoading || isLoading;
+  const displayProducts = tableProducts;
+  const displayLoading = tableLoading;
   const productColumns: ColumnDef<ShopProduct>[] = [
     {
       accessorKey: "saree.imageUrl",
@@ -249,6 +254,41 @@ export default function StoreSale() {
       ),
     },
     {
+      accessorKey: "saree.category.name",
+      header: "Category",
+      cell: ({ row }) => (
+        <span className="text-sm">
+          {row.original.saree.category?.name || "-"}
+        </span>
+      ),
+    },
+    {
+      accessorKey: "saree.color.name",
+      header: "Color",
+      cell: ({ row }) => {
+        const color = row.original.saree.color;
+        if (!color) return <span className="text-sm">-</span>;
+        return (
+          <div className="flex items-center gap-2">
+            <div 
+              className="w-4 h-4 rounded border border-gray-300" 
+              style={{ backgroundColor: color.hexCode }}
+            />
+            <span className="text-sm">{color.name}</span>
+          </div>
+        );
+      },
+    },
+    {
+      accessorKey: "saree.fabric.name",
+      header: "Fabric",
+      cell: ({ row }) => (
+        <span className="text-sm">
+          {row.original.saree.fabric?.name || "-"}
+        </span>
+      ),
+    },
+    {
       accessorKey: "saree.price",
       header: "Price",
       cell: ({ row }) => (
@@ -257,6 +297,7 @@ export default function StoreSale() {
         </span>
       ),
     },
+    
     {
       accessorKey: "storeStock",
       header: "Stock",
@@ -329,8 +370,36 @@ export default function StoreSale() {
     },
   ];
 
+  // Prepare filter configurations
+  const filterConfigs = [
+    {
+      key: "categoryId",
+      label: "Category",
+      options: filterOptions?.categories?.map((cat) => ({
+        label: cat.name,
+        value: cat.id,
+      })) || [],
+    },
+    {
+      key: "colorId",
+      label: "Color",
+      options: filterOptions?.colors?.map((color) => ({
+        label: color.name,
+        value: color.id,
+      })) || [],
+    },
+    {
+      key: "fabricId",
+      label: "Fabric",
+      options: filterOptions?.fabrics?.map((fabric) => ({
+        label: fabric.name,
+        value: fabric.id,
+      })) || [],
+    },
+  ];
+
   return (
-    <div className="max-w-6xl mx-auto">
+    <div className="max-w-7xl mx-auto">
       <div className="mb-4 flex items-center justify-between">
         <h1 className="text-2xl font-semibold" data-testid="text-page-title">
           New Sale
@@ -362,8 +431,10 @@ export default function StoreSale() {
           pageIndex={pageIndex}
           onPaginationChange={handlePaginationChange}
           onSearchChange={handleSearchChange}
+          onFiltersChange={handleFiltersChange}
           isLoading={displayLoading}
           searchPlaceholder="Search products..."
+          filters={filterConfigs}
           emptyMessage="No products in stock"
         />
       </div>

@@ -255,9 +255,9 @@ export interface IStorage {
       limit: number;
       offset: number;
       search?: string;
-      categoryId?: string;
-      colorId?: string;
-      fabricId?: string;
+      category?: string;
+      color?: string;
+      fabric?: string;
       dateFrom?: string;
       dateTo?: string;
     }
@@ -1508,17 +1508,17 @@ export class DatabaseStorage implements IStorage {
       );
     }
 
-    // Filter by category
+    // Filter by category ID
     if (options.categoryId) {
       conditions.push(eq(sarees.categoryId, options.categoryId));
     }
 
-    // Filter by color
+    // Filter by color ID
     if (options.colorId) {
       conditions.push(eq(sarees.colorId, options.colorId));
     }
 
-    // Filter by fabric
+    // Filter by fabric ID
     if (options.fabricId) {
       conditions.push(eq(sarees.fabricId, options.fabricId));
     }
