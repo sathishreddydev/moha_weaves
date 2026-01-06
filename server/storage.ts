@@ -141,11 +141,13 @@ export interface IStorage {
     storeId?: string;
     status?: string;
   }): Promise<StockRequestWithDetails[]>;
+  getStockRequest(id: string): Promise<StockRequestWithDetails | undefined>;
   createStockRequest(request: InsertStockRequest): Promise<StockRequest>;
   updateStockRequestStatus(
     id: string,
     status: string,
-    approvedBy?: string
+    approvedBy?: string,
+    notes?: string
   ): Promise<StockRequest | undefined>;
 
   getStoreStats(storeId: string): Promise<{
@@ -930,6 +932,33 @@ export class DatabaseStorage implements IStorage {
     }));
   }
 
+  async getStockRequest(id: string): Promise<StockRequestWithDetails | undefined> {
+    const result = await db
+      .select()
+      .from(stockRequests)
+      .innerJoin(stores, eq(stockRequests.storeId, stores.id))
+      .innerJoin(sarees, eq(stockRequests.sareeId, sarees.id))
+      .leftJoin(categories, eq(sarees.categoryId, categories.id))
+      .leftJoin(colors, eq(sarees.colorId, colors.id))
+      .leftJoin(fabrics, eq(sarees.fabricId, fabrics.id))
+      .where(eq(stockRequests.id, id))
+      .limit(1);
+
+    if (result.length === 0) return undefined;
+    
+    const row = result[0];
+    return {
+      ...row.stock_requests,
+      store: row.stores,
+      saree: {
+        ...row.sarees,
+        category: row.categories,
+        color: row.colors,
+        fabric: row.fabrics,
+      },
+    };
+  }
+
   async createStockRequest(request: InsertStockRequest): Promise<StockRequest> {
     const [result] = await db.insert(stockRequests).values(request).returning();
     return result;
@@ -938,11 +967,20 @@ export class DatabaseStorage implements IStorage {
   async updateStockRequestStatus(
     id: string,
     status: string,
-    approvedBy?: string
+    approvedBy?: string,
+    notes?: string
   ): Promise<StockRequest | undefined> {
+    const updateData: any = { status: status as any, updatedAt: new Date() };
+    if (approvedBy) {
+      updateData.approvedBy = approvedBy;
+    }
+    if (notes !== undefined) {
+      updateData.notes = notes;
+    }
+    
     const [result] = await db
       .update(stockRequests)
-      .set({ status: status as any, approvedBy, updatedAt: new Date() })
+      .set(updateData)
       .where(eq(stockRequests.id, id))
       .returning();
     return result || undefined;

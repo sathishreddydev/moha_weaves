@@ -4,7 +4,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { AddressDialogProps } from "./Type";
-import { AdaptiveModal } from "./AdaptiveModal";
+import { AdaptiveModal } from "../../../components/common/AdaptiveModal";
 
 export const AddressDialog = ({
   formData,

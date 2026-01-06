@@ -116,14 +116,45 @@ export const inventoryRoutes = (app: Express) => {
     authInventory,
     async (req, res) => {
       try {
-        const { status } = req.body;
+        const { status, rejectionReason } = req.body;
         if (!status) {
           return res.status(400).json({ message: "Status is required" });
         }
+
+        // Get the request details to check stock before approval
+        if (status === "approved") {
+          const request = await storage.getStockRequest(req.params.id);
+          
+          if (!request) {
+            return res.status(404).json({ message: "Request not found" });
+          }
+
+          // Get saree details to check available stock
+          const saree = await sareeService.getSaree(request.sareeId);
+          if (!saree) {
+            return res.status(404).json({ message: "Product not found" });
+          }
+
+          // Check if sufficient stock is available
+          if (saree.totalStock < request.quantity) {
+            return res.status(400).json({ 
+              message: `Insufficient stock available. Available: ${saree.totalStock}, Requested: ${request.quantity}`,
+              availableStock: saree.totalStock,
+              requestedQuantity: request.quantity
+            });
+          }
+        }
+
+        const updateData: any = { status };
+        if (rejectionReason && status === "rejected") {
+          updateData.notes = rejectionReason;
+        }
+
         const request = await storage.updateStockRequestStatus(
           req.params.id,
           status,
-          (req as any).user.id
+          (req as any).user.id,
+          rejectionReason
         );
         if (!request) {
           return res.status(404).json({ message: "Request not found" });

@@ -1,12 +1,9 @@
 import { useState } from "react";
 import { Package, Plus, Clock, CheckCircle, XCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import {
   Table,
   TableBody,
@@ -15,26 +12,11 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { useAuth } from "@/lib/auth";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
-import type { SareeWithDetails, StockRequestWithDetails } from "@shared/schema";
+import type { StockRequestWithDetails } from "@shared/schema";
 
 const statusConfig: Record<
   string,
@@ -73,13 +55,6 @@ export default function StoreRequests() {
   const { user } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [dialogOpen, setDialogOpen] = useState(false);
-  const [formData, setFormData] = useState({
-    sareeId: "",
-    quantity: 1,
-    notes: "",
-  });
 
   const { data: requests, isLoading: loadingRequests } = useQuery<
     StockRequestWithDetails[]
@@ -88,44 +63,11 @@ export default function StoreRequests() {
     enabled: !!user && user.role === "store",
   });
 
-  const { data: sarees } = useQuery<SareeWithDetails[]>({
-    queryKey: ["/api/sarees"],
-    enabled: !!user && user.role === "store",
-  });
-
-  const createRequestMutation = useMutation({
-    mutationFn: async (data: {
-      sareeId: string;
-      quantity: number;
-      notes: string;
-    }) => {
-      const response = await apiRequest("POST", "/api/store/requests", data);
-      return response.json();
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/store/requests"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/store/stats"] });
-      toast({
-        title: "Success",
-        description: "Stock request submitted successfully",
-      });
-      setDialogOpen(false);
-      setFormData({ sareeId: "", quantity: 1, notes: "" });
-    },
-    onError: () => {
-      toast({
-        title: "Error",
-        description: "Failed to submit request",
-        variant: "destructive",
-      });
-    },
-  });
-
   const markReceivedMutation = useMutation({
     mutationFn: async (id: string) => {
       const response = await apiRequest(
         "PATCH",
-        `/api/store/requests/${id}/received`
+        `/api/store/requests/${id}/received`,
       );
       return response.json();
     },
@@ -154,15 +96,6 @@ export default function StoreRequests() {
     });
   };
 
-  const handleSubmitRequest = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!formData.sareeId) {
-      toast({ title: "Error", description: "Please select a product" });
-      return;
-    }
-    createRequestMutation.mutate(formData);
-  };
-
   return (
     <div>
       <div className="max-w-5xl mx-auto">
@@ -178,13 +111,6 @@ export default function StoreRequests() {
               Request inventory from central warehouse
             </p>
           </div>
-          <Button
-            onClick={() => setDialogOpen(true)}
-            data-testid="button-new-request"
-          >
-            <Plus className="h-4 w-4 mr-2" />
-            New Request
-          </Button>
         </div>
 
         <Card>
@@ -282,95 +208,6 @@ export default function StoreRequests() {
           </CardContent>
         </Card>
       </div>
-
-      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Request Stock</DialogTitle>
-            <DialogDescription>
-              Request inventory from the central warehouse
-            </DialogDescription>
-          </DialogHeader>
-          <form onSubmit={handleSubmitRequest} className="space-y-4">
-            <div>
-              <Label htmlFor="product">Product</Label>
-              <Select
-                value={formData.sareeId}
-                onValueChange={(value) =>
-                  setFormData({ ...formData, sareeId: value })
-                }
-              >
-                <SelectTrigger data-testid="select-product">
-                  <SelectValue placeholder="Select a product" />
-                </SelectTrigger>
-                <SelectContent>
-                  {sarees?.map((saree) => (
-                    <SelectItem key={saree.id} value={saree.id}>
-                      <div className="flex items-center gap-2">
-                        <img
-                          src={
-                            saree.imageUrl ||
-                            "https://images.unsplash.com/photo-1610030469983-98e550d6193c?w=30"
-                          }
-                          alt=""
-                          className="w-6 h-8 rounded object-cover"
-                        />
-                        <span className="line-clamp-1">{saree.name}</span>
-                      </div>
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div>
-              <Label htmlFor="quantity">Quantity</Label>
-              <Input
-                id="quantity"
-                type="number"
-                min="1"
-                value={formData.quantity}
-                onChange={(e) =>
-                  setFormData({
-                    ...formData,
-                    quantity: parseInt(e.target.value) || 1,
-                  })
-                }
-                data-testid="input-quantity"
-              />
-            </div>
-            <div>
-              <Label htmlFor="notes">Notes (Optional)</Label>
-              <Textarea
-                id="notes"
-                value={formData.notes}
-                onChange={(e) =>
-                  setFormData({ ...formData, notes: e.target.value })
-                }
-                placeholder="Any additional notes for the request..."
-                data-testid="input-notes"
-              />
-            </div>
-            <DialogFooter>
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => setDialogOpen(false)}
-              >
-                Cancel
-              </Button>
-              <Button
-                type="submit"
-                disabled={createRequestMutation.isPending}
-                data-testid="button-submit-request"
-              >
-                {createRequestMutation.isPending
-                  ? "Submitting..."
-                  : "Submit Request"}
-              </Button>
-            </DialogFooter>
-          </form>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }

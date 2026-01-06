@@ -36,6 +36,16 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { useAuth } from "@/lib/auth";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
@@ -77,12 +87,13 @@ const statusConfig: Record<
 };
 
 export default function InventoryRequests() {
-  const navigate = useNavigate();
-  const { user, logout } = useAuth();
+  const { user } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  const [sidebarOpen, setSidebarOpen] = useState(false);
   const [filterStatus, setFilterStatus] = useState<string>("all");
+  const [rejectDialogOpen, setRejectDialogOpen] = useState(false);
+  const [selectedRequestId, setSelectedRequestId] = useState<string>("");
+  const [rejectionReason, setRejectionReason] = useState("");
 
   const isInventoryUser = !!user && (user.role === "inventory" || user.role === "admin");
 
@@ -92,24 +103,36 @@ export default function InventoryRequests() {
   });
 
   const updateStatusMutation = useMutation({
-    mutationFn: async ({ id, status }: { id: string; status: string }) => {
+    mutationFn: async ({ id, status, rejectionReason }: { id: string; status: string; rejectionReason?: string }) => {
       const response = await apiRequest(
         "PATCH",
         `/api/inventory/requests/${id}/status`,
-        { status }
+        { status, rejectionReason }
       );
       return response.json();
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/inventory/requests"] });
       toast({ title: "Success", description: "Request status updated" });
+      setRejectDialogOpen(false);
+      setRejectionReason("");
+      setSelectedRequestId("");
     },
-    onError: () => {
-      toast({
-        title: "Error",
-        description: "Failed to update request",
-        variant: "destructive",
-      });
+    onError: (error: any) => {
+      const errorData = error.data || {};
+      if (errorData.availableStock !== undefined) {
+        toast({
+          title: "Insufficient Stock",
+          description: errorData.message || "Not enough stock available to approve this request",
+          variant: "destructive",
+        });
+      } else {
+        toast({
+          title: "Error",
+          description: errorData.message || "Failed to update request",
+          variant: "destructive",
+        });
+      }
     },
   });
 
@@ -121,6 +144,47 @@ export default function InventoryRequests() {
       year: "numeric",
       hour: "2-digit",
       minute: "2-digit",
+    });
+  };
+
+  const handleApprove = (id: string) => {
+    if (!id) {
+      toast({
+        title: "Error",
+        description: "No request selected",
+        variant: "destructive",
+      });
+      return;
+    }
+    updateStatusMutation.mutate({ id, status: "approved" });
+  };
+
+  const handleReject = (id: string) => {
+    setSelectedRequestId(id);
+    setRejectDialogOpen(true);
+  };
+
+  const handleRejectSubmit = () => {
+    if (!selectedRequestId) {
+      toast({
+        title: "Error",
+        description: "No request selected",
+        variant: "destructive",
+      });
+      return;
+    }
+    if (!rejectionReason.trim()) {
+      toast({
+        title: "Error",
+        description: "Please provide a rejection reason",
+        variant: "destructive",
+      });
+      return;
+    }
+    updateStatusMutation.mutate({
+      id: selectedRequestId,
+      status: "rejected",
+      rejectionReason,
     });
   };
 
@@ -233,12 +297,7 @@ export default function InventoryRequests() {
                             <Button
                               size="sm"
                               variant="outline"
-                              onClick={() =>
-                                updateStatusMutation.mutate({
-                                  id: request.id,
-                                  status: "rejected",
-                                })
-                              }
+                              onClick={() => handleReject(request.id)}
                               disabled={updateStatusMutation.isPending}
                               data-testid={`button-reject-${request.id}`}
                             >
@@ -246,12 +305,7 @@ export default function InventoryRequests() {
                             </Button>
                             <Button
                               size="sm"
-                              onClick={() =>
-                                updateStatusMutation.mutate({
-                                  id: request.id,
-                                  status: "approved",
-                                })
-                              }
+                              onClick={() => handleApprove(request.id)}
                               disabled={updateStatusMutation.isPending}
                               data-testid={`button-approve-${request.id}`}
                             >
@@ -287,6 +341,51 @@ export default function InventoryRequests() {
           )}
         </CardContent>
       </Card>
+
+      {/* Rejection Reason Dialog */}
+      <Dialog open={rejectDialogOpen} onOpenChange={setRejectDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Reject Stock Request</DialogTitle>
+            <DialogDescription>
+              Please provide a reason for rejecting this stock request.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label htmlFor="rejectionReason">Rejection Reason</Label>
+              <Textarea
+                id="rejectionReason"
+                value={rejectionReason}
+                onChange={(e) => setRejectionReason(e.target.value)}
+                placeholder="Enter the reason for rejection..."
+                className="min-h-[100px]"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => {
+                setRejectDialogOpen(false);
+                setRejectionReason("");
+                setSelectedRequestId("");
+              }}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              variant="destructive"
+              onClick={handleRejectSubmit}
+              disabled={updateStatusMutation.isPending}
+            >
+              {updateStatusMutation.isPending ? "Rejecting..." : "Reject Request"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

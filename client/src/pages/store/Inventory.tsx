@@ -1,12 +1,6 @@
-
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import {
-  Package,
-  Globe,
-  Store,
-  ArrowLeftRight,
-} from "lucide-react";
+import { Package, Globe, Store, ArrowLeftRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -16,6 +10,7 @@ import { DataTable, FilterConfig } from "@/components/ui/data-table";
 import { useDataTable } from "@/hooks/use-data-table";
 import { ColumnDef } from "@tanstack/react-table";
 import type { SareeWithDetails, Category, Color, Fabric } from "@shared/schema";
+import { RequestDialog } from "./Utils/RequestDialog";
 
 type ShopProduct = {
   saree: SareeWithDetails;
@@ -25,7 +20,8 @@ type ShopProduct = {
 export default function StoreInventoryPage() {
   const navigate = useNavigate();
   const { user } = useAuth();
-
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [sareeData, setSareeData] = useState<SareeWithDetails>();
   const { data: categories } = useQuery<Category[]>({
     queryKey: ["/api/categories"],
   });
@@ -99,7 +95,10 @@ export default function StoreInventoryPage() {
         return null;
     }
   };
-
+  const requestDailog = (item: ShopProduct) => {
+    setDialogOpen(true);
+    setSareeData(item.saree);
+  };
   const inventoryColumns: ColumnDef<ShopProduct>[] = [
     {
       accessorKey: "saree.imageUrl",
@@ -142,16 +141,12 @@ export default function StoreInventoryPage() {
     {
       accessorKey: "saree.color.name",
       header: "Color",
-      cell: ({ row }) => (
-        <span>{row.original.saree.color?.name || "-"}</span>
-      ),
+      cell: ({ row }) => <span>{row.original.saree.color?.name || "-"}</span>,
     },
     {
       accessorKey: "saree.fabric.name",
       header: "Fabric",
-      cell: ({ row }) => (
-        <span>{row.original.saree.fabric?.name || "-"}</span>
-      ),
+      cell: ({ row }) => <span>{row.original.saree.fabric?.name || "-"}</span>,
     },
     {
       accessorKey: "saree.price",
@@ -165,7 +160,8 @@ export default function StoreInventoryPage() {
     {
       accessorKey: "saree.distributionChannel",
       header: "Availability",
-      cell: ({ row }) => getDistributionBadge(row.original.saree.distributionChannel),
+      cell: ({ row }) =>
+        getDistributionBadge(row.original.saree.distributionChannel),
     },
     {
       accessorKey: "storeStock",
@@ -196,6 +192,21 @@ export default function StoreInventoryPage() {
               </Button>
             </Link>
           </div>
+        );
+      },
+    },
+    {
+      id: "actions",
+      header: "Actions",
+      cell: ({ row }) => {
+        return (
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => requestDailog(row.original)}
+          >
+            Request
+          </Button>
         );
       },
     },
@@ -231,7 +242,7 @@ export default function StoreInventoryPage() {
           })) || [],
       },
     ],
-    [categories, colors, fabrics]
+    [categories, colors, fabrics],
   );
 
   return (
@@ -248,7 +259,7 @@ export default function StoreInventoryPage() {
         <Link to="/store/requests">
           <Button data-testid="button-request-stock">
             <Package className="h-4 w-4 mr-2" />
-            Request Stock
+            Stock Requests 
           </Button>
         </Link>
       </div>
@@ -294,6 +305,7 @@ export default function StoreInventoryPage() {
         dateFilter={{ key: "date", label: "Filter by date added" }}
         emptyMessage="No products available for shop"
       />
+      <RequestDialog dialogOpen={dialogOpen} setDialogOpen={setDialogOpen} sareeData={sareeData} />
     </div>
   );
 }

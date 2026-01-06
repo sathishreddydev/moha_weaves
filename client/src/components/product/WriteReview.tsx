@@ -7,7 +7,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/lib/auth";
 import { useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
-import { AdaptiveModal } from "@/pages/user/common/AdaptiveModal";
+import { AdaptiveModal } from "@/components/common/AdaptiveModal";
 import { SareeWithDetails } from "@shared/schema";
 
 interface ReviewsProps {
