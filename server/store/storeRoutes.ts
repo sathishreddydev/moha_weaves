@@ -206,6 +206,49 @@ export const storeRoutes = (app: Express) => {
   });
 
 
+  app.get("/api/store/sales/:id/exchange-eligibility", authStore, async (req, res) => {
+    try {
+      const user = (req as any).user;
+      if (!user.storeId) {
+        return res.status(400).json({ message: "No store assigned" });
+      }
+
+      const eligibility = await storeService.checkStoreSaleExchangeEligibility(
+        req.params.id,
+        user.storeId
+      );
+      
+      if (!eligibility) {
+        return res.status(404).json({ message: "Sale not found" });
+      }
+
+      res.json(eligibility);
+    } catch (error) {
+      console.error("Error checking exchange eligibility:", error);
+      res.status(500).json({ message: "Failed to check exchange eligibility" });
+    }
+  });
+
+  app.get("/api/store/sales/search", authStore, async (req, res) => {
+    try {
+      const user = (req as any).user;
+      if (!user.storeId) {
+        return res.status(400).json({ message: "No store assigned" });
+      }
+
+      const { query } = req.query;
+      if (!query || typeof query !== 'string') {
+        return res.status(400).json({ message: "Search query is required" });
+      }
+
+      const sales = await storeService.searchStoreSales(user.storeId, query);
+      res.json(sales);
+    } catch (error) {
+      console.error("Error searching sales:", error);
+      res.status(500).json({ message: "Failed to search sales" });
+    }
+  });
+
   app.get("/api/store/sales/:id", authStore, async (req, res) => {
     try {
       const user = (req as any).user;

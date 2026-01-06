@@ -1,7 +1,7 @@
 
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { Receipt, User, Phone, ArrowLeftRight, Download } from "lucide-react";
+import { Receipt, User, Phone, ArrowLeftRight, Download, Clock, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -16,6 +16,7 @@ import { useAuth } from "@/lib/auth";
 import { DataTable } from "@/components/ui/data-table";
 import { useDataTable } from "@/hooks/use-data-table";
 import { ColumnDef } from "@tanstack/react-table";
+import { useQuery } from "@tanstack/react-query";
 import * as XLSX from "xlsx";
 import { saveAs } from "file-saver";
 import type { StoreSaleWithItems } from "@shared/schema";
@@ -39,6 +40,33 @@ export default function StoreHistory() {
   } = useDataTable<StoreSaleWithItems>({
     queryKey: "/api/store/sales/paginated",
     initialPageSize: 10,
+  });
+
+  // Fetch eligibility data for all sales
+  const { data: eligibilityData } = useQuery({
+    queryKey: ["sales-eligibility", sales?.map(s => s.id)],
+    queryFn: async () => {
+      if (!sales || sales.length === 0) return {};
+      
+      const eligibilityPromises = sales.map(async (sale) => {
+        try {
+          const response = await fetch(`/api/store/sales/${sale.id}/exchange-eligibility`, {
+            credentials: "include",
+          });
+          if (response.ok) {
+            const eligibility = await response.json();
+            return { [sale.id]: eligibility };
+          }
+          return { [sale.id]: { eligible: false, reason: "Failed to check eligibility" } };
+        } catch (error) {
+          return { [sale.id]: { eligible: false, reason: "Error checking eligibility" } };
+        }
+      });
+
+      const results = await Promise.all(eligibilityPromises);
+      return results.reduce((acc, result) => ({ ...acc, ...result }), {});
+    },
+    enabled: !!sales && sales.length > 0,
   });
 
   const formatPrice = (price: number | string) => {
@@ -189,6 +217,41 @@ export default function StoreHistory() {
       },
     },
     {
+      id: "exchangeEligibility",
+      header: "Exchange",
+      cell: ({ row }) => {
+        const sale = row.original;
+        const eligibility = eligibilityData?.[sale.id];
+        
+        if (!eligibility) {
+          return (
+            <div className="flex items-center gap-1">
+              <div className="w-2 h-2 bg-gray-300 rounded-full animate-pulse"></div>
+              <span className="text-xs text-muted-foreground">Checking...</span>
+            </div>
+          );
+        }
+
+        if (!eligibility.eligible) {
+          return (
+            <div className="flex items-center gap-1">
+              <AlertCircle className="h-3 w-3 text-red-500" />
+              <span className="text-xs text-red-600">Not eligible</span>
+            </div>
+          );
+        }
+
+        return (
+          <div className="flex items-center gap-1">
+            <Clock className="h-3 w-3 text-green-500" />
+            <span className="text-xs text-green-600">
+              {eligibility.daysRemaining || 0} days left
+            </span>
+          </div>
+        );
+      },
+    },
+    {
       accessorKey: "totalAmount",
       header: "Total",
       cell: ({ row }) => (
@@ -202,13 +265,22 @@ export default function StoreHistory() {
       header: "Actions",
       cell: ({ row }) => {
         const sale = row.original;
-        return sale.items.every(
+        const eligibility = eligibilityData?.[sale.id];
+        const isFullyReturned = sale.items.every(
           (item: any) => item.quantity === (item.returnedQuantity || 0)
-        ) ? (
-          <Badge variant="secondary" className="text-xs">
-            Fully Returned
-          </Badge>
-        ) : (
+        );
+        
+        if (isFullyReturned) {
+          return (
+            <Badge variant="secondary" className="text-xs">
+              Fully Returned
+            </Badge>
+          );
+        }
+
+        const isExchangeDisabled = eligibility && !eligibility.eligible;
+        
+        return (
           <div className="flex gap-2">
             <Button
               variant="outline"
@@ -224,6 +296,8 @@ export default function StoreHistory() {
                 e.stopPropagation();
                 navigate(`/store/exchange/${sale.id}`);
               }}
+              disabled={isExchangeDisabled}
+              title={isExchangeDisabled ? eligibility?.reason : "Process Exchange"}
             >
               <ArrowLeftRight className="h-4 w-4 mr-1" />
               Exchange
@@ -355,6 +429,11 @@ export default function StoreHistory() {
                 className="w-full mt-4"
                 variant="outline"
                 onClick={() => navigate(`/store/exchange/${selectedSale.id}`)}
+                disabled={eligibilityData?.[selectedSale.id]?.eligible === false}
+                title={eligibilityData?.[selectedSale.id]?.eligible === false 
+                  ? eligibilityData?.[selectedSale.id]?.reason 
+                  : "Process Exchange"
+                }
               >
                 <ArrowLeftRight className="h-4 w-4 mr-2" />
                 Process Exchange

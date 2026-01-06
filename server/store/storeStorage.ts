@@ -67,6 +67,25 @@ export interface StoreStorage {
   getStoreSaleForExchange(
     saleId: string,
   ): Promise<StoreSaleWithItems | undefined>;
+  searchStoreSales(
+    storeId: string,
+    query: string,
+  ): Promise<StoreSaleWithItems[]>;
+  checkStoreSaleExchangeEligibility(
+    saleId: string,
+    storeId: string,
+  ): Promise<{
+    eligible: boolean;
+    eligibleUntil?: Date;
+    daysRemaining?: number;
+    reason?: string;
+    items?: Array<{
+      itemId: string;
+      eligible: boolean;
+      reason?: string;
+      availableQuantity: number;
+    }>;
+  } | null>;
 
   getStoreExchangesPaginated(
     storeId: string,
@@ -360,6 +379,190 @@ export class StoreRepository implements StoreStorage {
       items: itemsWithReturns,
     };
   }
+
+  async searchStoreSales(
+    storeId: string,
+    query: string,
+  ): Promise<StoreSaleWithItems[]> {
+    const searchConditions = [
+      eq(storeSales.storeId, storeId),
+      sql`${storeSales.id}::text ILIKE ${`%${query}%`}`,
+      sql`${storeSales.customerName} ILIKE ${`%${query}%`}`,
+      sql`${storeSales.customerPhone} ILIKE ${`%${query}%`}`,
+    ];
+
+    const whereClause = and(
+      eq(storeSales.storeId, storeId),
+      sql`(${storeSales.id}::text ILIKE ${`%${query}%`} OR ${storeSales.customerName} ILIKE ${`%${query}%`} OR ${storeSales.customerPhone} ILIKE ${`%${query}%`})`
+    );
+
+    const salesList = await db
+      .select()
+      .from(storeSales)
+      .innerJoin(stores, eq(storeSales.storeId, stores.id))
+      .where(whereClause)
+      .orderBy(desc(storeSales.createdAt))
+      .limit(20); // Limit to 20 results for better UX
+
+    const result: StoreSaleWithItems[] = [];
+
+    for (const row of salesList) {
+      const items = await db
+        .select()
+        .from(storeSaleItems)
+        .innerJoin(sarees, eq(storeSaleItems.sareeId, sarees.id))
+        .leftJoin(categories, eq(sarees.categoryId, categories.id))
+        .leftJoin(colors, eq(sarees.colorId, colors.id))
+        .leftJoin(fabrics, eq(sarees.fabricId, fabrics.id))
+        .where(eq(storeSaleItems.saleId, row.store_sales.id));
+
+      const itemsWithReturns = await Promise.all(
+        items.map(async (item) => {
+          const returnedResult = await db
+            .select({
+              totalReturned: sql<number>`COALESCE(SUM(${storeExchangeReturnItems.quantity}), 0)`,
+            })
+            .from(storeExchangeReturnItems)
+            .where(
+              eq(storeExchangeReturnItems.saleItemId, item.store_sale_items.id),
+            );
+
+          const returnedQuantity = Number(returnedResult[0]?.totalReturned || 0);
+
+          return {
+            ...item.store_sale_items,
+            returnedQuantity,
+            saree: {
+              ...item.sarees!,
+              category: item.categories,
+              color: item.colors,
+              fabric: item.fabrics,
+            },
+          };
+        }),
+      );
+
+      result.push({
+        ...row.store_sales,
+        store: row.stores,
+        items: itemsWithReturns,
+      });
+    }
+
+    return result;
+  }
+
+  async checkStoreSaleExchangeEligibility(
+    saleId: string,
+    storeId: string,
+  ): Promise<{
+    eligible: boolean;
+    eligibleUntil?: Date;
+    daysRemaining?: number;
+    reason?: string;
+    items?: Array<{
+      itemId: string;
+      eligible: boolean;
+      reason?: string;
+      availableQuantity: number;
+    }>;
+  } | null> {
+    // First, get the sale with items
+    const sale = await this.getStoreSaleForExchange(saleId);
+    
+    if (!sale) {
+      return null;
+    }
+
+    // Check if sale belongs to the specified store
+    if (sale.storeId !== storeId) {
+      return {
+        eligible: false,
+        reason: "Sale belongs to different store",
+        items: [],
+      };
+    }
+
+    // Get exchange window days from settings (similar to return window)
+    const windowDays = await this.getExchangeWindowDays();
+    const days = windowDays ? parseInt(windowDays) : 7;
+
+    const now = new Date();
+    const saleDate = new Date(sale.createdAt);
+    const eligibleUntil = new Date(saleDate);
+    eligibleUntil.setDate(eligibleUntil.getDate() + days);
+
+    // Check if the exchange window has passed
+    if (now > eligibleUntil) {
+      return {
+        eligible: false,
+        eligibleUntil,
+        daysRemaining: 0,
+        reason: `Exchange window has expired. Items were eligible for exchange until ${eligibleUntil.toLocaleDateString()}`,
+        items: [],
+      };
+    }
+
+    // Calculate days remaining
+    const daysRemaining = Math.ceil((eligibleUntil.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+
+    // Check each item for eligibility
+    const itemsEligibility = sale.items.map((item) => {
+      const availableQuantity = item.quantity - (item.returnedQuantity || 0);
+      
+      if (availableQuantity <= 0) {
+        return {
+          itemId: item.id,
+          eligible: false,
+          reason: "All items have already been returned/exchanged",
+          availableQuantity: 0,
+        };
+      }
+
+      return {
+        itemId: item.id,
+        eligible: true,
+        availableQuantity,
+      };
+    });
+
+    // Check if any items are eligible for exchange
+    const hasEligibleItems = itemsEligibility.some(item => item.eligible);
+
+    if (!hasEligibleItems) {
+      return {
+        eligible: false,
+        eligibleUntil,
+        daysRemaining,
+        reason: "No items available for exchange - all items have been returned/exchanged",
+        items: itemsEligibility,
+      };
+    }
+
+    return {
+      eligible: true,
+      eligibleUntil,
+      daysRemaining,
+      items: itemsEligibility,
+    };
+  }
+
+  private async getExchangeWindowDays(): Promise<string | null> {
+    try {
+      // Try to get from settings table or return default
+      const result = await db
+        .select({ value: sql`value` })
+        .from(sql`settings`)
+        .where(sql`key = 'exchange_window_days'`)
+        .limit(1);
+
+      return (result[0]?.value as string) || null;
+    } catch (error) {
+      console.error("Error getting exchange window days:", error);
+      return null;
+    }
+  }
+
   async getStoreExchange(
     id: string,
   ): Promise<StoreExchangeWithDetails | undefined> {

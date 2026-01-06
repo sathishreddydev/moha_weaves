@@ -10,6 +10,9 @@ import {
   ArrowLeft,
   Check,
   RefreshCw,
+  ArrowRight,
+  Clock,
+  AlertCircle,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -84,6 +87,9 @@ export default function StoreExchange() {
   const [selectedSaleId, setSelectedSaleId] = useState<string | null>(
     urlSaleId || null,
   );
+  const [searchResults, setSearchResults] = useState<StoreSaleWithItems[]>([]);
+  const [isSearching, setIsSearching] = useState(false);
+  const [showSearchResults, setShowSearchResults] = useState(false);
   const [returnItems, setReturnItems] = useState<ReturnItem[]>([]);
   const [newItems, setNewItems] = useState<NewCartItem[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
@@ -107,6 +113,48 @@ export default function StoreExchange() {
       return response.json();
     },
     enabled: !!selectedSaleId && !!user && user.role === "store",
+  });
+
+  const {
+    data: eligibilityData,
+    isLoading: eligibilityLoading,
+  } = useQuery({
+    queryKey: ["/api/store/sales", selectedSaleId, "eligibility"],
+    queryFn: async () => {
+      const response = await fetch(`/api/store/sales/${selectedSaleId}/exchange-eligibility`, {
+        credentials: "include",
+      });
+      if (!response.ok) throw new Error("Failed to check eligibility");
+      return response.json();
+    },
+    enabled: !!selectedSaleId && !!user && user.role === "store",
+  });
+
+  // Fetch eligibility data for search results
+  const { data: searchEligibilityData } = useQuery({
+    queryKey: ["search-eligibility", searchResults?.map(s => s.id)],
+    queryFn: async () => {
+      if (!searchResults || searchResults.length === 0) return {};
+      
+      const eligibilityPromises = searchResults.map(async (sale) => {
+        try {
+          const response = await fetch(`/api/store/sales/${sale.id}/exchange-eligibility`, {
+            credentials: "include",
+          });
+          if (response.ok) {
+            const eligibility = await response.json();
+            return { [sale.id]: eligibility };
+          }
+          return { [sale.id]: { eligible: false, reason: "Failed to check eligibility" } };
+        } catch (error) {
+          return { [sale.id]: { eligible: false, reason: "Error checking eligibility" } };
+        }
+      });
+
+      const results = await Promise.all(eligibilityPromises);
+      return results.reduce((acc, result) => ({ ...acc, ...result }), {});
+    },
+    enabled: !!searchResults && searchResults.length > 0,
   });
 
   const { data: products, isLoading: productsLoading } = useQuery<
@@ -181,12 +229,45 @@ export default function StoreExchange() {
     }).format(numPrice);
   };
 
-  const handleLookupSale = () => {
+  const handleLookupSale = async () => {
     if (saleIdInput.trim()) {
-      setSelectedSaleId(saleIdInput.trim());
-      setReturnItems([]);
-      setNewItems([]);
+      // Check if the input looks like a sale ID (starts with MOHA)
+      if (saleIdInput.trim().toUpperCase().startsWith('MOHA')) {
+        setSelectedSaleId(saleIdInput.trim());
+        setReturnItems([]);
+        setNewItems([]);
+        setShowSearchResults(false);
+      } else {
+        // Search by customer name or phone
+        setIsSearching(true);
+        setShowSearchResults(true);
+        try {
+          const response = await fetch(`/api/store/sales/search?query=${encodeURIComponent(saleIdInput.trim())}`, {
+            credentials: "include",
+          });
+          if (!response.ok) throw new Error("Search failed");
+          const results = await response.json();
+          setSearchResults(results);
+        } catch (error) {
+          toast({
+            title: "Search Error",
+            description: "Failed to search sales",
+            variant: "destructive",
+          });
+          setSearchResults([]);
+        } finally {
+          setIsSearching(false);
+        }
+      }
     }
+  };
+
+  const handleSelectSale = (saleId: string) => {
+    setSelectedSaleId(saleId);
+    setReturnItems([]);
+    setNewItems([]);
+    setShowSearchResults(false);
+    setSearchResults([]);
   };
 
   const saleItems: SaleItemWithAvailable[] =
@@ -708,45 +789,138 @@ export default function StoreExchange() {
     <div className="max-w-6xl mx-auto">
       <div className="mb-8">
         <div className="flex items-center gap-4 mb-2">
-          <Link to="/store/history">
+          {/* <Link to="/store/history">
             <Button variant="ghost" size="icon">
               <ArrowLeft className="h-5 w-5" />
             </Button>
-          </Link>
+          </Link> */}
           <div>
             <h1 className="text-2xl font-semibold flex items-center gap-2">
               <ArrowLeftRight className="h-6 w-6" />
               Process Exchange
             </h1>
             <p className="text-muted-foreground">
-              Return items from a sale and optionally add new items
+              Return items from a sale and add new items
             </p>
           </div>
         </div>
       </div>
 
       {!selectedSaleId ? (
-        <Card className="max-w-md mx-auto">
+        <Card className="max-w-2xl mx-auto">
           <CardHeader>
             <CardTitle>Find Original Sale</CardTitle>
+            <p className="text-sm text-muted-foreground">
+              Search by Sale ID, customer name, or phone number
+            </p>
           </CardHeader>
           <CardContent className="space-y-4">
             <div>
-              <Label htmlFor="saleId">Sale ID</Label>
+              <Label htmlFor="saleSearch">Search</Label>
               <div className="flex gap-2 mt-1">
                 <Input
-                  id="saleId"
-                  placeholder="Enter sale ID..."
+                  id="saleSearch"
+                  placeholder="Enter sale ID, customer name, or phone number..."
                   value={saleIdInput}
-                  onChange={(e) => setSaleIdInput(e.target.value)}
+                  onChange={(e) => {
+                    setSaleIdInput(e.target.value);
+                    if (e.target.value === '') {
+                      setShowSearchResults(false);
+                      setSearchResults([]);
+                    }
+                  }}
                   onKeyDown={(e) => e.key === "Enter" && handleLookupSale()}
                 />
-                <Button onClick={handleLookupSale}>
+                <Button onClick={handleLookupSale} disabled={isSearching}>
                   <Search className="h-4 w-4 mr-2" />
-                  Find
+                  {isSearching ? "Searching..." : "Search"}
                 </Button>
               </div>
             </div>
+
+            {showSearchResults && (
+              <div className="mt-4">
+                {isSearching ? (
+                  <div className="space-y-2">
+                    <Skeleton className="h-16" />
+                    <Skeleton className="h-16" />
+                    <Skeleton className="h-16" />
+                  </div>
+                ) : searchResults.length > 0 ? (
+                  <div className="space-y-2 max-h-64 overflow-y-auto">
+                    <p className="text-sm font-medium text-muted-foreground">
+                      Found {searchResults.length} sales
+                    </p>
+                    {searchResults.map((sale) => {
+                      const eligibility = searchEligibilityData?.[sale.id];
+                      const isEligible = eligibility?.eligible !== false;
+                      const isDisabled = eligibility && !eligibility.eligible;
+                      
+                      return (
+                        <div
+                          key={sale.id}
+                          className={`flex items-center justify-between p-3 border rounded-lg ${
+                            isDisabled 
+                              ? "opacity-60 cursor-not-allowed bg-red-50/50" 
+                              : "hover-elevate cursor-pointer"
+                          }`}
+                          onClick={() => isEligible && handleSelectSale(sale.id)}
+                          title={isDisabled ? eligibility?.reason : "Select this sale for exchange"}
+                        >
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2 mb-1">
+                              <span className="font-medium text-sm">{sale.id}</span>
+                              <Badge variant="outline" className="text-xs">
+                                {new Date(sale.createdAt).toLocaleDateString()}
+                              </Badge>
+                              {eligibility ? (
+                                eligibility.eligible ? (
+                                  <div className="flex items-center gap-1">
+                                    <Clock className="h-3 w-3 text-green-500" />
+                                    <span className="text-xs text-green-600">
+                                      {eligibility.daysRemaining || 0} days left
+                                    </span>
+                                  </div>
+                                ) : (
+                                  <div className="flex items-center gap-1">
+                                    <AlertCircle className="h-3 w-3 text-red-500" />
+                                    <span className="text-xs text-red-600">Not eligible</span>
+                                  </div>
+                                )
+                              ) : (
+                                <div className="flex items-center gap-1">
+                                  <div className="w-2 h-2 bg-gray-300 rounded-full animate-pulse"></div>
+                                  <span className="text-xs text-muted-foreground">Checking...</span>
+                                </div>
+                              )}
+                            </div>
+                            <div className="text-sm text-muted-foreground">
+                              {sale.customerName && <span>{sale.customerName}</span>}
+                              {sale.customerName && sale.customerPhone && <span> • </span>}
+                              {sale.customerPhone && <span>{sale.customerPhone}</span>}
+                            </div>
+                            <div className="text-sm font-medium text-primary mt-1">
+                              {formatPrice(sale.totalAmount)}
+                            </div>
+                            {isDisabled && eligibility?.reason && (
+                              <div className="text-xs text-red-600 mt-1 bg-red-100 p-1 rounded">
+                                {eligibility.reason}
+                              </div>
+                            )}
+                          </div>
+                          <ArrowRight className={`h-4 w-4 ${isDisabled ? 'text-gray-400' : 'text-muted-foreground'}`} />
+                        </div>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <div className="text-center py-4">
+                    <p className="text-muted-foreground">No sales found</p>
+                  </div>
+                )}
+              </div>
+            )}
+
             <p className="text-sm text-muted-foreground text-center">
               Or go to Sales History and click "Exchange" on a sale
             </p>
@@ -787,7 +961,29 @@ export default function StoreExchange() {
                 <p className="text-sm text-muted-foreground">
                   Sale #{selectedSaleId}
                 </p>
+                {eligibilityLoading ? (
+                  <div className="flex items-center gap-2">
+                    <div className="w-2 h-2 bg-yellow-500 rounded-full animate-pulse"></div>
+                    <span className="text-xs text-muted-foreground">Checking eligibility...</span>
+                  </div>
+                ) : eligibilityData ? (
+                  <div className="flex items-center gap-2">
+                    <div className={`w-2 h-2 rounded-full ${eligibilityData.eligible ? 'bg-green-500' : 'bg-red-500'}`}></div>
+                    <span className="text-xs text-muted-foreground">
+                      {eligibilityData.eligible 
+                        ? `${eligibilityData.daysRemaining || 0} days remaining for exchange`
+                        : 'Not eligible for exchange'
+                      }
+                    </span>
+                  </div>
+                ) : null}
               </CardHeader>
+              {eligibilityData && !eligibilityData.eligible && (
+                <div className="mx-6 mb-4 p-3 bg-red-50 border border-red-200 rounded-lg">
+                  <p className="text-sm text-red-800 font-medium">Exchange Not Available</p>
+                  <p className="text-xs text-red-600 mt-1">{eligibilityData.reason}</p>
+                </div>
+              )}
               <CardContent>
                 <p className="text-sm font-medium mb-3">Original Sale Items</p>
                 <div className="space-y-2 max-h-[300px] overflow-y-auto">
