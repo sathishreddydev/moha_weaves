@@ -73,7 +73,7 @@ export default function StoreRequests() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/store/requests"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/store/inventory"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/store/products/paginated"] });
       queryClient.invalidateQueries({ queryKey: ["/api/store/stats"] });
       toast({ title: "Success", description: "Stock marked as received" });
     },

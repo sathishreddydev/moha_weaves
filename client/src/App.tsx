@@ -82,6 +82,7 @@ const StoreRequests = lazy(() => import("@/pages/store/Requests"));
 const StoreHistory = lazy(() => import("@/pages/store/History"));
 const StoreExchange = lazy(() => import("@/pages/store/Exchange"));
 const StoreExchangeHistory = lazy(() => import("@/pages/store/ExchangeHistory"));
+const StoreInvoice = lazy(() => import("@/pages/store/Invoice"));
 
 function LoadingFallback() {
   return (
@@ -220,6 +221,7 @@ function Router() {
                 <Route path="exchange" element={<StoreExchange />} />
                 <Route path="exchange/:saleId" element={<StoreExchange />} />
                 <Route path="exchanges" element={<StoreExchangeHistory />} />
+                <Route path="invoice/:saleId" element={<StoreInvoice />} />
               </Route>
             </Route>
           </Route>

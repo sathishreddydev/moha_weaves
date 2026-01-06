@@ -200,16 +200,16 @@ export default function StoreExchange() {
       return response.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/store/products"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/store/inventory"] });
       queryClient.invalidateQueries({
         queryKey: ["/api/store/store-exchanges"],
       });
+      queryClient.invalidateQueries({ queryKey: ["/api/store/products"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/store/products/paginated"] });     
       toast({
         title: "Success",
         description: "Exchange completed successfully",
       });
-      navigate("/store/history");
+      navigate("/store/exchanges");
     },
     onError: (error: any) => {
       toast({

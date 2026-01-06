@@ -14,6 +14,7 @@ import { toast } from "@/hooks/use-toast";
 import { useNavigate } from "react-router-dom";
 import { DataTable } from "@/components/ui/data-table";
 import { ColumnDef } from "@tanstack/react-table";
+import { useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useStoreCart } from "./Hook/cartStore";
 import { useAuth } from "@/lib/auth";
@@ -59,6 +60,7 @@ const formatPrice = (price: number | string) =>
 export default function Cart() {
   const navigate = useNavigate();
   const { user } = useAuth();
+  const queryClient = useQueryClient();
   const storeId = user?.storeId;
   const {
     items: cartItems,
@@ -231,8 +233,14 @@ export default function Cart() {
         description: `Order #${data.orderId} completed successfully`,
       });
 
+      queryClient.invalidateQueries({ queryKey: ["/api/store/sales/paginated"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/store/sales/recent"] });
+      
       clearCart();
-      resetForm()
+      resetForm();
+      
+      // Navigate to invoice page with sale ID
+      navigate(`/store/invoice/${data.orderId}`);
     } catch (err: any) {
       toast({
         title: "Checkout Failed",
