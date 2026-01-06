@@ -98,6 +98,7 @@ console.log(exchanges);
       cell: ({ row }) => {
         const exchange = row.original;
         const totalItems = exchange.returnItems.length + exchange.newItems.length;
+        
         return (
           <div className="flex items-center gap-2">
             <Badge variant="outline">
@@ -165,6 +166,94 @@ console.log(exchanges);
     },
   ];
 
+  const renderAccordionContent = (exchange: StoreExchangeWithDetails) => {
+    return (
+      <div className="space-y-4">
+        {/* Return Items Section */}
+        {exchange.returnItems.length > 0 && (
+          <div>
+            <h4 className="font-medium text-sm text-red-600 mb-2 flex items-center gap-2">
+              <Package className="h-4 w-4" />
+              Returned Items ({exchange.returnItems.length})
+            </h4>
+            <div className="space-y-2">
+              {exchange.returnItems.map((item, index) => (
+                <div key={index} className="flex items-center justify-between p-2 bg-red-50 rounded border border-red-200">
+                  <div className="flex-1">
+                    <p className="font-medium text-sm">{item.saree.name}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {item.saree.category?.name} • {item.saree.color?.name} • {item.saree.fabric?.name}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      Qty: {item.quantity} × {formatPrice(item.unitPrice)} = {formatPrice(item.returnAmount)}
+                    </p>
+                  </div>
+                  <Badge variant="destructive" className="text-xs">
+                    Return
+                  </Badge>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+        
+        {/* New Items Section */}
+        {exchange.newItems.length > 0 && (
+          <div>
+            <h4 className="font-medium text-sm text-green-600 mb-2 flex items-center gap-2">
+              <Package className="h-4 w-4" />
+              Exchange Items ({exchange.newItems.length})
+            </h4>
+            <div className="space-y-2">
+              {exchange.newItems.map((item, index) => (
+                <div key={index} className="flex items-center justify-between p-2 bg-green-50 rounded border border-green-200">
+                  <div className="flex-1">
+                    <p className="font-medium text-sm">{item.saree.name}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {item.saree.category?.name} • {item.saree.color?.name} • {item.saree.fabric?.name}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      Qty: {item.quantity} × {formatPrice(item.unitPrice)} = {formatPrice(item.lineAmount)}
+                    </p>
+                  </div>
+                  <Badge className="text-xs bg-green-100 text-green-800 border-green-200">
+                    New
+                  </Badge>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Exchange Summary */}
+        <div className="border-t pt-4">
+          <div className="grid grid-cols-2 gap-4 text-sm">
+            <div>
+              <p className="text-muted-foreground">Total Return Amount</p>
+              <p className="font-medium text-red-600">{formatPrice(exchange.returnAmount)}</p>
+            </div>
+            <div>
+              <p className="text-muted-foreground">Total Exchange Amount</p>
+              <p className="font-medium text-green-600">{formatPrice(exchange.newItemsAmount)}</p>
+            </div>
+          </div>
+          {exchange.balanceAmount !== "0" && (
+            <div className="mt-2 p-2 bg-muted rounded">
+              <p className="text-sm font-medium">
+                {exchange.balanceDirection === "due_from_customer" 
+                  ? `Customer pays: ${formatPrice(exchange.balanceAmount)}`
+                  : exchange.balanceDirection === "refund_to_customer"
+                  ? `Refund to customer: ${formatPrice(exchange.balanceAmount)}`
+                  : "Even Exchange"
+                }
+              </p>
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  };
+
   return (
     <div>
       <div className="max-w-6xl mx-auto">
@@ -193,6 +282,9 @@ console.log(exchanges);
               searchPlaceholder="Search by exchange ID..."
               dateFilter={{ key: "date", label: "Filter by date" }}
               emptyMessage="No exchange history yet"
+              accordion={true}
+              accordionContent={renderAccordionContent}
+              accordionPosition="inline"
             />
       </div>
     </div>
