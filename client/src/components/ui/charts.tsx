@@ -2,8 +2,6 @@
 
 import * as React from "react"
 
-// Simple lightweight chart components to replace recharts
-
 interface ResponsiveContainerProps {
   width?: string | number
   height?: string | number
