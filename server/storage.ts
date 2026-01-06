@@ -54,6 +54,7 @@ import {
   sql,
   gte,
   lte,
+  lt,
   inArray,
 } from "drizzle-orm";
 import { userService } from "./auth/authStorage";
@@ -991,10 +992,41 @@ export class DatabaseStorage implements IStorage {
     todayRevenue: number;
     totalInventory: number;
     pendingRequests: number;
+    totalSales?: number;
+    totalRevenue?: number;
+    weeklySalesGrowth?: number;
+    monthlyRevenueGrowth?: number;
+    topSellingProducts?: Array<{
+      saree: SareeWithDetails;
+      quantity: number;
+      revenue: number;
+    }>;
+    lowStockProducts?: Array<{
+      saree: SareeWithDetails;
+      currentStock: number;
+      reorderLevel: number;
+    }>;
+    recentSales?: StoreSaleWithItems[];
+    recentRequests?: StockRequestWithDetails[];
+    recentExchanges?: StoreExchangeWithDetails[];
+    requestStats?: {
+      pending: number;
+      approved: number;
+      dispatched: number;
+      received: number;
+    };
   }> {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
+    
+    // Calculate dates for comparisons
+    const lastWeek = new Date(today);
+    lastWeek.setDate(lastWeek.getDate() - 7);
+    
+    const lastMonth = new Date(today);
+    lastMonth.setMonth(lastMonth.getMonth() - 1);
 
+    // Basic stats
     const [salesCount] = await db
       .select({ count: sql<number>`count(*)::int` })
       .from(storeSales)
@@ -1011,6 +1043,19 @@ export class DatabaseStorage implements IStorage {
         and(eq(storeSales.storeId, storeId), gte(storeSales.createdAt, today))
       );
 
+    // Total sales and revenue (all time)
+    const [totalSalesCount] = await db
+      .select({ count: sql<number>`count(*)::int` })
+      .from(storeSales)
+      .where(eq(storeSales.storeId, storeId));
+
+    const [totalRevenueSum] = await db
+      .select({
+        sum: sql<number>`coalesce(sum(total_amount::numeric), 0)::float`,
+      })
+      .from(storeSales)
+      .where(eq(storeSales.storeId, storeId));
+
     const [inventorySum] = await db
       .select({ sum: sql<number>`coalesce(sum(quantity), 0)::int` })
       .from(storeInventory)
@@ -1026,11 +1071,200 @@ export class DatabaseStorage implements IStorage {
         )
       );
 
+    // Weekly sales growth
+    const [thisWeekSales] = await db
+      .select({ count: sql<number>`count(*)::int` })
+      .from(storeSales)
+      .where(
+        and(
+          eq(storeSales.storeId, storeId),
+          gte(storeSales.createdAt, new Date(Date.now() - 7 * 24 * 60 * 60 * 1000))
+        )
+      );
+
+    const [lastWeekSales] = await db
+      .select({ count: sql<number>`count(*)::int` })
+      .from(storeSales)
+      .where(
+        and(
+          eq(storeSales.storeId, storeId),
+          gte(storeSales.createdAt, new Date(Date.now() - 14 * 24 * 60 * 60 * 1000)),
+          lt(storeSales.createdAt, new Date(Date.now() - 7 * 24 * 60 * 60 * 1000))
+        )
+      );
+
+    // Monthly revenue growth
+    const [thisMonthRevenue] = await db
+      .select({
+        sum: sql<number>`coalesce(sum(total_amount::numeric), 0)::float`,
+      })
+      .from(storeSales)
+      .where(
+        and(
+          eq(storeSales.storeId, storeId),
+          gte(storeSales.createdAt, new Date(Date.now() - 30 * 24 * 60 * 60 * 1000))
+        )
+      );
+
+    const [lastMonthRevenue] = await db
+      .select({
+        sum: sql<number>`coalesce(sum(total_amount::numeric), 0)::float`,
+      })
+      .from(storeSales)
+      .where(
+        and(
+          eq(storeSales.storeId, storeId),
+          gte(storeSales.createdAt, new Date(Date.now() - 60 * 24 * 60 * 60 * 1000)),
+          lt(storeSales.createdAt, new Date(Date.now() - 30 * 24 * 60 * 60 * 1000))
+        )
+      );
+
+    // Top selling products (last 30 days)
+    const topProductsQuery = await db
+      .select({
+        sareeId: storeSaleItems.sareeId,
+        totalQuantity: sql<number>`sum(${storeSaleItems.quantity})::int`,
+        totalRevenue: sql<number>`sum(${storeSaleItems.quantity}::numeric * ${storeSaleItems.price}::numeric)::float`,
+      })
+      .from(storeSaleItems)
+      .innerJoin(storeSales, eq(storeSaleItems.saleId, storeSales.id))
+      .where(
+        and(
+          eq(storeSales.storeId, storeId),
+          gte(storeSales.createdAt, new Date(Date.now() - 30 * 24 * 60 * 60 * 1000))
+        )
+      )
+      .groupBy(storeSaleItems.sareeId)
+      .orderBy(sql`totalQuantity DESC`)
+      .limit(5);
+
+    const topSellingProducts = await Promise.all(
+      topProductsQuery.map(async (product) => {
+        const [sareeData] = await db
+          .select()
+          .from(sarees)
+          .leftJoin(categories, eq(sarees.categoryId, categories.id))
+          .leftJoin(colors, eq(sarees.colorId, colors.id))
+          .leftJoin(fabrics, eq(sarees.fabricId, fabrics.id))
+          .where(eq(sarees.id, product.sareeId));
+
+        return {
+          saree: {
+            ...sareeData.sarees,
+            category: sareeData.categories,
+            color: sareeData.colors,
+            fabric: sareeData.fabrics,
+          },
+          quantity: product.totalQuantity,
+          revenue: product.totalRevenue,
+        };
+      })
+    );
+
+    // Low stock products - simplified query
+    const REORDER_LEVEL = 5;
+    const lowStockProductsData = await db
+      .select()
+      .from(storeInventory)
+      .innerJoin(sarees, eq(storeInventory.sareeId, sarees.id))
+      .leftJoin(categories, eq(sarees.categoryId, categories.id))
+      .leftJoin(colors, eq(sarees.colorId, colors.id))
+      .leftJoin(fabrics, eq(sarees.fabricId, fabrics.id))
+      .where(
+        and(
+          eq(storeInventory.storeId, storeId),
+          lte(storeInventory.quantity, REORDER_LEVEL)
+        )
+      )
+      .orderBy(storeInventory.quantity)
+      .limit(10);
+
+    const lowStockProducts = lowStockProductsData.map((row) => ({
+      saree: {
+        ...row.sarees,
+        category: row.categories,
+        color: row.colors,
+        fabric: row.fabrics,
+      },
+      currentStock: row.store_inventory.quantity,
+      reorderLevel: REORDER_LEVEL,
+    }));
+
+    // Simplified recent data for now
+    const recentSales: StoreSaleWithItems[] = [];
+    const recentRequests: StockRequestWithDetails[] = [];
+    const recentExchanges: StoreExchangeWithDetails[] = [];
+
+    // Request status breakdown
+    const [pendingStats] = await db
+      .select({ count: sql<number>`count(*)::int` })
+      .from(stockRequests)
+      .where(
+        and(
+          eq(stockRequests.storeId, storeId),
+          eq(stockRequests.status, "pending")
+        )
+      );
+
+    const [approvedStats] = await db
+      .select({ count: sql<number>`count(*)::int` })
+      .from(stockRequests)
+      .where(
+        and(
+          eq(stockRequests.storeId, storeId),
+          eq(stockRequests.status, "approved")
+        )
+      );
+
+    const [dispatchedStats] = await db
+      .select({ count: sql<number>`count(*)::int` })
+      .from(stockRequests)
+      .where(
+        and(
+          eq(stockRequests.storeId, storeId),
+          eq(stockRequests.status, "dispatched")
+        )
+      );
+
+    const [receivedStats] = await db
+      .select({ count: sql<number>`count(*)::int` })
+      .from(stockRequests)
+      .where(
+        and(
+          eq(stockRequests.storeId, storeId),
+          eq(stockRequests.status, "received")
+        )
+      );
+
+    // Calculate growth percentages
+    const weeklySalesGrowth = lastWeekSales.count > 0 
+      ? ((thisWeekSales.count - lastWeekSales.count) / lastWeekSales.count) * 100
+      : 0;
+
+    const monthlyRevenueGrowth = lastMonthRevenue.sum > 0
+      ? ((thisMonthRevenue.sum - lastMonthRevenue.sum) / lastMonthRevenue.sum) * 100
+      : 0;
+
     return {
       todaySales: salesCount?.count || 0,
       todayRevenue: revenueSum?.sum || 0,
       totalInventory: inventorySum?.sum || 0,
       pendingRequests: requestCount?.count || 0,
+      totalSales: totalSalesCount?.count || 0,
+      totalRevenue: totalRevenueSum?.sum || 0,
+      weeklySalesGrowth: Math.round(weeklySalesGrowth * 10) / 10, // Round to 1 decimal
+      monthlyRevenueGrowth: Math.round(monthlyRevenueGrowth * 10) / 10,
+      topSellingProducts,
+      lowStockProducts,
+      recentSales,
+      recentRequests,
+      recentExchanges,
+      requestStats: {
+        pending: pendingStats?.count || 0,
+        approved: approvedStats?.count || 0,
+        dispatched: dispatchedStats?.count || 0,
+        received: receivedStats?.count || 0,
+      },
     };
   }
 

@@ -7,7 +7,7 @@ import { useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { toast } from "@/hooks/use-toast";
 import { AdaptiveModal } from "../../../components/common/AdaptiveModal";
-import { SareeWithDetails } from "../../../../../shared/types";
+import { SareeWithDetails } from "@shared/schema";
 
 interface RequestDialogProps {
   dialogOpen: boolean;
@@ -24,6 +24,7 @@ export const RequestDialog = ({
     quantity: 1,
     notes: "",
   });
+  console.log(sareeData)
   const sareeId = sareeData?.id;
   const createRequestMutation = useMutation({
     mutationFn: async (data: {
@@ -81,6 +82,7 @@ export const RequestDialog = ({
             </Button>
             <Button
               type="submit"
+              onClick={handleSubmitRequest}
               disabled={createRequestMutation.isPending}
               data-testid="button-submit-request"
             >
@@ -94,6 +96,25 @@ export const RequestDialog = ({
         onOpenChange={setDialogOpen}
       >
         <form onSubmit={handleSubmitRequest} className="space-y-4">
+          {sareeData && (
+            <div className="p-3 bg-gray-50 rounded-lg">
+              <div className="flex items-center gap-3">
+                <img
+                  src={
+                    sareeData.imageUrl ||
+                    "https://images.unsplash.com/photo-1610030469983-98e550d6193c?w=50"
+                  }
+                  alt=""
+                  className="w-12 h-14 rounded object-cover"
+                />
+                <div>
+                  <h3 className="font-medium text-sm text-gray-900">Product Details</h3>
+                  <p className="text-sm font-medium mt-1">{sareeData.name}</p>
+                  <p className="text-xs text-gray-500">SKU: {sareeData.sku || 'N/A'}</p>
+                </div>
+              </div>
+            </div>
+          )}
           <div>
             <Label htmlFor="quantity">Quantity</Label>
             <Input

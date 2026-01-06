@@ -9,7 +9,7 @@ import { useQuery } from "@tanstack/react-query";
 import { DataTable, FilterConfig } from "@/components/ui/data-table";
 import { useDataTable } from "@/hooks/use-data-table";
 import { ColumnDef } from "@tanstack/react-table";
-import type { SareeWithDetails, Category, Color, Fabric } from "@shared/schema";
+import type { SareeWithDetails, Category, Color, Fabric, StockRequestWithDetails } from "@shared/schema";
 import { RequestDialog } from "./Utils/RequestDialog";
 
 type ShopProduct = {
@@ -49,6 +49,11 @@ export default function StoreInventoryPage() {
     initialPageSize: 10,
   });
 
+  const { data: stockRequests } = useQuery<StockRequestWithDetails[]>({
+    queryKey: ["/api/store/requests"],
+    enabled: !!user && user.role === "store",
+  });
+
   const { data: stats } = useQuery({
     queryKey: ["/api/store/products"],
     enabled: !!user && user.role === "store",
@@ -66,6 +71,43 @@ export default function StoreInventoryPage() {
       currency: "INR",
       maximumFractionDigits: 0,
     }).format(numPrice);
+  };
+
+  const getRequestStatusBadge = (status: string) => {
+    switch (status) {
+      case "pending":
+        return (
+          <Badge variant="secondary" className="bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-100">
+            Pending
+          </Badge>
+        );
+      case "approved":
+        return (
+          <Badge variant="secondary" className="bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-100">
+            Approved
+          </Badge>
+        );
+      case "dispatched":
+        return (
+          <Badge variant="secondary" className="bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-100">
+            Dispatched
+          </Badge>
+        );
+      case "received":
+        return (
+          <Badge variant="default" className="bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-100">
+            Received
+          </Badge>
+        );
+      case "rejected":
+        return (
+          <Badge variant="destructive">
+            Rejected
+          </Badge>
+        );
+      default:
+        return <Badge variant="outline">{status}</Badge>;
+    }
   };
 
   const getDistributionBadge = (channel: string) => {
@@ -182,15 +224,26 @@ export default function StoreInventoryPage() {
         ) : (
           <div className="flex items-center gap-2">
             <Badge variant="destructive">No stock</Badge>
-            <Link to="/store/requests">
-              <Button
-                size="sm"
-                variant="outline"
-                data-testid={`button-request-${item.saree.id}`}
-              >
-                Request
-              </Button>
-            </Link>
+          </div>
+        );
+      },
+    },
+    {
+      id: "stockRequests",
+      header: "Stock Requests",
+      cell: ({ row }) => {
+        const item = row.original;
+        const requests = stockRequests?.filter(req => req.sareeId === item.saree.id) || [];
+        
+        if (requests.length === 0) {
+          return <span className="text-muted-foreground text-sm">No requests</span>;
+        }
+        
+        const latestRequest = requests[0];
+        return (
+          <div className="space-y-1">
+            <div className="text-sm font-medium">{latestRequest.quantity} units</div>
+            {getRequestStatusBadge(latestRequest.status)}
           </div>
         );
       },
@@ -199,11 +252,29 @@ export default function StoreInventoryPage() {
       id: "actions",
       header: "Actions",
       cell: ({ row }) => {
+        const item = row.original;
+        const requests = stockRequests?.filter(req => req.sareeId === item.saree.id) || [];
+        const latestRequest = requests[0];
+        
+        // Disable button if there's a pending, approved, or dispatched request
+        const isDisabled = latestRequest && 
+          ["pending", "approved", "dispatched"].includes(latestRequest.status);
+        
+        const disabledReason = latestRequest?.status === "pending" 
+          ? "Request pending" 
+          : latestRequest?.status === "approved" 
+          ? "Request approved" 
+          : latestRequest?.status === "dispatched" 
+          ? "Request dispatched" 
+          : "";
+        
         return (
           <Button
             size="sm"
             variant="outline"
-            onClick={() => requestDailog(row.original)}
+            onClick={() => requestDailog(item)}
+            disabled={isDisabled}
+            title={disabledReason}
           >
             Request
           </Button>
@@ -259,7 +330,7 @@ export default function StoreInventoryPage() {
         <Link to="/store/requests">
           <Button data-testid="button-request-stock">
             <Package className="h-4 w-4 mr-2" />
-            Stock Requests 
+            Stock Requests
           </Button>
         </Link>
       </div>
@@ -305,7 +376,11 @@ export default function StoreInventoryPage() {
         dateFilter={{ key: "date", label: "Filter by date added" }}
         emptyMessage="No products available for shop"
       />
-      <RequestDialog dialogOpen={dialogOpen} setDialogOpen={setDialogOpen} sareeData={sareeData} />
+      <RequestDialog
+        dialogOpen={dialogOpen}
+        setDialogOpen={setDialogOpen}
+        sareeData={sareeData}
+      />
     </div>
   );
 }

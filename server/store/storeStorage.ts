@@ -33,7 +33,7 @@ import {
   Coupon,
   couponUsage,
 } from "@shared/schema";
-import { and, desc, eq, gte, ilike, lte, sql } from "drizzle-orm";
+import { and, desc, eq, gte, gt, ilike, lte, sql } from "drizzle-orm";
 import { db } from "server/db";
 
 export interface StoreStorage {
@@ -133,6 +133,13 @@ export interface StoreStorage {
   getStoreInventory(
     storeId: string
   ): Promise<(StoreInventory & { saree: SareeWithDetails })[]>;
+  getLowStockProducts(
+    storeId: string
+  ): Promise<Array<{
+    saree: SareeWithDetails;
+    currentStock: number;
+    reorderLevel: number;
+  }>>;
   getStoreInventoryItem(
     storeId: string,
     sareeId: string
@@ -765,7 +772,12 @@ export class StoreRepository implements StoreStorage {
       .leftJoin(categories, eq(sarees.categoryId, categories.id))
       .leftJoin(colors, eq(sarees.colorId, colors.id))
       .leftJoin(fabrics, eq(sarees.fabricId, fabrics.id))
-      .where(eq(storeInventory.storeId, storeId));
+      .where(
+        and(
+          eq(storeInventory.storeId, storeId),
+          gt(storeInventory.quantity, 0) // Only show products with stock > 0
+        )
+      );
 
     const now = new Date();
     const activeSales = await db
@@ -1048,6 +1060,43 @@ export class StoreRepository implements StoreStorage {
         color: row.colors,
         fabric: row.fabrics,
       },
+    }));
+  }
+
+  async getLowStockProducts(
+    storeId: string
+  ): Promise<Array<{
+    saree: SareeWithDetails;
+    currentStock: number;
+    reorderLevel: number;
+  }>> {
+    // Define reorder level as 5 units (you can make this configurable later)
+    const REORDER_LEVEL = 5;
+    
+    const result = await db
+      .select()
+      .from(storeInventory)
+      .innerJoin(sarees, eq(storeInventory.sareeId, sarees.id))
+      .leftJoin(categories, eq(sarees.categoryId, categories.id))
+      .leftJoin(colors, eq(sarees.colorId, colors.id))
+      .leftJoin(fabrics, eq(sarees.fabricId, fabrics.id))
+      .where(
+        and(
+          eq(storeInventory.storeId, storeId),
+          lte(storeInventory.quantity, REORDER_LEVEL)
+        )
+      )
+      .orderBy(storeInventory.quantity); // Order by quantity (lowest first)
+
+    return result.map((row) => ({
+      saree: {
+        ...row.sarees,
+        category: row.categories,
+        color: row.colors,
+        fabric: row.fabrics,
+      },
+      currentStock: row.store_inventory.quantity,
+      reorderLevel: REORDER_LEVEL,
     }));
   }
 

@@ -21,6 +21,32 @@ export const storeRoutes = (app: Express) => {
     }
   });
 
+  app.get("/api/store/sales/recent", authStore, async (req, res) => {
+    try {
+      const user = (req as any).user;
+      if (!user.storeId) {
+        return res.status(400).json({ message: "No store assigned" });
+      }
+      const recentSales = await storeService.getStoreSales(user.storeId, 10);
+      res.json(recentSales);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch recent sales" });
+    }
+  });
+
+  app.get("/api/store/products/low-stock", authStore, async (req, res) => {
+    try {
+      const user = (req as any).user;
+      if (!user.storeId) {
+        return res.status(400).json({ message: "No store assigned" });
+      }
+      const lowStockProducts = await storeService.getLowStockProducts(user.storeId);
+      res.json(lowStockProducts);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch low stock products" });
+    }
+  });
+
   app.get("/api/store/inventory", authStore, async (req, res) => {
     try {
       const user = (req as any).user;
