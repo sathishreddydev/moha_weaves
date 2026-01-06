@@ -116,7 +116,7 @@ export default function StoreDashboard() {
     queryKey: ["/api/store/products/low-stock"],
     enabled: !!user && user.role === "store",
   });
-
+console.log(stats)
   return (
     <div className="max-w-7xl mx-auto">
       <div className="flex items-center justify-between mb-8">

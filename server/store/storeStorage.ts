@@ -361,7 +361,7 @@ export class StoreRepository implements StoreStorage {
 
     if (!exchange) return undefined;
 
-    const originalSale = await storeService.getStoreSaleForExchange(
+    const originalSale = await this.getStoreSaleForExchange(
       exchange.store_exchanges.originalSaleId
     );
 
@@ -705,7 +705,7 @@ export class StoreRepository implements StoreStorage {
     const result: StoreExchangeWithDetails[] = [];
 
     for (const exchange of data) {
-      const originalSale = await storeService.getStoreSaleForExchange(
+      const originalSale = await this.getStoreSaleForExchange(
         exchange.store_exchanges.originalSaleId
       );
 

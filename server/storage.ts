@@ -123,9 +123,8 @@ export interface IStorage {
 
   updateOrderTrackingNumber(
     id: string,
-    trackingNumber: string | null | undefined
+    trackingNumber: string | null | undefined,
   ): Promise<Order | undefined>;
-
 
   // Stock Distribution (centralized view)
   getStockDistribution(): Promise<
@@ -148,7 +147,7 @@ export interface IStorage {
     id: string,
     status: string,
     approvedBy?: string,
-    notes?: string
+    notes?: string,
   ): Promise<StockRequest | undefined>;
 
   getStoreStats(storeId: string): Promise<{
@@ -160,15 +159,15 @@ export interface IStorage {
 
   // Serviceable Pincodes
   checkPincodeAvailability(
-    pincode: string
+    pincode: string,
   ): Promise<ServiceablePincode | undefined>;
   getServiceablePincodes(): Promise<ServiceablePincode[]>;
   createServiceablePincode(
-    pincode: InsertServiceablePincode
+    pincode: InsertServiceablePincode,
   ): Promise<ServiceablePincode>;
   updateServiceablePincode(
     id: string,
-    data: Partial<InsertServiceablePincode>
+    data: Partial<InsertServiceablePincode>,
   ): Promise<ServiceablePincode | undefined>;
   deleteServiceablePincode(id: string): Promise<boolean>;
 
@@ -177,13 +176,13 @@ export interface IStorage {
   getRefund(id: string): Promise<Refund | undefined>;
   createRefund(refund: InsertRefund): Promise<Refund>;
   getRefundByReturnRequest(
-    returnRequestId: string
+    returnRequestId: string,
   ): Promise<Refund | undefined>;
 
   // Notifications
   getNotifications(
     userId: string,
-    unreadOnly?: boolean
+    unreadOnly?: boolean,
   ): Promise<Notification[]>;
   createNotification(notification: InsertNotification): Promise<Notification>;
   markNotificationAsRead(id: string): Promise<Notification | undefined>;
@@ -196,7 +195,7 @@ export interface IStorage {
     key: string,
     value: string,
     description?: string,
-    updatedBy?: string
+    updatedBy?: string,
   ): Promise<void>;
   getAllSettings(): Promise<
     {
@@ -248,7 +247,7 @@ export interface IStorage {
   restoreStockFromReturn(
     sareeId: string,
     quantity: number,
-    orderRefId: string
+    orderRefId: string,
   ): Promise<void>;
 
   // Paginated methods for store sales and products
@@ -263,7 +262,7 @@ export interface IStorage {
       fabric?: string;
       dateFrom?: string;
       dateTo?: string;
-    }
+    },
   ): Promise<{
     data: { saree: SareeWithDetails; storeStock: number }[];
     total: number;
@@ -281,7 +280,7 @@ export interface IStorage {
     currentStatus: string,
     newStatus: string,
     note: string,
-    updatedBy?: string
+    updatedBy?: string,
   ): Promise<void>;
 }
 
@@ -398,7 +397,8 @@ export class DatabaseStorage implements IStorage {
         .where(eq(orderItems.orderId, order.orders.id));
 
       result.push({
-        ...order.orders,        customerName,
+        ...order.orders,
+        customerName,
 
         items: items.map((row) => ({
           ...row.order_items,
@@ -457,8 +457,8 @@ export class DatabaseStorage implements IStorage {
         or(
           ilike(users.name, `%${search}%`),
           ilike(users.email, `%${search}%`),
-          ilike(users.phone, `%${search}%`)
-        )
+          ilike(users.phone, `%${search}%`),
+        ),
       );
     }
 
@@ -553,8 +553,8 @@ export class DatabaseStorage implements IStorage {
         or(
           ilike(sarees.name, `%${search}%`),
           ilike(sarees.sku, `%${search}%`),
-          ilike(sarees.description, `%${search}%`)
-        )
+          ilike(sarees.description, `%${search}%`),
+        ),
       );
     }
 
@@ -601,17 +601,17 @@ export class DatabaseStorage implements IStorage {
               storeName: store?.name || "Unknown",
               quantity: alloc.quantity,
             };
-          })
+          }),
         );
 
         // Calculate unallocated stock
         const totalStoreStock = storeAllocations.reduce(
           (sum, alloc) => sum + alloc.quantity,
-          0
+          0,
         );
         const unallocated = Math.max(
           0,
-          row.sarees.totalStock - row.sarees.onlineStock - totalStoreStock
+          row.sarees.totalStock - row.sarees.onlineStock - totalStoreStock,
         );
 
         return {
@@ -622,7 +622,7 @@ export class DatabaseStorage implements IStorage {
           storeAllocations,
           unallocated,
         };
-      })
+      }),
     );
 
     return {
@@ -664,8 +664,8 @@ export class DatabaseStorage implements IStorage {
               eq(notifications.userId, user.id),
               eq(notifications.type, "system"),
               eq(notifications.relatedId, sareeId),
-              gte(notifications.createdAt, dayAgo)
-            )
+              gte(notifications.createdAt, dayAgo),
+            ),
           );
 
         if (!existingAlert) {
@@ -772,7 +772,7 @@ export class DatabaseStorage implements IStorage {
 
   async updateOrderStatus(
     id: string,
-    status: string
+    status: string,
   ): Promise<Order | undefined> {
     const updateData: any = {
       status: status as any,
@@ -803,7 +803,7 @@ export class DatabaseStorage implements IStorage {
 
   async updateOrderTrackingNumber(
     id: string,
-    trackingNumber: string | null | undefined
+    trackingNumber: string | null | undefined,
   ): Promise<Order | undefined> {
     const [result] = await db
       .update(orders)
@@ -849,8 +849,6 @@ export class DatabaseStorage implements IStorage {
     });
   }
 
-
-
   async getStockDistribution(): Promise<
     {
       saree: SareeWithDetails;
@@ -877,11 +875,11 @@ export class DatabaseStorage implements IStorage {
 
       const totalStoreStock = storeAllocations.reduce(
         (sum, alloc) => sum + alloc.quantity,
-        0
+        0,
       );
       const unallocated = Math.max(
         0,
-        saree.totalStock - saree.onlineStock - totalStoreStock
+        saree.totalStock - saree.onlineStock - totalStoreStock,
       );
 
       result.push({
@@ -933,7 +931,9 @@ export class DatabaseStorage implements IStorage {
     }));
   }
 
-  async getStockRequest(id: string): Promise<StockRequestWithDetails | undefined> {
+  async getStockRequest(
+    id: string,
+  ): Promise<StockRequestWithDetails | undefined> {
     const result = await db
       .select()
       .from(stockRequests)
@@ -946,7 +946,7 @@ export class DatabaseStorage implements IStorage {
       .limit(1);
 
     if (result.length === 0) return undefined;
-    
+
     const row = result[0];
     return {
       ...row.stock_requests,
@@ -969,7 +969,7 @@ export class DatabaseStorage implements IStorage {
     id: string,
     status: string,
     approvedBy?: string,
-    notes?: string
+    notes?: string,
   ): Promise<StockRequest | undefined> {
     const updateData: any = { status: status as any, updatedAt: new Date() };
     if (approvedBy) {
@@ -978,7 +978,7 @@ export class DatabaseStorage implements IStorage {
     if (notes !== undefined) {
       updateData.notes = notes;
     }
-    
+
     const [result] = await db
       .update(stockRequests)
       .set(updateData)
@@ -1018,11 +1018,11 @@ export class DatabaseStorage implements IStorage {
   }> {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
-    
+
     // Calculate dates for comparisons
     const lastWeek = new Date(today);
     lastWeek.setDate(lastWeek.getDate() - 7);
-    
+
     const lastMonth = new Date(today);
     lastMonth.setMonth(lastMonth.getMonth() - 1);
 
@@ -1031,7 +1031,7 @@ export class DatabaseStorage implements IStorage {
       .select({ count: sql<number>`count(*)::int` })
       .from(storeSales)
       .where(
-        and(eq(storeSales.storeId, storeId), gte(storeSales.createdAt, today))
+        and(eq(storeSales.storeId, storeId), gte(storeSales.createdAt, today)),
       );
 
     const [revenueSum] = await db
@@ -1040,7 +1040,7 @@ export class DatabaseStorage implements IStorage {
       })
       .from(storeSales)
       .where(
-        and(eq(storeSales.storeId, storeId), gte(storeSales.createdAt, today))
+        and(eq(storeSales.storeId, storeId), gte(storeSales.createdAt, today)),
       );
 
     // Total sales and revenue (all time)
@@ -1067,8 +1067,8 @@ export class DatabaseStorage implements IStorage {
       .where(
         and(
           eq(stockRequests.storeId, storeId),
-          eq(stockRequests.status, "pending")
-        )
+          eq(stockRequests.status, "pending"),
+        ),
       );
 
     // Weekly sales growth
@@ -1078,8 +1078,11 @@ export class DatabaseStorage implements IStorage {
       .where(
         and(
           eq(storeSales.storeId, storeId),
-          gte(storeSales.createdAt, new Date(Date.now() - 7 * 24 * 60 * 60 * 1000))
-        )
+          gte(
+            storeSales.createdAt,
+            new Date(Date.now() - 7 * 24 * 60 * 60 * 1000),
+          ),
+        ),
       );
 
     const [lastWeekSales] = await db
@@ -1088,9 +1091,15 @@ export class DatabaseStorage implements IStorage {
       .where(
         and(
           eq(storeSales.storeId, storeId),
-          gte(storeSales.createdAt, new Date(Date.now() - 14 * 24 * 60 * 60 * 1000)),
-          lt(storeSales.createdAt, new Date(Date.now() - 7 * 24 * 60 * 60 * 1000))
-        )
+          gte(
+            storeSales.createdAt,
+            new Date(Date.now() - 14 * 24 * 60 * 60 * 1000),
+          ),
+          lt(
+            storeSales.createdAt,
+            new Date(Date.now() - 7 * 24 * 60 * 60 * 1000),
+          ),
+        ),
       );
 
     // Monthly revenue growth
@@ -1102,8 +1111,11 @@ export class DatabaseStorage implements IStorage {
       .where(
         and(
           eq(storeSales.storeId, storeId),
-          gte(storeSales.createdAt, new Date(Date.now() - 30 * 24 * 60 * 60 * 1000))
-        )
+          gte(
+            storeSales.createdAt,
+            new Date(Date.now() - 30 * 24 * 60 * 60 * 1000),
+          ),
+        ),
       );
 
     const [lastMonthRevenue] = await db
@@ -1114,9 +1126,15 @@ export class DatabaseStorage implements IStorage {
       .where(
         and(
           eq(storeSales.storeId, storeId),
-          gte(storeSales.createdAt, new Date(Date.now() - 60 * 24 * 60 * 60 * 1000)),
-          lt(storeSales.createdAt, new Date(Date.now() - 30 * 24 * 60 * 60 * 1000))
-        )
+          gte(
+            storeSales.createdAt,
+            new Date(Date.now() - 60 * 24 * 60 * 60 * 1000),
+          ),
+          lt(
+            storeSales.createdAt,
+            new Date(Date.now() - 30 * 24 * 60 * 60 * 1000),
+          ),
+        ),
       );
 
     // Top selling products (last 30 days)
@@ -1131,35 +1149,15 @@ export class DatabaseStorage implements IStorage {
       .where(
         and(
           eq(storeSales.storeId, storeId),
-          gte(storeSales.createdAt, new Date(Date.now() - 30 * 24 * 60 * 60 * 1000))
-        )
+          gte(
+            storeSales.createdAt,
+            new Date(Date.now() - 30 * 24 * 60 * 60 * 1000),
+          ),
+        ),
       )
       .groupBy(storeSaleItems.sareeId)
-      .orderBy(sql`totalQuantity DESC`)
+      .orderBy(sql`sum(${storeSaleItems.quantity}) DESC`)
       .limit(5);
-
-    const topSellingProducts = await Promise.all(
-      topProductsQuery.map(async (product) => {
-        const [sareeData] = await db
-          .select()
-          .from(sarees)
-          .leftJoin(categories, eq(sarees.categoryId, categories.id))
-          .leftJoin(colors, eq(sarees.colorId, colors.id))
-          .leftJoin(fabrics, eq(sarees.fabricId, fabrics.id))
-          .where(eq(sarees.id, product.sareeId));
-
-        return {
-          saree: {
-            ...sareeData.sarees,
-            category: sareeData.categories,
-            color: sareeData.colors,
-            fabric: sareeData.fabrics,
-          },
-          quantity: product.totalQuantity,
-          revenue: product.totalRevenue,
-        };
-      })
-    );
 
     // Low stock products - simplified query
     const REORDER_LEVEL = 5;
@@ -1173,8 +1171,8 @@ export class DatabaseStorage implements IStorage {
       .where(
         and(
           eq(storeInventory.storeId, storeId),
-          lte(storeInventory.quantity, REORDER_LEVEL)
-        )
+          lte(storeInventory.quantity, REORDER_LEVEL),
+        ),
       )
       .orderBy(storeInventory.quantity)
       .limit(10);
@@ -1202,8 +1200,8 @@ export class DatabaseStorage implements IStorage {
       .where(
         and(
           eq(stockRequests.storeId, storeId),
-          eq(stockRequests.status, "pending")
-        )
+          eq(stockRequests.status, "pending"),
+        ),
       );
 
     const [approvedStats] = await db
@@ -1212,8 +1210,8 @@ export class DatabaseStorage implements IStorage {
       .where(
         and(
           eq(stockRequests.storeId, storeId),
-          eq(stockRequests.status, "approved")
-        )
+          eq(stockRequests.status, "approved"),
+        ),
       );
 
     const [dispatchedStats] = await db
@@ -1222,8 +1220,8 @@ export class DatabaseStorage implements IStorage {
       .where(
         and(
           eq(stockRequests.storeId, storeId),
-          eq(stockRequests.status, "dispatched")
-        )
+          eq(stockRequests.status, "dispatched"),
+        ),
       );
 
     const [receivedStats] = await db
@@ -1232,18 +1230,23 @@ export class DatabaseStorage implements IStorage {
       .where(
         and(
           eq(stockRequests.storeId, storeId),
-          eq(stockRequests.status, "received")
-        )
+          eq(stockRequests.status, "received"),
+        ),
       );
 
     // Calculate growth percentages
-    const weeklySalesGrowth = lastWeekSales.count > 0 
-      ? ((thisWeekSales.count - lastWeekSales.count) / lastWeekSales.count) * 100
-      : 0;
+    const weeklySalesGrowth =
+      lastWeekSales.count > 0
+        ? ((thisWeekSales.count - lastWeekSales.count) / lastWeekSales.count) *
+          100
+        : 0;
 
-    const monthlyRevenueGrowth = lastMonthRevenue.sum > 0
-      ? ((thisMonthRevenue.sum - lastMonthRevenue.sum) / lastMonthRevenue.sum) * 100
-      : 0;
+    const monthlyRevenueGrowth =
+      lastMonthRevenue.sum > 0
+        ? ((thisMonthRevenue.sum - lastMonthRevenue.sum) /
+            lastMonthRevenue.sum) *
+          100
+        : 0;
 
     return {
       todaySales: salesCount?.count || 0,
@@ -1254,7 +1257,6 @@ export class DatabaseStorage implements IStorage {
       totalRevenue: totalRevenueSum?.sum || 0,
       weeklySalesGrowth: Math.round(weeklySalesGrowth * 10) / 10, // Round to 1 decimal
       monthlyRevenueGrowth: Math.round(monthlyRevenueGrowth * 10) / 10,
-      topSellingProducts,
       lowStockProducts,
       recentSales,
       recentRequests,
@@ -1270,7 +1272,7 @@ export class DatabaseStorage implements IStorage {
 
   // Serviceable Pincodes
   async checkPincodeAvailability(
-    pincode: string
+    pincode: string,
   ): Promise<ServiceablePincode | undefined> {
     const [result] = await db
       .select()
@@ -1278,8 +1280,8 @@ export class DatabaseStorage implements IStorage {
       .where(
         and(
           eq(serviceablePincodes.pincode, pincode),
-          eq(serviceablePincodes.isActive, true)
-        )
+          eq(serviceablePincodes.isActive, true),
+        ),
       );
     return result || undefined;
   }
@@ -1292,7 +1294,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createServiceablePincode(
-    pincode: InsertServiceablePincode
+    pincode: InsertServiceablePincode,
   ): Promise<ServiceablePincode> {
     const [result] = await db
       .insert(serviceablePincodes)
@@ -1303,7 +1305,7 @@ export class DatabaseStorage implements IStorage {
 
   async updateServiceablePincode(
     id: string,
-    data: Partial<InsertServiceablePincode>
+    data: Partial<InsertServiceablePincode>,
   ): Promise<ServiceablePincode | undefined> {
     const [result] = await db
       .update(serviceablePincodes)
@@ -1317,8 +1319,6 @@ export class DatabaseStorage implements IStorage {
     await db.delete(serviceablePincodes).where(eq(serviceablePincodes.id, id));
     return true;
   }
-
-
 
   // Refunds
   async getRefunds(filters?: {
@@ -1349,7 +1349,7 @@ export class DatabaseStorage implements IStorage {
         retryCount: refunds.retryCount,
         createdAt: refunds.createdAt,
       })
-      .from(refunds)
+      .from(refunds);
 
     const queryWithWhere =
       conditions.length > 0 ? query.where(and(...conditions)) : query;
@@ -1368,7 +1368,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getRefundByReturnRequest(
-    returnRequestId: string
+    returnRequestId: string,
   ): Promise<Refund | undefined> {
     const [result] = await db
       .select()
@@ -1380,7 +1380,7 @@ export class DatabaseStorage implements IStorage {
   // Notifications
   async getNotifications(
     userId: string,
-    unreadOnly?: boolean
+    unreadOnly?: boolean,
   ): Promise<Notification[]> {
     const conditions = [eq(notifications.userId, userId)];
     if (unreadOnly) conditions.push(eq(notifications.isRead, false));
@@ -1393,7 +1393,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async createNotification(
-    notification: InsertNotification
+    notification: InsertNotification,
   ): Promise<Notification> {
     const [result] = await db
       .insert(notifications)
@@ -1416,7 +1416,7 @@ export class DatabaseStorage implements IStorage {
       .update(notifications)
       .set({ isRead: true, readAt: new Date() })
       .where(
-        and(eq(notifications.userId, userId), eq(notifications.isRead, false))
+        and(eq(notifications.userId, userId), eq(notifications.isRead, false)),
       );
     return true;
   }
@@ -1426,7 +1426,7 @@ export class DatabaseStorage implements IStorage {
       .select({ count: sql<number>`count(*)::int` })
       .from(notifications)
       .where(
-        and(eq(notifications.userId, userId), eq(notifications.isRead, false))
+        and(eq(notifications.userId, userId), eq(notifications.isRead, false)),
       );
     return result?.count || 0;
   }
@@ -1444,7 +1444,7 @@ export class DatabaseStorage implements IStorage {
     key: string,
     value: string,
     description?: string,
-    updatedBy?: string
+    updatedBy?: string,
   ): Promise<void> {
     await db
       .insert(appSettings)
@@ -1526,8 +1526,8 @@ export class DatabaseStorage implements IStorage {
       .where(
         and(
           eq(stockMovements.source, "online"),
-          eq(stockMovements.movementType, "sale")
-        )
+          eq(stockMovements.movementType, "sale"),
+        ),
       )
       .orderBy(desc(stockMovements.createdAt));
 
@@ -1548,8 +1548,8 @@ export class DatabaseStorage implements IStorage {
       .where(
         and(
           eq(stockMovements.source, "store"),
-          eq(stockMovements.movementType, "sale")
-        )
+          eq(stockMovements.movementType, "sale"),
+        ),
       )
       .orderBy(desc(stockMovements.createdAt));
 
@@ -1638,7 +1638,7 @@ export class DatabaseStorage implements IStorage {
 
     if (filters?.source) {
       conditions.push(
-        eq(stockMovements.source, filters.source as "online" | "store")
+        eq(stockMovements.source, filters.source as "online" | "store"),
       );
     }
     if (filters?.sareeId) {
@@ -1661,7 +1661,7 @@ export class DatabaseStorage implements IStorage {
   async restoreStockFromReturn(
     sareeId: string,
     quantity: number,
-    orderRefId: string
+    orderRefId: string,
   ): Promise<void> {
     // Add stock back to total stock and online stock (assuming returns are processed centrally)
     await db
@@ -1684,7 +1684,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getAllStoreExchanges(
-    limit?: number
+    limit?: number,
   ): Promise<StoreExchangeWithDetails[]> {
     const exchangesList = await db
       .select()
@@ -1698,7 +1698,7 @@ export class DatabaseStorage implements IStorage {
 
     for (const exchange of exchangesList) {
       const originalSale = await storeService.getStoreSaleForExchange(
-        exchange.store_exchanges.originalSaleId
+        exchange.store_exchanges.originalSaleId,
       );
 
       const returnItemsList = await db
@@ -1709,7 +1709,7 @@ export class DatabaseStorage implements IStorage {
         .leftJoin(colors, eq(sarees.colorId, colors.id))
         .leftJoin(fabrics, eq(sarees.fabricId, fabrics.id))
         .where(
-          eq(storeExchangeReturnItems.exchangeId, exchange.store_exchanges.id)
+          eq(storeExchangeReturnItems.exchangeId, exchange.store_exchanges.id),
         );
 
       const newItemsList = await db
@@ -1720,7 +1720,7 @@ export class DatabaseStorage implements IStorage {
         .leftJoin(colors, eq(sarees.colorId, colors.id))
         .leftJoin(fabrics, eq(sarees.fabricId, fabrics.id))
         .where(
-          eq(storeExchangeNewItems.exchangeId, exchange.store_exchanges.id)
+          eq(storeExchangeNewItems.exchangeId, exchange.store_exchanges.id),
         );
 
       result.push({
@@ -1763,7 +1763,7 @@ export class DatabaseStorage implements IStorage {
       fabricId?: string;
       dateFrom?: string;
       dateTo?: string;
-    }
+    },
   ): Promise<{
     data: { saree: SareeWithDetails; storeStock: number }[];
     total: number;
@@ -1775,8 +1775,8 @@ export class DatabaseStorage implements IStorage {
       conditions.push(
         or(
           ilike(sarees.name, `%${options.search}%`),
-          ilike(sarees.sku, `%${options.search}%`)
-        )!
+          ilike(sarees.sku, `%${options.search}%`),
+        )!,
       );
     }
 
@@ -1837,8 +1837,8 @@ export class DatabaseStorage implements IStorage {
         and(
           eq(sales.isActive, true),
           lte(sales.validFrom, now),
-          gte(sales.validUntil, now)
-        )
+          gte(sales.validUntil, now),
+        ),
       );
 
     // Fetch sale product mappings
@@ -1850,11 +1850,11 @@ export class DatabaseStorage implements IStorage {
       // Find applicable sale
       let applicableSale = null;
       const productSaleMapping = saleProductMappings.find(
-        (sp) => sp.sareeId === saree.id
+        (sp) => sp.sareeId === saree.id,
       );
       if (productSaleMapping) {
         applicableSale = activeSales.find(
-          (s) => s.id === productSaleMapping.saleId
+          (s) => s.id === productSaleMapping.saleId,
         );
       }
       // Only exclude category pricing when THIS saree is explicitly mapped to a different sale
@@ -1863,8 +1863,8 @@ export class DatabaseStorage implements IStorage {
           (s) =>
             s.categoryId === saree.categoryId &&
             !saleProductMappings.some(
-              (sp) => sp.saleId === s.id && sp.sareeId === saree.id
-            )
+              (sp) => sp.saleId === s.id && sp.sareeId === saree.id,
+            ),
         );
       }
 
@@ -1890,7 +1890,7 @@ export class DatabaseStorage implements IStorage {
         ) {
           const flatDiscount = Math.min(
             parseFloat(applicableSale.discountValue),
-            originalPrice
+            originalPrice,
           );
           discountedPrice = originalPrice - flatDiscount;
         }
@@ -1905,12 +1905,12 @@ export class DatabaseStorage implements IStorage {
           fabric: row.fabrics,
           activeSale: applicableSale
             ? {
-              id: applicableSale.id,
-              name: applicableSale.name,
-              offerType: applicableSale.offerType,
-              discountValue: applicableSale.discountValue,
-              maxDiscount: applicableSale.maxDiscount || undefined,
-            }
+                id: applicableSale.id,
+                name: applicableSale.name,
+                offerType: applicableSale.offerType,
+                discountValue: applicableSale.discountValue,
+                maxDiscount: applicableSale.maxDiscount || undefined,
+              }
             : null,
           discountedPrice: applicableSale ? discountedPrice : undefined,
         },
@@ -1946,7 +1946,7 @@ export class DatabaseStorage implements IStorage {
     currentStatus: string,
     newStatus: string,
     note: string,
-    updatedBy?: string
+    updatedBy?: string,
   ): Promise<void> {
     await db.insert(itemStatusHistory).values({
       orderItemId,
