@@ -76,66 +76,47 @@ export const storeCartRoutes = (app: Express) => {
   app.post("/api/store/cart", authStore, async (req: Request, res: Response) => {
     try {
       const storeId = req.user?.storeId;
-      if (!storeId) return res.status(401).json({ error: "Store not authenticated" });
+      if (!storeId) {
+        return res.status(401).json({ error: "Store not authenticated" });
+      }
 
       const validatedData = addToCartSchema.parse(req.body);
       const storeRepo = new StoreRepository();
 
-      // Check store inventory before adding to cart
-      const inventory = await storeRepo.getStoreInventoryItem(storeId, validatedData.sareeId);
+      const inventory = await storeRepo.getStoreInventoryItem(
+        storeId,
+        validatedData.sareeId
+      );
+
       if (!inventory || inventory.quantity < validatedData.quantity) {
-        return res.status(400).json({ 
-          error: "Insufficient stock", 
-          message: `Only ${inventory?.quantity || 0} items available in stock` 
+        return res.status(400).json({
+          error: "Insufficient stock",
+          message: `Only ${inventory?.quantity || 0} items available in stock`,
         });
       }
 
-      // Use the new updateStoreCart method which handles insert/update properly
-      const currentCart = await storeRepo.getStoreCart(storeId);
-      const existingItem = currentCart.items.find(item => item.sareeId === validatedData.sareeId);
+      const updatedCart = await storeRepo.addToStoreCart(
+        storeId,
+        validatedData.sareeId,
+        validatedData.quantity,
+        validatedData.unitPrice
+      );
 
-      let updatedItems;
-      if (existingItem) {
-        // Check if adding quantity would exceed available stock
-        const newQuantity = existingItem.quantity + validatedData.quantity;
-        if (newQuantity > (inventory?.quantity || 0)) {
-          return res.status(400).json({ 
-            error: "Insufficient stock", 
-            message: `Cannot add ${validatedData.quantity} more items. Only ${inventory?.quantity || 0} available in stock, ${existingItem.quantity} already in cart` 
-          });
-        }
+      res.json(updatedCart);
 
-        // Update existing item quantity
-        updatedItems = currentCart.items.map(item =>
-          item.sareeId === validatedData.sareeId
-            ? {
-                ...item,
-                quantity: newQuantity,
-                lineAmount: newQuantity * validatedData.unitPrice,
-              }
-            : item
-        );
-      } else {
-        // Add new item (don't set ID, let database generate it)
-        const newItem = {
-          sareeId: validatedData.sareeId,
-          quantity: validatedData.quantity,
-          unitPrice: validatedData.unitPrice,
-          lineAmount: validatedData.quantity * validatedData.unitPrice,
-        };
-        updatedItems = [...currentCart.items, newItem];
-      }
-
-      const updatedCart = await storeRepo.updateStoreCart(storeId, updatedItems);
-      res.json({ message: "Item added to cart successfully", cart: updatedCart });
     } catch (error) {
       if (error instanceof z.ZodError) {
-        return res.status(400).json({ error: "Invalid item data", details: error.errors });
+        return res.status(400).json({
+          error: "Invalid item data",
+          details: error.errors,
+        });
       }
+
       console.error("Error adding to cart:", error);
       res.status(500).json({ error: "Failed to add item to cart" });
     }
   });
+
 
   app.put("/api/store/cart", authStore, async (req: Request, res: Response) => {
     try {
@@ -148,12 +129,12 @@ export const storeCartRoutes = (app: Express) => {
       // Validate stock availability for all items
       for (const item of validatedData.items) {
         if (item.quantity === undefined) continue; // Skip items without quantity
-        
+
         const inventory = await storeRepo.getStoreInventoryItem(storeId, item.sareeId);
         if (!inventory || inventory.quantity < item.quantity) {
-          return res.status(400).json({ 
-            error: "Insufficient stock", 
-            message: `Only ${inventory?.quantity || 0} items available for item ${item.sareeId}` 
+          return res.status(400).json({
+            error: "Insufficient stock",
+            message: `Only ${inventory?.quantity || 0} items available for item ${item.sareeId}`
           });
         }
       }
@@ -176,7 +157,7 @@ export const storeCartRoutes = (app: Express) => {
 
       const { sareeId } = req.params;
       const storeRepo = new StoreRepository();
-      
+
       await storeRepo.deleteFromStoreCart(storeId, sareeId);
 
       res.json({ message: "Item removed from cart successfully" });
@@ -218,9 +199,9 @@ export const storeCartRoutes = (app: Express) => {
       for (const item of validatedData.items) {
         const inventory = await storeRepo.getStoreInventoryItem(storeId, item.sareeId);
         if (!inventory || inventory.quantity < item.quantity) {
-          return res.status(400).json({ 
-            error: "Insufficient stock", 
-            message: `Only ${inventory?.quantity || 0} items available for item ${item.sareeId}. Cannot complete checkout.` 
+          return res.status(400).json({
+            error: "Insufficient stock",
+            message: `Only ${inventory?.quantity || 0} items available for item ${item.sareeId}. Cannot complete checkout.`
           });
         }
       }

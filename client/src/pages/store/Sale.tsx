@@ -13,10 +13,10 @@ import { DataTable } from "@/components/ui/data-table";
 import { useDataTable } from "@/hooks/use-data-table";
 import { ColumnDef } from "@tanstack/react-table";
 import { useAuth } from "@/lib/auth";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { apiRequest } from "@/lib/queryClient";
+import { useQuery } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import type { SareeWithDetails } from "@shared/schema";
+import { useStoreCart } from "./Hook/cartStore";
 
 type ShopProduct = {
   saree: SareeWithDetails;
@@ -26,19 +26,44 @@ type ShopProduct = {
 interface CartItem {
   id: string;
   sareeId: string;
-  saree: SareeWithDetails;
   quantity: number;
-  price: string;
-  maxQuantity: number;
+  unitPrice: number;
+  lineAmount: number;
+  storeStock: number;
+  saree: {
+    id: string;
+    name: string;
+    code: string;
+    image: string;
+  };
 }
 
 
 export default function StoreSale() {
   const { user } = useAuth();
   const { toast } = useToast();
-  const queryClient = useQueryClient();
   const navigate = useNavigate();
-  const [cart, setCart] = useState<CartItem[]>([]);
+  const storeId = user?.storeId;
+  const {
+    items: cartItems,
+    fetchCart,
+    addItem,
+    updateItems,
+    deleteItem,
+    loading,
+    addCartLoading,
+    updateCartLoading,
+    removeLoading,
+    setStoreId
+  } = useStoreCart();
+  const disabledBtn = (sareeId: string) => {
+    return loading || addCartLoading[sareeId] || updateCartLoading[sareeId] || removeLoading[sareeId];
+  }
+  useEffect(() => {
+    if (!storeId) return;
+    setStoreId(storeId);
+    if (cartItems.length === 0) fetchCart();
+  }, []);
 
   const { data: filterOptions } = useQuery<{
     categories: { id: string; name: string }[];
@@ -62,94 +87,6 @@ export default function StoreSale() {
     initialPageSize: 20,
   });
 
-  const { data: cartData } = useQuery<any>({
-    queryKey: ["/api/store/cart"],
-    enabled: !!user?.storeId,
-  });
-
-  // Add to cart mutation
-  const addToCartMutation = useMutation({
-    mutationFn: async (item: { sareeId: string; quantity: number; unitPrice: number }) => {
-      const res = await apiRequest("POST", "/api/store/cart", item);
-      return await res.json();
-    },
-    onSuccess: (data) => {
-      queryClient.invalidateQueries({ queryKey: ["/api/store/cart"] });
-      toast({
-        title: "Added to cart",
-        description: data.message || "Item added to cart successfully",
-      });
-    },
-    onError: (error: Error) => {
-      toast({
-        title: "Error",
-        description: error.message,
-        variant: "destructive",
-      });
-    },
-  });
-
-  // Update cart mutation
-  const updateCartMutation = useMutation({
-    mutationFn: async (items: CartItem[]) => {
-      const res = await apiRequest("PUT", "/api/store/cart", {
-        items: items.map(item => ({
-          id: item.id,
-          sareeId: item.sareeId,
-          quantity: item.quantity,
-          unitPrice: parseFloat(item.price),
-          lineAmount: item.quantity * parseFloat(item.price),
-        }))
-      });
-      return await res.json();
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/store/cart"] });
-    },
-    onError: (error: Error) => {
-      toast({
-        title: "Error",
-        description: error.message,
-        variant: "destructive",
-      });
-    },
-  });
-
-  // Delete cart item mutation
-  const deleteCartMutation = useMutation({
-    mutationFn: async (sareeId: string) => {
-      const res = await apiRequest("DELETE", `/api/store/cart/${sareeId}`);
-      return await res.json();
-    },
-    onSuccess: (data) => {
-      queryClient.invalidateQueries({ queryKey: ["/api/store/cart"] });
-      toast({
-        title: "Item removed",
-        description: data.message || "Item removed from cart successfully",
-      });
-    },
-    onError: (error: Error) => {
-      toast({
-        title: "Error",
-        description: error.message,
-        variant: "destructive",
-      });
-    },
-  });
-
-  useEffect(() => {
-    if (cartData?.items) {
-      const mappedCart = cartData.items.map((item: any) => ({
-        id: item.id, // Cart item ID from database
-        sareeId: item.sareeId,
-        saree: item.saree,
-        quantity: item.quantity,
-        price: item.unitPrice.toString(),
-        maxQuantity: item.saree.totalStock || 999, // Fallback max quantity
-      }));
-      setCart(mappedCart);
-    }
-  }, [cartData]);
 
   const formatPrice = (price: number | string) => {
     const numPrice = typeof price === "string" ? parseFloat(price) : price;
@@ -170,16 +107,11 @@ export default function StoreSale() {
       return;
     }
 
-    const existing = cart.find((item) => item.sareeId === product.saree.id);
+    const existing = cartItems.find((item) => item.sareeId === product.saree.id);
 
     if (existing) {
       if (existing.quantity < product.storeStock) {
-        // Use the add to cart mutation to increment quantity
-        addToCartMutation.mutate({
-          sareeId: product.saree.id,
-          quantity: 1,
-          unitPrice: parseFloat(product.saree.price),
-        });
+        addItem(product.saree.id, 1, parseFloat(product.saree.price));
       } else {
         toast({
           title: "Limit reached",
@@ -187,39 +119,34 @@ export default function StoreSale() {
         });
       }
     } else {
-      // Add new item to cart
-      addToCartMutation.mutate({
-        sareeId: product.saree.id,
-        quantity: 1,
-        unitPrice: parseFloat(product.saree.price),
-      });
+      addItem(product.saree.id, 1, parseFloat(product.saree.price));
+
     }
   };
 
   const updateQuantity = (sareeId: string, delta: number) => {
-    const updatedCart = cart.map((item) => {
+    const updatedCart = cartItems.map((item) => {
       if (item.sareeId !== sareeId) return item;
       const newQty = item.quantity + delta;
       if (newQty < 1) return item;
-      if (newQty > item.maxQuantity) {
+      if (newQty > item.storeStock) {
         toast({
           title: "Limit reached",
           description: "Cannot exceed available stock",
         });
         return item;
       }
-      return { 
-        ...item, 
+      return {
+        ...item,
         quantity: newQty,
-        lineAmount: newQty * parseFloat(item.price)
+        lineAmount: newQty * item.unitPrice
       };
     });
-    setCart(updatedCart);
-    updateCartMutation.mutate(updatedCart);
+    updateItems(updatedCart, sareeId);
   };
 
   const removeFromCart = (sareeId: string) => {
-    deleteCartMutation.mutate(sareeId);
+    deleteItem(sareeId);
   };
 
   const displayProducts = tableProducts;
@@ -270,8 +197,8 @@ export default function StoreSale() {
         if (!color) return <span className="text-sm">-</span>;
         return (
           <div className="flex items-center gap-2">
-            <div 
-              className="w-4 h-4 rounded border border-gray-300" 
+            <div
+              className="w-4 h-4 rounded border border-gray-300"
               style={{ backgroundColor: color.hexCode }}
             />
             <span className="text-sm">{color.name}</span>
@@ -297,7 +224,7 @@ export default function StoreSale() {
         </span>
       ),
     },
-    
+
     {
       accessorKey: "storeStock",
       header: "Stock",
@@ -315,8 +242,8 @@ export default function StoreSale() {
       header: "Actions",
       cell: ({ row }) => {
         const product = row.original;
-        const inCart = cart.some(c => c.sareeId === product.saree.id);
-        const cartItem = cart.find(c => c.sareeId === product.saree.id);
+        const inCart = cartItems.some(c => c.sareeId === product.saree.id);
+        const cartItem = cartItems.find(c => c.sareeId === product.saree.id);
         const outOfStock = product.storeStock === 0;
 
         if (inCart && cartItem) {
@@ -327,7 +254,7 @@ export default function StoreSale() {
                 size="icon"
                 className="h-8 w-8"
                 onClick={() => updateQuantity(product.saree.id, -1)}
-                disabled={cartItem.quantity <= 1}
+                disabled={disabledBtn(product.saree.id) || cartItem.quantity <= 1}
               >
                 <Minus className="h-3 w-3" />
               </Button>
@@ -339,7 +266,7 @@ export default function StoreSale() {
                 size="icon"
                 className="h-8 w-8"
                 onClick={() => updateQuantity(product.saree.id, 1)}
-                disabled={cartItem.quantity >= product.storeStock}
+                disabled={disabledBtn(product.saree.id) || cartItem.quantity >= product.storeStock}
               >
                 <Plus className="h-3 w-3" />
               </Button>
@@ -348,6 +275,7 @@ export default function StoreSale() {
                 size="icon"
                 className="h-8 w-8 text-red-600 hover:text-red-700"
                 onClick={() => removeFromCart(product.saree.id)}
+                disabled={disabledBtn(product.saree.id)}
               >
                 <Trash2 className="h-3 w-3" />
               </Button>
@@ -359,7 +287,7 @@ export default function StoreSale() {
           <Button
             variant="ghost"
             size="icon"
-            disabled={outOfStock}
+            disabled={disabledBtn(product.saree.id) || outOfStock}
             onClick={() => addToCart(product)}
             data-testid={`product-${product.saree.id}`}
           >
@@ -411,11 +339,11 @@ export default function StoreSale() {
         >
           <ShoppingCart className="h-4 w-4" />
           Cart
-          {cart.length > 0 && (
+          {cartItems.length > 0 && (
             <>
               <span>-</span>
               <span className="text-primary">
-                {cart.reduce((sum, item) => sum + item.quantity, 0)}
+                {cartItems.reduce((sum, item) => sum + item.quantity, 0)}
               </span>
             </>
           )}

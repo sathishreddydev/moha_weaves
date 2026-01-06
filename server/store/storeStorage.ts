@@ -131,7 +131,7 @@ export interface StoreStorage {
     sareeId: string
   ): Promise<StoreInventory | undefined>;
   getStoreCart(storeId: string): Promise<{ items: any[] }>;
-  deleteFromStoreCart(storeId: string, sareeId: string): Promise<void>;
+  deleteFromStoreCart(storeId: string, sareeId: string): Promise<{ items: any[] }>;
   updateStoreCart(storeId: string, items: any[]): Promise<{ items: any[] }>;
   applyCoupon(storeId: string, code: string): Promise<any>;
   updateCouponUsage(couponId: string, userId: string, orderId: string, discountAmount: string): Promise<void>;
@@ -520,7 +520,7 @@ export class StoreRepository implements StoreStorage {
     const saleDate = new Date(originalSale.createdAt);
     const currentDate = new Date();
     const daysSinceSale = Math.floor((currentDate.getTime() - saleDate.getTime()) / (1000 * 60 * 60 * 24));
-    
+
     if (daysSinceSale > 7) {
       throw new Error("Items can only be exchanged within 7 days of purchase");
     }
@@ -592,7 +592,7 @@ export class StoreRepository implements StoreStorage {
     // Balance calculation for valid exchanges only
     const balanceAmount = Math.abs(returnAmount - newItemsAmount);
     let balanceDirection: "refund_to_customer" | "due_from_customer" | "even";
-    
+
     if (newItemsAmount > returnAmount) {
       balanceDirection = "due_from_customer";
     } else {
@@ -716,7 +716,7 @@ export class StoreRepository implements StoreStorage {
 
     return result.map((row) => {
       const saree = row.sarees;
-      
+
       // Find applicable sale
       let applicableSale = null;
       const productSaleMapping = saleProductMappings.find(
@@ -730,8 +730,8 @@ export class StoreRepository implements StoreStorage {
       // Only exclude category pricing when THIS saree is explicitly mapped to a different sale
       if (!applicableSale && saree.categoryId) {
         applicableSale = activeSales.find(
-          (s) => s.categoryId === saree.categoryId && 
-          !saleProductMappings.some(sp => sp.saleId === s.id && sp.sareeId === saree.id)
+          (s) => s.categoryId === saree.categoryId &&
+            !saleProductMappings.some(sp => sp.saleId === s.id && sp.sareeId === saree.id)
         );
       }
 
@@ -741,8 +741,8 @@ export class StoreRepository implements StoreStorage {
         const originalPrice = discountedPrice;
         if (applicableSale.offerType === "percentage" || applicableSale.offerType === "category" || applicableSale.offerType === "flash_sale") {
           const discount = originalPrice * (parseFloat(applicableSale.discountValue) / 100);
-          const maxDiscount = applicableSale.maxDiscount 
-            ? parseFloat(applicableSale.maxDiscount) 
+          const maxDiscount = applicableSale.maxDiscount
+            ? parseFloat(applicableSale.maxDiscount)
             : originalPrice; // Cap at price if no maxDiscount
           discountedPrice = originalPrice - Math.min(discount, maxDiscount, originalPrice);
         } else if (applicableSale.offerType === "flat" || applicableSale.offerType === "product") {
@@ -760,12 +760,12 @@ export class StoreRepository implements StoreStorage {
           fabric: row.fabrics,
           activeSale: applicableSale
             ? {
-                id: applicableSale.id,
-                name: applicableSale.name,
-                offerType: applicableSale.offerType,
-                discountValue: applicableSale.discountValue,
-                maxDiscount: applicableSale.maxDiscount || undefined,
-              }
+              id: applicableSale.id,
+              name: applicableSale.name,
+              offerType: applicableSale.offerType,
+              discountValue: applicableSale.discountValue,
+              maxDiscount: applicableSale.maxDiscount || undefined,
+            }
             : null,
           discountedPrice: applicableSale ? discountedPrice : undefined,
         },
@@ -999,7 +999,56 @@ export class StoreRepository implements StoreStorage {
     return result || undefined;
   }
 
-  // Cart functionality
+  async addToStoreCart(
+    storeId: string,
+    sareeId: string,
+    quantity: number,
+    unitPrice: number
+  ): Promise<{ items: any[] }> {
+    const price = Number(unitPrice);
+
+    await db.transaction(async (tx) => {
+      const [existingItem] = await tx
+        .select()
+        .from(storeCart)
+        .where(
+          and(
+            eq(storeCart.storeId, storeId),
+            eq(storeCart.sareeId, sareeId)
+          )
+        )
+        .limit(1);
+
+      if (existingItem) {
+        const newQuantity = existingItem.quantity + quantity;
+        const newLineAmount = newQuantity * price;
+
+        await tx
+          .update(storeCart)
+          .set({
+            quantity: newQuantity,
+            unitPrice: price.toString(),
+            lineAmount: newLineAmount.toString(),
+          })
+          .where(eq(storeCart.id, existingItem.id));
+      } else {
+        const lineAmount = quantity * price;
+
+        await tx.insert(storeCart).values({
+          storeId,
+          sareeId,
+          quantity,
+          unitPrice: price.toString(),
+          lineAmount: lineAmount.toString(),
+        });
+      }
+    });
+
+    return this.getStoreCart(storeId);
+  }
+
+
+
   async getStoreCart(storeId: string): Promise<{ items: any[] }> {
     const cartItems = await db
       .select()
@@ -1035,55 +1084,72 @@ export class StoreRepository implements StoreStorage {
     };
   }
 
-  async deleteFromStoreCart(storeId: string, sareeId: string): Promise<void> {
-    await db.delete(storeCart).where(and(
-      eq(storeCart.storeId, storeId),
-      eq(storeCart.sareeId, sareeId)
-    ));
+  async deleteFromStoreCart(storeId: string, sareeId: string): Promise<{ items: any[] }> {
+    await db
+      .delete(storeCart)
+      .where(
+        and(
+          eq(storeCart.storeId, storeId),
+          eq(storeCart.sareeId, sareeId)
+        )
+      );
+
+    // Return updated cart after deletion
+    return this.getStoreCart(storeId);
   }
 
+
   async updateStoreCart(storeId: string, items: any[]): Promise<{ items: any[] }> {
-    return await db.transaction(async (tx) => {
-      for (const item of items) {        
+    await db.transaction(async (tx) => {
+      for (const item of items) {
         const [existingItem] = await tx
           .select()
           .from(storeCart)
-          .where(and(
-            eq(storeCart.storeId, storeId),
-            eq(storeCart.sareeId, item.sareeId)
-          ));
+          .where(
+            and(
+              eq(storeCart.storeId, storeId),
+              eq(storeCart.sareeId, item.sareeId)
+            )
+          )
+          .limit(1);
+
+        const quantity = item.quantity || 0;
+        const unitPrice = Number(item.unitPrice || 0);
+        const lineAmount = item.lineAmount !== undefined ? Number(item.lineAmount) : quantity * unitPrice;
 
         if (existingItem) {
           await tx
             .update(storeCart)
             .set({
-              quantity: item.quantity,
-              unitPrice: (item.unitPrice || 0).toString(),
-              lineAmount: (item.lineAmount || 0).toString(),
+              quantity,
+              unitPrice: unitPrice.toString(),
+              lineAmount: lineAmount.toString(),
             })
-            .where(and(
-              eq(storeCart.storeId, storeId),
-              eq(storeCart.sareeId, item.sareeId)
-            ));
+            .where(
+              and(
+                eq(storeCart.storeId, storeId),
+                eq(storeCart.sareeId, item.sareeId)
+              )
+            );
         } else {
           await tx.insert(storeCart).values({
             storeId,
             sareeId: item.sareeId,
-            quantity: item.quantity,
-            unitPrice: (item.unitPrice || 0).toString(),
-            lineAmount: (item.lineAmount || 0).toString(),
+            quantity,
+            unitPrice: unitPrice.toString(),
+            lineAmount: lineAmount.toString(),
           });
         }
       }
-
-      const result = await this.getStoreCart(storeId);
-      return result;
     });
+
+    return this.getStoreCart(storeId);
   }
+
 
   async applyCoupon(storeId: string, code: string): Promise<any> {
     const now = new Date();
-    
+
     const [coupon] = await db
       .select()
       .from(coupons)
