@@ -69,10 +69,17 @@ export interface StoreStorage {
   getStoreSaleForExchange(
     saleId: string
   ): Promise<StoreSaleWithItems | undefined>;
-  getStoreExchanges(
+
+  getStoreExchangesPaginated(
     storeId: string,
-    limit?: number
-  ): Promise<StoreExchangeWithDetails[]>;
+    options: {
+      limit: number;
+      offset: number;
+      search?: string;
+      dateFrom?: string;
+      dateTo?: string;
+    }
+  ): Promise<{ data: StoreExchangeWithDetails[]; total: number }>;
   getStoreExchange(id: string): Promise<StoreExchangeWithDetails | undefined>;
   createStoreExchange(
     exchange: InsertStoreExchange,
@@ -136,6 +143,7 @@ export interface StoreStorage {
   applyCoupon(storeId: string, code: string): Promise<any>;
   updateCouponUsage(couponId: string, userId: string, orderId: string, discountAmount: string): Promise<void>;
   generateReceipt(storeId: string, orderId: string): Promise<any>;
+  generateStoreExchangeId(storeId: string): Promise<string>;
 }
 export class StoreRepository implements StoreStorage {
   async generateStoreSaleId(storeId: string): Promise<string> {
@@ -158,6 +166,28 @@ export class StoreRepository implements StoreStorage {
 
     // Format: MOHA + store name + sequential number (padded to 2 digits)
     return `MOHA${cleanStoreName}${nextNumber.toString().padStart(2, '0')}`;
+  }
+
+  async generateStoreExchangeId(storeId: string): Promise<string> {
+    const store = await this.getStore(storeId);
+    if (!store) {
+      throw new Error("Store not found");
+    }
+
+    const cleanStoreName = store.name
+      .replace(/[^a-zA-Z0-9]/g, '')
+      .toLowerCase();
+
+    // Get the count of existing exchanges for this store to determine the next number
+    const existingExchangesCount = await db
+      .select({ count: sql<number>`count(*)::int` })
+      .from(storeExchanges)
+      .where(eq(storeExchanges.storeId, storeId));
+
+    const nextNumber = (existingExchangesCount[0]?.count || 0) + 1;
+
+    // Format: EX + store name + sequential number (padded to 2 digits)
+    return `EX${cleanStoreName}${nextNumber.toString().padStart(2, '0')}`;
   }
 
   async getStores(): Promise<Store[]> {
@@ -502,6 +532,8 @@ export class StoreRepository implements StoreStorage {
       customerPhone?: string;
     }
   ): Promise<StoreExchange> {
+    // Generate custom exchange ID
+    const exchangeId = await this.generateStoreExchangeId(storeId);
     // Validate required fields
     if (!data.originalSaleId || !data.returnItems || data.returnItems.length === 0) {
       throw new Error("Original sale ID and at least one return item are required");
@@ -601,6 +633,7 @@ export class StoreRepository implements StoreStorage {
 
     return await this.createStoreExchange(
       {
+        id: exchangeId,
         storeId,
         originalSaleId: data.originalSaleId,
         processedBy,
@@ -617,22 +650,54 @@ export class StoreRepository implements StoreStorage {
       data.newItems || []
     );
   }
-  async getStoreExchanges(
+
+  async getStoreExchangesPaginated(
     storeId: string,
-    limit?: number
-  ): Promise<StoreExchangeWithDetails[]> {
-    const exchangesList = await db
-      .select()
-      .from(storeExchanges)
-      .leftJoin(stores, eq(storeExchanges.storeId, stores.id))
-      .leftJoin(users, eq(storeExchanges.processedBy, users.id))
-      .where(eq(storeExchanges.storeId, storeId))
-      .orderBy(desc(storeExchanges.createdAt))
-      .limit(limit || 100);
+    options: {
+      limit: number;
+      offset: number;
+      search?: string;
+      dateFrom?: string;
+      dateTo?: string;
+    }
+  ) {
+    const conditions = [eq(storeExchanges.storeId, storeId)];
+
+    if (options.search) {
+      conditions.push(
+        sql`${storeExchanges.id}::text ILIKE ${`%${options.search}%`}`
+      );
+    }
+
+    if (options.dateFrom) {
+      conditions.push(gte(storeExchanges.createdAt, new Date(options.dateFrom)));
+    }
+
+    if (options.dateTo) {
+      conditions.push(lte(storeExchanges.createdAt, new Date(options.dateTo)));
+    }
+
+    const whereClause = and(...conditions);
+
+    const [data, countResult] = await Promise.all([
+      db
+        .select()
+        .from(storeExchanges)
+        .leftJoin(stores, eq(storeExchanges.storeId, stores.id))
+        .leftJoin(users, eq(storeExchanges.processedBy, users.id))
+        .where(whereClause)
+        .orderBy(desc(storeExchanges.createdAt))
+        .limit(options.limit)
+        .offset(options.offset),
+      db
+        .select({ count: sql<number>`count(*)::int` })
+        .from(storeExchanges)
+        .where(whereClause),
+    ]);
 
     const result: StoreExchangeWithDetails[] = [];
 
-    for (const exchange of exchangesList) {
+    for (const exchange of data) {
       const originalSale = await storeService.getStoreSaleForExchange(
         exchange.store_exchanges.originalSaleId
       );
@@ -685,7 +750,10 @@ export class StoreRepository implements StoreStorage {
       });
     }
 
-    return result;
+    return {
+      data: result,
+      total: countResult[0]?.count || 0,
+    };
   }
   async getShopAvailableProducts(
     storeId: string

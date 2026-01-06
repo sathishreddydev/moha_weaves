@@ -304,82 +304,121 @@ export default function Cart() {
         emptyMessage="No items in cart"
       />
 
-      {/* Checkout & Order Summary */}
-      <div className="flex mt-8 flex-col md:flex-row justify-between gap-8 border-t border-slate-100 pt-8">
-        {/* Customer & Payment Info */}
-        <div className="flex-1 space-y-6">
-          <h4 className="text-xs font-bold text-slate-800 uppercase tracking-widest mb-2">Customer Information</h4>
-          <Input
-            placeholder="Customer Name"
-            value={customerName}
-            onChange={(e) => setCustomerName(e.target.value)}
-          />
-          <Input
-            placeholder="Customer Phone"
-            value={customerPhone}
-            onChange={(e) => setCustomerPhone(e.target.value)}
-          />
-
-          <h4 className="text-xs font-bold text-slate-800 uppercase tracking-widest mb-2 mt-4 flex items-center gap-2">
-            <CreditCard size={16} className="text-slate-400" /> Payment Mode
+      <div className="flex mt-8 flex-col lg:flex-row gap-8">
+        {/* Customer Info */}
+        <div className="flex-1 space-y-4">
+          <h4 className="text-xs font-bold text-slate-800 uppercase tracking-widest">
+            Customer Information
           </h4>
-          <div className="flex gap-2">
-            {(["cash", "card", "upi"] as const).map((mode) => (
-              <Button
-                key={mode}
-                variant={paymentMode === mode ? "default" : "outline"}
-                size="sm"
-                onClick={() => setPaymentMode(mode)}
-                className="capitalize"
-              >
-                {mode}
-              </Button>
-            ))}
+
+          <div className="flex flex-col md:flex-row gap-3">
+            <Input
+              placeholder="Customer Name"
+              value={customerName}
+              onChange={(e) => setCustomerName(e.target.value)}
+              className="w-full md:flex-1"
+            />
+
+            <Input
+              placeholder="Customer Phone"
+              value={customerPhone}
+              onChange={(e) => setCustomerPhone(e.target.value)}
+              className="w-full md:flex-1"
+            />
           </div>
 
-          <h4 className="text-xs font-bold text-slate-800 uppercase tracking-widest mb-2 mt-4">Coupon Code</h4>
-          <div className="flex gap-2">
-            <Input
-              placeholder="Enter coupon code"
-              value={couponCode}
-              onChange={(e) => setCouponCode(e.target.value)}
-            />
-            <Button onClick={applyCoupon}>Apply</Button>
-          </div>
-          {discount && (
-            <div className="mt-2 text-sm text-green-600">
-              Coupon applied: {discount.description} (-₹{discountAmount.toLocaleString()})
+
+          <div className="flex flex-col md:flex-row gap-6 md:gap-10">
+            <div className="w-full md:w-1/2">
+              <h4 className="text-xs font-bold text-slate-800 uppercase tracking-widest mb-2 mt-2 flex items-center gap-2">
+                <CreditCard size={16} className="text-slate-400" />
+                Payment Mode
+              </h4>
+
+              <div className="flex flex-wrap gap-2">
+                {(["cash", "card", "upi"] as const).map((mode) => (
+                  <Button
+                    key={mode}
+                    variant={paymentMode === mode ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => setPaymentMode(mode)}
+                    className="capitalize flex-1 sm:flex-none"
+                  >
+                    {mode}
+                  </Button>
+                ))}
+              </div>
             </div>
-          )}
+
+            <div className="w-full md:w-1/2">
+              <h4 className="text-xs font-bold text-slate-800 uppercase tracking-widest mb-2 mt-2">
+                Coupon Code
+              </h4>
+
+              <div className="flex gap-2">
+                <Input
+                  className="w-3/4 sm:w-auto"
+                  placeholder="Enter coupon code"
+                  value={couponCode}
+                  onChange={(e) => setCouponCode(e.target.value)}
+                />
+                <Button
+                  onClick={applyCoupon}
+                  className="w-1/4 sm:w-auto"
+                >
+                  Apply
+                </Button>
+              </div>
+
+
+              {discount && (
+                <div className="mt-2 text-sm text-green-600">
+                  Coupon applied: {discount.description} (-₹
+                  {discountAmount.toLocaleString()})
+                </div>
+              )}
+            </div>
+          </div>
         </div>
 
-        {/* Order Summary */}
-        <div className="w-full md:w-80 space-y-3 bg-slate-50 rounded-xl p-4">
-          <h4 className="text-xs font-bold text-slate-800 uppercase tracking-widest mb-3">Order Summary</h4>
+        <div className="w-full lg:w-80 space-y-3">
+          <h4 className="text-xs font-bold text-slate-800 uppercase tracking-widest">
+            Order Summary
+          </h4>
+
           <div className="flex justify-between text-xs text-slate-600">
             <span>Subtotal</span>
             <span>₹{subtotal.toLocaleString()}</span>
           </div>
+
           <div className="flex justify-between text-xs text-slate-600">
             <span>Discount</span>
             <span>-₹{discountAmount.toLocaleString()}</span>
           </div>
+
           <div className="flex justify-between text-xs text-slate-600">
             <span>Tax</span>
-            <span>₹{taxAmount.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+            <span>
+              ₹{taxAmount.toLocaleString(undefined, {
+                minimumFractionDigits: 2,
+              })}
+            </span>
           </div>
+
           <div className="pt-2 mt-1 border-t border-slate-200 flex justify-between items-center">
             <span className="text-sm font-bold">Total Amount</span>
-            <span className="text-sm font-bold">₹{totalAmount.toLocaleString()}</span>
+            <span className="text-sm font-bold">
+              ₹{totalAmount.toLocaleString()}
+            </span>
           </div>
-          <Button
-            onClick={handleCheckout}
-            className="w-full mt-4"
-          >
-            <ShoppingBag className="h-4 w-4 mr-2" /> Complete Checkout
+
+          <Button onClick={handleCheckout} className="w-full mt-4">
+            <ShoppingBag className="h-4 w-4 mr-2" />
+            Complete Checkout
           </Button>
         </div>
       </div>
+
     </div>
   );
 }

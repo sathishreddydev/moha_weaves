@@ -150,7 +150,7 @@ export const insertInventoryAdjustmentSchema = createInsertSchema(
 
 export const insertStoreExchangeSchema = createInsertSchema(
   tables.storeExchanges
-).omit({ id: true, createdAt: true });
+).omit({ createdAt: true });
 
 export const insertStoreExchangeReturnItemSchema = createInsertSchema(
   tables.storeExchangeReturnItems

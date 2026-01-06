@@ -206,12 +206,29 @@ export const storeRoutes = (app: Express) => {
       if (!user.storeId) {
         return res.status(400).json({ message: "No store assigned" });
       }
-      const { limit } = req.query;
-      const exchanges = await storeService.getStoreExchanges(
+      
+      const params = parsePaginationParams(req.query);
+      const offset = getOffset(params.page, params.pageSize);
+      
+      const result = await storeService.getStoreExchangesPaginated(
         user.storeId,
-        limit ? parseInt(limit as string) : undefined
+        {
+          limit: params.pageSize,
+          offset,
+          search: params.search,
+          dateFrom: params.dateFrom,
+          dateTo: params.dateTo,
+        }
       );
-      res.json(exchanges);
+      
+      const response = createPaginatedResponse(
+        result.data,
+        result.total,
+        params.page,
+        params.pageSize
+      );
+      
+      res.json(response);
     } catch (error) {
       console.error("Error fetching exchanges:", error);
       res.status(500).json({ message: "Failed to fetch exchanges" });

@@ -25,7 +25,7 @@ export default function StoreExchangeHistory() {
     queryKey: "/api/store/store-exchanges",
     initialPageSize: 10,
   });
-
+console.log(exchanges);
   const formatPrice = (price: number | string) => {
     const numPrice = typeof price === "string" ? parseFloat(price) : price;
     return new Intl.NumberFormat("en-IN", {
