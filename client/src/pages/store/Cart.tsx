@@ -1,7 +1,15 @@
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Plus, Minus, Trash2, ShoppingCart, CreditCard, Loader2, ShoppingBag } from "lucide-react";
+import {
+  Plus,
+  Minus,
+  Trash2,
+  ShoppingCart,
+  CreditCard,
+  Loader2,
+  ShoppingBag,
+} from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { useNavigate } from "react-router-dom";
 import { DataTable } from "@/components/ui/data-table";
@@ -59,7 +67,9 @@ export default function Cart() {
     deleteItem,
     loading,
     updateCartLoading,
-    removeLoading, setStoreId, clearCart
+    removeLoading,
+    setStoreId,
+    clearCart,
   } = useStoreCart();
 
   const [discount, setDiscount] = useState<Discount | null>(null);
@@ -68,20 +78,27 @@ export default function Cart() {
     { name: "GST", rate: 18, type: "percentage" },
     { name: "Service Charge", rate: 10, type: "percentage" },
   ]);
-  const [paymentMode, setPaymentMode] = useState<"cash" | "card" | "upi">("cash");
+  const [paymentMode, setPaymentMode] = useState<"cash" | "card" | "upi">(
+    "cash",
+  );
   const [customerName, setCustomerName] = useState("");
   const [customerPhone, setCustomerPhone] = useState("");
   const [pagination, setPagination] = useState({ pageIndex: 0, pageSize: 10 });
   const disabledBtn = (sareeId: string) => {
     return loading || updateCartLoading[sareeId] || removeLoading[sareeId];
-  }
+  };
   useEffect(() => {
     if (!storeId) return;
     setStoreId(storeId);
     if (cartItems.length === 0) fetchCart();
   }, []);
 
-  const updateQuantity = (itemId: string, newQuantity: number, sareeId: string, storeStock: number) => {
+  const updateQuantity = (
+    itemId: string,
+    newQuantity: number,
+    sareeId: string,
+    storeStock: number,
+  ) => {
     if (newQuantity <= 0) {
       removeFromCart(itemId, sareeId);
       return;
@@ -96,10 +113,14 @@ export default function Cart() {
       return;
     }
 
-    const updatedItems = cartItems.map(item =>
+    const updatedItems = cartItems.map((item) =>
       item.id === itemId
-        ? { ...item, quantity: newQuantity, lineAmount: newQuantity * item.unitPrice }
-        : item
+        ? {
+            ...item,
+            quantity: newQuantity,
+            lineAmount: newQuantity * item.unitPrice,
+          }
+        : item,
     );
 
     updateItems(updatedItems, sareeId);
@@ -120,7 +141,9 @@ export default function Cart() {
     }
 
     try {
-      const res = await apiRequest("POST", "/api/store/apply-coupon", { code: couponCode });
+      const res = await apiRequest("POST", "/api/store/apply-coupon", {
+        code: couponCode,
+      });
       const data = await res.json();
       setDiscount(data.discount);
       toast({
@@ -153,14 +176,25 @@ export default function Cart() {
     : 0;
   const discountedSubtotal = subtotal - discountAmount;
   const taxAmount = taxRules.reduce((sum, tax) => {
-    return sum + (tax.type === "percentage" ? (tax.rate / 100) * discountedSubtotal : tax.rate);
+    return (
+      sum +
+      (tax.type === "percentage"
+        ? (tax.rate / 100) * discountedSubtotal
+        : tax.rate)
+    );
   }, 0);
   const totalAmount = discountedSubtotal + taxAmount;
 
   const handlePaginationChange = (pageIndex: number, pageSize: number) => {
     setPagination({ pageIndex, pageSize });
   };
-
+  const resetForm = () => {
+    setCustomerName("");
+    setCustomerPhone("");
+    setDiscount(null);
+    setPaymentMode("cash");
+    setCouponCode('')
+  };
   const handleCheckout = async () => {
     if (cartItems.length === 0) {
       toast({
@@ -198,8 +232,7 @@ export default function Cart() {
       });
 
       clearCart();
-      setDiscount(null);
-
+      resetForm()
     } catch (err: any) {
       toast({
         title: "Checkout Failed",
@@ -230,7 +263,14 @@ export default function Cart() {
             <Button
               variant="outline"
               size="icon"
-              onClick={() => updateQuantity(item.id, item.quantity - 1, item.sareeId, item.storeStock)}
+              onClick={() =>
+                updateQuantity(
+                  item.id,
+                  item.quantity - 1,
+                  item.sareeId,
+                  item.storeStock,
+                )
+              }
               disabled={disabledBtn(item.sareeId) || item.quantity <= 1}
               className="h-6 w-6"
             >
@@ -240,8 +280,17 @@ export default function Cart() {
             <Button
               variant="outline"
               size="icon"
-              onClick={() => updateQuantity(item.id, item.quantity + 1, item.sareeId, item.storeStock)}
-              disabled={disabledBtn(item.sareeId) || item.quantity >= item.storeStock}
+              onClick={() =>
+                updateQuantity(
+                  item.id,
+                  item.quantity + 1,
+                  item.sareeId,
+                  item.storeStock,
+                )
+              }
+              disabled={
+                disabledBtn(item.sareeId) || item.quantity >= item.storeStock
+              }
               className="h-6 w-6"
             >
               <Plus className="h-3 w-3" />
@@ -286,10 +335,7 @@ export default function Cart() {
         <h1 className="text-lg font-bold text-slate-800 flex items-center gap-2">
           <ShoppingCart /> Cart
         </h1>
-        <Button
-          onClick={() => navigate("/store/sale")}
-          variant="outline"
-        >
+        <Button onClick={() => navigate("/store/sale")} variant="outline">
           <Plus /> Add Item
         </Button>
       </div>
@@ -317,6 +363,7 @@ export default function Cart() {
               value={customerName}
               onChange={(e) => setCustomerName(e.target.value)}
               className="w-full md:flex-1"
+              required
             />
 
             <Input
@@ -324,9 +371,9 @@ export default function Cart() {
               value={customerPhone}
               onChange={(e) => setCustomerPhone(e.target.value)}
               className="w-full md:flex-1"
+              required
             />
           </div>
-
 
           <div className="flex flex-col md:flex-row gap-6 md:gap-10">
             <div className="w-full md:w-1/2">
@@ -362,14 +409,10 @@ export default function Cart() {
                   value={couponCode}
                   onChange={(e) => setCouponCode(e.target.value)}
                 />
-                <Button
-                  onClick={applyCoupon}
-                  className="w-1/4 sm:w-auto"
-                >
+                <Button onClick={applyCoupon} className="w-1/4 sm:w-auto">
                   Apply
                 </Button>
               </div>
-
 
               {discount && (
                 <div className="mt-2 text-sm text-green-600">
@@ -399,7 +442,8 @@ export default function Cart() {
           <div className="flex justify-between text-xs text-slate-600">
             <span>Tax</span>
             <span>
-              ₹{taxAmount.toLocaleString(undefined, {
+              ₹
+              {taxAmount.toLocaleString(undefined, {
                 minimumFractionDigits: 2,
               })}
             </span>
@@ -418,7 +462,6 @@ export default function Cart() {
           </Button>
         </div>
       </div>
-
     </div>
   );
 }

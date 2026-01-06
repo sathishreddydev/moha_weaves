@@ -224,8 +224,6 @@ export const storeCartRoutes = (app: Express) => {
         discountCode: validatedData.discount?.code,
       });
 
-      await storeRepo.updateStoreCart(storeId, []);
-
       if (validatedData.discount?.code && validatedData.discount?.couponId) {
         await storeRepo.updateCouponUsage(
           validatedData.discount.couponId,

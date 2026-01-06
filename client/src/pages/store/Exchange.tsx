@@ -24,6 +24,13 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import type { SareeWithDetails, StoreSaleWithItems } from "@shared/schema";
+import {
+  Select,
+  SelectTrigger,
+  SelectValue,
+  SelectContent,
+  SelectItem,
+} from "@/components/ui/select";
 
 type ShopProduct = {
   saree: SareeWithDetails;
@@ -58,21 +65,29 @@ interface SaleItemWithAvailable {
   saree: SareeWithDetails;
   availableQuantity: number;
 }
-
+export const exchangeReasons = [
+  { value: "defective", label: "Product is defective" },
+  { value: "wrong_item", label: "Received wrong item" },
+  { value: "not_as_described", label: "Not as described" },
+  { value: "quality_issue", label: "Quality issue" },
+  { value: "size_issue", label: "Size doesn't fit" },
+  { value: "changed_mind", label: "Changed my mind" },
+  // { value: "other", label: "Other reason" },
+];
 export default function StoreExchange() {
   const navigate = useNavigate();
   const { saleId: urlSaleId } = useParams();
-  const { user, } = useAuth();
+  const { user } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [saleIdInput, setSaleIdInput] = useState(urlSaleId || "");
   const [selectedSaleId, setSelectedSaleId] = useState<string | null>(
-    urlSaleId || null
+    urlSaleId || null,
   );
   const [returnItems, setReturnItems] = useState<ReturnItem[]>([]);
   const [newItems, setNewItems] = useState<NewCartItem[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
-  const [reason, setReason] = useState("");
+  const [reason, setReason] = useState("changed_mind");
   const [notes, setNotes] = useState("");
   const [customerName, setCustomerName] = useState("");
   const [customerPhone, setCustomerPhone] = useState("");
@@ -129,13 +144,19 @@ export default function StoreExchange() {
       customerName: string;
       customerPhone: string;
     }) => {
-      const response = await apiRequest("POST", "/api/store/store-exchanges", data);
+      const response = await apiRequest(
+        "POST",
+        "/api/store/store-exchanges",
+        data,
+      );
       return response.json();
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/store/products"] });
       queryClient.invalidateQueries({ queryKey: ["/api/store/inventory"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/store/store-exchanges"] });
+      queryClient.invalidateQueries({
+        queryKey: ["/api/store/store-exchanges"],
+      });
       toast({
         title: "Success",
         description: "Exchange completed successfully",
@@ -150,7 +171,6 @@ export default function StoreExchange() {
       });
     },
   });
-
 
   const formatPrice = (price: number | string) => {
     const numPrice = typeof price === "string" ? parseFloat(price) : price;
@@ -185,7 +205,7 @@ export default function StoreExchange() {
       return;
     }
     const existing = returnItems.find(
-      (item) => item.saleItemId === saleItem.id
+      (item) => item.saleItemId === saleItem.id,
     );
     if (existing) {
       if (existing.quantity < saleItem.availableQuantity) {
@@ -200,8 +220,8 @@ export default function StoreExchange() {
                     parseFloat(item.unitPrice)
                   ).toString(),
                 }
-              : item
-          )
+              : item,
+          ),
         );
       } else {
         toast({
@@ -245,13 +265,13 @@ export default function StoreExchange() {
             returnAmount: (newQty * parseFloat(item.unitPrice)).toString(),
           };
         })
-        .filter(Boolean) as ReturnItem[]
+        .filter(Boolean) as ReturnItem[],
     );
   };
 
   const removeReturnItem = (saleItemId: string) => {
     setReturnItems(
-      returnItems.filter((item) => item.saleItemId !== saleItemId)
+      returnItems.filter((item) => item.saleItemId !== saleItemId),
     );
   };
 
@@ -278,8 +298,8 @@ export default function StoreExchange() {
                     parseFloat(item.unitPrice)
                   ).toString(),
                 }
-              : item
-          )
+              : item,
+          ),
         );
       } else {
         toast({
@@ -322,7 +342,7 @@ export default function StoreExchange() {
             lineAmount: (newQty * parseFloat(item.unitPrice)).toString(),
           };
         })
-        .filter(Boolean) as NewCartItem[]
+        .filter(Boolean) as NewCartItem[],
     );
   };
 
@@ -332,19 +352,19 @@ export default function StoreExchange() {
 
   const returnTotal = returnItems.reduce(
     (sum, item) => sum + parseFloat(item.returnAmount),
-    0
+    0,
   );
   const newItemsTotal = newItems.reduce(
     (sum, item) => sum + parseFloat(item.lineAmount),
-    0
+    0,
   );
   const balanceAmount = Math.abs(returnTotal - newItemsTotal);
   const balanceDirection =
     returnTotal > newItemsTotal
       ? "refund"
       : returnTotal < newItemsTotal
-      ? "due"
-      : "even";
+        ? "due"
+        : "even";
 
   // Validation function to check if exchange can be completed
   const canCompleteExchange = () => {
@@ -355,7 +375,10 @@ export default function StoreExchange() {
 
     // Check if any return item has invalid quantity
     for (const returnItem of returnItems) {
-      if (returnItem.quantity <= 0 || returnItem.quantity > returnItem.maxQuantity) {
+      if (
+        returnItem.quantity <= 0 ||
+        returnItem.quantity > returnItem.maxQuantity
+      ) {
         return false;
       }
       if (parseFloat(returnItem.returnAmount) <= 0) {
@@ -367,9 +390,9 @@ export default function StoreExchange() {
     for (const newItem of newItems) {
       if (newItem.quantity <= 0) return false;
       if (parseFloat(newItem.lineAmount) <= 0) return false;
-      
+
       // Check inventory availability
-      const inventory = products?.find(p => p.saree.id === newItem.sareeId);
+      const inventory = products?.find((p) => p.saree.id === newItem.sareeId);
       if (!inventory || inventory.storeStock < newItem.quantity) {
         return false;
       }
@@ -378,8 +401,10 @@ export default function StoreExchange() {
     // Check exchange period (7 days)
     const saleDate = new Date(saleData.createdAt);
     const currentDate = new Date();
-    const daysSinceSale = Math.floor((currentDate.getTime() - saleDate.getTime()) / (1000 * 60 * 60 * 24));
-    
+    const daysSinceSale = Math.floor(
+      (currentDate.getTime() - saleDate.getTime()) / (1000 * 60 * 60 * 24),
+    );
+
     if (daysSinceSale > 7) return false;
 
     return true;
@@ -396,7 +421,9 @@ export default function StoreExchange() {
     }
 
     for (const returnItem of returnItems) {
-      const saleItem = saleItems.find(item => item.id === returnItem.saleItemId);
+      const saleItem = saleItems.find(
+        (item) => item.id === returnItem.saleItemId,
+      );
       if (!saleItem) {
         toast({
           title: "Invalid item",
@@ -408,8 +435,10 @@ export default function StoreExchange() {
 
       const saleDate = new Date(saleData?.createdAt || "");
       const currentDate = new Date();
-      const daysSinceSale = Math.floor((currentDate.getTime() - saleDate.getTime()) / (1000 * 60 * 60 * 24));
-      
+      const daysSinceSale = Math.floor(
+        (currentDate.getTime() - saleDate.getTime()) / (1000 * 60 * 60 * 24),
+      );
+
       if (daysSinceSale > 7) {
         toast({
           title: "Exchange period expired",
@@ -439,8 +468,14 @@ export default function StoreExchange() {
       }
     }
 
-    const totalReturnAmount = returnItems.reduce((sum, item) => sum + parseFloat(item.returnAmount), 0);
-    const totalNewAmount = newItems.reduce((sum, item) => sum + parseFloat(item.lineAmount), 0);
+    const totalReturnAmount = returnItems.reduce(
+      (sum, item) => sum + parseFloat(item.returnAmount),
+      0,
+    );
+    const totalNewAmount = newItems.reduce(
+      (sum, item) => sum + parseFloat(item.lineAmount),
+      0,
+    );
 
     if (totalReturnAmount <= 0) {
       toast({
@@ -454,7 +489,7 @@ export default function StoreExchange() {
     // New Items are truly optional - only validate if present
     if (newItems.length > 0) {
       for (const newItem of newItems) {
-        const inventory = products?.find(p => p.saree.id === newItem.sareeId);
+        const inventory = products?.find((p) => p.saree.id === newItem.sareeId);
         if (!inventory || inventory.storeStock < newItem.quantity) {
           toast({
             title: "Insufficient stock",
@@ -504,7 +539,6 @@ export default function StoreExchange() {
   };
 
   const handleCompleteExchange = () => {
-
     if (!selectedSaleId || !saleData) {
       toast({
         title: "No Sale Selected",
@@ -542,7 +576,10 @@ export default function StoreExchange() {
     }
 
     for (const returnItem of returnItems) {
-      if (returnItem.quantity <= 0 || returnItem.quantity > returnItem.maxQuantity) {
+      if (
+        returnItem.quantity <= 0 ||
+        returnItem.quantity > returnItem.maxQuantity
+      ) {
         toast({
           title: "Invalid Quantity",
           description: `Invalid quantity for ${returnItem.saree.name}. Max: ${returnItem.maxQuantity}`,
@@ -577,8 +614,8 @@ export default function StoreExchange() {
         });
         return;
       }
-      
-      const inventory = products?.find(p => p.saree.id === newItem.sareeId);
+
+      const inventory = products?.find((p) => p.saree.id === newItem.sareeId);
       if (!inventory || inventory.storeStock < newItem.quantity) {
         toast({
           title: "Insufficient Stock",
@@ -591,8 +628,10 @@ export default function StoreExchange() {
 
     const saleDate = new Date(saleData.createdAt);
     const currentDate = new Date();
-    const daysSinceSale = Math.floor((currentDate.getTime() - saleDate.getTime()) / (1000 * 60 * 60 * 24));
-    
+    const daysSinceSale = Math.floor(
+      (currentDate.getTime() - saleDate.getTime()) / (1000 * 60 * 60 * 24),
+    );
+
     if (daysSinceSale > 7) {
       toast({
         title: "Exchange Period Expired",
@@ -602,8 +641,14 @@ export default function StoreExchange() {
       return;
     }
 
-    const totalReturnAmount = returnItems.reduce((sum, item) => sum + parseFloat(item.returnAmount), 0);
-    const totalNewAmount = newItems.reduce((sum, item) => sum + parseFloat(item.lineAmount), 0);
+    const totalReturnAmount = returnItems.reduce(
+      (sum, item) => sum + parseFloat(item.returnAmount),
+      0,
+    );
+    const totalNewAmount = newItems.reduce(
+      (sum, item) => sum + parseFloat(item.lineAmount),
+      0,
+    );
 
     // Block unfavorable exchanges where returned value is significantly higher than new items
     if (totalReturnAmount > totalNewAmount) {
@@ -656,9 +701,8 @@ export default function StoreExchange() {
     (item) =>
       item.storeStock > 0 &&
       (item.saree.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        item.saree.sku?.toLowerCase().includes(searchQuery.toLowerCase()))
+        item.saree.sku?.toLowerCase().includes(searchQuery.toLowerCase())),
   );
-
 
   return (
     <div className="max-w-6xl mx-auto">
@@ -749,7 +793,7 @@ export default function StoreExchange() {
                 <div className="space-y-2 max-h-[300px] overflow-y-auto">
                   {saleItems.map((item) => {
                     const inReturn = returnItems.find(
-                      (r) => r.saleItemId === item.id
+                      (r) => r.saleItemId === item.id,
                     );
                     const isUnavailable = item.availableQuantity <= 0;
                     return (
@@ -885,14 +929,14 @@ export default function StoreExchange() {
                 <div className="flex items-center justify-between">
                   <CardTitle className="flex items-center gap-2">
                     <Package className="h-5 w-5" />
-                    New Items (Optional)
+                    New Items
                   </CardTitle>
                   <Button
                     variant={showNewItemsSection ? "secondary" : "outline"}
                     size="sm"
                     onClick={() => setShowNewItemsSection(!showNewItemsSection)}
                   >
-                     Add Items
+                    Add Items
                   </Button>
                 </div>
               </CardHeader>
@@ -916,47 +960,57 @@ export default function StoreExchange() {
                     </div>
                   ) : (
                     <div className="space-y-2 max-h-[200px] overflow-y-auto">
-                      {filteredProducts?.map((item) => {
-                        const inNew = newItems.find(
-                          (c) => c.sareeId === item.saree.id
-                        );
-                        return (
-                          <div
-                            key={item.saree.id}
-                            className="flex items-center justify-between p-3 rounded-lg border hover-elevate cursor-pointer"
-                            onClick={() => addNewItem(item)}
-                          >
-                            <div className="flex items-center gap-3">
-                              <img
-                                src={
-                                  item.saree.imageUrl ||
-                                  "https://images.unsplash.com/photo-1610030469983-98e550d6193c?w=50"
-                                }
-                                alt=""
-                                className="w-10 h-12 rounded object-cover"
-                              />
-                              <div>
-                                <p className="font-medium text-sm line-clamp-1">
-                                  {item.saree.name}
-                                </p>
-                                <p className="text-sm text-primary font-semibold">
-                                  {formatPrice(item.saree.price)}
-                                </p>
-                                <Badge variant="secondary" className="text-xs">
-                                  {item.storeStock} in stock
-                                </Badge>
+                      {filteredProducts && filteredProducts.length > 0 ? (
+                        filteredProducts.map((item) => {
+                          const inNew = newItems.find(
+                            (c) => c.sareeId === item.saree.id,
+                          );
+
+                          return (
+                            <div
+                              key={item.saree.id}
+                              className="flex items-center justify-between p-3 rounded-lg border hover-elevate cursor-pointer"
+                              onClick={() => addNewItem(item)}
+                            >
+                              <div className="flex items-center gap-3">
+                                <img
+                                  src={
+                                    item.saree.imageUrl ||
+                                    "https://images.unsplash.com/photo-1610030469983-98e550d6193c?w=50"
+                                  }
+                                  alt=""
+                                  className="w-10 h-12 rounded object-cover"
+                                />
+                                <div>
+                                  <p className="font-medium text-sm line-clamp-1">
+                                    {item.saree.name}
+                                  </p>
+                                  <p className="text-sm text-primary font-semibold">
+                                    {formatPrice(item.saree.price)}
+                                  </p>
+                                  <Badge
+                                    variant="secondary"
+                                    className="text-xs"
+                                  >
+                                    {item.storeStock} in stock
+                                  </Badge>
+                                </div>
                               </div>
+                              <Button variant="ghost" size="icon">
+                                {inNew ? (
+                                  <Check className="h-4 w-4 text-green-500" />
+                                ) : (
+                                  <Plus className="h-4 w-4" />
+                                )}
+                              </Button>
                             </div>
-                            <Button variant="ghost" size="icon">
-                              {inNew ? (
-                                <Check className="h-4 w-4 text-green-500" />
-                              ) : (
-                                <Plus className="h-4 w-4" />
-                              )}
-                            </Button>
-                          </div>
-                        );
-                      })}
+                          );
+                        })
+                      ) : (
+                        <p className="text-sm text-muted-foreground text-center py-4">
+                          No products found
+                        </p>
+                      )}
                     </div>
                   )}
 
@@ -1069,8 +1123,8 @@ export default function StoreExchange() {
                         balanceDirection === "refund"
                           ? "text-red-600"
                           : balanceDirection === "due"
-                          ? "text-green-600"
-                          : "text-muted-foreground"
+                            ? "text-green-600"
+                            : "text-muted-foreground"
                       }
                     >
                       {balanceDirection === "refund" &&
@@ -1096,6 +1150,7 @@ export default function StoreExchange() {
                     value={customerName}
                     onChange={(e) => setCustomerName(e.target.value)}
                     placeholder="Enter customer name"
+                    readOnly
                   />
                 </div>
                 <div>
@@ -1105,16 +1160,23 @@ export default function StoreExchange() {
                     value={customerPhone}
                     onChange={(e) => setCustomerPhone(e.target.value)}
                     placeholder="+91 XXXXX XXXXX"
+                    readOnly
                   />
                 </div>
                 <div>
-                  <Label htmlFor="reason">Reason for Exchange</Label>
-                  <Input
-                    id="reason"
-                    value={reason}
-                    onChange={(e) => setReason(e.target.value)}
-                    placeholder="e.g., Size issue, Color preference, Defect"
-                  />
+                  <Label>Reason for Exchange</Label>
+                  <Select value={reason} onValueChange={setReason}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select a reason" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {exchangeReasons.map((reason) => (
+                        <SelectItem key={reason.value} value={reason.value}>
+                          {reason.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
                 <div>
                   <Label htmlFor="notes">Additional Notes</Label>

@@ -5,8 +5,6 @@ import {
   categories,
   colors,
   fabrics,
-  InsertStoreSale,
-  InsertStoreSaleItem,
   sarees,
   stockMovements,
   storeInventory,
@@ -43,7 +41,7 @@ export interface StoreStorage {
   createStore(store: InsertStore): Promise<Store>;
   updateStore(
     id: string,
-    data: Partial<InsertStore>
+    data: Partial<InsertStore>,
   ): Promise<Store | undefined>;
 
   createStoreSale(
@@ -63,11 +61,11 @@ export interface StoreStorage {
       totalAmount: number;
       paymentMode: string;
       discountCode?: string;
-    }
+    },
   ): Promise<StoreSale>;
   // Store Exchanges
   getStoreSaleForExchange(
-    saleId: string
+    saleId: string,
   ): Promise<StoreSaleWithItems | undefined>;
 
   getStoreExchangesPaginated(
@@ -78,13 +76,13 @@ export interface StoreStorage {
       search?: string;
       dateFrom?: string;
       dateTo?: string;
-    }
+    },
   ): Promise<{ data: StoreExchangeWithDetails[]; total: number }>;
   getStoreExchange(id: string): Promise<StoreExchangeWithDetails | undefined>;
   createStoreExchange(
     exchange: InsertStoreExchange,
     returnItems: Omit<InsertStoreExchangeReturnItem, "exchangeId">[],
-    newItems: Omit<InsertStoreExchangeNewItem, "exchangeId">[]
+    newItems: Omit<InsertStoreExchangeNewItem, "exchangeId">[],
   ): Promise<StoreExchange>;
   createStoreExchangeWithValidation(
     storeId: string,
@@ -108,10 +106,10 @@ export interface StoreStorage {
       notes?: string;
       customerName?: string;
       customerPhone?: string;
-    }
+    },
   ): Promise<StoreExchange>;
   getShopAvailableProducts(
-    storeId: string
+    storeId: string,
   ): Promise<{ saree: SareeWithDetails; storeStock: number }[]>;
   getAllStoreSales(): Promise<StoreSaleWithItems[]>;
   getStoreSales(storeId: string, limit?: number): Promise<StoreSaleWithItems[]>;
@@ -123,32 +121,41 @@ export interface StoreStorage {
       search?: string;
       dateFrom?: string;
       dateTo?: string;
-    }
+    },
   ): Promise<{ data: StoreSaleWithItems[]; total: number }>;
   updateStoreInventory(
     storeId: string,
     sareeId: string,
-    quantity: number
+    quantity: number,
   ): Promise<StoreInventory>;
   getStoreInventory(
-    storeId: string
+    storeId: string,
   ): Promise<(StoreInventory & { saree: SareeWithDetails })[]>;
-  getLowStockProducts(
-    storeId: string
-  ): Promise<Array<{
-    saree: SareeWithDetails;
-    currentStock: number;
-    reorderLevel: number;
-  }>>;
+  getLowStockProducts(storeId: string): Promise<
+    Array<{
+      saree: SareeWithDetails;
+      currentStock: number;
+      reorderLevel: number;
+    }>
+  >;
   getStoreInventoryItem(
     storeId: string,
-    sareeId: string
+    sareeId: string,
   ): Promise<StoreInventory | undefined>;
   getStoreCart(storeId: string): Promise<{ items: any[] }>;
-  deleteFromStoreCart(storeId: string, sareeId: string): Promise<{ items: any[] }>;
+  deleteFromStoreCart(
+    storeId: string,
+    sareeId: string,
+  ): Promise<{ items: any[] }>;
   updateStoreCart(storeId: string, items: any[]): Promise<{ items: any[] }>;
+  clearStoreCart(storeId: string): Promise<{ items: any[] }>;
   applyCoupon(storeId: string, code: string): Promise<any>;
-  updateCouponUsage(couponId: string, userId: string, orderId: string, discountAmount: string): Promise<void>;
+  updateCouponUsage(
+    couponId: string,
+    userId: string,
+    orderId: string,
+    discountAmount: string,
+  ): Promise<void>;
   generateReceipt(storeId: string, orderId: string): Promise<any>;
   generateStoreExchangeId(storeId: string): Promise<string>;
 }
@@ -160,7 +167,7 @@ export class StoreRepository implements StoreStorage {
     }
 
     const cleanStoreName = store.name
-      .replace(/[^a-zA-Z0-9]/g, '')
+      .replace(/[^a-zA-Z0-9]/g, "")
       .toLowerCase();
 
     // Get the count of existing sales for this store to determine the next number
@@ -172,7 +179,7 @@ export class StoreRepository implements StoreStorage {
     const nextNumber = (existingSalesCount[0]?.count || 0) + 1;
 
     // Format: MOHA + store name + sequential number (padded to 2 digits)
-    return `MOHA${cleanStoreName}${nextNumber.toString().padStart(2, '0')}`;
+    return `MOHA${cleanStoreName}${nextNumber.toString().padStart(2, "0")}`;
   }
 
   async generateStoreExchangeId(storeId: string): Promise<string> {
@@ -182,7 +189,7 @@ export class StoreRepository implements StoreStorage {
     }
 
     const cleanStoreName = store.name
-      .replace(/[^a-zA-Z0-9]/g, '')
+      .replace(/[^a-zA-Z0-9]/g, "")
       .toLowerCase();
 
     // Get the count of existing exchanges for this store to determine the next number
@@ -194,7 +201,7 @@ export class StoreRepository implements StoreStorage {
     const nextNumber = (existingExchangesCount[0]?.count || 0) + 1;
 
     // Format: EX + store name + sequential number (padded to 2 digits)
-    return `EX${cleanStoreName}${nextNumber.toString().padStart(2, '0')}`;
+    return `EX${cleanStoreName}${nextNumber.toString().padStart(2, "0")}`;
   }
 
   async getStores(): Promise<Store[]> {
@@ -213,7 +220,7 @@ export class StoreRepository implements StoreStorage {
 
   async updateStore(
     id: string,
-    data: Partial<InsertStore>
+    data: Partial<InsertStore>,
   ): Promise<Store | undefined> {
     const [result] = await db
       .update(stores)
@@ -240,23 +247,26 @@ export class StoreRepository implements StoreStorage {
       totalAmount: number;
       paymentMode: string;
       discountCode?: string;
-    }
+    },
   ): Promise<StoreSale> {
     // Generate custom sale ID
     const saleId = await this.generateStoreSaleId(storeId);
 
-    const [newSale] = await db.insert(storeSales).values({
-      id: saleId,
-      storeId,
-      soldBy: processedBy,
-      customerName: data.customerName,
-      customerPhone: data.customerPhone,
-      totalAmount: data.totalAmount.toString(),
-      discountAmount: data.discountAmount.toString(),
-      taxAmount: data.taxAmount.toString(),
-      paymentMode: data.paymentMode,
-      saleType: "walk_in",
-    }).returning();
+    const [newSale] = await db
+      .insert(storeSales)
+      .values({
+        id: saleId,
+        storeId,
+        soldBy: processedBy,
+        customerName: data.customerName,
+        customerPhone: data.customerPhone,
+        totalAmount: data.totalAmount.toString(),
+        discountAmount: data.discountAmount.toString(),
+        taxAmount: data.taxAmount.toString(),
+        paymentMode: data.paymentMode,
+        saleType: "walk_in",
+      })
+      .returning();
 
     for (const item of data.items) {
       await db.insert(storeSaleItems).values({
@@ -273,8 +283,8 @@ export class StoreRepository implements StoreStorage {
         .where(
           and(
             eq(storeInventory.storeId, storeId),
-            eq(storeInventory.sareeId, item.sareeId)
-          )
+            eq(storeInventory.sareeId, item.sareeId),
+          ),
         );
 
       // Deduct from total stock
@@ -293,12 +303,13 @@ export class StoreRepository implements StoreStorage {
         storeId,
       });
     }
+    await this.clearStoreCart(storeId);
 
     return newSale;
   }
 
   async getStoreSaleForExchange(
-    saleId: string
+    saleId: string,
   ): Promise<StoreSaleWithItems | undefined> {
     const [sale] = await db
       .select()
@@ -325,7 +336,7 @@ export class StoreRepository implements StoreStorage {
           })
           .from(storeExchangeReturnItems)
           .where(
-            eq(storeExchangeReturnItems.saleItemId, item.store_sale_items.id)
+            eq(storeExchangeReturnItems.saleItemId, item.store_sale_items.id),
           );
 
         const returnedQuantity = Number(returnedResult[0]?.totalReturned || 0);
@@ -340,7 +351,7 @@ export class StoreRepository implements StoreStorage {
             fabric: item.fabrics,
           },
         };
-      })
+      }),
     );
 
     return {
@@ -350,7 +361,7 @@ export class StoreRepository implements StoreStorage {
     };
   }
   async getStoreExchange(
-    id: string
+    id: string,
   ): Promise<StoreExchangeWithDetails | undefined> {
     const [exchange] = await db
       .select()
@@ -362,7 +373,7 @@ export class StoreRepository implements StoreStorage {
     if (!exchange) return undefined;
 
     const originalSale = await this.getStoreSaleForExchange(
-      exchange.store_exchanges.originalSaleId
+      exchange.store_exchanges.originalSaleId,
     );
 
     const returnItemsList = await db
@@ -412,7 +423,7 @@ export class StoreRepository implements StoreStorage {
   async createStoreExchange(
     exchange: InsertStoreExchange,
     returnItemsData: Omit<InsertStoreExchangeReturnItem, "exchangeId">[],
-    newItemsData: Omit<InsertStoreExchangeNewItem, "exchangeId">[]
+    newItemsData: Omit<InsertStoreExchangeNewItem, "exchangeId">[],
   ): Promise<StoreExchange> {
     return await db.transaction(async (tx) => {
       const [createdExchange] = await tx
@@ -445,8 +456,8 @@ export class StoreRepository implements StoreStorage {
             .where(
               and(
                 eq(storeInventory.storeId, exchange.storeId),
-                eq(storeInventory.sareeId, item.sareeId)
-              )
+                eq(storeInventory.sareeId, item.sareeId),
+              ),
             );
 
           // Update total stock in sarees table
@@ -487,8 +498,8 @@ export class StoreRepository implements StoreStorage {
             .where(
               and(
                 eq(storeInventory.storeId, exchange.storeId),
-                eq(storeInventory.sareeId, item.sareeId)
-              )
+                eq(storeInventory.sareeId, item.sareeId),
+              ),
             );
 
           // Update total stock in sarees table
@@ -537,17 +548,25 @@ export class StoreRepository implements StoreStorage {
       notes?: string;
       customerName?: string;
       customerPhone?: string;
-    }
+    },
   ): Promise<StoreExchange> {
     // Generate custom exchange ID
     const exchangeId = await this.generateStoreExchangeId(storeId);
     // Validate required fields
-    if (!data.originalSaleId || !data.returnItems || data.returnItems.length === 0) {
-      throw new Error("Original sale ID and at least one return item are required");
+    if (
+      !data.originalSaleId ||
+      !data.returnItems ||
+      data.returnItems.length === 0
+    ) {
+      throw new Error(
+        "Original sale ID and at least one return item are required",
+      );
     }
 
     // Verify original sale exists and belongs to this store
-    const originalSale = await this.getStoreSaleForExchange(data.originalSaleId);
+    const originalSale = await this.getStoreSaleForExchange(
+      data.originalSaleId,
+    );
     if (!originalSale) {
       throw new Error("Original sale not found");
     }
@@ -558,7 +577,9 @@ export class StoreRepository implements StoreStorage {
     // Check exchange eligibility (within 7 days)
     const saleDate = new Date(originalSale.createdAt);
     const currentDate = new Date();
-    const daysSinceSale = Math.floor((currentDate.getTime() - saleDate.getTime()) / (1000 * 60 * 60 * 24));
+    const daysSinceSale = Math.floor(
+      (currentDate.getTime() - saleDate.getTime()) / (1000 * 60 * 60 * 24),
+    );
 
     if (daysSinceSale > 7) {
       throw new Error("Items can only be exchanged within 7 days of purchase");
@@ -566,19 +587,30 @@ export class StoreRepository implements StoreStorage {
 
     // Validate return items
     for (const returnItem of data.returnItems) {
-      if (!returnItem.saleItemId || !returnItem.sareeId || !returnItem.quantity || !returnItem.unitPrice || !returnItem.returnAmount) {
+      if (
+        !returnItem.saleItemId ||
+        !returnItem.sareeId ||
+        !returnItem.quantity ||
+        !returnItem.unitPrice ||
+        !returnItem.returnAmount
+      ) {
         throw new Error("Invalid return item data");
       }
 
       // Check if sale item exists and has sufficient quantity
-      const saleItem = originalSale.items.find(item => item.id === returnItem.saleItemId);
+      const saleItem = originalSale.items.find(
+        (item) => item.id === returnItem.saleItemId,
+      );
       if (!saleItem) {
         throw new Error(`Sale item ${returnItem.saleItemId} not found`);
       }
 
-      const availableQuantity = saleItem.quantity - (saleItem.returnedQuantity || 0);
+      const availableQuantity =
+        saleItem.quantity - (saleItem.returnedQuantity || 0);
       if (returnItem.quantity > availableQuantity) {
-        throw new Error(`Cannot return more than available quantity for item ${returnItem.saleItemId}`);
+        throw new Error(
+          `Cannot return more than available quantity for item ${returnItem.saleItemId}`,
+        );
       }
 
       // Validate return amount
@@ -591,12 +623,20 @@ export class StoreRepository implements StoreStorage {
     // Validate new items and check store inventory
     if (data.newItems && data.newItems.length > 0) {
       for (const newItem of data.newItems) {
-        if (!newItem.sareeId || !newItem.quantity || !newItem.unitPrice || !newItem.lineAmount) {
+        if (
+          !newItem.sareeId ||
+          !newItem.quantity ||
+          !newItem.unitPrice ||
+          !newItem.lineAmount
+        ) {
           throw new Error("Invalid new item data");
         }
 
         // Check store inventory
-        const inventory = await this.getStoreInventoryItem(storeId, newItem.sareeId);
+        const inventory = await this.getStoreInventoryItem(
+          storeId,
+          newItem.sareeId,
+        );
         if (!inventory || inventory.quantity < newItem.quantity) {
           throw new Error(`Insufficient stock for item ${newItem.sareeId}`);
         }
@@ -611,12 +651,22 @@ export class StoreRepository implements StoreStorage {
 
     // Calculate totals
     const returnAmount = data.returnItems.reduce((sum: number, item: any) => {
-      return sum + (parseFloat(item.returnAmount) || (parseFloat(item.unitPrice) * item.quantity));
+      return (
+        sum +
+        (parseFloat(item.returnAmount) ||
+          parseFloat(item.unitPrice) * item.quantity)
+      );
     }, 0);
 
-    const newItemsAmount = data.newItems ? data.newItems.reduce((sum: number, item: any) => {
-      return sum + (parseFloat(item.lineAmount) || (parseFloat(item.unitPrice) * item.quantity));
-    }, 0) : 0;
+    const newItemsAmount = data.newItems
+      ? data.newItems.reduce((sum: number, item: any) => {
+          return (
+            sum +
+            (parseFloat(item.lineAmount) ||
+              parseFloat(item.unitPrice) * item.quantity)
+          );
+        }, 0)
+      : 0;
 
     // Mandatory amount checks
     if (returnAmount <= 0) {
@@ -625,7 +675,9 @@ export class StoreRepository implements StoreStorage {
 
     // Block unfavorable exchanges where returned value is higher than new items
     if (returnAmount > newItemsAmount) {
-      throw new Error(`Unfavorable exchange: Returned items value (${returnAmount}) > Exchange items value (${newItemsAmount}). This would result in a loss of ${returnAmount - newItemsAmount} for the store.`);
+      throw new Error(
+        `Unfavorable exchange: Returned items value (${returnAmount}) > Exchange items value (${newItemsAmount}). This would result in a loss of ${returnAmount - newItemsAmount} for the store.`,
+      );
     }
 
     // Balance calculation for valid exchanges only
@@ -654,7 +706,7 @@ export class StoreRepository implements StoreStorage {
         balanceDirection,
       },
       data.returnItems,
-      data.newItems || []
+      data.newItems || [],
     );
   }
 
@@ -666,18 +718,20 @@ export class StoreRepository implements StoreStorage {
       search?: string;
       dateFrom?: string;
       dateTo?: string;
-    }
+    },
   ) {
     const conditions = [eq(storeExchanges.storeId, storeId)];
 
     if (options.search) {
       conditions.push(
-        sql`${storeExchanges.id}::text ILIKE ${`%${options.search}%`}`
+        sql`${storeExchanges.id}::text ILIKE ${`%${options.search}%`}`,
       );
     }
 
     if (options.dateFrom) {
-      conditions.push(gte(storeExchanges.createdAt, new Date(options.dateFrom)));
+      conditions.push(
+        gte(storeExchanges.createdAt, new Date(options.dateFrom)),
+      );
     }
 
     if (options.dateTo) {
@@ -706,7 +760,7 @@ export class StoreRepository implements StoreStorage {
 
     for (const exchange of data) {
       const originalSale = await this.getStoreSaleForExchange(
-        exchange.store_exchanges.originalSaleId
+        exchange.store_exchanges.originalSaleId,
       );
 
       const returnItemsList = await db
@@ -717,7 +771,7 @@ export class StoreRepository implements StoreStorage {
         .leftJoin(colors, eq(sarees.colorId, colors.id))
         .leftJoin(fabrics, eq(sarees.fabricId, fabrics.id))
         .where(
-          eq(storeExchangeReturnItems.exchangeId, exchange.store_exchanges.id)
+          eq(storeExchangeReturnItems.exchangeId, exchange.store_exchanges.id),
         );
 
       const newItemsList = await db
@@ -728,7 +782,7 @@ export class StoreRepository implements StoreStorage {
         .leftJoin(colors, eq(sarees.colorId, colors.id))
         .leftJoin(fabrics, eq(sarees.fabricId, fabrics.id))
         .where(
-          eq(storeExchangeNewItems.exchangeId, exchange.store_exchanges.id)
+          eq(storeExchangeNewItems.exchangeId, exchange.store_exchanges.id),
         );
 
       result.push({
@@ -763,7 +817,7 @@ export class StoreRepository implements StoreStorage {
     };
   }
   async getShopAvailableProducts(
-    storeId: string
+    storeId: string,
   ): Promise<{ saree: SareeWithDetails; storeStock: number }[]> {
     const result = await db
       .select()
@@ -775,8 +829,8 @@ export class StoreRepository implements StoreStorage {
       .where(
         and(
           eq(storeInventory.storeId, storeId),
-          gt(storeInventory.quantity, 0) // Only show products with stock > 0
-        )
+          gt(storeInventory.quantity, 0), // Only show products with stock > 0
+        ),
       );
 
     const now = new Date();
@@ -787,8 +841,8 @@ export class StoreRepository implements StoreStorage {
         and(
           eq(sales.isActive, true),
           lte(sales.validFrom, now),
-          gte(sales.validUntil, now)
-        )
+          gte(sales.validUntil, now),
+        ),
       );
 
     // Fetch sale product mappings
@@ -800,18 +854,21 @@ export class StoreRepository implements StoreStorage {
       // Find applicable sale
       let applicableSale = null;
       const productSaleMapping = saleProductMappings.find(
-        (sp) => sp.sareeId === saree.id
+        (sp) => sp.sareeId === saree.id,
       );
       if (productSaleMapping) {
         applicableSale = activeSales.find(
-          (s) => s.id === productSaleMapping.saleId
+          (s) => s.id === productSaleMapping.saleId,
         );
       }
       // Only exclude category pricing when THIS saree is explicitly mapped to a different sale
       if (!applicableSale && saree.categoryId) {
         applicableSale = activeSales.find(
-          (s) => s.categoryId === saree.categoryId &&
-            !saleProductMappings.some(sp => sp.saleId === s.id && sp.sareeId === saree.id)
+          (s) =>
+            s.categoryId === saree.categoryId &&
+            !saleProductMappings.some(
+              (sp) => sp.saleId === s.id && sp.sareeId === saree.id,
+            ),
         );
       }
 
@@ -819,14 +876,26 @@ export class StoreRepository implements StoreStorage {
       let discountedPrice = parseFloat(saree.price);
       if (applicableSale) {
         const originalPrice = discountedPrice;
-        if (applicableSale.offerType === "percentage" || applicableSale.offerType === "category" || applicableSale.offerType === "flash_sale") {
-          const discount = originalPrice * (parseFloat(applicableSale.discountValue) / 100);
+        if (
+          applicableSale.offerType === "percentage" ||
+          applicableSale.offerType === "category" ||
+          applicableSale.offerType === "flash_sale"
+        ) {
+          const discount =
+            originalPrice * (parseFloat(applicableSale.discountValue) / 100);
           const maxDiscount = applicableSale.maxDiscount
             ? parseFloat(applicableSale.maxDiscount)
             : originalPrice; // Cap at price if no maxDiscount
-          discountedPrice = originalPrice - Math.min(discount, maxDiscount, originalPrice);
-        } else if (applicableSale.offerType === "flat" || applicableSale.offerType === "product") {
-          const flatDiscount = Math.min(parseFloat(applicableSale.discountValue), originalPrice);
+          discountedPrice =
+            originalPrice - Math.min(discount, maxDiscount, originalPrice);
+        } else if (
+          applicableSale.offerType === "flat" ||
+          applicableSale.offerType === "product"
+        ) {
+          const flatDiscount = Math.min(
+            parseFloat(applicableSale.discountValue),
+            originalPrice,
+          );
           discountedPrice = originalPrice - flatDiscount;
         }
         discountedPrice = Math.max(0, discountedPrice);
@@ -840,12 +909,12 @@ export class StoreRepository implements StoreStorage {
           fabric: row.fabrics,
           activeSale: applicableSale
             ? {
-              id: applicableSale.id,
-              name: applicableSale.name,
-              offerType: applicableSale.offerType,
-              discountValue: applicableSale.discountValue,
-              maxDiscount: applicableSale.maxDiscount || undefined,
-            }
+                id: applicableSale.id,
+                name: applicableSale.name,
+                offerType: applicableSale.offerType,
+                discountValue: applicableSale.discountValue,
+                maxDiscount: applicableSale.maxDiscount || undefined,
+              }
             : null,
           discountedPrice: applicableSale ? discountedPrice : undefined,
         },
@@ -857,7 +926,7 @@ export class StoreRepository implements StoreStorage {
   async updateStoreInventory(
     storeId: string,
     sareeId: string,
-    quantity: number
+    quantity: number,
   ): Promise<StoreInventory> {
     const [result] = await db
       .update(storeInventory)
@@ -865,8 +934,8 @@ export class StoreRepository implements StoreStorage {
       .where(
         and(
           eq(storeInventory.storeId, storeId),
-          eq(storeInventory.sareeId, sareeId)
-        )
+          eq(storeInventory.sareeId, sareeId),
+        ),
       )
       .returning();
 
@@ -883,7 +952,7 @@ export class StoreRepository implements StoreStorage {
 
   async getStoreSales(
     storeId: string,
-    limit?: number
+    limit?: number,
   ): Promise<StoreSaleWithItems[]> {
     let query = db
       .select()
@@ -935,13 +1004,13 @@ export class StoreRepository implements StoreStorage {
       search?: string;
       dateFrom?: string;
       dateTo?: string;
-    }
+    },
   ) {
     const conditions = [eq(storeSales.storeId, storeId)];
 
     if (options.search) {
       conditions.push(
-        sql`${storeSales.id}::text ILIKE ${`%${options.search}%`}`
+        sql`${storeSales.id}::text ILIKE ${`%${options.search}%`}`,
       );
     }
 
@@ -1041,7 +1110,7 @@ export class StoreRepository implements StoreStorage {
   }
   // Store Inventory
   async getStoreInventory(
-    storeId: string
+    storeId: string,
   ): Promise<(StoreInventory & { saree: SareeWithDetails })[]> {
     const result = await db
       .select()
@@ -1063,16 +1132,16 @@ export class StoreRepository implements StoreStorage {
     }));
   }
 
-  async getLowStockProducts(
-    storeId: string
-  ): Promise<Array<{
-    saree: SareeWithDetails;
-    currentStock: number;
-    reorderLevel: number;
-  }>> {
+  async getLowStockProducts(storeId: string): Promise<
+    Array<{
+      saree: SareeWithDetails;
+      currentStock: number;
+      reorderLevel: number;
+    }>
+  > {
     // Define reorder level as 5 units (you can make this configurable later)
     const REORDER_LEVEL = 5;
-    
+
     const result = await db
       .select()
       .from(storeInventory)
@@ -1083,8 +1152,8 @@ export class StoreRepository implements StoreStorage {
       .where(
         and(
           eq(storeInventory.storeId, storeId),
-          lte(storeInventory.quantity, REORDER_LEVEL)
-        )
+          lte(storeInventory.quantity, REORDER_LEVEL),
+        ),
       )
       .orderBy(storeInventory.quantity); // Order by quantity (lowest first)
 
@@ -1102,7 +1171,7 @@ export class StoreRepository implements StoreStorage {
 
   async getStoreInventoryItem(
     storeId: string,
-    sareeId: string
+    sareeId: string,
   ): Promise<StoreInventory | undefined> {
     const [result] = await db
       .select()
@@ -1110,8 +1179,8 @@ export class StoreRepository implements StoreStorage {
       .where(
         and(
           eq(storeInventory.storeId, storeId),
-          eq(storeInventory.sareeId, sareeId)
-        )
+          eq(storeInventory.sareeId, sareeId),
+        ),
       );
     return result || undefined;
   }
@@ -1120,7 +1189,7 @@ export class StoreRepository implements StoreStorage {
     storeId: string,
     sareeId: string,
     quantity: number,
-    unitPrice: number
+    unitPrice: number,
   ): Promise<{ items: any[] }> {
     const price = Number(unitPrice);
 
@@ -1129,10 +1198,7 @@ export class StoreRepository implements StoreStorage {
         .select()
         .from(storeCart)
         .where(
-          and(
-            eq(storeCart.storeId, storeId),
-            eq(storeCart.sareeId, sareeId)
-          )
+          and(eq(storeCart.storeId, storeId), eq(storeCart.sareeId, sareeId)),
         )
         .limit(1);
 
@@ -1164,8 +1230,6 @@ export class StoreRepository implements StoreStorage {
     return this.getStoreCart(storeId);
   }
 
-
-
   async getStoreCart(storeId: string): Promise<{ items: any[] }> {
     const cartItems = await db
       .select()
@@ -1174,10 +1238,13 @@ export class StoreRepository implements StoreStorage {
       .leftJoin(categories, eq(sarees.categoryId, categories.id))
       .leftJoin(colors, eq(sarees.colorId, colors.id))
       .leftJoin(fabrics, eq(sarees.fabricId, fabrics.id))
-      .leftJoin(storeInventory, and(
-        eq(storeInventory.sareeId, sarees.id),
-        eq(storeInventory.storeId, storeId)
-      ))
+      .leftJoin(
+        storeInventory,
+        and(
+          eq(storeInventory.sareeId, sarees.id),
+          eq(storeInventory.storeId, storeId),
+        ),
+      )
       .where(eq(storeCart.storeId, storeId));
 
     return {
@@ -1201,22 +1268,24 @@ export class StoreRepository implements StoreStorage {
     };
   }
 
-  async deleteFromStoreCart(storeId: string, sareeId: string): Promise<{ items: any[] }> {
+  async deleteFromStoreCart(
+    storeId: string,
+    sareeId: string,
+  ): Promise<{ items: any[] }> {
     await db
       .delete(storeCart)
       .where(
-        and(
-          eq(storeCart.storeId, storeId),
-          eq(storeCart.sareeId, sareeId)
-        )
+        and(eq(storeCart.storeId, storeId), eq(storeCart.sareeId, sareeId)),
       );
 
     // Return updated cart after deletion
     return this.getStoreCart(storeId);
   }
 
-
-  async updateStoreCart(storeId: string, items: any[]): Promise<{ items: any[] }> {
+  async updateStoreCart(
+    storeId: string,
+    items: any[],
+  ): Promise<{ items: any[] }> {
     await db.transaction(async (tx) => {
       for (const item of items) {
         const [existingItem] = await tx
@@ -1225,14 +1294,17 @@ export class StoreRepository implements StoreStorage {
           .where(
             and(
               eq(storeCart.storeId, storeId),
-              eq(storeCart.sareeId, item.sareeId)
-            )
+              eq(storeCart.sareeId, item.sareeId),
+            ),
           )
           .limit(1);
 
         const quantity = item.quantity || 0;
         const unitPrice = Number(item.unitPrice || 0);
-        const lineAmount = item.lineAmount !== undefined ? Number(item.lineAmount) : quantity * unitPrice;
+        const lineAmount =
+          item.lineAmount !== undefined
+            ? Number(item.lineAmount)
+            : quantity * unitPrice;
 
         if (existingItem) {
           await tx
@@ -1245,8 +1317,8 @@ export class StoreRepository implements StoreStorage {
             .where(
               and(
                 eq(storeCart.storeId, storeId),
-                eq(storeCart.sareeId, item.sareeId)
-              )
+                eq(storeCart.sareeId, item.sareeId),
+              ),
             );
         } else {
           await tx.insert(storeCart).values({
@@ -1262,7 +1334,11 @@ export class StoreRepository implements StoreStorage {
 
     return this.getStoreCart(storeId);
   }
+  async clearStoreCart(storeId: string): Promise<{ items: any[] }> {
+    await db.delete(storeCart).where(eq(storeCart.storeId, storeId));
 
+    return this.getStoreCart(storeId);
+  }
 
   async applyCoupon(storeId: string, code: string): Promise<any> {
     const now = new Date();
@@ -1275,8 +1351,8 @@ export class StoreRepository implements StoreStorage {
           eq(coupons.code, code.toUpperCase()),
           eq(coupons.isActive, true),
           lte(coupons.validFrom || now, now),
-          gte(coupons.validUntil || now, now)
-        )
+          gte(coupons.validUntil || now, now),
+        ),
       );
 
     if (!coupon) {
@@ -1300,14 +1376,21 @@ export class StoreRepository implements StoreStorage {
         value: Number(coupon.value),
         code: coupon.code,
         description: coupon.name || coupon.code,
-        minOrderAmount: coupon.minOrderAmount ? Number(coupon.minOrderAmount) : null,
+        minOrderAmount: coupon.minOrderAmount
+          ? Number(coupon.minOrderAmount)
+          : null,
         maxDiscount: coupon.maxDiscount ? Number(coupon.maxDiscount) : null,
         couponId: coupon.id,
       },
     };
   }
 
-  async updateCouponUsage(couponId: string, userId: string, orderId: string, discountAmount: string): Promise<void> {
+  async updateCouponUsage(
+    couponId: string,
+    userId: string,
+    orderId: string,
+    discountAmount: string,
+  ): Promise<void> {
     await db.insert(couponUsage).values({
       couponId,
       userId,
@@ -1319,7 +1402,7 @@ export class StoreRepository implements StoreStorage {
   async generateReceipt(storeId: string, orderId: string): Promise<any> {
     // Generate receipt data - in a real implementation, this would create a printable receipt
     const sales = await this.getStoreSales(storeId);
-    const sale = sales.find(s => s.id === orderId);
+    const sale = sales.find((s) => s.id === orderId);
     if (!sale) {
       throw new Error("Sale not found");
     }
@@ -1329,7 +1412,10 @@ export class StoreRepository implements StoreStorage {
       customerName: sale.customerName,
       customerPhone: sale.customerPhone,
       items: sale.items,
-      subtotal: sale.items.reduce((sum: number, item: any) => sum + item.lineAmount, 0),
+      subtotal: sale.items.reduce(
+        (sum: number, item: any) => sum + item.lineAmount,
+        0,
+      ),
       discountAmount: (sale as any).discountAmount || 0,
       taxAmount: (sale as any).taxAmount || 0,
       totalAmount: sale.totalAmount,
