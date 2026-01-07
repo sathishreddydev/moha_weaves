@@ -179,3 +179,34 @@ export const insertContactMessageSchema = createInsertSchema(tables.contactMessa
   subject: z.string().min(5, "Subject must be at least 5 characters"),
   message: z.string().min(10, "Message must be at least 10 characters"),
 });
+
+// Type exports for frontend
+export type StoreCustomer = typeof tables.store_customers.$inferSelect;
+export type CustomerPurchase = {
+  id: string;
+  saleId: string;
+  customerName: string;
+  customerPhone: string;
+  totalAmount: string;
+  discountAmount: string;
+  paymentMode: string;
+  createdAt: Date;
+  items: CustomerPurchaseItem[];
+};
+
+export type CustomerPurchaseItem = {
+  id: string;
+  sareeId: string;
+  quantity: number; // notNull in database
+  price: string;
+  returnedQuantity: number; // notNull in database
+  saree: {
+    id: string;
+    name: string;
+    code: string;
+    imageUrl: string;
+    category: { name: string } | null;
+    color: { name: string } | null;
+    fabric: { name: string } | null;
+  } | null;
+};

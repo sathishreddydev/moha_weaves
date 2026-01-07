@@ -30,7 +30,9 @@ import {
   coupons,
   Coupon,
   couponUsage,
+  store_customers,
 } from "@shared/schema";
+import { CustomerService } from "./customerStorage";
 import { and, desc, eq, gte, gt, ilike, lte, sql } from "drizzle-orm";
 import { db } from "server/db";
 
@@ -179,6 +181,7 @@ export interface StoreStorage {
   generateStoreExchangeId(storeId: string): Promise<string>;
 }
 export class StoreRepository implements StoreStorage {
+  private customerService = new CustomerService();
   async generateStoreSaleId(storeId: string): Promise<string> {
     const store = await this.getStore(storeId);
     if (!store) {
@@ -268,6 +271,13 @@ export class StoreRepository implements StoreStorage {
       discountCode?: string;
     },
   ): Promise<StoreSale> {
+    // Auto-create or find customer
+    const customer = await this.customerService.findOrCreateCustomer(
+      data.customerPhone,
+      data.customerName,
+      storeId
+    );
+
     // Generate custom sale ID
     const saleId = await this.generateStoreSaleId(storeId);
 
@@ -277,6 +287,7 @@ export class StoreRepository implements StoreStorage {
         id: saleId,
         storeId,
         soldBy: processedBy,
+        customerId: customer.id,
         customerName: data.customerName,
         customerPhone: data.customerPhone,
         totalAmount: data.totalAmount.toString(),
@@ -323,6 +334,9 @@ export class StoreRepository implements StoreStorage {
       });
     }
     await this.clearStoreCart(storeId);
+
+    // Update customer metrics after successful sale
+    await this.customerService.updateCustomerAfterPurchase(customer.id, data.totalAmount);
 
     return newSale;
   }

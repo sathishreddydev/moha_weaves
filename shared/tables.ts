@@ -226,6 +226,27 @@ export const orderItems = pgTable("order_items", {
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });
 
+// Store customers (in-store customer profiles)
+export const store_customers = pgTable("store_customers", {
+  id: varchar("id")
+    .primaryKey()
+    .default(sql`gen_random_uuid()`),
+  name: text("name").notNull(),
+  phone: varchar("phone").notNull().unique(),
+  email: text("email"),
+  storeId: varchar("store_id")
+    .references(() => stores.id)
+    .notNull(),
+  totalPurchases: decimal("total_purchases", { precision: 10, scale: 2 }).notNull().default("0"),
+  purchaseCount: integer("purchase_count").notNull().default(1),
+  firstPurchaseDate: timestamp("first_purchase_date").notNull().defaultNow(),
+  lastPurchaseDate: timestamp("last_purchase_date").notNull().defaultNow(),
+  notes: text("notes"),
+  loyaltyPoints: integer("loyalty_points").notNull().default(0),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
 // Store sales (in-store transactions)
 export const storeSales = pgTable("store_sales", {
   id: varchar("id")
@@ -237,6 +258,7 @@ export const storeSales = pgTable("store_sales", {
   soldBy: varchar("sold_by")
     .references(() => users.id)
     .notNull(),
+  customerId: varchar("customer_id").references(() => store_customers.id), // Optional link to customer profile
   customerName: text("customer_name"),
   customerPhone: text("customer_phone"),
   totalAmount: decimal("total_amount", { precision: 10, scale: 2 }).notNull(),

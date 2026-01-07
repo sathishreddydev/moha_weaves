@@ -39,6 +39,13 @@ export const storesRelations = relations(tables.stores, ({ one, many }) => ({
   inventory: many(tables.storeInventory),
   sales: many(tables.storeSales),
   stockRequests: many(tables.stockRequests),
+  customers: many(tables.store_customers),
+}));
+
+// Store customers relations
+export const store_customersRelations = relations(tables.store_customers, ({ one, many }) => ({
+  store: one(tables.stores, { fields: [tables.store_customers.storeId], references: [tables.stores.id] }),
+  sales: many(tables.storeSales),
 }));
 
 // Saree relations
@@ -106,6 +113,7 @@ export const orderItemsRelations = relations(tables.orderItems, ({ one, many }) 
 export const storeSalesRelations = relations(tables.storeSales, ({ one, many }) => ({
   store: one(tables.stores, { fields: [tables.storeSales.storeId], references: [tables.stores.id] }),
   seller: one(tables.users, { fields: [tables.storeSales.soldBy], references: [tables.users.id] }),
+  customer: one(tables.store_customers, { fields: [tables.storeSales.customerId], references: [tables.store_customers.id] }),
   items: many(tables.storeSaleItems),
 }));
 

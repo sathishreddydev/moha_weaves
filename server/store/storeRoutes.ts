@@ -3,6 +3,7 @@ import { storage } from "../storage";
 import { createAuthMiddleware } from "../authMiddleware";
 import { parsePaginationParams, createPaginatedResponse, getOffset } from "../paginationHelper";
 import { storeService } from "./storeStorage";
+import { customerRoutes } from "./customerRoutes";
 
 export const storeRoutes = (app: Express) => {
   const authStore = createAuthMiddleware(["store"]);
@@ -318,4 +319,7 @@ export const storeRoutes = (app: Express) => {
       res.status(400).json({ message });
     }
   });
+
+  // Initialize customer routes
+  customerRoutes(app);
 };
