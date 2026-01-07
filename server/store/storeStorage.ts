@@ -60,6 +60,7 @@ export interface StoreStorage {
         lineAmount: number;
       }>;
       discountAmount: number;
+      loyaltyDiscountAmount?: number;
       taxAmount: number;
       totalAmount: number;
       paymentMode: string;
@@ -266,6 +267,7 @@ export class StoreRepository implements StoreStorage {
         lineAmount: number;
       }>;
       discountAmount: number;
+      loyaltyDiscountAmount?: number;
       taxAmount: number;
       totalAmount: number;
       paymentMode: string;

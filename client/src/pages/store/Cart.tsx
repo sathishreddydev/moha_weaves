@@ -56,13 +56,12 @@ interface Discount {
   usageLimit: number | null;
   usedCount: number;
   perUserLimit: number | null;
-  validFrom: string; 
-  validUntil: string; 
+  validFrom: string;
+  validUntil: string;
   isActive: boolean;
   categoryId: string | null;
-  createdAt: string;  
+  createdAt: string;
 }
-
 
 interface TaxRule {
   name: string;
@@ -105,6 +104,11 @@ export default function Cart() {
   );
   const [customerName, setCustomerName] = useState("");
   const [customerPhone, setCustomerPhone] = useState("");
+  const [phoneError, setPhoneError] = useState("");
+  const [disabledCompBtn, setDisabledCompBtn] = useState(false);
+  const [loyaltyData, setLoyaltyData] = useState<any>(null);
+  const [redeemPoints, setRedeemPoints] = useState(false);
+  const [loyaltyLoading, setLoyaltyLoading] = useState(false);
   const [pagination, setPagination] = useState({ pageIndex: 0, pageSize: 10 });
   const disabledBtn = (sareeId: string) => {
     return loading || updateCartLoading[sareeId] || removeLoading[sareeId];
@@ -196,16 +200,21 @@ export default function Cart() {
       ? (discount.value / 100) * subtotal
       : discount.value
     : 0;
+  
+  // Calculate loyalty points discount
   const discountedSubtotal = subtotal - discountAmount;
+  const loyaltyDiscount = redeemPoints && loyaltyData ? Math.min(loyaltyData.redeemableValue, discountedSubtotal) : 0;
+  const finalDiscountedSubtotal = subtotal - discountAmount - loyaltyDiscount;
+  
   const taxAmount = taxRules.reduce((sum, tax) => {
     return (
       sum +
       (tax.type === "percentage"
-        ? (tax.rate / 100) * discountedSubtotal
+        ? (tax.rate / 100) * finalDiscountedSubtotal
         : tax.rate)
     );
   }, 0);
-  const totalAmount = discountedSubtotal + taxAmount;
+  const totalAmount = finalDiscountedSubtotal + taxAmount;
 
   const handlePaginationChange = (pageIndex: number, pageSize: number) => {
     setPagination({ pageIndex, pageSize });
@@ -215,8 +224,49 @@ export default function Cart() {
     setCustomerPhone("");
     setDiscount(null);
     setPaymentMode("cash");
-    setCouponCode('')
+    setCouponCode("");
   };
+  const validatePhone = (phone: string) => {
+    const phoneRegex = /^[0-9]{10}$/;
+    return phoneRegex.test(phone);
+  };
+
+  const handlePhoneChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    // Only allow numbers
+    const numericValue = value.replace(/[^0-9]/g, "");
+    setCustomerPhone(numericValue);
+    
+    // Validate if exactly 10 digits
+    if (numericValue.length > 0 && numericValue.length !== 10) {
+      setPhoneError("Phone number must be exactly 10 digits");
+      setLoyaltyData(null);
+      setRedeemPoints(false);
+    } else if (numericValue.length === 10) {
+      setPhoneError("");
+      // Fetch loyalty points when phone is valid
+      await fetchLoyaltyPoints(numericValue);
+    } else {
+      setPhoneError("");
+      setLoyaltyData(null);
+      setRedeemPoints(false);
+    }
+  };
+
+  const fetchLoyaltyPoints = async (phone: string) => {
+    try {
+      setLoyaltyLoading(true);
+      const res = await apiRequest("GET", `/api/store_customers/${phone}/loyalty-points`);
+      const data = await res.json();
+      setLoyaltyData(data);
+    } catch (error) {
+      console.error("Error fetching loyalty points:", error);
+      setLoyaltyData(null);
+    } finally {
+      setLoyaltyLoading(false);
+    }
+  };
+
   const handleCheckout = async () => {
     if (cartItems.length === 0) {
       toast({
@@ -236,10 +286,33 @@ export default function Cart() {
       return;
     }
 
+    if (!validatePhone(customerPhone)) {
+      toast({
+        title: "Invalid Phone Number",
+        description: "Phone number must be exactly 10 digits",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Calculate loyalty points to redeem
+    let pointsToRedeem = 0;
+    if (redeemPoints && loyaltyData && loyaltyData.loyaltyPoints > 0) {
+      // Maximum points that can be used based on order total (1 point = ₹0.05)
+      const maxPointsForOrder = Math.ceil(totalAmount / 0.05);
+      pointsToRedeem = Math.min(loyaltyData.loyaltyPoints, maxPointsForOrder);
+    }
+
+    setDisabledCompBtn(true);
+
     try {
       const res = await apiRequest("POST", "/api/store/checkout", {
         items: cartItems,
         discount,
+        loyaltyDiscount: pointsToRedeem > 0 ? {
+          pointsRedeemed: pointsToRedeem,
+          discountValue: pointsToRedeem * 0.05 // 100 points = ₹5, so 1 point = ₹0.05
+        } : null,
         tax: taxAmount,
         total: totalAmount,
         paymentMode,
@@ -250,23 +323,29 @@ export default function Cart() {
 
       toast({
         title: "Order Completed",
-        description: `Order #${data.orderId} completed successfully`,
+        description: `Order #${data.orderId} completed successfully${data.pointsRedeemed ? ` - ${data.pointsRedeemed} points redeemed` : ''}`,
       });
 
       await Promise.all([
         queryClient.refetchQueries({ queryKey: ["/api/store/products"] }),
-        queryClient.refetchQueries({ queryKey: ["/api/store/sales/paginated"] }),
+        queryClient.refetchQueries({
+          queryKey: ["/api/store/products/paginated"],
+        }),
+        queryClient.refetchQueries({
+          queryKey: ["/api/store/sales/paginated"],
+        }),
         queryClient.refetchQueries({ queryKey: ["/api/store/sales/recent"] }),
-        queryClient.refetchQueries({ queryKey: ["/api/store/stats"] })
+        queryClient.refetchQueries({ queryKey: ["/api/store/stats"] }),
       ]);
 
       clearCart();
       resetForm();
-      
-      setTimeout(() => {
-        navigate(`/store/invoice/${data.orderId}`);
-      }, 500);
+      setLoyaltyData(null);
+      setRedeemPoints(false);
+      setDisabledCompBtn(false);
+      navigate(`/store/invoice/${data.orderId}`);
     } catch (err: any) {
+      setDisabledCompBtn(false);
       toast({
         title: "Checkout Failed",
         description: err.message,
@@ -345,7 +424,7 @@ export default function Cart() {
                   {formatPrice(item.saree.discountedPrice)}
                 </span>
                 <span className="text-xs text-muted-foreground line-through">
-                  {formatPrice(item.saree.price || '0')}
+                  {formatPrice(item.saree.price || "0")}
                 </span>
               </div>
             ) : (
@@ -368,7 +447,9 @@ export default function Cart() {
                   {formatPrice(item.saree.discountedPrice * item.quantity)}
                 </span>
                 <span className="text-xs text-muted-foreground line-through">
-                  {formatPrice(parseFloat(item.saree.price || '0') * item.quantity)}
+                  {formatPrice(
+                    parseFloat(item.saree.price || "0") * item.quantity,
+                  )}
                 </span>
               </div>
             ) : (
@@ -409,122 +490,176 @@ export default function Cart() {
         </Button>
       </div>
 
-      <DataTable
-        columns={columns}
-        data={cartItems}
-        totalCount={cartItems.length}
-        pageSize={pagination.pageSize}
-        pageIndex={pagination.pageIndex}
-        onPaginationChange={handlePaginationChange}
-        emptyMessage="No items in cart"
-      />
+      {cartItems.length === 0 ? (
+        <div className="flex flex-col items-center justify-center py-16 text-center">
+          <ShoppingCart className="h-16 w-16 mx-auto text-muted-foreground mb-4" />
+          <h2 className="text-2xl font-semibold mb-2">No items in cart</h2>
+          <p className="text-muted-foreground mb-6">
+            Add items to cart to continue with checkout.
+          </p>
+          <Button
+            onClick={() => navigate("/store/sale")}
+            className="flex items-center gap-2"
+          >
+            <Plus className="h-4 w-4" />
+            Add Items to Cart
+          </Button>
+        </div>
+      ) : (
+        <>
+          <DataTable
+            columns={columns}
+            data={cartItems}
+            totalCount={cartItems.length}
+            pageSize={pagination.pageSize}
+            pageIndex={pagination.pageIndex}
+            onPaginationChange={handlePaginationChange}
+            emptyMessage="No items in cart"
+          />
 
-      <div className="flex mt-8 flex-col lg:flex-row gap-8">
-        {/* Customer Info */}
-        <div className="flex-1 space-y-4">
-          <h4 className="text-xs font-bold text-slate-800 uppercase tracking-widest">
-            Customer Information
-          </h4>
-
-          <div className="flex flex-col md:flex-row gap-3">
-            <Input
-              placeholder="Customer Name"
-              value={customerName}
-              onChange={(e) => setCustomerName(e.target.value)}
-              className="w-full md:flex-1"
-              required
-            />
-
-            <Input
-              placeholder="Customer Phone"
-              value={customerPhone}
-              onChange={(e) => setCustomerPhone(e.target.value)}
-              className="w-full md:flex-1"
-              required
-            />
-          </div>
-
-          <div className="flex flex-col md:flex-row gap-6 md:gap-10">
-            <div className="w-full md:w-1/2">
-              <h4 className="text-xs font-bold text-slate-800 uppercase tracking-widest mb-2 mt-2 flex items-center gap-2">
-                <CreditCard size={16} className="text-slate-400" />
-                Payment Mode
+          <div className="flex mt-8 flex-col lg:flex-row gap-8">
+            {/* Customer Info */}
+            <div className="flex-1 space-y-4">
+              <h4 className="text-xs font-bold text-slate-800 uppercase tracking-widest">
+                Customer Information
               </h4>
 
-              <div className="flex flex-wrap gap-2">
-                {(["cash", "card", "upi"] as const).map((mode) => (
-                  <Button
-                    key={mode}
-                    variant={paymentMode === mode ? "default" : "outline"}
-                    size="sm"
-                    onClick={() => setPaymentMode(mode)}
-                    className="capitalize flex-1 sm:flex-none"
-                  >
-                    {mode}
-                  </Button>
-                ))}
+              <div className="flex flex-col md:flex-row gap-3">
+                <Input
+                  placeholder="Customer Name"
+                  value={customerName}
+                  onChange={(e) => setCustomerName(e.target.value)}
+                  className="w-full md:flex-1"
+                  required
+                />
+                <div className="w-full md:flex-1">
+                <Input
+                  placeholder="Customer Phone"
+                  value={customerPhone}
+                  onChange={handlePhoneChange}
+                  className={`${phoneError ? "border-red-500" : ""}`}
+                  required
+                  maxLength={10}
+                />
+                {phoneError && (
+                  <p className="text-red-500 text-xs mt-1">{phoneError}</p>
+                )}
+                {loyaltyData && loyaltyData.exists && loyaltyData.loyaltyPoints > 0 && (
+                  <div className="mt-2 p-2 bg-amber-50 border border-amber-200 rounded-md">
+                    <div className="flex items-center justify-between">
+                      <label className="flex items-center gap-2 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={redeemPoints}
+                          onChange={(e) => setRedeemPoints(e.target.checked)}
+                          className="rounded border-gray-300 text-amber-600 focus:ring-amber-500"
+                        />
+                        <span className="text-sm font-medium text-amber-800">
+                          Redeem Loyalty Points ({loyaltyData.loyaltyPoints} points = ₹{loyaltyData.redeemableValue})
+                        </span>
+                      </label>
+                    </div>
+                    {redeemPoints && (
+                      <p className="text-xs text-amber-600 mt-1">
+                        You'll use {Math.min(loyaltyData.loyaltyPoints, Math.ceil(totalAmount / 0.05))} points for ₹{Math.min(loyaltyData.redeemableValue, totalAmount)} discount
+                      </p>
+                    )}
+                  </div>
+                )}
+                {loyaltyLoading && (
+                  <p className="text-xs text-gray-500 mt-1">Checking loyalty points...</p>
+                )}
+              </div>
+              </div>
+
+              <div className="flex flex-col md:flex-row gap-6 md:gap-10">
+                <div className="w-full md:w-1/2">
+                  <h4 className="text-xs font-bold text-slate-800 uppercase tracking-widest mb-2 mt-2 flex items-center gap-2">
+                    <CreditCard size={16} className="text-slate-400" />
+                    Payment Mode
+                  </h4>
+
+                  <div className="flex flex-wrap gap-2">
+                    {(["cash", "card", "upi"] as const).map((mode) => (
+                      <Button
+                        key={mode}
+                        variant={paymentMode === mode ? "default" : "outline"}
+                        size="sm"
+                        onClick={() => setPaymentMode(mode)}
+                        className="capitalize flex-1 sm:flex-none"
+                      >
+                        {mode}
+                      </Button>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="w-full md:w-1/2">
+                  <h4 className="text-xs font-bold text-slate-800 uppercase tracking-widest mb-2 mt-2">
+                    Coupon Code
+                  </h4>
+
+                  <div className="flex gap-2">
+                    <Input
+                      className="w-3/4 sm:w-auto"
+                      placeholder="Enter coupon code"
+                      value={couponCode}
+                      onChange={(e) => setCouponCode(e.target.value)}
+                    />
+                    <Button onClick={applyCoupon} className="w-1/4 sm:w-auto">
+                      Apply
+                    </Button>
+                  </div>
+
+                  {discount && (
+                    <div className="mt-2 flex items-center gap-2 text-xs text-green-600">
+                      <span>
+                        Coupon applied: {discount?.name} (-₹
+                        {discountAmount?.toLocaleString()})
+                      </span>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-6 w-6 text-red-600 hover:text-red-700 hover:bg-red-50"
+                        onClick={() => {
+                          setDiscount(null);
+                          toast({
+                            title: "Coupon Removed",
+                            description: "Coupon has been removed from cart",
+                          });
+                        }}
+                      >
+                        <X className="h-3 w-3" />
+                      </Button>
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
 
-            <div className="w-full md:w-1/2">
-              <h4 className="text-xs font-bold text-slate-800 uppercase tracking-widest mb-2 mt-2">
-                Coupon Code
+            <div className="w-full lg:w-80 space-y-3">
+              <h4 className="text-xs font-bold text-slate-800 uppercase tracking-widest">
+                Order Summary
               </h4>
 
-              <div className="flex gap-2">
-                <Input
-                  className="w-3/4 sm:w-auto"
-                  placeholder="Enter coupon code"
-                  value={couponCode}
-                  onChange={(e) => setCouponCode(e.target.value)}
-                />
-                <Button onClick={applyCoupon} className="w-1/4 sm:w-auto">
-                  Apply
-                </Button>
+              <div className="flex justify-between text-xs text-slate-600">
+                <span>Subtotal</span>
+                <span>₹{subtotal?.toLocaleString()}</span>
               </div>
 
-              {discount && (
-                <div className="mt-2 flex items-center gap-2 text-xs text-green-600">
-                  <span>
-                    Coupon applied: {discount?.name} (-₹
-                    {discountAmount?.toLocaleString()})
-                  </span>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-6 w-6 text-red-600 hover:text-red-700 hover:bg-red-50"
-                    onClick={() => {
-                      setDiscount(null);
-                      toast({
-                        title: "Coupon Removed",
-                        description: "Coupon has been removed from cart",
-                      });
-                    }}
-                  >
-                    <X className="h-3 w-3" />
-                  </Button>
+              <div className="flex justify-between text-xs text-slate-600">
+                <span>Discount</span>
+                <span>-₹{discountAmount?.toLocaleString()}</span>
+              </div>
+
+              {loyaltyDiscount > 0 && (
+                <div className="flex justify-between text-xs text-amber-600">
+                  <span>Loyalty Points Discount</span>
+                  <span>-₹{loyaltyDiscount?.toLocaleString()}</span>
                 </div>
               )}
-            </div>
-          </div>
-        </div>
 
-        <div className="w-full lg:w-80 space-y-3">
-          <h4 className="text-xs font-bold text-slate-800 uppercase tracking-widest">
-            Order Summary
-          </h4>
-
-          <div className="flex justify-between text-xs text-slate-600">
-            <span>Subtotal</span>
-            <span>₹{subtotal?.toLocaleString()}</span>
-          </div>
-
-          <div className="flex justify-between text-xs text-slate-600">
-            <span>Discount</span>
-            <span>-₹{discountAmount?.toLocaleString()}</span>
-          </div>
-
-          {/* <div className="flex justify-between text-xs text-slate-600">
+              {/* <div className="flex justify-between text-xs text-slate-600">
             <span>Tax</span>
             <span>
               ₹
@@ -534,19 +669,25 @@ export default function Cart() {
             </span>
           </div> */}
 
-          <div className="pt-2 mt-1 border-t border-slate-200 flex justify-between items-center">
-            <span className="text-sm font-bold">Total Amount</span>
-            <span className="text-sm font-bold">
-              ₹{totalAmount?.toLocaleString()}
-            </span>
-          </div>
+              <div className="pt-2 mt-1 border-t border-slate-200 flex justify-between items-center">
+                <span className="text-sm font-bold">Total Amount</span>
+                <span className="text-sm font-bold">
+                  ₹{totalAmount?.toLocaleString()}
+                </span>
+              </div>
 
-          <Button onClick={handleCheckout} className="w-full mt-4">
-            <ShoppingBag className="h-4 w-4 mr-2" />
-            Complete Checkout
-          </Button>
-        </div>
-      </div>
+              <Button
+                onClick={handleCheckout}
+                className="w-full mt-4"
+                disabled={!!phoneError || loading || disabledCompBtn}
+              >
+                <ShoppingBag className="h-4 w-4 mr-2" />
+                Complete Checkout
+              </Button>
+            </div>
+          </div>
+        </>
+      )}
     </div>
   );
 }

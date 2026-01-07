@@ -2,6 +2,7 @@ import { z } from "zod";
 import { Express, Request, Response } from "express";
 import { StoreRepository } from "./storeStorage";
 import { createAuthMiddleware } from "server/authMiddleware";
+import { CustomerService } from "./customerStorage";
 
 
 const cartItemSchema = z.object({
@@ -48,6 +49,10 @@ export const checkoutSchema = z.object({
     })
     .nullable()
     .optional(),
+  loyaltyDiscount: z.object({
+    pointsRedeemed: z.number().min(0),
+    discountValue: z.number().min(0),
+  }).nullable().optional(),
   tax: z.number().min(0),
   total: z.number().min(0),
   paymentMode: z.enum(["cash", "card", "upi"]),
@@ -57,7 +62,7 @@ export const checkoutSchema = z.object({
 
 export const storeCartRoutes = (app: Express) => {
   const authStore = createAuthMiddleware(["store"]);
-
+  const customerService = new CustomerService();
   app.get("/api/store/cart", authStore, async (req: Request, res: Response) => {
     try {
       const storeId = req.user?.storeId;
@@ -212,12 +217,44 @@ export const storeCartRoutes = (app: Express) => {
           ? (validatedData.discount.value / 100) * subtotal
           : validatedData.discount.value
         : 0;
+      
+      let loyaltyDiscountAmount = 0;
+      let pointsRedeemed = 0;
+      
+      // Handle loyalty points redemption
+      if (validatedData.loyaltyDiscount && validatedData.loyaltyDiscount.pointsRedeemed > 0) {
+        // Get customer to check available points
+        const customer = await customerService.getCustomerByPhone(validatedData.customerPhone);
+        if (!customer) {
+          return res.status(404).json({ error: "Customer not found for loyalty points redemption" });
+        }
+
+        if (customer.loyaltyPoints < validatedData.loyaltyDiscount.pointsRedeemed) {
+          return res.status(400).json({ 
+            error: "Insufficient loyalty points",
+            availablePoints: customer.loyaltyPoints,
+            requestedPoints: validatedData.loyaltyDiscount.pointsRedeemed
+          });
+        }
+
+        // Redeem the points
+        const updatedCustomer = await customerService.addOrCreateCustomerLoyalty(
+          customer.name,
+          customer.phone,
+          customer.storeId,
+          -validatedData.loyaltyDiscount.pointsRedeemed
+        );
+        
+        loyaltyDiscountAmount = validatedData.loyaltyDiscount.discountValue;
+        pointsRedeemed = validatedData.loyaltyDiscount.pointsRedeemed;
+      }
 
       const order = await storeRepo.createStoreSale(storeId, processedBy, {
         customerName: validatedData.customerName,
         customerPhone: validatedData.customerPhone,
         items: validatedData.items,
         discountAmount,
+        loyaltyDiscountAmount,
         taxAmount: validatedData.tax,
         totalAmount: validatedData.total,
         paymentMode: validatedData.paymentMode,
@@ -233,7 +270,12 @@ export const storeCartRoutes = (app: Express) => {
         );
       }
 
-      res.json({ orderId: order.id, receiptUrl: `/api/store/receipt/${order.id}` });
+      res.json({ 
+        orderId: order.id, 
+        receiptUrl: `/api/store/receipt/${order.id}`,
+        pointsRedeemed,
+        loyaltyDiscountAmount
+      });
     } catch (error) {
       if (error instanceof z.ZodError) {
         return res.status(400).json({ error: "Invalid checkout data", details: error.errors });

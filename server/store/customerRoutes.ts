@@ -39,6 +39,42 @@ export const customerRoutes = (app: Express) => {
     },
   );
 
+  // Get customer loyalty points by phone
+  app.get(
+    "/api/store_customers/:phone/loyalty-points",
+    authStore,
+    async (req: Request, res: Response) => {
+      try {
+        const { phone } = req.params;
+        const customer = await customerService.getCustomerByPhone(phone);
+
+        if (!customer) {
+          return res.json({ 
+            loyaltyPoints: 0, 
+            redeemableValue: 0,
+            exists: false 
+          });
+        }
+
+        const redeemableValue = customer.loyaltyPoints * 0.05; // 100 points = ₹5, so 1 point = ₹0.05
+
+        res.json({ 
+          loyaltyPoints: customer.loyaltyPoints, 
+          redeemableValue,
+          exists: true,
+          customer: {
+            id: customer.id,
+            name: customer.name,
+            phone: customer.phone
+          }
+        });
+      } catch (error) {
+        console.error("Error fetching loyalty points:", error);
+        res.status(500).json({ error: "Failed to fetch loyalty points" });
+      }
+    },
+  );
+
   // Redeem loyalty points
   app.post(
     "/api/store_customers/redeem-points",
@@ -66,7 +102,7 @@ export const customerRoutes = (app: Express) => {
           });
         }
 
-        const redeemValue = validatedData.pointsToRedeem * 2;
+        const redeemValue = validatedData.pointsToRedeem * 0.05; // 100 points = ₹5, so 1 point = ₹0.05
 
         const updatedCustomer = await customerService.addOrCreateCustomerLoyalty(
           customer.name,
