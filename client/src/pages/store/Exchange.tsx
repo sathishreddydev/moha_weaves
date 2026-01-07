@@ -204,7 +204,11 @@ export default function StoreExchange() {
         queryKey: ["/api/store/store-exchanges"],
       });
       queryClient.invalidateQueries({ queryKey: ["/api/store/products"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/store/products/paginated"] });     
+      queryClient.invalidateQueries({ queryKey: ["/api/store/products/paginated?page=1&pageSize=10"] });     
+      queryClient.invalidateQueries({ queryKey: ["/api/store/sales/paginated?page=1&pageSize=10"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/store/sales/recent"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/store/stats"] });
+
       toast({
         title: "Success",
         description: "Exchange completed successfully",

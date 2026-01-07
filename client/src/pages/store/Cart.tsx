@@ -232,14 +232,12 @@ export default function Cart() {
         title: "Order Completed",
         description: `Order #${data.orderId} completed successfully`,
       });
+      queryClient.invalidateQueries({ queryKey: ["/api/store/products"]});
+      queryClient.invalidateQueries({ queryKey: ["/api/store/sales"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/store/stats"] });
 
-      queryClient.invalidateQueries({ queryKey: ["/api/store/sales/paginated"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/store/sales/recent"] });
-      
       clearCart();
       resetForm();
-      
-      // Navigate to invoice page with sale ID
       navigate(`/store/invoice/${data.orderId}`);
     } catch (err: any) {
       toast({

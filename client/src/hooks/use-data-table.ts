@@ -1,5 +1,5 @@
 import { useState, useCallback, useMemo } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 
 export interface TableParams {
   page: number;
@@ -29,6 +29,7 @@ export function useDataTable<T>({
   initialPageSize = 10,
   buildUrl,
 }: UseDataTableOptions<T>) {
+  const queryClient = useQueryClient();
   const [pageIndex, setPageIndex] = useState(0);
   const [pageSize, setPageSize] = useState(initialPageSize);
   const [search, setSearch] = useState("");
@@ -48,47 +49,47 @@ export function useDataTable<T>({
   );
 
   const url = useMemo(() => {
-    if (buildUrl) {
-      return buildUrl(params);
-    }
+    if (buildUrl) return buildUrl(params);
 
     const searchParams = new URLSearchParams();
     searchParams.set("page", String(params.page));
     searchParams.set("pageSize", String(params.pageSize));
-    
-    if (params.search) {
-      searchParams.set("search", params.search);
-    }
-    
+
+    if (params.search) searchParams.set("search", params.search);
     if (params.filters) {
       Object.entries(params.filters).forEach(([key, value]) => {
         searchParams.set(key, value);
       });
     }
-    
-    if (params.dateFrom) {
-      searchParams.set("dateFrom", params.dateFrom);
-    }
-    
-    if (params.dateTo) {
-      searchParams.set("dateTo", params.dateTo);
-    }
+    if (params.dateFrom) searchParams.set("dateFrom", params.dateFrom);
+    if (params.dateTo) searchParams.set("dateTo", params.dateTo);
 
     return `${queryKey}?${searchParams.toString()}`;
   }, [queryKey, params, buildUrl]);
 
+  const queryFn = useCallback(async (): Promise<PaginatedResponse<T>> => {
+    const res = await fetch(url);
+    if (!res.ok) throw new Error("Failed to fetch data");
+    return res.json();
+  }, [url]);
+
   const { data, isLoading, error, refetch } = useQuery<PaginatedResponse<T>>({
-    queryKey: [url],
+    queryKey: [queryKey, params],
+    queryFn,
+    placeholderData: (previousData) => previousData,
   });
 
-  const handlePaginationChange = useCallback((newPageIndex: number, newPageSize: number) => {
-    if (newPageSize !== pageSize) {
-      setPageIndex(0);
-      setPageSize(newPageSize);
-    } else {
-      setPageIndex(newPageIndex);
-    }
-  }, [pageSize]);
+  const handlePaginationChange = useCallback(
+    (newPageIndex: number, newPageSize: number) => {
+      if (newPageSize !== pageSize) {
+        setPageIndex(0);
+        setPageSize(newPageSize);
+      } else {
+        setPageIndex(newPageIndex);
+      }
+    },
+    [pageSize]
+  );
 
   const handleSearchChange = useCallback((newSearch: string) => {
     setSearch(newSearch);
@@ -100,10 +101,13 @@ export function useDataTable<T>({
     setPageIndex(0);
   }, []);
 
-  const handleDateFilterChange = useCallback((newDateRange: { from?: Date; to?: Date } | null) => {
-    setDateRange(newDateRange);
-    setPageIndex(0);
-  }, []);
+  const handleDateFilterChange = useCallback(
+    (newDateRange: { from?: Date; to?: Date } | null) => {
+      setDateRange(newDateRange);
+      setPageIndex(0);
+    },
+    []
+  );
 
   const resetFilters = useCallback(() => {
     setSearch("");
@@ -111,6 +115,12 @@ export function useDataTable<T>({
     setDateRange(null);
     setPageIndex(0);
   }, []);
+
+  const invalidate = useCallback(() => {
+    queryClient.invalidateQueries({
+      queryKey: [queryKey],
+    });
+  }, [queryClient, queryKey]);
 
   return {
     data: data?.data ?? [],
@@ -128,5 +138,6 @@ export function useDataTable<T>({
     handleDateFilterChange,
     resetFilters,
     refetch,
+    invalidate,
   };
 }
