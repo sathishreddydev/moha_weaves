@@ -1793,7 +1793,13 @@ export class StoreRepository implements StoreStorage {
       }
     }
 
-    return coupon;
+    // Convert decimal fields to numbers for frontend compatibility
+    return {
+      ...coupon,
+      value: parseFloat(coupon.value),
+      minOrderAmount: coupon.minOrderAmount ? parseFloat(coupon.minOrderAmount) : null,
+      maxDiscount: coupon.maxDiscount ? parseFloat(coupon.maxDiscount) : null,
+    };
   }
 
   async updateCouponUsage(

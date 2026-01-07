@@ -43,9 +43,9 @@ export const checkoutSchema = z.object({
       value: z.number().min(0),
       code: z.string().optional(),
       couponId: z.string().optional(),
-      description: z.string(),
-      minOrderAmount: z.number().optional(),
-      maxDiscount: z.number().optional(),
+      description: z.string().nullable(),
+      minOrderAmount: z.number().nullable(),
+      maxDiscount: z.number().nullable(),
     })
     .nullable()
     .optional(),
