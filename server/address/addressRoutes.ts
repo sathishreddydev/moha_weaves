@@ -1,5 +1,4 @@
 import type { Express} from "express";
-import postalcodes from "postalcodes-india";
 import { z } from "zod";
 import { createAuthMiddleware } from "../authMiddleware";
 import { addressService } from "./addressStorage";
@@ -88,7 +87,8 @@ export const addressRoutes = (app: Express) => {
    app.get("/api/pincodes/:pincode/check", async (req, res) => {
      try {
        // const pincode = await addressService.checkPincodeAvailability(req.params.pincode);
-       const info = postalcodes.find(req.params.pincode);
+       const postalcodes = await import("postalcodes-india");
+       const info = postalcodes.default.find(req.params.pincode);
        
        if (info) {
          res.json({

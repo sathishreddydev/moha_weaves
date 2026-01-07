@@ -7,8 +7,11 @@ import { visualizer } from 'rollup-plugin-visualizer';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 export default defineConfig({
- plugins: [react(), visualizer({ filename: 'dist/stats.html' })],
+  plugins: [react(), visualizer({ filename: 'dist/stats.html' })],
 
+  optimizeDeps: {
+    include: ['postalcodes-india']
+  },
 
   root: path.resolve(__dirname, "client"),
 
