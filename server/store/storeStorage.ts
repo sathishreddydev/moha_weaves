@@ -1602,8 +1602,35 @@ export class StoreRepository implements StoreStorage {
     });
   }
 
+  async getExchangeHistoryForOrder(orderId: string): Promise<StoreExchangeWithDetails[]> {
+    const exchanges = await db
+      .select()
+      .from(storeExchanges)
+      .where(eq(storeExchanges.originalSaleId, orderId))
+      .orderBy(desc(storeExchanges.createdAt));
+
+    const result: StoreExchangeWithDetails[] = [];
+
+    for (const exchange of exchanges) {
+      const exchangeDetails = await this.getStoreExchange(exchange.id);
+      if (exchangeDetails) {
+        result.push(exchangeDetails);
+      }
+    }
+
+    return result;
+  }
+
   async generateReceipt(storeId: string, orderId: string): Promise<any> {
-    // Generate receipt data - in a real implementation, this would create a printable receipt
+    const exchangeHistory = await this.getExchangeHistoryForOrder(orderId);
+    
+    if (exchangeHistory.length > 0) {
+      return {
+        type: 'exchange',
+        exchangeHistory:exchangeHistory,
+      };
+    }
+    
     const sales = await this.getStoreSales(storeId);
     const sale = sales.find((s) => s.id === orderId);
     if (!sale) {
@@ -1611,20 +1638,8 @@ export class StoreRepository implements StoreStorage {
     }
 
     return {
-      orderId: sale.id,
-      customerName: sale.customerName,
-      customerPhone: sale.customerPhone,
-      items: sale.items,
-      subtotal: sale.items.reduce(
-        (sum: number, item: any) => sum + item.lineAmount,
-        0,
-      ),
-      discountAmount: (sale as any).discountAmount || 0,
-      taxAmount: (sale as any).taxAmount || 0,
-      totalAmount: sale.totalAmount,
-      paymentMode: (sale as any).paymentMode || "cash",
-      createdAt: sale.createdAt,
-      store: sale.store,
+      type: 'normal',
+     ...sale,
     };
   }
 }
