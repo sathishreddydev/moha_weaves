@@ -77,7 +77,6 @@ const StoreLogin = lazy(() => import("@/pages/store/Login"));
 const StoreDashboard = lazy(() => import("@/pages/store/Dashboard"));
 const StoreSale = lazy(() => import("@/pages/store/Sale"));
 const StoreCart = lazy(() => import("@/pages/store/Cart"));
-const StoreCustomers = lazy(() => import("@/pages/store/Customers"));
 const StoreInventoryPage = lazy(() => import("@/pages/store/Inventory"));
 const StoreRequests = lazy(() => import("@/pages/store/Requests"));
 const StoreHistory = lazy(() => import("@/pages/store/History"));
@@ -216,7 +215,6 @@ function Router() {
                 <Route path="dashboard" element={<StoreDashboard />} />
                 <Route path="sale" element={<StoreSale />} />
                 <Route path="cart" element={<StoreCart />} />
-                <Route path="customers" element={<StoreCustomers />} />
                 <Route path="inventory" element={<StoreInventoryPage />} />
                 <Route path="requests" element={<StoreRequests />} />
                 <Route path="history" element={<StoreHistory />} />

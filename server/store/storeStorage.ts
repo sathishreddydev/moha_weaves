@@ -31,6 +31,7 @@ import {
   Coupon,
   couponUsage,
   store_customers,
+  appSettings,
 } from "@shared/schema";
 import { CustomerService } from "./customerStorage";
 import { and, desc, eq, gte, gt, ilike, lte, sql } from "drizzle-orm";
@@ -271,12 +272,7 @@ export class StoreRepository implements StoreStorage {
       discountCode?: string;
     },
   ): Promise<StoreSale> {
-    // Auto-create or find customer
-    const customer = await this.customerService.findOrCreateCustomer(
-      data.customerPhone,
-      data.customerName,
-      storeId
-    );
+ 
 
     // Generate custom sale ID
     const saleId = await this.generateStoreSaleId(storeId);
@@ -287,7 +283,6 @@ export class StoreRepository implements StoreStorage {
         id: saleId,
         storeId,
         soldBy: processedBy,
-        customerId: customer.id,
         customerName: data.customerName,
         customerPhone: data.customerPhone,
         totalAmount: data.totalAmount.toString(),
@@ -333,10 +328,19 @@ export class StoreRepository implements StoreStorage {
         storeId,
       });
     }
+    
+    // Calculate loyalty points (₹100 = 50 points, so totalAmount / 2)
+    const loyaltyPointsEarned = Math.floor(data.totalAmount / 2);
+    
+    // Create or update customer with loyalty points
+    await this.customerService.addOrCreateCustomerLoyalty(
+      data.customerName,
+      data.customerPhone,
+      storeId,
+      loyaltyPointsEarned
+    );
+    
     await this.clearStoreCart(storeId);
-
-    // Update customer metrics after successful sale
-    await this.customerService.updateCustomerAfterPurchase(customer.id, data.totalAmount);
 
     return newSale;
   }
@@ -567,14 +571,13 @@ export class StoreRepository implements StoreStorage {
 
   private async getExchangeWindowDays(): Promise<string | null> {
     try {
-      // Try to get from settings table or return default
-      const result = await db
-        .select({ value: sql`value` })
-        .from(sql`settings`)
-        .where(sql`key = 'exchange_window_days'`)
-        .limit(1);
-
-      return (result[0]?.value as string) || null;
+      // Try to get from app_settings table or return default
+      const [result] = await db
+        .select()
+        .from(appSettings)
+        .where(eq(appSettings.key, "exchange_window_days"));
+      
+      return result?.value ?? null;
     } catch (error) {
       console.error("Error getting exchange window days:", error);
       return null;
@@ -909,6 +912,17 @@ export class StoreRepository implements StoreStorage {
       balanceDirection = "due_from_customer";
     } else {
       balanceDirection = "even";
+    }
+
+    const loyaltyPointsEarned = balanceAmount > 0 ? Math.floor(balanceAmount / 2) : 0;
+    
+    if (loyaltyPointsEarned > 0 && data.customerName && data.customerPhone) {
+      await this.customerService.addOrCreateCustomerLoyalty(
+        data.customerName,
+        data.customerPhone,
+        storeId,
+        loyaltyPointsEarned
+      );
     }
 
     return await this.createStoreExchange(

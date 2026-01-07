@@ -233,15 +233,9 @@ export const store_customers = pgTable("store_customers", {
     .default(sql`gen_random_uuid()`),
   name: text("name").notNull(),
   phone: varchar("phone").notNull().unique(),
-  email: text("email"),
   storeId: varchar("store_id")
     .references(() => stores.id)
     .notNull(),
-  totalPurchases: decimal("total_purchases", { precision: 10, scale: 2 }).notNull().default("0"),
-  purchaseCount: integer("purchase_count").notNull().default(1),
-  firstPurchaseDate: timestamp("first_purchase_date").notNull().defaultNow(),
-  lastPurchaseDate: timestamp("last_purchase_date").notNull().defaultNow(),
-  notes: text("notes"),
   loyaltyPoints: integer("loyalty_points").notNull().default(0),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
