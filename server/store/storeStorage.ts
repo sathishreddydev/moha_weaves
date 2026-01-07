@@ -33,6 +33,7 @@ import {
 } from "@shared/schema";
 import { and, desc, eq, gte, gt, ilike, lte, sql } from "drizzle-orm";
 import { db } from "server/db";
+import { addSareeJoins, transformSareeWithDetails } from "./storeHelpers";
 
 export interface StoreStorage {
   // Stores
@@ -442,9 +443,16 @@ export class StoreRepository implements StoreStorage {
         }),
       );
 
+      // Get eligibility data for this sale
+      const eligibilityData = await this.checkStoreSaleExchangeEligibility(
+        row.store_sales.id,
+        storeId
+      );
+
       result.push({
         ...row.store_sales,
         store: row.stores,
+        eligibilityData,
         items: itemsWithReturns,
       });
     }
@@ -1178,9 +1186,16 @@ export class StoreRepository implements StoreStorage {
         .leftJoin(fabrics, eq(sarees.fabricId, fabrics.id))
         .where(eq(storeSaleItems.saleId, row.store_sales.id));
 
+      // Get eligibility data for this sale
+      const eligibilityData = await this.checkStoreSaleExchangeEligibility(
+        row.store_sales.id,
+        storeId
+      );
+
       result.push({
         ...row.store_sales,
         store: row.stores,
+        eligibilityData,
         items: items.map((itemRow) => ({
           ...itemRow.store_sale_items,
           saree: {
@@ -1298,9 +1313,16 @@ export class StoreRepository implements StoreStorage {
         .leftJoin(fabrics, eq(sarees.fabricId, fabrics.id))
         .where(eq(storeSaleItems.saleId, row.store_sales.id));
 
+      // Get eligibility data for this sale
+      const eligibilityData = await this.checkStoreSaleExchangeEligibility(
+        row.store_sales.id,
+        row.stores.id
+      );
+
       result.push({
         ...row.store_sales,
         store: row.stores,
+        eligibilityData,
         items: items.map((itemRow) => ({
           ...itemRow.store_sale_items,
           saree: {

@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Link, useNavigate, useParams } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import {
   ArrowLeftRight,
   Package,
@@ -7,7 +7,6 @@ import {
   Search,
   Minus,
   Trash2,
-  ArrowLeft,
   Check,
   RefreshCw,
   ArrowRight,
@@ -115,60 +114,6 @@ export default function StoreExchange() {
     enabled: !!selectedSaleId && !!user && user.role === "store",
   });
 
-  const { data: eligibilityData, isLoading: eligibilityLoading } = useQuery({
-    queryKey: ["/api/store/sales", selectedSaleId, "eligibility"],
-    queryFn: async () => {
-      const response = await fetch(
-        `/api/store/sales/${selectedSaleId}/exchange-eligibility`,
-        {
-          credentials: "include",
-        },
-      );
-      if (!response.ok) throw new Error("Failed to check eligibility");
-      return response.json();
-    },
-    enabled: !!selectedSaleId && !!user && user.role === "store",
-  });
-
-  // Fetch eligibility data for search results
-  const { data: searchEligibilityData } = useQuery({
-    queryKey: ["search-eligibility", searchResults?.map((s) => s.id)],
-    queryFn: async () => {
-      if (!searchResults || searchResults.length === 0) return {};
-
-      const eligibilityPromises = searchResults.map(async (sale) => {
-        try {
-          const response = await fetch(
-            `/api/store/sales/${sale.id}/exchange-eligibility`,
-            {
-              credentials: "include",
-            },
-          );
-          if (response.ok) {
-            const eligibility = await response.json();
-            return { [sale.id]: eligibility };
-          }
-          return {
-            [sale.id]: {
-              eligible: false,
-              reason: "Failed to check eligibility",
-            },
-          };
-        } catch (error) {
-          return {
-            [sale.id]: {
-              eligible: false,
-              reason: "Error checking eligibility",
-            },
-          };
-        }
-      });
-
-      const results = await Promise.all(eligibilityPromises);
-      return results.reduce((acc, result) => ({ ...acc, ...result }), {});
-    },
-    enabled: !!searchResults && searchResults.length > 0,
-  });
 
   const { data: products, isLoading: productsLoading } = useQuery<
     ShopProduct[]
@@ -817,11 +762,6 @@ export default function StoreExchange() {
     <div className="max-w-6xl mx-auto">
       <div className="mb-8">
         <div className="flex items-center gap-4 mb-2">
-          {/* <Link to="/store/history">
-            <Button variant="ghost" size="icon">
-              <ArrowLeft className="h-5 w-5" />
-            </Button>
-          </Link> */}
           <div>
             <h1 className="text-2xl font-semibold flex items-center gap-2">
               <ArrowLeftRight className="h-6 w-6" />
@@ -880,7 +820,7 @@ export default function StoreExchange() {
                       Found {searchResults.length} sales
                     </p>
                     {searchResults.map((sale) => {
-                      const eligibility = searchEligibilityData?.[sale.id];
+                      const eligibility = sale.eligibilityData;
                       const isEligible = eligibility?.eligible !== false;
                       const isDisabled = eligibility && !eligibility.eligible;
 
@@ -925,14 +865,7 @@ export default function StoreExchange() {
                                     </span>
                                   </div>
                                 )
-                              ) : (
-                                <div className="flex items-center gap-1">
-                                  <div className="w-2 h-2 bg-gray-300 rounded-full animate-pulse"></div>
-                                  <span className="text-xs text-muted-foreground">
-                                    Checking...
-                                  </span>
-                                </div>
-                              )}
+                              ) : null}
                             </div>
                             <div className="text-sm text-muted-foreground">
                               {sale.customerName && (
@@ -1009,33 +942,26 @@ export default function StoreExchange() {
                 <p className="text-sm text-muted-foreground">
                   Sale #{selectedSaleId}
                 </p>
-                {eligibilityLoading ? (
-                  <div className="flex items-center gap-2">
-                    <div className="w-2 h-2 bg-yellow-500 rounded-full animate-pulse"></div>
-                    <span className="text-xs text-muted-foreground">
-                      Checking eligibility...
-                    </span>
-                  </div>
-                ) : eligibilityData ? (
+                {saleData?.eligibilityData ? (
                   <div className="flex items-center gap-2">
                     <div
-                      className={`w-2 h-2 rounded-full ${eligibilityData.eligible ? "bg-green-500" : "bg-red-500"}`}
+                      className={`w-2 h-2 rounded-full ${saleData.eligibilityData.eligible ? "bg-green-500" : "bg-red-500"}`}
                     ></div>
                     <span className="text-xs text-muted-foreground">
-                      {eligibilityData.eligible
-                        ? `${eligibilityData.daysRemaining || 0} days remaining for exchange`
+                      {saleData.eligibilityData.eligible
+                        ? `${saleData.eligibilityData.daysRemaining || 0} days remaining for exchange`
                         : "Not eligible for exchange"}
                     </span>
                   </div>
                 ) : null}
               </CardHeader>
-              {eligibilityData && !eligibilityData.eligible && (
+              {saleData?.eligibilityData && !saleData.eligibilityData.eligible && (
                 <div className="mx-6 mb-4 p-3 bg-red-50 border border-red-200 rounded-lg">
                   <p className="text-sm text-red-800 font-medium">
                     Exchange Not Available
                   </p>
                   <p className="text-xs text-red-600 mt-1">
-                    {eligibilityData.reason}
+                    {saleData.eligibilityData.reason}
                   </p>
                 </div>
               )}
