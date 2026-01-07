@@ -13,7 +13,16 @@ import type { SareeWithDetails, Category, Color, Fabric, StockRequestWithDetails
 import { RequestDialog } from "./Utils/RequestDialog";
 
 type ShopProduct = {
-  saree: SareeWithDetails;
+  saree: SareeWithDetails & {
+    activeSale?: {
+      id: string;
+      name: string;
+      offerType: string;
+      discountValue: string;
+      maxDiscount?: string;
+    } | null;
+    discountedPrice?: number;
+  };
   storeStock: number;
 };
 
@@ -193,11 +202,27 @@ export default function StoreInventoryPage() {
     {
       accessorKey: "saree.price",
       header: "Price",
-      cell: ({ row }) => (
-        <span className="font-medium">
-          {formatPrice(row.original.saree.price)}
-        </span>
-      ),
+      cell: ({ row }) => {
+        const item = row.original;
+        return (
+          <div>
+            {item.saree.activeSale && item.saree.discountedPrice ? (
+              <div className="flex items-center gap-2">
+                <span className="font-semibold text-primary">
+                  {formatPrice(item.saree.discountedPrice)}
+                </span>
+                <span className="text-xs text-muted-foreground line-through">
+                  {formatPrice(item.saree.price)}
+                </span>
+              </div>
+            ) : (
+              <span className="font-medium">
+                {formatPrice(item.saree.price)}
+              </span>
+            )}
+          </div>
+        );
+      },
     },
     {
       accessorKey: "saree.distributionChannel",

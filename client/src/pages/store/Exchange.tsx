@@ -35,7 +35,16 @@ import {
 } from "@/components/ui/select";
 
 type ShopProduct = {
-  saree: SareeWithDetails;
+  saree: SareeWithDetails & {
+    activeSale?: {
+      id: string;
+      name: string;
+      offerType: string;
+      discountValue: string;
+      maxDiscount?: string;
+    } | null;
+    discountedPrice?: number;
+  };
   storeStock: number;
 };
 
@@ -64,7 +73,16 @@ interface SaleItemWithAvailable {
   quantity: number;
   returnedQuantity: number;
   price: string;
-  saree: SareeWithDetails;
+  saree: SareeWithDetails & {
+    activeSale?: {
+      id: string;
+      name: string;
+      offerType: string;
+      discountValue: string;
+      maxDiscount?: string;
+    } | null;
+    discountedPrice?: number;
+  };
   availableQuantity: number;
 }
 export const exchangeReasons = [
@@ -292,8 +310,12 @@ export default function StoreExchange() {
           saree: saleItem.saree,
           quantity: 1,
           maxQuantity: saleItem.availableQuantity,
-          unitPrice: saleItem.price,
-          returnAmount: saleItem.price,
+          unitPrice: saleItem.saree.activeSale && saleItem.saree.discountedPrice 
+            ? saleItem.saree.discountedPrice.toString() 
+            : saleItem.price,
+          returnAmount: saleItem.saree.activeSale && saleItem.saree.discountedPrice 
+            ? saleItem.saree.discountedPrice.toString() 
+            : saleItem.price,
         },
       ]);
     }
@@ -369,8 +391,12 @@ export default function StoreExchange() {
           saree: product.saree,
           quantity: 1,
           maxQuantity: product.storeStock,
-          unitPrice: product.saree.price,
-          lineAmount: product.saree.price,
+          unitPrice: product.saree.activeSale && product.saree.discountedPrice 
+            ? product.saree.discountedPrice.toString() 
+            : product.saree.price,
+          lineAmount: product.saree.activeSale && product.saree.discountedPrice 
+            ? product.saree.discountedPrice.toString() 
+            : product.saree.price,
         },
       ]);
     }
@@ -997,7 +1023,16 @@ export default function StoreExchange() {
                               {item.saree.name}
                             </p>
                             <p className="text-sm text-primary font-semibold">
-                              {formatPrice(item.price)}
+                              {item.saree.activeSale && item.saree.discountedPrice ? (
+                                <div className="flex items-center gap-2">
+                                  <span>{formatPrice(item.saree.discountedPrice)}</span>
+                                  <span className="text-xs text-muted-foreground line-through">
+                                    {formatPrice(item.price)}
+                                  </span>
+                                </div>
+                              ) : (
+                                <span>{formatPrice(item.price)}</span>
+                              )}
                             </p>
                             <Badge
                               variant={
@@ -1163,7 +1198,16 @@ export default function StoreExchange() {
                                     {item.saree.name}
                                   </p>
                                   <p className="text-sm text-primary font-semibold">
-                                    {formatPrice(item.saree.price)}
+                                    {item.saree.activeSale && item.saree.discountedPrice ? (
+                                      <div className="flex items-center gap-2">
+                                        <span>{formatPrice(item.saree.discountedPrice)}</span>
+                                        <span className="text-xs text-muted-foreground line-through">
+                                          {formatPrice(item.saree.price)}
+                                        </span>
+                                      </div>
+                                    ) : (
+                                      <span>{formatPrice(item.saree.price)}</span>
+                                    )}
                                   </p>
                                   <Badge
                                     variant="secondary"

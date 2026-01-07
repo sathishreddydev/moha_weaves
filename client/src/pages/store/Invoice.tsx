@@ -53,6 +53,20 @@ export default function Invoice() {
 
     fetchInvoiceData();
   }, [saleId]);
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === "p") {
+        e.preventDefault();
+        handlePrint();
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, []);
 
   const handlePrint = () => {
     window.print();
@@ -123,39 +137,34 @@ export default function Invoice() {
 
   return (
     <div className="max-w-6xl mx-auto">
+      <div className="mb-6 flex justify-between items-center print:hidden">
+        <h1 className="text-2xl font-bold text-slate-800 flex items-center gap-2">
+          {invoiceData.type === "exchange" ? <ArrowLeftRight /> : <FileText />}
+          {invoiceData.type === "exchange" ? "Exchange Bill" : "Invoice"} #
+          {invoiceData.orderId}
+        </h1>
+        <div className="flex gap-2">
+          <Button onClick={handlePrint}>
+            <Printer className="h-4 w-4" />
+            Print{" "}
+            {invoiceData.type === "exchange" ? "Exchange Bill" : "Invoice"}
+          </Button>
+          <Button variant={"outline"} onClick={handleBackToStore}>
+            Back to Store
+          </Button>
+        </div>
+      </div>
       <div
         className="print-area bg-white shadow-xl rounded-xl overflow-hidden
                   border border-slate-200
                   print:shadow-none print:border-none print:rounded-none"
       >
-        <div className="mb-6 flex justify-between items-center print:hidden">
-          <h1 className="text-2xl font-bold text-slate-800 flex items-center gap-2">
-            {invoiceData.type === "exchange" ? (
-              <ArrowLeftRight />
-            ) : (
-              <FileText />
-            )}
-            {invoiceData.type === "exchange" ? "Exchange Bill" : "Invoice"} #
-            {invoiceData.orderId}
-          </h1>
-          <div className="flex gap-2">
-            <Button onClick={handlePrint}>
-              <Printer className="h-4 w-4" />
-              Print{" "}
-              {invoiceData.type === "exchange" ? "Exchange Bill" : "Invoice"}
-            </Button>
-            <Button variant={"outline"} onClick={handleBackToStore}>
-              Back to Store
-            </Button>
-          </div>
-        </div>
-
         <div className="bg-white shadow-xl rounded-xl overflow-hidden border border-slate-200 print:shadow-none print:border-none">
           <div className="p-4 border-b border-slate-200">
             <div className="flex justify-between items-start">
               <div>
                 <p className="text-base font-bold text-slate-800">MOHA STORE</p>
-                <p className="text-slate-600 text-sx">
+                <p className="text-slate-600 text-xs">
                   Fashion & Traditional Wear
                 </p>
                 <p className="text-slate-600 text-xs">GSTIN: XXXXXXXXXX</p>
@@ -186,24 +195,24 @@ export default function Invoice() {
           <div className="p-4 border-b border-slate-200">
             <div className="grid grid-cols-2 gap-8">
               <div>
-                <h4 className="text-sm font-semibold text-slate-800 mb-2">
+                <h4 className="text-xs font-semibold text-slate-800 mb-1">
                   BILL TO:
                 </h4>
-                <p className="text-slate-600 font-medium">
+                <p className="text-xs text-slate-600 font-medium">
                   {invoiceData.customerName}
                 </p>
-                <p className="text-slate-600">
+                <p className="text-xs text-slate-600">
                   Phone: {invoiceData.customerPhone}
                 </p>
               </div>
               <div>
-                <h4 className="text-sm font-semibold text-slate-800 mb-2">
+                <h4 className="text-xs font-semibold text-slate-800 mb-1">
                   STORE DETAILS:
                 </h4>
-                <p className="text-slate-600">
+                <p className="text-xs text-slate-600">
                   {invoiceData.store?.name || "MOHA Store"}
                 </p>
-                <p className="text-slate-600 text-sm">
+                <p className="text-xs text-slate-600">
                   Store ID: {invoiceData.store?.id}
                 </p>
               </div>
@@ -211,7 +220,7 @@ export default function Invoice() {
           </div>
 
           {/* Items Table */}
-          <div className="p-4">
+          <div className="p-4 border-b border-slate-200">
             {invoiceData.type === "normal" ? (
               // Normal sale items
               <div className="overflow-x-auto">
@@ -517,6 +526,20 @@ export default function Invoice() {
                 </p>
               </div>
             </div>
+          </div>
+          <div className="text-[11px] p-4 text-slate-500 leading-relaxed">
+            <h4 className="font-bold text-slate-700 mb-1 uppercase tracking-tighter">
+              Return Policy
+            </h4>
+            <ul className="list-disc pl-4 space-y-1">
+              <li>Items must be in unused condition with all tags attached.</li>
+              <li>Exchanges are subject to availability of stock.</li>
+              <li>No exchanges on customized orders.</li>
+              <li>
+                Store management reserves the right to refuse exchanges that
+                don't meet policy criteria.
+              </li>
+            </ul>
           </div>
 
           <div className="bg-slate-50 p-4 text-center text-[10px] text-slate-400 border-t border-slate-100">

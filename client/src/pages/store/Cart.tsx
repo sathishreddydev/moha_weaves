@@ -9,6 +9,8 @@ import {
   CreditCard,
   Loader2,
   ShoppingBag,
+  Tag,
+  X,
 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { useNavigate } from "react-router-dom";
@@ -31,18 +33,36 @@ interface CartItem {
     name: string;
     code: string;
     image: string;
+    price?: string;
+    activeSale?: {
+      id: string;
+      name: string;
+      offerType: string;
+      discountValue: string;
+      maxDiscount?: string;
+    } | null;
+    discountedPrice?: number;
   };
 }
-
 interface Discount {
+  id: string;
+  code: string | null;
+  name: string;
+  description: string | null;
   type: "percentage" | "fixed" | "coupon";
   value: number;
-  code?: string;
-  couponId?: string;
-  description: string;
-  minOrderAmount?: number;
-  maxDiscount?: number;
+  minOrderAmount: number | null;
+  maxDiscount: number | null;
+  usageLimit: number | null;
+  usedCount: number;
+  perUserLimit: number | null;
+  validFrom: string; 
+  validUntil: string; 
+  isActive: boolean;
+  categoryId: string | null;
+  createdAt: string;  
 }
+
 
 interface TaxRule {
   name: string;
@@ -77,7 +97,7 @@ export default function Cart() {
   const [discount, setDiscount] = useState<Discount | null>(null);
   const [couponCode, setCouponCode] = useState("");
   const [taxRules] = useState<TaxRule[]>([
-    { name: "GST", rate: 18, type: "percentage" },
+    { name: "GST", rate: 0, type: "percentage" },
     { name: "Service Charge", rate: 10, type: "percentage" },
   ]);
   const [paymentMode, setPaymentMode] = useState<"cash" | "card" | "upi">(
@@ -150,7 +170,7 @@ export default function Cart() {
       setDiscount(data.discount);
       toast({
         title: "Coupon Applied",
-        description: `${data.discount.description} - ${formatPrice(data.discount.value)}`,
+        description: `${data.discount.name} - ${formatPrice(data.discount.value)}`,
       });
       setCouponCode("");
     } catch (err: any) {
@@ -315,12 +335,48 @@ export default function Cart() {
     {
       accessorKey: "unitPrice",
       header: "Price",
-      cell: ({ row }) => <span>₹{row.original.unitPrice}</span>,
+      cell: ({ row }) => {
+        const item = row.original;
+        return (
+          <div>
+            {item.saree.activeSale && item.saree.discountedPrice ? (
+              <div className="flex items-center gap-2">
+                <span className="font-semibold text-primary">
+                  {formatPrice(item.saree.discountedPrice)}
+                </span>
+                <span className="text-xs text-muted-foreground line-through">
+                  {formatPrice(item.saree.price || '0')}
+                </span>
+              </div>
+            ) : (
+              <span>{formatPrice(item.unitPrice)}</span>
+            )}
+          </div>
+        );
+      },
     },
     {
       accessorKey: "lineAmount",
       header: "Total",
-      cell: ({ row }) => <span>₹{row.original.lineAmount}</span>,
+      cell: ({ row }) => {
+        const item = row.original;
+        return (
+          <div>
+            {item.saree.activeSale && item.saree.discountedPrice ? (
+              <div className="flex items-center gap-2">
+                <span className="font-semibold text-primary">
+                  {formatPrice(item.saree.discountedPrice * item.quantity)}
+                </span>
+                <span className="text-xs text-muted-foreground line-through">
+                  {formatPrice(parseFloat(item.saree.price || '0') * item.quantity)}
+                </span>
+              </div>
+            ) : (
+              <span>{formatPrice(item.lineAmount)}</span>
+            )}
+          </div>
+        );
+      },
     },
     {
       id: "actions",
@@ -428,9 +484,25 @@ export default function Cart() {
               </div>
 
               {discount && (
-                <div className="mt-2 text-sm text-green-600">
-                  Coupon applied: {discount.description} (-₹
-                  {discountAmount.toLocaleString()})
+                <div className="mt-2 flex items-center gap-2 text-xs text-green-600">
+                  <span>
+                    Coupon applied: {discount?.name} (-₹
+                    {discountAmount?.toLocaleString()})
+                  </span>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-6 w-6 text-red-600 hover:text-red-700 hover:bg-red-50"
+                    onClick={() => {
+                      setDiscount(null);
+                      toast({
+                        title: "Coupon Removed",
+                        description: "Coupon has been removed from cart",
+                      });
+                    }}
+                  >
+                    <X className="h-3 w-3" />
+                  </Button>
                 </div>
               )}
             </div>
@@ -444,28 +516,28 @@ export default function Cart() {
 
           <div className="flex justify-between text-xs text-slate-600">
             <span>Subtotal</span>
-            <span>₹{subtotal.toLocaleString()}</span>
+            <span>₹{subtotal?.toLocaleString()}</span>
           </div>
 
           <div className="flex justify-between text-xs text-slate-600">
             <span>Discount</span>
-            <span>-₹{discountAmount.toLocaleString()}</span>
+            <span>-₹{discountAmount?.toLocaleString()}</span>
           </div>
 
-          <div className="flex justify-between text-xs text-slate-600">
+          {/* <div className="flex justify-between text-xs text-slate-600">
             <span>Tax</span>
             <span>
               ₹
-              {taxAmount.toLocaleString(undefined, {
+              {taxAmount?.toLocaleString(undefined, {
                 minimumFractionDigits: 2,
               })}
             </span>
-          </div>
+          </div> */}
 
           <div className="pt-2 mt-1 border-t border-slate-200 flex justify-between items-center">
             <span className="text-sm font-bold">Total Amount</span>
             <span className="text-sm font-bold">
-              ₹{totalAmount.toLocaleString()}
+              ₹{totalAmount?.toLocaleString()}
             </span>
           </div>
 

@@ -19,7 +19,16 @@ import type { SareeWithDetails } from "@shared/schema";
 import { useStoreCart } from "./Hook/cartStore";
 
 type ShopProduct = {
-  saree: SareeWithDetails;
+  saree: SareeWithDetails & {
+    activeSale?: {
+      id: string;
+      name: string;
+      offerType: string;
+      discountValue: string;
+      maxDiscount?: string;
+    } | null;
+    discountedPrice?: number;
+  };
   storeStock: number;
 };
 
@@ -35,6 +44,15 @@ interface CartItem {
     name: string;
     code: string;
     image: string;
+    price?: string;
+    activeSale?: {
+      id: string;
+      name: string;
+      offerType: string;
+      discountValue: string;
+      maxDiscount?: string;
+    } | null;
+    discountedPrice?: number;
   };
 }
 
@@ -108,10 +126,13 @@ export default function StoreSale() {
     }
 
     const existing = cartItems.find((item) => item.sareeId === product.saree.id);
+    const price = product.saree.activeSale && product.saree.discountedPrice 
+      ? product.saree.discountedPrice 
+      : parseFloat(product.saree.price);
 
     if (existing) {
       if (existing.quantity < product.storeStock) {
-        addItem(product.saree.id, 1, parseFloat(product.saree.price));
+        addItem(product.saree.id, 1, price);
       } else {
         toast({
           title: "Limit reached",
@@ -119,8 +140,7 @@ export default function StoreSale() {
         });
       }
     } else {
-      addItem(product.saree.id, 1, parseFloat(product.saree.price));
-
+      addItem(product.saree.id, 1, price);
     }
   };
 
@@ -218,11 +238,27 @@ export default function StoreSale() {
     {
       accessorKey: "saree.price",
       header: "Price",
-      cell: ({ row }) => (
-        <span className="font-semibold text-primary">
-          {formatPrice(row.original.saree.price)}
-        </span>
-      ),
+      cell: ({ row }) => {
+        const item = row.original;
+        return (
+          <div>
+            {item.saree.activeSale && item.saree.discountedPrice ? (
+              <div className="flex items-center gap-2">
+                <span className="font-semibold text-primary">
+                  {formatPrice(item.saree.discountedPrice)}
+                </span>
+                <span className="text-xs text-muted-foreground line-through">
+                  {formatPrice(item.saree.price)}
+                </span>
+              </div>
+            ) : (
+              <span className="font-semibold text-primary">
+                {formatPrice(item.saree.price)}
+              </span>
+            )}
+          </div>
+        );
+      },
     },
 
     {

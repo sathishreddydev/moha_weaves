@@ -235,6 +235,14 @@ export default function StoreHistory() {
       ),
     },
     {
+      id:'invoice',
+      header: "Invoice",
+      cell:({row})=>(
+        <Button variant="ghost" onClick={()=>navigate(`/store/invoice/${row.original.id}`)}>Invoice</Button>
+      )
+
+    },
+    {
       id: "actions",
       header: "Actions",
       cell: ({ row }) => {
@@ -373,7 +381,16 @@ export default function StoreHistory() {
                           {item.saree.name}
                         </p>
                         <p className="text-xs text-muted-foreground">
-                          Qty: {item.quantity} x {formatPrice(item.price)}
+                          Qty: {item.quantity} x {item.saree.activeSale && item.saree.discountedPrice ? (
+                            <span className="flex items-center gap-1">
+                              <span>{formatPrice(item.saree.discountedPrice)}</span>
+                              <span className="text-xs line-through text-muted-foreground">
+                                {formatPrice(item.price)}
+                              </span>
+                            </span>
+                          ) : (
+                            <span>{formatPrice(item.price)}</span>
+                          )}
                         </p>
                         {(item.returnedQuantity || 0) > 0 && (
                           <Badge
@@ -385,7 +402,16 @@ export default function StoreHistory() {
                         )}
                       </div>
                       <span className="font-medium">
-                        {formatPrice(parseFloat(item.price) * item.quantity)}
+                        {item.saree.activeSale && item.saree.discountedPrice ? (
+                          <div className="flex items-center gap-2">
+                            <span>{formatPrice(item.saree.discountedPrice * item.quantity)}</span>
+                            <span className="text-xs line-through text-muted-foreground">
+                              {formatPrice(parseFloat(item.price) * item.quantity)}
+                            </span>
+                          </div>
+                        ) : (
+                          <span>{formatPrice(parseFloat(item.price) * item.quantity)}</span>
+                        )}
                       </span>
                     </div>
                   ))}

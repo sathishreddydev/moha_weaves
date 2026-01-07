@@ -1175,6 +1175,22 @@ export class StoreRepository implements StoreStorage {
     const salesList = await query;
     const result: StoreSaleWithItems[] = [];
 
+    // Load active sales data
+    const now = new Date();
+    const activeSales = await db
+      .select()
+      .from(sales)
+      .where(
+        and(
+          eq(sales.isActive, true),
+          lte(sales.validFrom, now),
+          gte(sales.validUntil, now),
+        ),
+      );
+
+    // Fetch sale product mappings
+    const saleProductMappings = await db.select().from(saleProducts);
+
     for (const row of salesList) {
       const items = await db
         .select()
@@ -1195,15 +1211,79 @@ export class StoreRepository implements StoreStorage {
         ...row.store_sales,
         store: row.stores,
         eligibilityData,
-        items: items.map((itemRow) => ({
-          ...itemRow.store_sale_items,
-          saree: {
-            ...itemRow.sarees,
-            category: itemRow.categories,
-            color: itemRow.colors,
-            fabric: itemRow.fabrics,
-          },
-        })),
+        items: items.map((itemRow) => {
+          const saree = itemRow.sarees;
+
+          // Find applicable sale (same logic as cart)
+          let applicableSale = null;
+          const productSaleMapping = saleProductMappings.find(
+            (sp) => sp.sareeId === saree.id,
+          );
+          if (productSaleMapping) {
+            applicableSale = activeSales.find(
+              (s) => s.id === productSaleMapping.saleId,
+            );
+          }
+          // Only exclude category pricing when THIS saree is explicitly mapped to a different sale
+          if (!applicableSale && saree.categoryId) {
+            applicableSale = activeSales.find(
+              (s) =>
+                s.categoryId === saree.categoryId &&
+                !saleProductMappings.some(
+                  (sp) => sp.saleId === s.id && sp.sareeId === saree.id,
+                ),
+            );
+          }
+
+          // Calculate discounted price
+          let discountedPrice = parseFloat(saree.price);
+          if (applicableSale) {
+            const originalPrice = discountedPrice;
+            if (
+              applicableSale.offerType === "percentage" ||
+              applicableSale.offerType === "category" ||
+              applicableSale.offerType === "flash_sale"
+            ) {
+              const discount =
+                originalPrice * (parseFloat(applicableSale.discountValue) / 100);
+              const maxDiscount = applicableSale.maxDiscount
+                ? parseFloat(applicableSale.maxDiscount)
+                : originalPrice;
+              discountedPrice =
+                originalPrice - Math.min(discount, maxDiscount, originalPrice);
+            } else if (
+              applicableSale.offerType === "flat" ||
+              applicableSale.offerType === "product"
+            ) {
+              const flatDiscount = Math.min(
+                parseFloat(applicableSale.discountValue),
+                originalPrice,
+              );
+              discountedPrice = originalPrice - flatDiscount;
+            }
+            discountedPrice = Math.max(0, discountedPrice);
+          }
+
+          return {
+            ...itemRow.store_sale_items,
+            saree: {
+              ...itemRow.sarees,
+              category: itemRow.categories,
+              color: itemRow.colors,
+              fabric: itemRow.fabrics,
+              activeSale: applicableSale
+                ? {
+                    id: applicableSale.id,
+                    name: applicableSale.name,
+                    offerType: applicableSale.offerType,
+                    discountValue: applicableSale.discountValue,
+                    maxDiscount: applicableSale.maxDiscount || undefined,
+                  }
+                : null,
+              discountedPrice: applicableSale ? discountedPrice : undefined,
+            },
+          };
+        }),
       });
     }
 
@@ -1475,24 +1555,109 @@ export class StoreRepository implements StoreStorage {
       )
       .where(eq(storeCart.storeId, storeId));
 
+    // Load active sales data
+    const now = new Date();
+    const activeSales = await db
+      .select()
+      .from(sales)
+      .where(
+        and(
+          eq(sales.isActive, true),
+          lte(sales.validFrom, now),
+          gte(sales.validUntil, now),
+        ),
+      );
+
+    // Fetch sale product mappings
+    const saleProductMappings = await db.select().from(saleProducts);
+
     return {
-      items: cartItems.map((item) => ({
-        id: item.store_cart.id,
-        sareeId: item.store_cart.sareeId,
-        quantity: item.store_cart.quantity,
-        unitPrice: Number(item.store_cart.unitPrice),
-        lineAmount: Number(item.store_cart.lineAmount),
-        storeStock: item.store_inventory?.quantity || 0,
-        saree: {
-          id: item.sarees.id,
-          name: item.sarees.name,
-          code: item.sarees.sku || item.sarees.id,
-          image: item.sarees.imageUrl,
-          category: item.categories,
-          color: item.colors,
-          fabric: item.fabrics,
-        },
-      })),
+      items: cartItems.map((item) => {
+        const saree = item.sarees;
+
+        // Find applicable sale (same logic as user cart)
+        let applicableSale = null;
+        const productSaleMapping = saleProductMappings.find(
+          (sp) => sp.sareeId === saree.id,
+        );
+        if (productSaleMapping) {
+          applicableSale = activeSales.find(
+            (s) => s.id === productSaleMapping.saleId,
+          );
+        }
+        // Only exclude category pricing when THIS saree is explicitly mapped to a different sale
+        if (!applicableSale && saree.categoryId) {
+          applicableSale = activeSales.find(
+            (s) =>
+              s.categoryId === saree.categoryId &&
+              !saleProductMappings.some(
+                (sp) => sp.saleId === s.id && sp.sareeId === saree.id,
+              ),
+          );
+        }
+
+        // Calculate discounted price
+        let discountedPrice = parseFloat(saree.price);
+        if (applicableSale) {
+          const originalPrice = discountedPrice;
+          if (
+            applicableSale.offerType === "percentage" ||
+            applicableSale.offerType === "category" ||
+            applicableSale.offerType === "flash_sale"
+          ) {
+            const discount =
+              originalPrice * (parseFloat(applicableSale.discountValue) / 100);
+            const maxDiscount = applicableSale.maxDiscount
+              ? parseFloat(applicableSale.maxDiscount)
+              : originalPrice;
+            discountedPrice =
+              originalPrice - Math.min(discount, maxDiscount, originalPrice);
+          } else if (
+            applicableSale.offerType === "flat" ||
+            applicableSale.offerType === "product"
+          ) {
+            const flatDiscount = Math.min(
+              parseFloat(applicableSale.discountValue),
+              originalPrice,
+            );
+            discountedPrice = originalPrice - flatDiscount;
+          }
+          discountedPrice = Math.max(0, discountedPrice);
+        }
+
+        // Use discounted price if available, otherwise use stored cart price
+        const effectivePrice = applicableSale ? discountedPrice : Number(item.store_cart.unitPrice);
+        const lineAmount = item.store_cart.quantity * effectivePrice;
+
+        return {
+          id: item.store_cart.id,
+          sareeId: item.store_cart.sareeId,
+          quantity: item.store_cart.quantity,
+          unitPrice: effectivePrice,
+          lineAmount,
+          storeStock: item.store_inventory?.quantity || 0,
+          saree: {
+            id: item.sarees.id,
+            name: item.sarees.name,
+            code: item.sarees.sku || item.sarees.id,
+            image: item.sarees.imageUrl,
+            price: item.sarees.price,
+            category: item.categories,
+            color: item.colors,
+            fabric: item.fabrics,
+            activeSale: applicableSale
+              ? {
+                  id: applicableSale.id,
+                  name: applicableSale.name,
+                  offerType: applicableSale.offerType,
+                  discountValue: applicableSale.discountValue,
+                  maxDiscount: applicableSale.maxDiscount || undefined,
+                }
+              : null,
+            discountedPrice: applicableSale ? discountedPrice : undefined,
+          },
+        };
+      }),
     };
   }
 
@@ -1598,19 +1763,7 @@ export class StoreRepository implements StoreStorage {
       }
     }
 
-    return {
-      discount: {
-        type: coupon.type,
-        value: Number(coupon.value),
-        code: coupon.code,
-        description: coupon.name || coupon.code,
-        minOrderAmount: coupon.minOrderAmount
-          ? Number(coupon.minOrderAmount)
-          : null,
-        maxDiscount: coupon.maxDiscount ? Number(coupon.maxDiscount) : null,
-        couponId: coupon.id,
-      },
-    };
+    return coupon;
   }
 
   async updateCouponUsage(
