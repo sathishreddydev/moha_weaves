@@ -42,32 +42,6 @@ export default function StoreHistory() {
     initialPageSize: 10,
   });
 
-  // Fetch eligibility data for all sales
-  const { data: eligibilityData } = useQuery({
-    queryKey: ["sales-eligibility", sales?.map(s => s.id)],
-    queryFn: async () => {
-      if (!sales || sales.length === 0) return {};
-      
-      const eligibilityPromises = sales.map(async (sale) => {
-        try {
-          const response = await fetch(`/api/store/sales/${sale.id}/exchange-eligibility`, {
-            credentials: "include",
-          });
-          if (response.ok) {
-            const eligibility = await response.json();
-            return { [sale.id]: eligibility };
-          }
-          return { [sale.id]: { eligible: false, reason: "Failed to check eligibility" } };
-        } catch (error) {
-          return { [sale.id]: { eligible: false, reason: "Error checking eligibility" } };
-        }
-      });
-
-      const results = await Promise.all(eligibilityPromises);
-      return results.reduce((acc, result) => ({ ...acc, ...result }), {});
-    },
-    enabled: !!sales && sales.length > 0,
-  });
 
   const formatPrice = (price: number | string) => {
     const numPrice = typeof price === "string" ? parseFloat(price) : price;
@@ -221,7 +195,7 @@ export default function StoreHistory() {
       header: "Exchange",
       cell: ({ row }) => {
         const sale = row.original;
-        const eligibility = eligibilityData?.[sale.id];
+        const eligibility = sale.eligibilityData;
         
         if (!eligibility) {
           return (
@@ -265,7 +239,7 @@ export default function StoreHistory() {
       header: "Actions",
       cell: ({ row }) => {
         const sale = row.original;
-        const eligibility = eligibilityData?.[sale.id];
+        const eligibility = sale.eligibilityData;
         const isFullyReturned = sale.items.every(
           (item: any) => item.quantity === (item.returnedQuantity || 0)
         );
@@ -429,9 +403,9 @@ export default function StoreHistory() {
                 className="w-full mt-4"
                 variant="outline"
                 onClick={() => navigate(`/store/exchange/${selectedSale.id}`)}
-                disabled={eligibilityData?.[selectedSale.id]?.eligible === false}
-                title={eligibilityData?.[selectedSale.id]?.eligible === false 
-                  ? eligibilityData?.[selectedSale.id]?.reason 
+                disabled={selectedSale.eligibilityData?.eligible === false}
+                title={selectedSale.eligibilityData?.eligible === false 
+                  ? selectedSale.eligibilityData?.reason 
                   : "Process Exchange"
                 }
               >

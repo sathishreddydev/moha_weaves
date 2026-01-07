@@ -232,13 +232,20 @@ export default function Cart() {
         title: "Order Completed",
         description: `Order #${data.orderId} completed successfully`,
       });
-      queryClient.invalidateQueries({ queryKey: ["/api/store/products"]});
-      queryClient.invalidateQueries({ queryKey: ["/api/store/sales"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/store/stats"] });
+
+      await Promise.all([
+        queryClient.refetchQueries({ queryKey: ["/api/store/products"] }),
+        queryClient.refetchQueries({ queryKey: ["/api/store/sales/paginated"] }),
+        queryClient.refetchQueries({ queryKey: ["/api/store/sales/recent"] }),
+        queryClient.refetchQueries({ queryKey: ["/api/store/stats"] })
+      ]);
 
       clearCart();
       resetForm();
-      navigate(`/store/invoice/${data.orderId}`);
+      
+      setTimeout(() => {
+        navigate(`/store/invoice/${data.orderId}`);
+      }, 500);
     } catch (err: any) {
       toast({
         title: "Checkout Failed",

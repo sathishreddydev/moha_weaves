@@ -85,7 +85,7 @@ export interface StoreStorage {
       reason?: string;
       availableQuantity: number;
     }>;
-  } | null>;
+  } | undefined>;
 
   getStoreExchangesPaginated(
     storeId: string,
@@ -466,16 +466,13 @@ export class StoreRepository implements StoreStorage {
       reason?: string;
       availableQuantity: number;
     }>;
-  } | null> {
+  } | undefined > {
     // First, get the sale with items
     const sale = await this.getStoreSaleForExchange(saleId);
     
-    if (!sale) {
-      return null;
-    }
-
+ 
     // Check if sale belongs to the specified store
-    if (sale.storeId !== storeId) {
+    if (sale?.storeId !== storeId) {
       return {
         eligible: false,
         reason: "Sale belongs to different store",
@@ -1254,9 +1251,16 @@ export class StoreRepository implements StoreStorage {
         .leftJoin(fabrics, eq(sarees.fabricId, fabrics.id))
         .where(eq(storeSaleItems.saleId, row.store_sales.id));
 
+      // Get eligibility data for this sale
+      const eligibilityData = await this.checkStoreSaleExchangeEligibility(
+        row.store_sales.id,
+        storeId
+      );
+
       result.push({
         ...row.store_sales,
         store: row.stores,
+        eligibilityData,
         items: items.map((itemRow) => ({
           ...itemRow.store_sale_items,
           saree: {

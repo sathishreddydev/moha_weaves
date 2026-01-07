@@ -144,6 +144,18 @@ export type StockRequestWithDetails = StockRequest & {
 export type StoreSaleWithItems = StoreSale & {
   items: (StoreSaleItem & { saree: SareeWithDetails })[];
   store: Store;
+  eligibilityData?: {
+    eligible: boolean;
+    eligibleUntil?: Date;
+    daysRemaining?: number;
+    reason?: string;
+    items?: Array<{
+      itemId: string;
+      eligible: boolean;
+      reason?: string;
+      availableQuantity: number;
+    }>;
+  };
 };
 
 export type SareeWithReviews = SareeWithDetails & {

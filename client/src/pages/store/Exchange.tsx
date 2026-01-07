@@ -115,15 +115,15 @@ export default function StoreExchange() {
     enabled: !!selectedSaleId && !!user && user.role === "store",
   });
 
-  const {
-    data: eligibilityData,
-    isLoading: eligibilityLoading,
-  } = useQuery({
+  const { data: eligibilityData, isLoading: eligibilityLoading } = useQuery({
     queryKey: ["/api/store/sales", selectedSaleId, "eligibility"],
     queryFn: async () => {
-      const response = await fetch(`/api/store/sales/${selectedSaleId}/exchange-eligibility`, {
-        credentials: "include",
-      });
+      const response = await fetch(
+        `/api/store/sales/${selectedSaleId}/exchange-eligibility`,
+        {
+          credentials: "include",
+        },
+      );
       if (!response.ok) throw new Error("Failed to check eligibility");
       return response.json();
     },
@@ -132,22 +132,35 @@ export default function StoreExchange() {
 
   // Fetch eligibility data for search results
   const { data: searchEligibilityData } = useQuery({
-    queryKey: ["search-eligibility", searchResults?.map(s => s.id)],
+    queryKey: ["search-eligibility", searchResults?.map((s) => s.id)],
     queryFn: async () => {
       if (!searchResults || searchResults.length === 0) return {};
-      
+
       const eligibilityPromises = searchResults.map(async (sale) => {
         try {
-          const response = await fetch(`/api/store/sales/${sale.id}/exchange-eligibility`, {
-            credentials: "include",
-          });
+          const response = await fetch(
+            `/api/store/sales/${sale.id}/exchange-eligibility`,
+            {
+              credentials: "include",
+            },
+          );
           if (response.ok) {
             const eligibility = await response.json();
             return { [sale.id]: eligibility };
           }
-          return { [sale.id]: { eligible: false, reason: "Failed to check eligibility" } };
+          return {
+            [sale.id]: {
+              eligible: false,
+              reason: "Failed to check eligibility",
+            },
+          };
         } catch (error) {
-          return { [sale.id]: { eligible: false, reason: "Error checking eligibility" } };
+          return {
+            [sale.id]: {
+              eligible: false,
+              reason: "Error checking eligibility",
+            },
+          };
         }
       });
 
@@ -199,21 +212,29 @@ export default function StoreExchange() {
       );
       return response.json();
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({
-        queryKey: ["/api/store/store-exchanges"],
-      });
-      queryClient.invalidateQueries({ queryKey: ["/api/store/products"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/store/products/paginated?page=1&pageSize=10"] });     
-      queryClient.invalidateQueries({ queryKey: ["/api/store/sales/paginated?page=1&pageSize=10"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/store/sales/recent"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/store/stats"] });
+    onSuccess: async (data) => {
+      await Promise.all([
+        queryClient.invalidateQueries({
+          queryKey: ["/api/store/store-exchanges"],
+        }),
+        queryClient.invalidateQueries({ queryKey: ["/api/store/products"] }),
+        queryClient.invalidateQueries({
+          queryKey: ["/api/store/sales/paginated"],
+        }),
+        queryClient.invalidateQueries({
+          queryKey: ["/api/store/sales/recent"],
+        }),
+        queryClient.invalidateQueries({ queryKey: ["/api/store/stats"] }),
+      ]);
 
       toast({
         title: "Success",
         description: "Exchange completed successfully",
       });
-      navigate("/store/exchanges");
+
+      setTimeout(() => {
+        navigate(`/store/invoice/${data.orderId}`);
+      }, 500);
     },
     onError: (error: any) => {
       toast({
@@ -236,7 +257,7 @@ export default function StoreExchange() {
   const handleLookupSale = async () => {
     if (saleIdInput.trim()) {
       // Check if the input looks like a sale ID (starts with MOHA)
-      if (saleIdInput.trim().toUpperCase().startsWith('MOHA')) {
+      if (saleIdInput.trim().toUpperCase().startsWith("MOHA")) {
         setSelectedSaleId(saleIdInput.trim());
         setReturnItems([]);
         setNewItems([]);
@@ -246,9 +267,12 @@ export default function StoreExchange() {
         setIsSearching(true);
         setShowSearchResults(true);
         try {
-          const response = await fetch(`/api/store/sales/search?query=${encodeURIComponent(saleIdInput.trim())}`, {
-            credentials: "include",
-          });
+          const response = await fetch(
+            `/api/store/sales/search?query=${encodeURIComponent(saleIdInput.trim())}`,
+            {
+              credentials: "include",
+            },
+          );
           if (!response.ok) throw new Error("Search failed");
           const results = await response.json();
           setSearchResults(results);
@@ -828,7 +852,7 @@ export default function StoreExchange() {
                   value={saleIdInput}
                   onChange={(e) => {
                     setSaleIdInput(e.target.value);
-                    if (e.target.value === '') {
+                    if (e.target.value === "") {
                       setShowSearchResults(false);
                       setSearchResults([]);
                     }
@@ -859,21 +883,29 @@ export default function StoreExchange() {
                       const eligibility = searchEligibilityData?.[sale.id];
                       const isEligible = eligibility?.eligible !== false;
                       const isDisabled = eligibility && !eligibility.eligible;
-                      
+
                       return (
                         <div
                           key={sale.id}
                           className={`flex items-center justify-between p-3 border rounded-lg ${
-                            isDisabled 
-                              ? "opacity-60 cursor-not-allowed bg-red-50/50" 
+                            isDisabled
+                              ? "opacity-60 cursor-not-allowed bg-red-50/50"
                               : "hover-elevate cursor-pointer"
                           }`}
-                          onClick={() => isEligible && handleSelectSale(sale.id)}
-                          title={isDisabled ? eligibility?.reason : "Select this sale for exchange"}
+                          onClick={() =>
+                            isEligible && handleSelectSale(sale.id)
+                          }
+                          title={
+                            isDisabled
+                              ? eligibility?.reason
+                              : "Select this sale for exchange"
+                          }
                         >
                           <div className="flex-1">
                             <div className="flex items-center gap-2 mb-1">
-                              <span className="font-medium text-sm">{sale.id}</span>
+                              <span className="font-medium text-sm">
+                                {sale.id}
+                              </span>
                               <Badge variant="outline" className="text-xs">
                                 {new Date(sale.createdAt).toLocaleDateString()}
                               </Badge>
@@ -888,20 +920,30 @@ export default function StoreExchange() {
                                 ) : (
                                   <div className="flex items-center gap-1">
                                     <AlertCircle className="h-3 w-3 text-red-500" />
-                                    <span className="text-xs text-red-600">Not eligible</span>
+                                    <span className="text-xs text-red-600">
+                                      Not eligible
+                                    </span>
                                   </div>
                                 )
                               ) : (
                                 <div className="flex items-center gap-1">
                                   <div className="w-2 h-2 bg-gray-300 rounded-full animate-pulse"></div>
-                                  <span className="text-xs text-muted-foreground">Checking...</span>
+                                  <span className="text-xs text-muted-foreground">
+                                    Checking...
+                                  </span>
                                 </div>
                               )}
                             </div>
                             <div className="text-sm text-muted-foreground">
-                              {sale.customerName && <span>{sale.customerName}</span>}
-                              {sale.customerName && sale.customerPhone && <span> • </span>}
-                              {sale.customerPhone && <span>{sale.customerPhone}</span>}
+                              {sale.customerName && (
+                                <span>{sale.customerName}</span>
+                              )}
+                              {sale.customerName && sale.customerPhone && (
+                                <span> • </span>
+                              )}
+                              {sale.customerPhone && (
+                                <span>{sale.customerPhone}</span>
+                              )}
                             </div>
                             <div className="text-sm font-medium text-primary mt-1">
                               {formatPrice(sale.totalAmount)}
@@ -912,7 +954,9 @@ export default function StoreExchange() {
                               </div>
                             )}
                           </div>
-                          <ArrowRight className={`h-4 w-4 ${isDisabled ? 'text-gray-400' : 'text-muted-foreground'}`} />
+                          <ArrowRight
+                            className={`h-4 w-4 ${isDisabled ? "text-gray-400" : "text-muted-foreground"}`}
+                          />
                         </div>
                       );
                     })}
@@ -968,24 +1012,31 @@ export default function StoreExchange() {
                 {eligibilityLoading ? (
                   <div className="flex items-center gap-2">
                     <div className="w-2 h-2 bg-yellow-500 rounded-full animate-pulse"></div>
-                    <span className="text-xs text-muted-foreground">Checking eligibility...</span>
+                    <span className="text-xs text-muted-foreground">
+                      Checking eligibility...
+                    </span>
                   </div>
                 ) : eligibilityData ? (
                   <div className="flex items-center gap-2">
-                    <div className={`w-2 h-2 rounded-full ${eligibilityData.eligible ? 'bg-green-500' : 'bg-red-500'}`}></div>
+                    <div
+                      className={`w-2 h-2 rounded-full ${eligibilityData.eligible ? "bg-green-500" : "bg-red-500"}`}
+                    ></div>
                     <span className="text-xs text-muted-foreground">
-                      {eligibilityData.eligible 
+                      {eligibilityData.eligible
                         ? `${eligibilityData.daysRemaining || 0} days remaining for exchange`
-                        : 'Not eligible for exchange'
-                      }
+                        : "Not eligible for exchange"}
                     </span>
                   </div>
                 ) : null}
               </CardHeader>
               {eligibilityData && !eligibilityData.eligible && (
                 <div className="mx-6 mb-4 p-3 bg-red-50 border border-red-200 rounded-lg">
-                  <p className="text-sm text-red-800 font-medium">Exchange Not Available</p>
-                  <p className="text-xs text-red-600 mt-1">{eligibilityData.reason}</p>
+                  <p className="text-sm text-red-800 font-medium">
+                    Exchange Not Available
+                  </p>
+                  <p className="text-xs text-red-600 mt-1">
+                    {eligibilityData.reason}
+                  </p>
                 </div>
               )}
               <CardContent>
