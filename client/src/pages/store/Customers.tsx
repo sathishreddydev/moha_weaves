@@ -11,7 +11,12 @@ import { ColumnDef } from "@tanstack/react-table";
 import { useQuery } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useAuth } from "@/lib/auth";
-import type { StoreCustomer } from "@shared/schema";
+import type { StoreCustomer, CustomerPurchase, CustomerPurchaseItem } from "@shared/schema";
+
+// Extended type for customer with purchase history
+type StoreCustomerWithPurchases = StoreCustomer & {
+  purchases?: CustomerPurchase[];
+};
 
 const formatPrice = (price: string | number) => {
   const numPrice = typeof price === "string" ? parseFloat(price) : price;
@@ -33,7 +38,7 @@ const formatDate = (date: string | Date) => {
 export default function Customers() {
   const navigate = useNavigate();
   const { user } = useAuth();
-  const [selectedCustomer, setSelectedCustomer] = useState<StoreCustomer | null>(null);
+  const [selectedCustomer, setSelectedCustomer] = useState<StoreCustomerWithPurchases | null>(null);
   const [showCustomerDetail, setShowCustomerDetail] = useState(false);
 
   const {
@@ -147,7 +152,8 @@ export default function Customers() {
 
   const viewCustomerHistory = async (customer: StoreCustomer) => {
     try {
-      const purchases = await apiRequest("GET", `/api/store/customers/${customer.id}/purchases`);
+      const response = await apiRequest("GET", `/api/store/customers/${customer.id}/purchases`);
+      const purchases = await response.json();
       setSelectedCustomer({ ...customer, purchases });
       setShowCustomerDetail(true);
     } catch (error) {
@@ -220,7 +226,7 @@ export default function Customers() {
             <div>
               <h3 className="text-lg font-semibold mb-4">Purchase History</h3>
               <div className="space-y-3">
-                {(selectedCustomer as any).purchases?.map((purchase: any) => (
+                {selectedCustomer.purchases?.map((purchase: CustomerPurchase) => (
                   <Card key={purchase.id} className="p-4">
                     <div className="flex justify-between items-start">
                       <div>
@@ -230,7 +236,7 @@ export default function Customers() {
                         </p>
                         <div className="mt-2">
                           <p className="text-sm font-medium">Items:</p>
-                          {purchase.items?.map((item: any, idx: number) => (
+                          {purchase.items?.map((item: CustomerPurchaseItem, idx: number) => (
                             <div key={idx} className="text-sm text-muted-foreground ml-4">
                               {item.quantity}x {item.saree?.name || "Product"}
                             </div>
