@@ -96,7 +96,7 @@ export default function Cart() {
   const [discount, setDiscount] = useState<Discount | null>(null);
   const [couponCode, setCouponCode] = useState("");
   const [taxRules] = useState<TaxRule[]>([
-    { name: "GST", rate: 0, type: "percentage" },
+    { name: "GST", rate: 18, type: "percentage" },
     { name: "Service Charge", rate: 10, type: "percentage" },
   ]);
   const [paymentMode, setPaymentMode] = useState<"cash" | "card" | "upi">(
@@ -205,7 +205,6 @@ export default function Cart() {
   const discountedSubtotal = subtotal - discountAmount;
   const loyaltyDiscount = redeemPoints && loyaltyData ? Math.min(loyaltyData.redeemableValue, discountedSubtotal) : 0;
   const finalDiscountedSubtotal = subtotal - discountAmount - loyaltyDiscount;
-  
   const taxAmount = taxRules.reduce((sum, tax) => {
     return (
       sum +
@@ -214,7 +213,8 @@ export default function Cart() {
         : tax.rate)
     );
   }, 0);
-  const totalAmount = finalDiscountedSubtotal + taxAmount;
+
+  const totalAmount = finalDiscountedSubtotal;
 
   const handlePaginationChange = (pageIndex: number, pageSize: number) => {
     setPagination({ pageIndex, pageSize });
@@ -313,7 +313,7 @@ export default function Cart() {
           pointsRedeemed: pointsToRedeem,
           discountValue: pointsToRedeem * 0.05 // 100 points = ₹5, so 1 point = ₹0.05
         } : null,
-        tax: taxAmount,
+        tax: 0,
         total: totalAmount,
         paymentMode,
         customerName,

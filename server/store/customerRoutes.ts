@@ -49,24 +49,24 @@ export const customerRoutes = (app: Express) => {
         const customer = await customerService.getCustomerByPhone(phone);
 
         if (!customer) {
-          return res.json({ 
-            loyaltyPoints: 0, 
+          return res.json({
+            loyaltyPoints: 0,
             redeemableValue: 0,
-            exists: false 
+            exists: false,
           });
         }
 
-        const redeemableValue = customer.loyaltyPoints * 0.05; // 100 points = ₹5, so 1 point = ₹0.05
+        const redeemableValue = Math.floor(customer.loyaltyPoints * 0.05);
 
-        res.json({ 
-          loyaltyPoints: customer.loyaltyPoints, 
+        res.json({
+          loyaltyPoints: customer.loyaltyPoints,
           redeemableValue,
           exists: true,
           customer: {
             id: customer.id,
             name: customer.name,
-            phone: customer.phone
-          }
+            phone: customer.phone,
+          },
         });
       } catch (error) {
         console.error("Error fetching loyalty points:", error);
@@ -87,36 +87,39 @@ export const customerRoutes = (app: Express) => {
         }
 
         const validatedData = redeemLoyaltyPointsSchema.parse(req.body);
-        
+
         // Get customer to check available points
-        const customer = await customerService.getCustomerByPhone(validatedData.phone);
+        const customer = await customerService.getCustomerByPhone(
+          validatedData.phone,
+        );
         if (!customer) {
           return res.status(404).json({ error: "Customer not found" });
         }
 
         if (customer.loyaltyPoints < validatedData.pointsToRedeem) {
-          return res.status(400).json({ 
+          return res.status(400).json({
             error: "Insufficient loyalty points",
             availablePoints: customer.loyaltyPoints,
-            requestedPoints: validatedData.pointsToRedeem
+            requestedPoints: validatedData.pointsToRedeem,
           });
         }
 
         const redeemValue = validatedData.pointsToRedeem * 0.05; // 100 points = ₹5, so 1 point = ₹0.05
 
-        const updatedCustomer = await customerService.addOrCreateCustomerLoyalty(
-          customer.name,
-          customer.phone,
-          customer.storeId,
-          -validatedData.pointsToRedeem
-        );
+        const updatedCustomer =
+          await customerService.addOrCreateCustomerLoyalty(
+            customer.name,
+            customer.phone,
+            customer.storeId,
+            -validatedData.pointsToRedeem,
+          );
 
         res.json({
           success: true,
           pointsRedeemed: validatedData.pointsToRedeem,
           redeemValue,
           remainingPoints: updatedCustomer.loyaltyPoints,
-          message: `Successfully redeemed ${validatedData.pointsToRedeem} points for ₹${redeemValue}`
+          message: `Successfully redeemed ${validatedData.pointsToRedeem} points for ₹${redeemValue}`,
         });
       } catch (error) {
         console.error("Error redeeming loyalty points:", error);
