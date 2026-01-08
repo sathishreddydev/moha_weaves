@@ -103,7 +103,7 @@ export default function StoreSale() {
     refetch,
   } = useDataTable<ShopProduct>({
     queryKey: "/api/store/products/paginated",
-    initialPageSize: 20,
+    initialPageSize: 10,
   });
 
   const formatPrice = (price: number | string) => {

@@ -32,6 +32,12 @@ import * as XLSX from "xlsx";
 import { saveAs } from "file-saver";
 import type { StoreSaleWithItems } from "@shared/schema";
 import { apiRequest } from "@/lib/queryClient";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@radix-ui/react-tooltip";
 
 export default function StoreHistory() {
   const navigate = useNavigate();
@@ -140,7 +146,19 @@ export default function StoreHistory() {
         const sale = row.original;
         return sale.customerName ? (
           <div>
-            <p className="font-medium">{sale.customerName}</p>
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <p className="font-medium truncate max-w-[150px]">
+                    {sale.customerName.split(" ")[0]}
+                  </p>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <span>{sale.customerName}</span> 
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+
             {sale.customerPhone && (
               <p className="text-xs text-muted-foreground">
                 {sale.customerPhone}
@@ -183,30 +201,7 @@ export default function StoreHistory() {
         );
       },
     },
-    {
-      accessorKey: "saleType",
-      header: "Type",
-      cell: ({ row }) => {
-        const sale = row.original;
-        return (
-          <div className="space-y-1">
-            <Badge variant="secondary">
-              {sale.saleType === "walk_in" ? "Walk-in" : "Reserved"}
-            </Badge>
-            {sale.items.some(
-              (item: any) => (item.returnedQuantity || 0) > 0,
-            ) && (
-              <Badge
-                variant="outline"
-                className="text-orange-600 border-orange-600"
-              >
-                Exchanged
-              </Badge>
-            )}
-          </div>
-        );
-      },
-    },
+
     {
       id: "exchangeEligibility",
       header: "Exchange",
@@ -262,7 +257,6 @@ export default function StoreHistory() {
             onClick={() => navigate(`/store/invoice/${row.original.id}`)}
           >
             <Eye className="h-4 w-4" />
-            View
           </Button>
         </div>
       ),
@@ -308,8 +302,8 @@ export default function StoreHistory() {
                 isExchangeDisabled ? eligibility?.reason : "Process Exchange"
               }
             >
-              <ArrowLeftRight className="h-4 w-4 mr-1" />
-              Exchange
+              <ArrowLeftRight className="h-4 w-4" />
+              Exch
             </Button>
           </div>
         );

@@ -1,22 +1,13 @@
 import { useEffect, useMemo, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link } from "react-router-dom";
 import { Package, Globe, Store, ArrowLeftRight, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Skeleton } from "@/components/ui/skeleton";
-import { useAuth } from "@/lib/auth";
-import { useQuery } from "@tanstack/react-query";
 import { DataTable, FilterConfig } from "@/components/ui/data-table";
 import { useDataTable } from "@/hooks/use-data-table";
 import { ColumnDef } from "@tanstack/react-table";
-import type {
-  SareeWithDetails,
-  Category,
-  Color,
-  Fabric,
-  StockRequestWithDetails,
-} from "@shared/schema";
+import type { SareeWithDetails, StockRequestWithDetails } from "@shared/schema";
 import { RequestDialog } from "./Utils/RequestDialog";
 import { useFilterStore } from "@/components/Store/useFilterStore";
 
@@ -36,8 +27,6 @@ type ShopProduct = {
 };
 
 export default function StoreInventoryPage() {
-  const navigate = useNavigate();
-  const { user } = useAuth();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [sareeData, setSareeData] = useState<SareeWithDetails>();
   const { categories, colors, fabrics, fetchFilters } = useFilterStore();
@@ -431,11 +420,13 @@ export default function StoreInventoryPage() {
         dateFilter={{ key: "date", label: "Filter by date added" }}
         emptyMessage="No products available for shop"
       />
-      <RequestDialog
-        dialogOpen={dialogOpen}
-        setDialogOpen={setDialogOpen}
-        sareeData={sareeData}
-      />
+      {dialogOpen && (
+        <RequestDialog
+          dialogOpen={dialogOpen}
+          setDialogOpen={setDialogOpen}
+          sareeData={sareeData}
+        />
+      )}
     </div>
   );
 }

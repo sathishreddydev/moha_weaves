@@ -24,7 +24,6 @@ export const RequestDialog = ({
     quantity: 1,
     notes: "",
   });
-  console.log(sareeData)
   const sareeId = sareeData?.id;
   const createRequestMutation = useMutation({
     mutationFn: async (data: {
