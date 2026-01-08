@@ -16,6 +16,9 @@ export interface PaginatedResponse<T> {
   page: number;
   pageSize: number;
   totalPages: number;
+  totalProducts: number;
+  inStockProducts: number;
+  outOfStockProducts: number;
 }
 
 export interface UseDataTableOptions<T> {
@@ -34,7 +37,9 @@ export function useDataTable<T>({
   const [pageSize, setPageSize] = useState(initialPageSize);
   const [search, setSearch] = useState("");
   const [filters, setFilters] = useState<Record<string, string>>({});
-  const [dateRange, setDateRange] = useState<{ from?: Date; to?: Date } | null>(null);
+  const [dateRange, setDateRange] = useState<{ from?: Date; to?: Date } | null>(
+    null,
+  );
 
   const params: TableParams = useMemo(
     () => ({
@@ -45,7 +50,7 @@ export function useDataTable<T>({
       dateFrom: dateRange?.from?.toISOString(),
       dateTo: dateRange?.to?.toISOString(),
     }),
-    [pageIndex, pageSize, search, filters, dateRange]
+    [pageIndex, pageSize, search, filters, dateRange],
   );
 
   const url = useMemo(() => {
@@ -73,7 +78,9 @@ export function useDataTable<T>({
     return res.json();
   }, [url]);
 
-  const { data, isLoading, error, refetch,isFetching } = useQuery<PaginatedResponse<T>>({
+  const { data, isLoading, error, refetch, isFetching } = useQuery<
+    PaginatedResponse<T>
+  >({
     queryKey: [queryKey, params],
     queryFn,
     placeholderData: (previousData) => previousData,
@@ -88,7 +95,7 @@ export function useDataTable<T>({
         setPageIndex(newPageIndex);
       }
     },
-    [pageSize]
+    [pageSize],
   );
 
   const handleSearchChange = useCallback((newSearch: string) => {
@@ -96,17 +103,20 @@ export function useDataTable<T>({
     setPageIndex(0);
   }, []);
 
-  const handleFiltersChange = useCallback((newFilters: Record<string, string>) => {
-    setFilters(newFilters);
-    setPageIndex(0);
-  }, []);
+  const handleFiltersChange = useCallback(
+    (newFilters: Record<string, string>) => {
+      setFilters(newFilters);
+      setPageIndex(0);
+    },
+    [],
+  );
 
   const handleDateFilterChange = useCallback(
     (newDateRange: { from?: Date; to?: Date } | null) => {
       setDateRange(newDateRange);
       setPageIndex(0);
     },
-    []
+    [],
   );
 
   const resetFilters = useCallback(() => {
@@ -125,6 +135,9 @@ export function useDataTable<T>({
   return {
     data: data?.data ?? [],
     totalCount: data?.total ?? 0,
+    totalProducts: data?.totalProducts ?? 0,
+    inStockProducts: data?.inStockProducts ?? 0,
+    outOfStockProducts: data?.outOfStockProducts ?? 0,
     pageIndex,
     pageSize,
     isLoading,

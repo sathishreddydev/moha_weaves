@@ -1,9 +1,14 @@
 import type { Express, Request, Response } from "express";
 import { storage } from "../storage";
 import { createAuthMiddleware } from "../authMiddleware";
-import { parsePaginationParams, createPaginatedResponse, getOffset } from "../paginationHelper";
+import {
+  parsePaginationParams,
+  createPaginatedResponse,
+  getOffset,
+} from "../paginationHelper";
 import { storeService } from "./storeStorage";
 import { customerRoutes } from "./customerRoutes";
+import { storeProductsStorage } from "./productsStorage";
 
 export const storeRoutes = (app: Express) => {
   const authStore = createAuthMiddleware(["store"]);
@@ -14,7 +19,7 @@ export const storeRoutes = (app: Express) => {
       if (!user.storeId) {
         return res.status(400).json({ message: "No store assigned" });
       }
-      const stats = await storage.getStoreStats(user.storeId);
+      const stats = await storeProductsStorage.getStoreStats(user.storeId);
       res.json(stats);
     } catch (error) {
       res.status(500).json({ message: "Failed to fetch stats" });
@@ -40,7 +45,9 @@ export const storeRoutes = (app: Express) => {
       if (!user.storeId) {
         return res.status(400).json({ message: "No store assigned" });
       }
-      const lowStockProducts = await storeService.getLowStockProducts(user.storeId);
+      const lowStockProducts = await storeService.getLowStockProducts(
+        user.storeId,
+      );
       res.json(lowStockProducts);
     } catch (error) {
       res.status(500).json({ message: "Failed to fetch low stock products" });
@@ -66,13 +73,14 @@ export const storeRoutes = (app: Express) => {
       if (!user.storeId) {
         return res.status(400).json({ message: "No store assigned" });
       }
-      const products = await storeService.getShopAvailableProducts(user.storeId);
+      const products = await storeService.getShopAvailableProducts(
+        user.storeId,
+      );
       res.json(products);
     } catch (error) {
       res.status(500).json({ message: "Failed to fetch products" });
     }
   });
-
 
   app.get("/api/store/sales/paginated", authStore, async (req, res) => {
     try {
@@ -80,28 +88,25 @@ export const storeRoutes = (app: Express) => {
       if (!user.storeId) {
         return res.status(400).json({ message: "No store assigned" });
       }
-      
+
       const params = parsePaginationParams(req.query);
       const offset = getOffset(params.page, params.pageSize);
-      
-      const result = await storeService.getStoreSalesPaginated(
-        user.storeId,
-        {
-          limit: params.pageSize,
-          offset,
-          search: params.search,
-          dateFrom: params.dateFrom,
-          dateTo: params.dateTo,
-        }
-      );
-      
+
+      const result = await storeService.getStoreSalesPaginated(user.storeId, {
+        limit: params.pageSize,
+        offset,
+        search: params.search,
+        dateFrom: params.dateFrom,
+        dateTo: params.dateTo,
+      });
+
       const response = createPaginatedResponse(
         result.data,
         result.total,
         params.page,
-        params.pageSize
+        params.pageSize,
       );
-      
+
       res.json(response);
     } catch (error) {
       console.error("Error fetching paginated sales:", error);
@@ -115,12 +120,11 @@ export const storeRoutes = (app: Express) => {
       if (!user.storeId) {
         return res.status(400).json({ message: "No store assigned" });
       }
-      
+
       const params = parsePaginationParams(req.query);
       const offset = getOffset(params.page, params.pageSize);
-      
-      
-      const result = await storage.getShopProductsPaginated(
+
+      const result = await storeProductsStorage.getShopProductsPaginated(
         user.storeId,
         {
           limit: params.pageSize,
@@ -131,21 +135,27 @@ export const storeRoutes = (app: Express) => {
           fabricId: req.query.fabricId as string,
           dateFrom: params.dateFrom,
           dateTo: params.dateTo,
-        }
+        },
       );
-      
-      const response = createPaginatedResponse(
-        result.data,
-        result.total,
-        params.page,
-        params.pageSize
-      );
-      
-      
+
+      const response = {
+        totalProducts: result.totalProducts,
+        inStockProducts: result.inStockProducts,
+        outOfStockProducts: result.outOfStockProducts,
+        data: result.data,
+        total: result.total,
+        page: params.page,
+        pageSize: params.pageSize,
+        totalPages: Math.ceil(result.total / params.pageSize),
+      };
+
       res.json(response);
     } catch (error) {
       console.error("Error fetching paginated products:", error);
-      res.status(500).json({ message: "Failed to fetch products", error: error instanceof Error ? error.message : "Unknown error" });
+      res.status(500).json({
+        message: "Failed to fetch products",
+        error: error instanceof Error ? error.message : "Unknown error",
+      });
     }
   });
 
@@ -155,29 +165,26 @@ export const storeRoutes = (app: Express) => {
       if (!user.storeId) {
         return res.status(400).json({ message: "No store assigned" });
       }
-      
+
       const params = parsePaginationParams(req.query);
       const offset = getOffset(params.page, params.pageSize);
-      
-      const result = await storage.getStockRequestsPaginated(
-        user.storeId,
-        {
-          limit: params.pageSize,
-          offset,
-          search: params.search,
-          status: req.query.status as string,
-          dateFrom: params.dateFrom,
-          dateTo: params.dateTo,
-        }
-      );
-      
+
+      const result = await storage.getStockRequestsPaginated(user.storeId, {
+        limit: params.pageSize,
+        offset,
+        search: params.search,
+        status: req.query.status as string,
+        dateFrom: params.dateFrom,
+        dateTo: params.dateTo,
+      });
+
       const response = createPaginatedResponse(
         result.data,
         result.total,
         params.page,
-        params.pageSize
+        params.pageSize,
       );
-      
+
       res.json(response);
     } catch (error) {
       console.error("Error fetching paginated requests:", error);
@@ -214,7 +221,7 @@ export const storeRoutes = (app: Express) => {
       const request = await storage.updateStockRequestStatus(
         req.params.id,
         "received",
-        user.id
+        user.id,
       );
       if (!request) {
         return res.status(404).json({ message: "Request not found" });
@@ -226,7 +233,6 @@ export const storeRoutes = (app: Express) => {
     }
   });
 
-
   app.get("/api/store/sales/search", authStore, async (req, res) => {
     try {
       const user = (req as any).user;
@@ -235,7 +241,7 @@ export const storeRoutes = (app: Express) => {
       }
 
       const { query } = req.query;
-      if (!query || typeof query !== 'string') {
+      if (!query || typeof query !== "string") {
         return res.status(400).json({ message: "Search query is required" });
       }
 
@@ -258,7 +264,9 @@ export const storeRoutes = (app: Express) => {
         return res.status(404).json({ message: "Sale not found" });
       }
       if (sale.storeId !== user.storeId) {
-        return res.status(403).json({ message: "Sale belongs to different store" });
+        return res
+          .status(403)
+          .json({ message: "Sale belongs to different store" });
       }
       res.json(sale);
     } catch (error) {
@@ -273,10 +281,10 @@ export const storeRoutes = (app: Express) => {
       if (!user.storeId) {
         return res.status(400).json({ message: "No store assigned" });
       }
-      
+
       const params = parsePaginationParams(req.query);
       const offset = getOffset(params.page, params.pageSize);
-      
+
       const result = await storeService.getStoreExchangesPaginated(
         user.storeId,
         {
@@ -285,16 +293,16 @@ export const storeRoutes = (app: Express) => {
           search: params.search,
           dateFrom: params.dateFrom,
           dateTo: params.dateTo,
-        }
+        },
       );
-      
+
       const response = createPaginatedResponse(
         result.data,
         result.total,
         params.page,
-        params.pageSize
+        params.pageSize,
       );
-      
+
       res.json(response);
     } catch (error) {
       console.error("Error fetching exchanges:", error);
@@ -330,13 +338,14 @@ export const storeRoutes = (app: Express) => {
           notes,
           customerName,
           customerPhone,
-        }
+        },
       );
 
       res.status(201).json(exchange);
     } catch (error) {
       console.error("Error creating store exchange:", error);
-      const message = error instanceof Error ? error.message : "Failed to create exchange";
+      const message =
+        error instanceof Error ? error.message : "Failed to create exchange";
       res.status(400).json({ message });
     }
   });

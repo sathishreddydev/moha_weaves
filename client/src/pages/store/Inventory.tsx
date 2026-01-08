@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Package, Globe, Store, ArrowLeftRight, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -18,6 +18,7 @@ import type {
   StockRequestWithDetails,
 } from "@shared/schema";
 import { RequestDialog } from "./Utils/RequestDialog";
+import { useFilterStore } from "@/components/Store/useFilterStore";
 
 type ShopProduct = {
   saree: SareeWithDetails & {
@@ -31,6 +32,7 @@ type ShopProduct = {
     discountedPrice?: number;
   };
   storeStock: number;
+  stockRequests: StockRequestWithDetails[];
 };
 
 export default function StoreInventoryPage() {
@@ -38,17 +40,12 @@ export default function StoreInventoryPage() {
   const { user } = useAuth();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [sareeData, setSareeData] = useState<SareeWithDetails>();
-  const { data: categories } = useQuery<Category[]>({
-    queryKey: ["/api/categories"],
-  });
-
-  const { data: colors } = useQuery<Color[]>({
-    queryKey: ["/api/colors"],
-  });
-
-  const { data: fabrics } = useQuery<Fabric[]>({
-    queryKey: ["/api/fabrics"],
-  });
+  const { categories, colors, fabrics, fetchFilters } = useFilterStore();
+  useEffect(() => {
+    if (!categories.length || !colors.length || !fabrics.length) {
+      fetchFilters();
+    }
+  }, [categories, colors, fabrics]);
 
   const {
     data: products,
@@ -57,30 +54,17 @@ export default function StoreInventoryPage() {
     pageSize,
     isLoading,
     isFetching,
+    totalProducts,
+    inStockProducts,
+    outOfStockProducts,
     handlePaginationChange,
     handleSearchChange,
     handleFiltersChange,
     handleDateFilterChange,
     refetch,
-  } = useDataTable<ShopProduct>({
+  } = useDataTable<any>({
     queryKey: "/api/store/products/paginated",
     initialPageSize: 10,
-  });
-
-  const { data: stockRequests } = useQuery<StockRequestWithDetails[]>({
-    queryKey: ["/api/store/requests"],
-    enabled: !!user && user.role === "store",
-    select: (data: any) => data?.data || [],
-  });
-
-  const { data: stats } = useQuery({
-    queryKey: ["/api/store/products"],
-    enabled: !!user && user.role === "store",
-    select: (data: ShopProduct[]) => ({
-      total: data.length,
-      inStock: data.filter((p) => p.storeStock > 0).length,
-      outOfStock: data.filter((p) => p.storeStock === 0).length,
-    }),
   });
 
   const formatPrice = (price: number | string) => {
@@ -276,8 +260,7 @@ export default function StoreInventoryPage() {
       header: "Stock Requests",
       cell: ({ row }) => {
         const item = row.original;
-        const requests =
-          stockRequests?.filter((req) => req.sareeId === item.saree.id) || [];
+        const requests = item.stockRequests || [];
 
         if (requests.length === 0) {
           return (
@@ -301,8 +284,7 @@ export default function StoreInventoryPage() {
       header: "Actions",
       cell: ({ row }) => {
         const item = row.original;
-        const requests =
-          stockRequests?.filter((req) => req.sareeId === item.saree.id) || [];
+        const requests = item.stockRequests || [];
         const latestRequest = requests[0];
 
         // Disable button if there's a pending, approved, or dispatched request
@@ -409,24 +391,26 @@ export default function StoreInventoryPage() {
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
         <Card>
           <CardContent className="p-4">
-            <div className="text-2xl font-bold">{stats?.total || 0}</div>
+            <div className="text-2xl font-bold">{totalProducts || 0}</div>
             <p className="text-sm text-muted-foreground">Total Products</p>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="p-4">
             <div className="text-2xl font-bold text-green-600">
-              {stats?.inStock || 0}
+              {inStockProducts || 0}
             </div>
-            <p className="text-sm text-muted-foreground">In Stock</p>
+            <p className="text-sm text-muted-foreground">In Stock Products</p>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="p-4">
             <div className="text-2xl font-bold text-amber-600">
-              {stats?.outOfStock || 0}
+              {outOfStockProducts || 0}
             </div>
-            <p className="text-sm text-muted-foreground">Need to Request</p>
+            <p className="text-sm text-muted-foreground">
+              Out of Stock Products
+            </p>
           </CardContent>
         </Card>
       </div>
