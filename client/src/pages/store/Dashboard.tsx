@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import {
@@ -38,7 +37,15 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import type { SareeWithDetails, StoreSaleWithItems, Category, Color, Fabric, StockRequestWithDetails, StoreExchangeWithDetails } from "@shared/schema";
+import type {
+  SareeWithDetails,
+  StoreSaleWithItems,
+  Category,
+  Color,
+  Fabric,
+  StockRequestWithDetails,
+  StoreExchangeWithDetails,
+} from "@shared/schema";
 
 interface StoreStats {
   todaySales: number;
@@ -93,29 +100,39 @@ const formatDate = (date: string | Date) => {
     minute: "2-digit",
   });
 };
-
+type DashboardData = {
+  stats: StoreStats;
+  recentSales: StoreSaleWithItems[];
+  lowStockProducts: {
+    saree: SareeWithDetails;
+    currentStock: number;
+    reorderLevel: number;
+  }[];
+};
 export default function StoreDashboard() {
   const { user } = useAuth();
   const [activeTab, setActiveTab] = useState("overview");
 
-  const { data: stats, isLoading: loadingStats, refetch: refetchStats } = useQuery<StoreStats>({
-    queryKey: ["/api/store/stats"],
+  const {
+    data,
+    isLoading: isDashboardLoading,
+    isFetching,
+    refetch: refetchDashboard,
+  } = useQuery<DashboardData>({
+    queryKey: ["/api/store/dashboard"],
     enabled: !!user && user.role === "store",
+    queryFn: async () => {
+      const [stats, recentSales, lowStockProducts] = await Promise.all([
+        fetch("/api/store/stats").then((res) => res.json()),
+        fetch("/api/store/sales/recent").then((res) => res.json()),
+        fetch("/api/store/products/low-stock").then((res) => res.json()),
+      ]);
+      return { stats, recentSales, lowStockProducts };
+    },
   });
 
-  const { data: recentSales } = useQuery<StoreSaleWithItems[]>({
-    queryKey: ["/api/store/sales/recent"],
-    enabled: !!user && user.role === "store",
-  });
+  const { stats, recentSales, lowStockProducts } = data || {};
 
-  const { data: lowStockProducts } = useQuery<Array<{
-    saree: SareeWithDetails;
-    currentStock: number;
-    reorderLevel: number;
-  }>>({
-    queryKey: ["/api/store/products/low-stock"],
-    enabled: !!user && user.role === "store",
-  });
   return (
     <div className="max-w-7xl mx-auto">
       <div className="flex items-center justify-between mb-8">
@@ -123,6 +140,12 @@ export default function StoreDashboard() {
           <h1 className="text-2xl font-semibold" data-testid="text-page-title">
             Store Dashboard
           </h1>
+          {isFetching && (
+            <div className="flex items-center gap-2 text-sm text-muted-foreground mt-2">
+              <RefreshCw className="h-4 w-4 animate-spin" />
+              Fetching data...
+            </div>
+          )}
           <p className="text-muted-foreground">
             Manage your store sales and inventory
           </p>
@@ -131,10 +154,12 @@ export default function StoreDashboard() {
           <Button
             variant="outline"
             size="sm"
-            onClick={() => refetchStats()}
-            disabled={loadingStats}
+            onClick={() => refetchDashboard()}
+            disabled={isDashboardLoading}
           >
-            <RefreshCw className={`h-4 w-4 mr-2 ${loadingStats ? 'animate-spin' : ''}`} />
+            <RefreshCw
+              className={`h-4 w-4 mr-2 ${isDashboardLoading ? "animate-spin" : ""}`}
+            />
             Refresh
           </Button>
           <Link to="/store/sale">
@@ -146,7 +171,7 @@ export default function StoreDashboard() {
         </div>
       </div>
 
-      {loadingStats ? (
+      {isDashboardLoading ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
           {[...Array(4)].map((_, i) => (
             <Skeleton key={i} className="h-32" />
@@ -154,7 +179,10 @@ export default function StoreDashboard() {
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-          <Card data-testid="stat-today-sales" className="cursor-pointer hover:shadow-md transition-shadow">
+          <Card
+            data-testid="stat-today-sales"
+            className="cursor-pointer hover:shadow-md transition-shadow"
+          >
             <CardHeader className="flex flex-row items-center justify-between pb-2">
               <CardTitle className="text-sm font-medium text-muted-foreground">
                 Today's Sales
@@ -165,7 +193,9 @@ export default function StoreDashboard() {
               <div className="text-2xl font-bold">{stats?.todaySales || 0}</div>
               <p className="text-xs text-muted-foreground">transactions</p>
               {stats?.totalSales !== undefined && (
-                <p className="text-xs text-muted-foreground">Total: {stats.totalSales}</p>
+                <p className="text-xs text-muted-foreground">
+                  Total: {stats.totalSales}
+                </p>
               )}
               {stats?.weeklySalesGrowth !== undefined && (
                 <div className="flex items-center mt-2">
@@ -174,7 +204,9 @@ export default function StoreDashboard() {
                   ) : (
                     <ArrowDown className="h-3 w-3 text-red-500 mr-1" />
                   )}
-                  <span className={`text-xs ${stats.weeklySalesGrowth >= 0 ? 'text-green-500' : 'text-red-500'}`}>
+                  <span
+                    className={`text-xs ${stats.weeklySalesGrowth >= 0 ? "text-green-500" : "text-red-500"}`}
+                  >
                     {Math.abs(stats.weeklySalesGrowth)}% vs last week
                   </span>
                 </div>
@@ -182,7 +214,10 @@ export default function StoreDashboard() {
             </CardContent>
           </Card>
 
-          <Card data-testid="stat-today-revenue" className="cursor-pointer hover:shadow-md transition-shadow">
+          <Card
+            data-testid="stat-today-revenue"
+            className="cursor-pointer hover:shadow-md transition-shadow"
+          >
             <CardHeader className="flex flex-row items-center justify-between pb-2">
               <CardTitle className="text-sm font-medium text-muted-foreground">
                 Today's Revenue
@@ -194,7 +229,9 @@ export default function StoreDashboard() {
                 {formatPrice(stats?.todayRevenue || 0)}
               </div>
               {stats?.totalRevenue !== undefined && (
-                <p className="text-xs text-muted-foreground">Total: {formatPrice(stats.totalRevenue)}</p>
+                <p className="text-xs text-muted-foreground">
+                  Total: {formatPrice(stats.totalRevenue)}
+                </p>
               )}
               {stats?.monthlyRevenueGrowth !== undefined && (
                 <div className="flex items-center mt-2">
@@ -203,7 +240,9 @@ export default function StoreDashboard() {
                   ) : (
                     <ArrowDown className="h-3 w-3 text-red-500 mr-1" />
                   )}
-                  <span className={`text-xs ${stats.monthlyRevenueGrowth >= 0 ? 'text-green-500' : 'text-red-500'}`}>
+                  <span
+                    className={`text-xs ${stats.monthlyRevenueGrowth >= 0 ? "text-green-500" : "text-red-500"}`}
+                  >
                     {Math.abs(stats.monthlyRevenueGrowth)}% vs last month
                   </span>
                 </div>
@@ -211,7 +250,10 @@ export default function StoreDashboard() {
             </CardContent>
           </Card>
 
-          <Card data-testid="stat-inventory" className="cursor-pointer hover:shadow-md transition-shadow">
+          <Card
+            data-testid="stat-inventory"
+            className="cursor-pointer hover:shadow-md transition-shadow"
+          >
             <CardHeader className="flex flex-row items-center justify-between pb-2">
               <CardTitle className="text-sm font-medium text-muted-foreground">
                 Store Inventory
@@ -234,7 +276,10 @@ export default function StoreDashboard() {
             </CardContent>
           </Card>
 
-          <Card data-testid="stat-requests" className="cursor-pointer hover:shadow-md transition-shadow">
+          <Card
+            data-testid="stat-requests"
+            className="cursor-pointer hover:shadow-md transition-shadow"
+          >
             <CardHeader className="flex flex-row items-center justify-between pb-2">
               <CardTitle className="text-sm font-medium text-muted-foreground">
                 Pending Requests
@@ -261,7 +306,11 @@ export default function StoreDashboard() {
         </div>
       )}
 
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
+      <Tabs
+        value={activeTab}
+        onValueChange={setActiveTab}
+        className="space-y-6"
+      >
         <TabsList className="grid w-full grid-cols-4">
           <TabsTrigger value="overview">Overview</TabsTrigger>
           <TabsTrigger value="sales">Recent Sales</TabsTrigger>
@@ -318,35 +367,44 @@ export default function StoreDashboard() {
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                {stats?.topSellingProducts && stats.topSellingProducts.length > 0 ? (
+                {stats?.topSellingProducts &&
+                stats.topSellingProducts.length > 0 ? (
                   <div className="space-y-3">
-                    {stats.topSellingProducts.slice(0, 5).map((product, index) => (
-                      <div key={product.saree.id} className="flex items-center justify-between">
-                        <div className="flex items-center gap-3">
-                          <span className="text-sm font-medium text-muted-foreground w-6">
-                            #{index + 1}
-                          </span>
-                          <img
-                            src={product.saree.imageUrl || "https://images.unsplash.com/photo-1610030469983-98e550d6193c?w=50"}
-                            alt=""
-                            className="w-8 h-10 rounded object-cover"
-                          />
-                          <div>
-                            <p className="text-sm font-medium line-clamp-1">
-                              {product.saree.name}
-                            </p>
-                            <p className="text-xs text-muted-foreground">
-                              {product.quantity} sold
+                    {stats.topSellingProducts
+                      .slice(0, 5)
+                      .map((product, index) => (
+                        <div
+                          key={product.saree.id}
+                          className="flex items-center justify-between"
+                        >
+                          <div className="flex items-center gap-3">
+                            <span className="text-sm font-medium text-muted-foreground w-6">
+                              #{index + 1}
+                            </span>
+                            <img
+                              src={
+                                product.saree.imageUrl ||
+                                "https://images.unsplash.com/photo-1610030469983-98e550d6193c?w=50"
+                              }
+                              alt=""
+                              className="w-8 h-10 rounded object-cover"
+                            />
+                            <div>
+                              <p className="text-sm font-medium line-clamp-1">
+                                {product.saree.name}
+                              </p>
+                              <p className="text-xs text-muted-foreground">
+                                {product.quantity} sold
+                              </p>
+                            </div>
+                          </div>
+                          <div className="text-right">
+                            <p className="text-sm font-medium">
+                              {formatPrice(product.revenue)}
                             </p>
                           </div>
                         </div>
-                        <div className="text-right">
-                          <p className="text-sm font-medium">
-                            {formatPrice(product.revenue)}
-                          </p>
-                        </div>
-                      </div>
-                    ))}
+                      ))}
                   </div>
                 ) : (
                   <div className="text-center py-4 text-muted-foreground text-sm">
@@ -372,10 +430,16 @@ export default function StoreDashboard() {
               <CardContent>
                 <div className="space-y-3">
                   {lowStockProducts.slice(0, 5).map((product) => (
-                    <div key={product.saree.id} className="flex items-center justify-between">
+                    <div
+                      key={product.saree.id}
+                      className="flex items-center justify-between"
+                    >
                       <div className="flex items-center gap-3">
                         <img
-                          src={product.saree.imageUrl || "https://images.unsplash.com/photo-1610030469983-98e550d6193c?w=50"}
+                          src={
+                            product.saree.imageUrl ||
+                            "https://images.unsplash.com/photo-1610030469983-98e550d6193c?w=50"
+                          }
                           alt=""
                           className="w-8 h-10 rounded object-cover"
                         />
@@ -448,19 +512,26 @@ export default function StoreDashboard() {
                         </TableCell>
                         <TableCell>
                           <div className="flex items-center gap-2">
-                            <span className="text-sm">{sale.items.length} items</span>
+                            <span className="text-sm">
+                              {sale.items.length} items
+                            </span>
                             <div className="flex -space-x-2">
                               {sale.items.slice(0, 3).map((item, idx) => (
                                 <img
                                   key={idx}
-                                  src={item.saree.imageUrl || "https://images.unsplash.com/photo-1610030469983-98e550d6193c?w=50"}
+                                  src={
+                                    item.saree.imageUrl ||
+                                    "https://images.unsplash.com/photo-1610030469983-98e550d6193c?w=50"
+                                  }
                                   alt=""
                                   className="w-6 h-8 rounded object-cover border-2 border-background"
                                 />
                               ))}
                               {sale.items.length > 3 && (
                                 <div className="w-6 h-8 rounded bg-muted border-2 border-background flex items-center justify-center">
-                                  <span className="text-xs">+{sale.items.length - 3}</span>
+                                  <span className="text-xs">
+                                    +{sale.items.length - 3}
+                                  </span>
                                 </div>
                               )}
                             </div>
@@ -509,19 +580,27 @@ export default function StoreDashboard() {
                     <div className="space-y-3">
                       <div className="flex items-center justify-between">
                         <span className="text-sm">Pending</span>
-                        <Badge variant="secondary">{stats.requestStats.pending}</Badge>
+                        <Badge variant="secondary">
+                          {stats.requestStats.pending}
+                        </Badge>
                       </div>
                       <div className="flex items-center justify-between">
                         <span className="text-sm">Approved</span>
-                        <Badge className="bg-green-100 text-green-800">{stats.requestStats.approved}</Badge>
+                        <Badge className="bg-green-100 text-green-800">
+                          {stats.requestStats.approved}
+                        </Badge>
                       </div>
                       <div className="flex items-center justify-between">
                         <span className="text-sm">Dispatched</span>
-                        <Badge className="bg-blue-100 text-blue-800">{stats.requestStats.dispatched}</Badge>
+                        <Badge className="bg-blue-100 text-blue-800">
+                          {stats.requestStats.dispatched}
+                        </Badge>
                       </div>
                       <div className="flex items-center justify-between">
                         <span className="text-sm">Received</span>
-                        <Badge className="bg-purple-100 text-purple-800">{stats.requestStats.received}</Badge>
+                        <Badge className="bg-purple-100 text-purple-800">
+                          {stats.requestStats.received}
+                        </Badge>
                       </div>
                     </div>
                     <div className="pt-2">
@@ -553,7 +632,9 @@ export default function StoreDashboard() {
                   <div>
                     <div className="flex items-center justify-between mb-1">
                       <span className="text-sm">Total Items</span>
-                      <span className="text-sm font-medium">{stats?.totalInventory || 0}</span>
+                      <span className="text-sm font-medium">
+                        {stats?.totalInventory || 0}
+                      </span>
                     </div>
                   </div>
                   {lowStockProducts && (
@@ -564,8 +645,12 @@ export default function StoreDashboard() {
                           {lowStockProducts.length}
                         </span>
                       </div>
-                      <Progress 
-                        value={(lowStockProducts.length / (stats?.totalInventory || 1)) * 100} 
+                      <Progress
+                        value={
+                          (lowStockProducts.length /
+                            (stats?.totalInventory || 1)) *
+                          100
+                        }
                         className="h-2"
                       />
                     </div>
@@ -606,13 +691,17 @@ export default function StoreDashboard() {
                     <h4 className="text-sm font-medium mb-3">Recent Sales</h4>
                     <div className="space-y-2">
                       {recentSales.slice(0, 3).map((sale) => (
-                        <div key={sale.id} className="flex items-center justify-between text-sm">
+                        <div
+                          key={sale.id}
+                          className="flex items-center justify-between text-sm"
+                        >
                           <div className="flex items-center gap-2">
                             <Receipt className="h-4 w-4 text-green-500" />
                             <span>Sale #{sale.id.slice(-8)}</span>
                           </div>
                           <span className="text-muted-foreground">
-                            {formatPrice(sale.totalAmount)} • {formatDate(sale.createdAt)}
+                            {formatPrice(sale.totalAmount)} •{" "}
+                            {formatDate(sale.createdAt)}
                           </span>
                         </div>
                       ))}
@@ -623,10 +712,15 @@ export default function StoreDashboard() {
                 {/* Recent Requests Activity */}
                 {stats?.recentRequests && stats.recentRequests.length > 0 && (
                   <div>
-                    <h4 className="text-sm font-medium mb-3">Recent Requests</h4>
+                    <h4 className="text-sm font-medium mb-3">
+                      Recent Requests
+                    </h4>
                     <div className="space-y-2">
                       {stats.recentRequests.slice(0, 3).map((request) => (
-                        <div key={request.id} className="flex items-center justify-between text-sm">
+                        <div
+                          key={request.id}
+                          className="flex items-center justify-between text-sm"
+                        >
                           <div className="flex items-center gap-2">
                             <Package className="h-4 w-4 text-blue-500" />
                             <span>Request for {request.saree.name}</span>
@@ -643,10 +737,15 @@ export default function StoreDashboard() {
                 {/* Recent Exchanges Activity */}
                 {stats?.recentExchanges && stats.recentExchanges.length > 0 && (
                   <div>
-                    <h4 className="text-sm font-medium mb-3">Recent Exchanges</h4>
+                    <h4 className="text-sm font-medium mb-3">
+                      Recent Exchanges
+                    </h4>
                     <div className="space-y-2">
                       {stats.recentExchanges.slice(0, 3).map((exchange) => (
-                        <div key={exchange.id} className="flex items-center justify-between text-sm">
+                        <div
+                          key={exchange.id}
+                          className="flex items-center justify-between text-sm"
+                        >
                           <div className="flex items-center gap-2">
                             <RefreshCw className="h-4 w-4 text-amber-500" />
                             <span>Exchange #{exchange.id.slice(-8)}</span>
@@ -660,13 +759,15 @@ export default function StoreDashboard() {
                   </div>
                 )}
 
-                {(!recentSales || recentSales.length === 0) && 
-                 (!stats?.recentRequests || stats.recentRequests.length === 0) && 
-                 (!stats?.recentExchanges || stats.recentExchanges.length === 0) && (
-                  <div className="text-center py-8 text-muted-foreground">
-                    No recent activity to display
-                  </div>
-                )}
+                {(!recentSales || recentSales.length === 0) &&
+                  (!stats?.recentRequests ||
+                    stats.recentRequests.length === 0) &&
+                  (!stats?.recentExchanges ||
+                    stats.recentExchanges.length === 0) && (
+                    <div className="text-center py-8 text-muted-foreground">
+                      No recent activity to display
+                    </div>
+                  )}
               </div>
             </CardContent>
           </Card>

@@ -132,7 +132,6 @@ export default function StoreExchange() {
     enabled: !!selectedSaleId && !!user && user.role === "store",
   });
 
-
   const { data: products, isLoading: productsLoading } = useQuery<
     ShopProduct[]
   >({
@@ -176,28 +175,17 @@ export default function StoreExchange() {
       return response.json();
     },
     onSuccess: async (data) => {
-      await Promise.all([
-        queryClient.invalidateQueries({
-          queryKey: ["/api/store/store-exchanges"],
-        }),
-        queryClient.invalidateQueries({ queryKey: ["/api/store/products"] }),
-        queryClient.invalidateQueries({
-          queryKey: ["/api/store/sales/paginated"],
-        }),
-        queryClient.invalidateQueries({
-          queryKey: ["/api/store/sales/recent"],
-        }),
-        queryClient.invalidateQueries({ queryKey: ["/api/store/stats"] }),
-      ]);
+      queryClient.invalidateQueries({
+        predicate: (query) =>
+          typeof query.queryKey[0] === "string" &&
+          query.queryKey[0].startsWith("/api/store"),
+      });
 
       toast({
         title: "Success",
         description: "Exchange completed successfully",
       });
-
-      setTimeout(() => {
-        navigate(`/store/invoice/${data.orderId}`);
-      }, 500);
+      navigate(`/store/invoice/${data.orderId}`);
     },
     onError: (error: any) => {
       toast({
@@ -310,12 +298,14 @@ export default function StoreExchange() {
           saree: saleItem.saree,
           quantity: 1,
           maxQuantity: saleItem.availableQuantity,
-          unitPrice: saleItem.saree.activeSale && saleItem.saree.discountedPrice 
-            ? saleItem.saree.discountedPrice.toString() 
-            : saleItem.price,
-          returnAmount: saleItem.saree.activeSale && saleItem.saree.discountedPrice 
-            ? saleItem.saree.discountedPrice.toString() 
-            : saleItem.price,
+          unitPrice:
+            saleItem.saree.activeSale && saleItem.saree.discountedPrice
+              ? saleItem.saree.discountedPrice.toString()
+              : saleItem.price,
+          returnAmount:
+            saleItem.saree.activeSale && saleItem.saree.discountedPrice
+              ? saleItem.saree.discountedPrice.toString()
+              : saleItem.price,
         },
       ]);
     }
@@ -391,12 +381,14 @@ export default function StoreExchange() {
           saree: product.saree,
           quantity: 1,
           maxQuantity: product.storeStock,
-          unitPrice: product.saree.activeSale && product.saree.discountedPrice 
-            ? product.saree.discountedPrice.toString() 
-            : product.saree.price,
-          lineAmount: product.saree.activeSale && product.saree.discountedPrice 
-            ? product.saree.discountedPrice.toString() 
-            : product.saree.price,
+          unitPrice:
+            product.saree.activeSale && product.saree.discountedPrice
+              ? product.saree.discountedPrice.toString()
+              : product.saree.price,
+          lineAmount:
+            product.saree.activeSale && product.saree.discountedPrice
+              ? product.saree.discountedPrice.toString()
+              : product.saree.price,
         },
       ]);
     }
@@ -981,16 +973,17 @@ export default function StoreExchange() {
                   </div>
                 ) : null}
               </CardHeader>
-              {saleData?.eligibilityData && !saleData.eligibilityData.eligible && (
-                <div className="mx-6 mb-4 p-3 bg-red-50 border border-red-200 rounded-lg">
-                  <p className="text-sm text-red-800 font-medium">
-                    Exchange Not Available
-                  </p>
-                  <p className="text-xs text-red-600 mt-1">
-                    {saleData.eligibilityData.reason}
-                  </p>
-                </div>
-              )}
+              {saleData?.eligibilityData &&
+                !saleData.eligibilityData.eligible && (
+                  <div className="mx-6 mb-4 p-3 bg-red-50 border border-red-200 rounded-lg">
+                    <p className="text-sm text-red-800 font-medium">
+                      Exchange Not Available
+                    </p>
+                    <p className="text-xs text-red-600 mt-1">
+                      {saleData.eligibilityData.reason}
+                    </p>
+                  </div>
+                )}
               <CardContent>
                 <p className="text-sm font-medium mb-3">Original Sale Items</p>
                 <div className="space-y-2 max-h-[300px] overflow-y-auto">
@@ -1023,9 +1016,12 @@ export default function StoreExchange() {
                               {item.saree.name}
                             </p>
                             <p className="text-sm text-primary font-semibold">
-                              {item.saree.activeSale && item.saree.discountedPrice ? (
+                              {item.saree.activeSale &&
+                              item.saree.discountedPrice ? (
                                 <div className="flex items-center gap-2">
-                                  <span>{formatPrice(item.saree.discountedPrice)}</span>
+                                  <span>
+                                    {formatPrice(item.saree.discountedPrice)}
+                                  </span>
                                   <span className="text-xs text-muted-foreground line-through">
                                     {formatPrice(item.price)}
                                   </span>
@@ -1198,15 +1194,22 @@ export default function StoreExchange() {
                                     {item.saree.name}
                                   </p>
                                   <p className="text-sm text-primary font-semibold">
-                                    {item.saree.activeSale && item.saree.discountedPrice ? (
+                                    {item.saree.activeSale &&
+                                    item.saree.discountedPrice ? (
                                       <div className="flex items-center gap-2">
-                                        <span>{formatPrice(item.saree.discountedPrice)}</span>
+                                        <span>
+                                          {formatPrice(
+                                            item.saree.discountedPrice,
+                                          )}
+                                        </span>
                                         <span className="text-xs text-muted-foreground line-through">
                                           {formatPrice(item.saree.price)}
                                         </span>
                                       </div>
                                     ) : (
-                                      <span>{formatPrice(item.saree.price)}</span>
+                                      <span>
+                                        {formatPrice(item.saree.price)}
+                                      </span>
                                     )}
                                   </p>
                                   <Badge

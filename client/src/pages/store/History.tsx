@@ -1,10 +1,20 @@
-
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { Receipt, User, Phone, ArrowLeftRight, Download, Clock, AlertCircle } from "lucide-react";
+import {
+  Receipt,
+  User,
+  Phone,
+  ArrowLeftRight,
+  Download,
+  Clock,
+  AlertCircle,
+  RefreshCw,
+  Eye,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   Dialog,
   DialogContent,
@@ -13,6 +23,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { useAuth } from "@/lib/auth";
+import { useToast } from "@/hooks/use-toast";
 import { DataTable } from "@/components/ui/data-table";
 import { useDataTable } from "@/hooks/use-data-table";
 import { ColumnDef } from "@tanstack/react-table";
@@ -20,12 +31,14 @@ import { useQuery } from "@tanstack/react-query";
 import * as XLSX from "xlsx";
 import { saveAs } from "file-saver";
 import type { StoreSaleWithItems } from "@shared/schema";
+import { apiRequest } from "@/lib/queryClient";
 
 export default function StoreHistory() {
   const navigate = useNavigate();
   const { user } = useAuth();
+  const { toast } = useToast();
   const [selectedSale, setSelectedSale] = useState<StoreSaleWithItems | null>(
-    null
+    null,
   );
 
   const {
@@ -34,14 +47,15 @@ export default function StoreHistory() {
     pageIndex,
     pageSize,
     isLoading,
+    isFetching,
     handlePaginationChange,
     handleSearchChange,
     handleDateFilterChange,
+    refetch,
   } = useDataTable<StoreSaleWithItems>({
     queryKey: "/api/store/sales/paginated",
     initialPageSize: 10,
   });
-
 
   const formatPrice = (price: number | string) => {
     const numPrice = typeof price === "string" ? parseFloat(price) : price;
@@ -69,20 +83,23 @@ export default function StoreHistory() {
 
     // Prepare data for Excel export
     const excelData = sales.map((sale) => {
-      const items = sale.items.map((item: any) =>
-        `${item.saree.name} (${item.quantity} x ${formatPrice(item.price)})`
-      ).join("; ");
+      const items = sale.items
+        .map(
+          (item: any) =>
+            `${item.saree.name} (${item.quantity} x ${formatPrice(item.price)})`,
+        )
+        .join("; ");
 
       return {
         "Sale ID": `#${sale.id}`,
-        "Date": formatDate(sale.createdAt),
+        Date: formatDate(sale.createdAt),
         "Customer Name": sale.customerName || "Walk-in Customer",
         "Customer Phone": sale.customerPhone || "-",
-        "Items": items,
+        Items: items,
         "Items Count": sale.items.length,
         "Sale Type": sale.saleType === "walk_in" ? "Walk-in" : "Reserved",
         "Total Amount": parseFloat(sale.totalAmount.toString()),
-        "Payment Mode": sale.paymentMode || "-"
+        "Payment Mode": sale.paymentMode || "-",
       };
     });
 
@@ -91,9 +108,11 @@ export default function StoreHistory() {
     XLSX.utils.book_append_sheet(wb, ws, "Sales History");
 
     const excelBuffer = XLSX.write(wb, { bookType: "xlsx", type: "array" });
-    const data = new Blob([excelBuffer], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
+    const data = new Blob([excelBuffer], {
+      type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    });
 
-    const fileName = `sales_history_${new Date().toISOString().split('T')[0]}.xlsx`;
+    const fileName = `sales_history_${new Date().toISOString().split("T")[0]}.xlsx`;
     saveAs(data, fileName);
   };
 
@@ -102,9 +121,7 @@ export default function StoreHistory() {
       accessorKey: "id",
       header: "Sale ID",
       cell: ({ row }) => (
-        <span className="font-mono text-sm">
-          #{row.original.id}
-        </span>
+        <span className="font-mono text-sm">#{row.original.id}</span>
       ),
     },
     {
@@ -177,15 +194,15 @@ export default function StoreHistory() {
               {sale.saleType === "walk_in" ? "Walk-in" : "Reserved"}
             </Badge>
             {sale.items.some(
-              (item: any) => (item.returnedQuantity || 0) > 0
+              (item: any) => (item.returnedQuantity || 0) > 0,
             ) && (
-                <Badge
-                  variant="outline"
-                  className="text-orange-600 border-orange-600"
-                >
-                  Exchanged
-                </Badge>
-              )}
+              <Badge
+                variant="outline"
+                className="text-orange-600 border-orange-600"
+              >
+                Exchanged
+              </Badge>
+            )}
           </div>
         );
       },
@@ -196,7 +213,7 @@ export default function StoreHistory() {
       cell: ({ row }) => {
         const sale = row.original;
         const eligibility = sale.eligibilityData;
-        
+
         if (!eligibility) {
           return (
             <div className="flex items-center gap-1">
@@ -235,12 +252,20 @@ export default function StoreHistory() {
       ),
     },
     {
-      id:'invoice',
+      id: "invoice",
       header: "Invoice",
-      cell:({row})=>(
-        <Button variant="ghost" onClick={()=>navigate(`/store/invoice/${row.original.id}`)}>Invoice</Button>
-      )
-
+      cell: ({ row }) => (
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            size={"sm"}
+            onClick={() => navigate(`/store/invoice/${row.original.id}`)}
+          >
+            <Eye className="h-4 w-4" />
+            View
+          </Button>
+        </div>
+      ),
     },
     {
       id: "actions",
@@ -249,9 +274,9 @@ export default function StoreHistory() {
         const sale = row.original;
         const eligibility = sale.eligibilityData;
         const isFullyReturned = sale.items.every(
-          (item: any) => item.quantity === (item.returnedQuantity || 0)
+          (item: any) => item.quantity === (item.returnedQuantity || 0),
         );
-        
+
         if (isFullyReturned) {
           return (
             <Badge variant="secondary" className="text-xs">
@@ -261,7 +286,7 @@ export default function StoreHistory() {
         }
 
         const isExchangeDisabled = eligibility && !eligibility.eligible;
-        
+
         return (
           <div className="flex gap-2">
             <Button
@@ -279,7 +304,9 @@ export default function StoreHistory() {
                 navigate(`/store/exchange/${sale.id}`);
               }}
               disabled={isExchangeDisabled}
-              title={isExchangeDisabled ? eligibility?.reason : "Process Exchange"}
+              title={
+                isExchangeDisabled ? eligibility?.reason : "Process Exchange"
+              }
             >
               <ArrowLeftRight className="h-4 w-4 mr-1" />
               Exchange
@@ -295,22 +322,46 @@ export default function StoreHistory() {
       <div className="max-w-6xl mx-auto">
         <div className="mb-8 flex items-center justify-between">
           <div>
-            <h1 className="text-2xl font-semibold" data-testid="text-page-title">
+            <h1
+              className="text-2xl font-semibold"
+              data-testid="text-page-title"
+            >
               Sales History
             </h1>
+            {isFetching && (
+              <div className="flex items-center gap-2 text-sm text-muted-foreground mt-2">
+                <RefreshCw className="h-4 w-4 animate-spin" />
+                Fetching data...
+              </div>
+            )}
             <p className="text-muted-foreground">
               View all past in-store transactions
             </p>
           </div>
-          <Button
-            variant="outline"
-            onClick={exportToExcel}
-            disabled={!sales || sales.length === 0}
-            className="flex items-center gap-2"
-          >
-            <Download className="h-4 w-4" />
-            Download Excel
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => refetch()}
+              disabled={isFetching}
+              className="flex items-center gap-2"
+            >
+              <RefreshCw
+                className={`h-4 w-4 ${isFetching ? "animate-spin" : ""}`}
+              />
+              Refetch
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={exportToExcel}
+              disabled={!sales || sales.length === 0}
+              className="flex items-center gap-2"
+            >
+              <Download className="h-4 w-4" />
+              Download Excel
+            </Button>
+          </div>
         </div>
 
         <DataTable
@@ -337,7 +388,7 @@ export default function StoreHistory() {
               Sale Details
             </DialogTitle>
             <DialogDescription>
-              #{selectedSale?.id} - {" "}
+              #{selectedSale?.id} -{" "}
               {selectedSale && formatDate(selectedSale.createdAt)}
             </DialogDescription>
           </DialogHeader>
@@ -381,9 +432,13 @@ export default function StoreHistory() {
                           {item.saree.name}
                         </p>
                         <p className="text-xs text-muted-foreground">
-                          Qty: {item.quantity} x {item.saree.activeSale && item.saree.discountedPrice ? (
+                          Qty: {item.quantity} x{" "}
+                          {item.saree.activeSale &&
+                          item.saree.discountedPrice ? (
                             <span className="flex items-center gap-1">
-                              <span>{formatPrice(item.saree.discountedPrice)}</span>
+                              <span>
+                                {formatPrice(item.saree.discountedPrice)}
+                              </span>
                               <span className="text-xs line-through text-muted-foreground">
                                 {formatPrice(item.price)}
                               </span>
@@ -404,13 +459,23 @@ export default function StoreHistory() {
                       <span className="font-medium">
                         {item.saree.activeSale && item.saree.discountedPrice ? (
                           <div className="flex items-center gap-2">
-                            <span>{formatPrice(item.saree.discountedPrice * item.quantity)}</span>
+                            <span>
+                              {formatPrice(
+                                item.saree.discountedPrice * item.quantity,
+                              )}
+                            </span>
                             <span className="text-xs line-through text-muted-foreground">
-                              {formatPrice(parseFloat(item.price) * item.quantity)}
+                              {formatPrice(
+                                parseFloat(item.price) * item.quantity,
+                              )}
                             </span>
                           </div>
                         ) : (
-                          <span>{formatPrice(parseFloat(item.price) * item.quantity)}</span>
+                          <span>
+                            {formatPrice(
+                              parseFloat(item.price) * item.quantity,
+                            )}
+                          </span>
                         )}
                       </span>
                     </div>
@@ -430,9 +495,10 @@ export default function StoreHistory() {
                 variant="outline"
                 onClick={() => navigate(`/store/exchange/${selectedSale.id}`)}
                 disabled={selectedSale.eligibilityData?.eligible === false}
-                title={selectedSale.eligibilityData?.eligible === false 
-                  ? selectedSale.eligibilityData?.reason 
-                  : "Process Exchange"
+                title={
+                  selectedSale.eligibilityData?.eligible === false
+                    ? selectedSale.eligibilityData?.reason
+                    : "Process Exchange"
                 }
               >
                 <ArrowLeftRight className="h-4 w-4 mr-2" />

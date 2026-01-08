@@ -1,14 +1,9 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import {
-  ShoppingCart,
-  Plus,
-  Minus,
-  Trash2,
-  Tag,
-} from "lucide-react";
+import { ShoppingCart, Plus, Minus, Trash2, Tag, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Skeleton } from "@/components/ui/skeleton";
 import { DataTable } from "@/components/ui/data-table";
 import { useDataTable } from "@/hooks/use-data-table";
 import { ColumnDef } from "@tanstack/react-table";
@@ -56,7 +51,6 @@ interface CartItem {
   };
 }
 
-
 export default function StoreSale() {
   const { user } = useAuth();
   const { toast } = useToast();
@@ -72,11 +66,16 @@ export default function StoreSale() {
     addCartLoading,
     updateCartLoading,
     removeLoading,
-    setStoreId
+    setStoreId,
   } = useStoreCart();
   const disabledBtn = (sareeId: string) => {
-    return loading || addCartLoading[sareeId] || updateCartLoading[sareeId] || removeLoading[sareeId];
-  }
+    return (
+      loading ||
+      addCartLoading[sareeId] ||
+      updateCartLoading[sareeId] ||
+      removeLoading[sareeId]
+    );
+  };
   useEffect(() => {
     if (!storeId) return;
     setStoreId(storeId);
@@ -97,14 +96,15 @@ export default function StoreSale() {
     pageIndex,
     pageSize,
     isLoading: tableLoading,
+    isFetching,
     handlePaginationChange,
     handleSearchChange,
     handleFiltersChange,
+    refetch,
   } = useDataTable<ShopProduct>({
     queryKey: "/api/store/products/paginated",
     initialPageSize: 20,
   });
-
 
   const formatPrice = (price: number | string) => {
     const numPrice = typeof price === "string" ? parseFloat(price) : price;
@@ -125,10 +125,13 @@ export default function StoreSale() {
       return;
     }
 
-    const existing = cartItems.find((item) => item.sareeId === product.saree.id);
-    const price = product.saree.activeSale && product.saree.discountedPrice 
-      ? product.saree.discountedPrice 
-      : parseFloat(product.saree.price);
+    const existing = cartItems.find(
+      (item) => item.sareeId === product.saree.id,
+    );
+    const price =
+      product.saree.activeSale && product.saree.discountedPrice
+        ? product.saree.discountedPrice
+        : parseFloat(product.saree.price);
 
     if (existing) {
       if (existing.quantity < product.storeStock) {
@@ -159,7 +162,7 @@ export default function StoreSale() {
       return {
         ...item,
         quantity: newQty,
-        lineAmount: newQty * item.unitPrice
+        lineAmount: newQty * item.unitPrice,
       };
     });
     updateItems(updatedCart, sareeId);
@@ -267,8 +270,13 @@ export default function StoreSale() {
       cell: ({ row }) => {
         const outOfStock = row.original.storeStock === 0;
         return (
-          <Badge variant={outOfStock ? "destructive" : "secondary"} className="text-xs">
-            {outOfStock ? "Out of stock" : `${row.original.storeStock} in stock`}
+          <Badge
+            variant={outOfStock ? "destructive" : "secondary"}
+            className="text-xs"
+          >
+            {outOfStock
+              ? "Out of stock"
+              : `${row.original.storeStock} in stock`}
           </Badge>
         );
       },
@@ -278,8 +286,8 @@ export default function StoreSale() {
       header: "Actions",
       cell: ({ row }) => {
         const product = row.original;
-        const inCart = cartItems.some(c => c.sareeId === product.saree.id);
-        const cartItem = cartItems.find(c => c.sareeId === product.saree.id);
+        const inCart = cartItems.some((c) => c.sareeId === product.saree.id);
+        const cartItem = cartItems.find((c) => c.sareeId === product.saree.id);
         const outOfStock = product.storeStock === 0;
 
         if (inCart && cartItem) {
@@ -290,7 +298,9 @@ export default function StoreSale() {
                 size="icon"
                 className="h-8 w-8"
                 onClick={() => updateQuantity(product.saree.id, -1)}
-                disabled={disabledBtn(product.saree.id) || cartItem.quantity <= 1}
+                disabled={
+                  disabledBtn(product.saree.id) || cartItem.quantity <= 1
+                }
               >
                 <Minus className="h-3 w-3" />
               </Button>
@@ -302,7 +312,10 @@ export default function StoreSale() {
                 size="icon"
                 className="h-8 w-8"
                 onClick={() => updateQuantity(product.saree.id, 1)}
-                disabled={disabledBtn(product.saree.id) || cartItem.quantity >= product.storeStock}
+                disabled={
+                  disabledBtn(product.saree.id) ||
+                  cartItem.quantity >= product.storeStock
+                }
               >
                 <Plus className="h-3 w-3" />
               </Button>
@@ -339,51 +352,75 @@ export default function StoreSale() {
     {
       key: "categoryId",
       label: "Category",
-      options: filterOptions?.categories?.map((cat) => ({
-        label: cat.name,
-        value: cat.id,
-      })) || [],
+      options:
+        filterOptions?.categories?.map((cat) => ({
+          label: cat.name,
+          value: cat.id,
+        })) || [],
     },
     {
       key: "colorId",
       label: "Color",
-      options: filterOptions?.colors?.map((color) => ({
-        label: color.name,
-        value: color.id,
-      })) || [],
+      options:
+        filterOptions?.colors?.map((color) => ({
+          label: color.name,
+          value: color.id,
+        })) || [],
     },
     {
       key: "fabricId",
       label: "Fabric",
-      options: filterOptions?.fabrics?.map((fabric) => ({
-        label: fabric.name,
-        value: fabric.id,
-      })) || [],
+      options:
+        filterOptions?.fabrics?.map((fabric) => ({
+          label: fabric.name,
+          value: fabric.id,
+        })) || [],
     },
   ];
 
   return (
     <div className="max-w-7xl mx-auto">
       <div className="mb-4 flex items-center justify-between">
-        <h1 className="text-2xl font-semibold" data-testid="text-page-title">
-          New Sale
-        </h1>
-        <Button
-          variant="outline"
-          onClick={() => navigate("/store/cart")}
-          className="gap-2"
-        >
-          <ShoppingCart className="h-4 w-4" />
-          Cart
-          {cartItems.length > 0 && (
-            <>
-              <span>-</span>
-              <span className="text-primary">
-                {cartItems.reduce((sum, item) => sum + item.quantity, 0)}
-              </span>
-            </>
+        <div>
+          <h1 className="text-2xl font-semibold" data-testid="text-page-title">
+            New Sale
+          </h1>
+          {isFetching && (
+            <div className="flex items-center gap-2 text-sm text-muted-foreground mt-2">
+              <RefreshCw className="h-4 w-4 animate-spin" />
+              Fetching data...
+            </div>
           )}
-        </Button>
+        </div>
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => refetch()}
+            disabled={isFetching}
+            className="flex items-center gap-2"
+          >
+            <RefreshCw className={`h-4 w-4 ${isFetching ? 'animate-spin' : ''}`} />
+            Refetch
+          </Button>
+          <Button
+            variant="outline"
+            size={'sm'}
+            onClick={() => navigate("/store/cart")}
+            className="gap-2"
+          >
+            <ShoppingCart className="h-4 w-4" />
+            Cart
+            {cartItems.length > 0 && (
+              <>
+                <span>-</span>
+                <span className="text-primary">
+                  {cartItems.reduce((sum, item) => sum + item.quantity, 0)}
+                </span>
+              </>
+            )}
+          </Button>
+        </div>
       </div>
 
       <div>

@@ -344,17 +344,11 @@ export default function Cart() {
         description: `Order #${data.orderId} completed successfully${data.pointsRedeemed ? ` - ${data.pointsRedeemed} points redeemed` : ""}`,
       });
 
-      await Promise.all([
-        queryClient.refetchQueries({ queryKey: ["/api/store/products"] }),
-        queryClient.refetchQueries({
-          queryKey: ["/api/store/products/paginated"],
-        }),
-        queryClient.refetchQueries({
-          queryKey: ["/api/store/sales/paginated"],
-        }),
-        queryClient.refetchQueries({ queryKey: ["/api/store/sales/recent"] }),
-        queryClient.refetchQueries({ queryKey: ["/api/store/stats"] }),
-      ]);
+      queryClient.invalidateQueries({
+        predicate: (query) =>
+          typeof query.queryKey[0] === "string" &&
+          query.queryKey[0].startsWith("/api/store"),
+      });
 
       clearCart();
       resetForm();
@@ -503,7 +497,7 @@ export default function Cart() {
         <h1 className="text-lg font-bold text-slate-800 flex items-center gap-2">
           <ShoppingCart /> Cart
         </h1>
-        <Button onClick={() => navigate("/store/sale")} variant="outline">
+        <Button size="sm" onClick={() => navigate("/store/sale")} variant="outline">
           <Plus /> Add Item
         </Button>
       </div>
@@ -643,13 +637,13 @@ export default function Cart() {
                   </h4>
 
                   <div className="flex gap-2">
-                    <Input
+                    <Input 
                       className="w-3/4 sm:w-auto"
                       placeholder="Enter coupon code"
                       value={couponCode}
                       onChange={(e) => setCouponCode(e.target.value)}
                     />
-                    <Button onClick={applyCoupon} className="w-1/4 sm:w-auto">
+                    <Button size='sm' onClick={applyCoupon} className="w-1/4 sm:w-auto">
                       Apply
                     </Button>
                   </div>

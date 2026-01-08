@@ -1,15 +1,22 @@
 import { useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { Package, Globe, Store, ArrowLeftRight } from "lucide-react";
+import { Package, Globe, Store, ArrowLeftRight, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Skeleton } from "@/components/ui/skeleton";
 import { useAuth } from "@/lib/auth";
 import { useQuery } from "@tanstack/react-query";
 import { DataTable, FilterConfig } from "@/components/ui/data-table";
 import { useDataTable } from "@/hooks/use-data-table";
 import { ColumnDef } from "@tanstack/react-table";
-import type { SareeWithDetails, Category, Color, Fabric, StockRequestWithDetails } from "@shared/schema";
+import type {
+  SareeWithDetails,
+  Category,
+  Color,
+  Fabric,
+  StockRequestWithDetails,
+} from "@shared/schema";
 import { RequestDialog } from "./Utils/RequestDialog";
 
 type ShopProduct = {
@@ -49,10 +56,12 @@ export default function StoreInventoryPage() {
     pageIndex,
     pageSize,
     isLoading,
+    isFetching,
     handlePaginationChange,
     handleSearchChange,
     handleFiltersChange,
     handleDateFilterChange,
+    refetch,
   } = useDataTable<ShopProduct>({
     queryKey: "/api/store/products/paginated",
     initialPageSize: 10,
@@ -86,34 +95,42 @@ export default function StoreInventoryPage() {
     switch (status) {
       case "pending":
         return (
-          <Badge variant="secondary" className="bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-100">
+          <Badge
+            variant="secondary"
+            className="bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-100"
+          >
             Pending
           </Badge>
         );
       case "approved":
         return (
-          <Badge variant="secondary" className="bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-100">
+          <Badge
+            variant="secondary"
+            className="bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-100"
+          >
             Approved
           </Badge>
         );
       case "dispatched":
         return (
-          <Badge variant="secondary" className="bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-100">
+          <Badge
+            variant="secondary"
+            className="bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-100"
+          >
             Dispatched
           </Badge>
         );
       case "received":
         return (
-          <Badge variant="default" className="bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-100">
+          <Badge
+            variant="default"
+            className="bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-100"
+          >
             Received
           </Badge>
         );
       case "rejected":
-        return (
-          <Badge variant="destructive">
-            Rejected
-          </Badge>
-        );
+        return <Badge variant="destructive">Rejected</Badge>;
       default:
         return <Badge variant="outline">{status}</Badge>;
     }
@@ -258,16 +275,21 @@ export default function StoreInventoryPage() {
       header: "Stock Requests",
       cell: ({ row }) => {
         const item = row.original;
-        const requests = stockRequests?.filter(req => req.sareeId === item.saree.id) || [];
-        
+        const requests =
+          stockRequests?.filter((req) => req.sareeId === item.saree.id) || [];
+
         if (requests.length === 0) {
-          return <span className="text-muted-foreground text-sm">No requests</span>;
+          return (
+            <span className="text-muted-foreground text-sm">No requests</span>
+          );
         }
-        
+
         const latestRequest = requests[0];
         return (
           <div className="space-y-1">
-            <div className="text-sm font-medium">{latestRequest.quantity} units</div>
+            <div className="text-sm font-medium">
+              {latestRequest.quantity} units
+            </div>
             {getRequestStatusBadge(latestRequest.status)}
           </div>
         );
@@ -278,21 +300,24 @@ export default function StoreInventoryPage() {
       header: "Actions",
       cell: ({ row }) => {
         const item = row.original;
-        const requests = stockRequests?.filter(req => req.sareeId === item.saree.id) || [];
+        const requests =
+          stockRequests?.filter((req) => req.sareeId === item.saree.id) || [];
         const latestRequest = requests[0];
-        
+
         // Disable button if there's a pending, approved, or dispatched request
-        const isDisabled = latestRequest && 
+        const isDisabled =
+          latestRequest &&
           ["pending", "approved", "dispatched"].includes(latestRequest.status);
-        
-        const disabledReason = latestRequest?.status === "pending" 
-          ? "Request pending" 
-          : latestRequest?.status === "approved" 
-          ? "Request approved" 
-          : latestRequest?.status === "dispatched" 
-          ? "Request dispatched" 
-          : "";
-        
+
+        const disabledReason =
+          latestRequest?.status === "pending"
+            ? "Request pending"
+            : latestRequest?.status === "approved"
+              ? "Request approved"
+              : latestRequest?.status === "dispatched"
+                ? "Request dispatched"
+                : "";
+
         return (
           <Button
             size="sm"
@@ -348,16 +373,36 @@ export default function StoreInventoryPage() {
           <h1 className="text-2xl font-semibold" data-testid="text-page-title">
             Shop Products
           </h1>
+          {isFetching && (
+            <div className="flex items-center gap-2 text-sm text-muted-foreground mt-2">
+              <RefreshCw className="h-4 w-4 animate-spin" />
+              Fetching data...
+            </div>
+          )}
           <p className="text-muted-foreground">
             All products available for your store
           </p>
         </div>
-        <Link to="/store/requests">
-          <Button data-testid="button-request-stock">
-            <Package className="h-4 w-4 mr-2" />
-            Stock Requests
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => refetch()}
+            disabled={isFetching}
+            className="flex items-center gap-2"
+          >
+            <RefreshCw
+              className={`h-4 w-4 ${isFetching ? "animate-spin" : ""}`}
+            />
+            Refetch
           </Button>
-        </Link>
+          <Link to="/store/requests">
+            <Button size="sm" data-testid="button-request-stock">
+              <Package className="h-4 w-4 mr-2" />
+              Stock Requests
+            </Button>
+          </Link>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">

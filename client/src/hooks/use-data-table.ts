@@ -73,7 +73,7 @@ export function useDataTable<T>({
     return res.json();
   }, [url]);
 
-  const { data, isLoading, error, refetch } = useQuery<PaginatedResponse<T>>({
+  const { data, isLoading, error, refetch,isFetching } = useQuery<PaginatedResponse<T>>({
     queryKey: [queryKey, params],
     queryFn,
     placeholderData: (previousData) => previousData,
@@ -128,6 +128,7 @@ export function useDataTable<T>({
     pageIndex,
     pageSize,
     isLoading,
+    isFetching,
     error,
     search,
     filters,
