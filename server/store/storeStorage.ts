@@ -332,14 +332,14 @@ export class StoreRepository implements StoreStorage {
     }
     
     // Calculate loyalty points (₹100 = 50 points, so totalAmount / 2)
-    const loyaltyPointsEarned = Math.floor(data.totalAmount / 2);
+    // const loyaltyPointsEarned = Math.floor(data.totalAmount / 2);
     
     // Create or update customer with loyalty points
     await this.customerService.addOrCreateCustomerLoyalty(
       data.customerName,
       data.customerPhone,
       storeId,
-      loyaltyPointsEarned
+      0
     );
     
     await this.clearStoreCart(storeId);
@@ -916,16 +916,16 @@ export class StoreRepository implements StoreStorage {
       balanceDirection = "even";
     }
 
-    const loyaltyPointsEarned = balanceAmount > 0 ? Math.floor(balanceAmount / 2) : 0;
+    // const loyaltyPointsEarned = balanceAmount > 0 ? Math.floor(balanceAmount / 2) : 0;
     
-    if (loyaltyPointsEarned > 0 && data.customerName && data.customerPhone) {
-      await this.customerService.addOrCreateCustomerLoyalty(
-        data.customerName,
-        data.customerPhone,
-        storeId,
-        loyaltyPointsEarned
-      );
-    }
+    // if (loyaltyPointsEarned > 0 && data.customerName && data.customerPhone) {
+    //   await this.customerService.addOrCreateCustomerLoyalty(
+    //     data.customerName,
+    //     data.customerPhone,
+    //     storeId,
+    //     loyaltyPointsEarned
+    //   );
+    // }
 
     return await this.createStoreExchange(
       {

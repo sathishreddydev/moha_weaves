@@ -221,33 +221,33 @@ export const storeCartRoutes = (app: Express) => {
       let loyaltyDiscountAmount = 0;
       let pointsRedeemed = 0;
       
-      // Handle loyalty points redemption
-      if (validatedData.loyaltyDiscount && validatedData.loyaltyDiscount.pointsRedeemed > 0) {
-        // Get customer to check available points
-        const customer = await customerService.getCustomerByPhone(validatedData.customerPhone);
-        if (!customer) {
-          return res.status(404).json({ error: "Customer not found for loyalty points redemption" });
-        }
+      // // Handle loyalty points redemption
+      // if (validatedData.loyaltyDiscount && validatedData.loyaltyDiscount.pointsRedeemed > 0) {
+      //   // Get customer to check available points
+      //   const customer = await customerService.getCustomerByPhone(validatedData.customerPhone);
+      //   if (!customer) {
+      //     return res.status(404).json({ error: "Customer not found for loyalty points redemption" });
+      //   }
 
-        if (customer.loyaltyPoints < validatedData.loyaltyDiscount.pointsRedeemed) {
-          return res.status(400).json({ 
-            error: "Insufficient loyalty points",
-            availablePoints: customer.loyaltyPoints,
-            requestedPoints: validatedData.loyaltyDiscount.pointsRedeemed
-          });
-        }
+      //   if (customer.loyaltyPoints < validatedData.loyaltyDiscount.pointsRedeemed) {
+      //     return res.status(400).json({ 
+      //       error: "Insufficient loyalty points",
+      //       availablePoints: customer.loyaltyPoints,
+      //       requestedPoints: validatedData.loyaltyDiscount.pointsRedeemed
+      //     });
+      //   }
 
-        // Redeem the points
-        const updatedCustomer = await customerService.addOrCreateCustomerLoyalty(
-          customer.name,
-          customer.phone,
-          customer.storeId,
-          -validatedData.loyaltyDiscount.pointsRedeemed
-        );
+      //   // Redeem the points
+      //   const updatedCustomer = await customerService.addOrCreateCustomerLoyalty(
+      //     customer.name,
+      //     customer.phone,
+      //     customer.storeId,
+      //     -validatedData.loyaltyDiscount.pointsRedeemed
+      //   );
         
-        loyaltyDiscountAmount = validatedData.loyaltyDiscount.discountValue;
-        pointsRedeemed = validatedData.loyaltyDiscount.pointsRedeemed;
-      }
+      //   loyaltyDiscountAmount = validatedData.loyaltyDiscount.discountValue;
+      //   pointsRedeemed = validatedData.loyaltyDiscount.pointsRedeemed;
+      // }
 
       const order = await storeRepo.createStoreSale(storeId, processedBy, {
         customerName: validatedData.customerName,

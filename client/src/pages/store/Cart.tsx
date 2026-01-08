@@ -105,6 +105,7 @@ export default function Cart() {
   const [customerName, setCustomerName] = useState("");
   const [customerPhone, setCustomerPhone] = useState("");
   const [phoneError, setPhoneError] = useState("");
+  const [existingCustomer, setExistingCustomer] = useState<any>(null);
   const [disabledCompBtn, setDisabledCompBtn] = useState(false);
   const [loyaltyData, setLoyaltyData] = useState<any>(null);
   const [redeemPoints, setRedeemPoints] = useState(false);
@@ -200,11 +201,14 @@ export default function Cart() {
       ? (discount.value / 100) * subtotal
       : discount.value
     : 0;
-  
+
   // Calculate loyalty points discount
   const discountedSubtotal = subtotal - discountAmount;
-  const loyaltyDiscount = redeemPoints && loyaltyData ? Math.min(loyaltyData.redeemableValue, discountedSubtotal) : 0;
-  const finalDiscountedSubtotal = subtotal - discountAmount - loyaltyDiscount;
+  const loyaltyDiscount =
+    redeemPoints && loyaltyData
+      ? Math.min(loyaltyData.redeemableValue, discountedSubtotal)
+      : 0;
+  const finalDiscountedSubtotal = subtotal - discountAmount;
   const taxAmount = taxRules.reduce((sum, tax) => {
     return (
       sum +
@@ -225,6 +229,7 @@ export default function Cart() {
     setDiscount(null);
     setPaymentMode("cash");
     setCouponCode("");
+    setExistingCustomer(null);
   };
   const validatePhone = (phone: string) => {
     const phoneRegex = /^[0-9]{10}$/;
@@ -236,32 +241,42 @@ export default function Cart() {
     // Only allow numbers
     const numericValue = value.replace(/[^0-9]/g, "");
     setCustomerPhone(numericValue);
-    
+
     // Validate if exactly 10 digits
     if (numericValue.length > 0 && numericValue.length !== 10) {
       setPhoneError("Phone number must be exactly 10 digits");
       setLoyaltyData(null);
       setRedeemPoints(false);
+      setExistingCustomer(null);
     } else if (numericValue.length === 10) {
       setPhoneError("");
-      // Fetch loyalty points when phone is valid
+      // Fetch loyalty points and customer data when phone is valid
       await fetchLoyaltyPoints(numericValue);
     } else {
       setPhoneError("");
       setLoyaltyData(null);
       setRedeemPoints(false);
+      setExistingCustomer(null);
     }
   };
 
   const fetchLoyaltyPoints = async (phone: string) => {
     try {
       setLoyaltyLoading(true);
-      const res = await apiRequest("GET", `/api/store_customers/${phone}/loyalty-points`);
+      const res = await apiRequest(
+        "GET",
+        `/api/store_customers/${phone}/loyalty-points`,
+      );
       const data = await res.json();
+      if (data.exists && data.customer) {
+        setCustomerName(data.customer.name);
+        setExistingCustomer(data.customer);
+      }
       setLoyaltyData(data);
     } catch (error) {
       console.error("Error fetching loyalty points:", error);
       setLoyaltyData(null);
+      setExistingCustomer(null);
     } finally {
       setLoyaltyLoading(false);
     }
@@ -309,10 +324,13 @@ export default function Cart() {
       const res = await apiRequest("POST", "/api/store/checkout", {
         items: cartItems,
         discount,
-        loyaltyDiscount: pointsToRedeem > 0 ? {
-          pointsRedeemed: pointsToRedeem,
-          discountValue: pointsToRedeem * 0.05 // 100 points = ₹5, so 1 point = ₹0.05
-        } : null,
+        loyaltyDiscount:
+          pointsToRedeem > 0
+            ? {
+                pointsRedeemed: pointsToRedeem,
+                discountValue: pointsToRedeem * 0.05, // 100 points = ₹5, so 1 point = ₹0.05
+              }
+            : null,
         tax: 0,
         total: totalAmount,
         paymentMode,
@@ -323,7 +341,7 @@ export default function Cart() {
 
       toast({
         title: "Order Completed",
-        description: `Order #${data.orderId} completed successfully${data.pointsRedeemed ? ` - ${data.pointsRedeemed} points redeemed` : ''}`,
+        description: `Order #${data.orderId} completed successfully${data.pointsRedeemed ? ` - ${data.pointsRedeemed} points redeemed` : ""}`,
       });
 
       await Promise.all([
@@ -525,30 +543,28 @@ export default function Cart() {
               </h4>
 
               <div className="flex flex-col md:flex-row gap-3">
-                <Input
-                  placeholder="Customer Name"
-                  value={customerName}
-                  onChange={(e) => setCustomerName(e.target.value)}
-                  className="w-full md:flex-1"
-                  required
-                />
                 <div className="w-full md:flex-1">
-                <Input
-                  placeholder="Customer Phone"
-                  value={customerPhone}
-                  onChange={handlePhoneChange}
-                  className={`${phoneError ? "border-red-500" : ""}`}
-                  required
-                  maxLength={10}
-                />
-                {phoneError && (
-                  <p className="text-red-500 text-xs mt-1">{phoneError}</p>
-                )}
-                {loyaltyData && loyaltyData.exists && loyaltyData.loyaltyPoints > 0 && (
-                  <div className="mt-2 p-2 bg-amber-50 border border-amber-200 rounded-md">
-                    <div className="flex items-center justify-between">
-                      <label className="flex items-center gap-2 cursor-pointer">
-                        <input
+                  <Input
+                    placeholder="Customer Phone"
+                    value={customerPhone}
+                    onChange={handlePhoneChange}
+                    className={`${phoneError ? "border-red-500" : ""}`}
+                    required
+                    maxLength={10}
+                  />
+                  {phoneError && (
+                    <p className="text-red-500 text-xs mt-1">{phoneError}</p>
+                  )}
+                  {loyaltyData &&
+                    loyaltyData.exists &&
+                    loyaltyData.loyaltyPoints > 0 && (
+                      <div className="mt-2 p-2 bg-amber-50 border border-amber-200 rounded-md">
+                        <div className="flex items-center justify-between">
+                          <label className="flex items-center gap-2">
+                            <span className="text-sm font-medium text-amber-800">
+                              Existing customer
+                            </span>
+                            {/* <input
                           type="checkbox"
                           checked={redeemPoints}
                           onChange={(e) => setRedeemPoints(e.target.checked)}
@@ -556,20 +572,47 @@ export default function Cart() {
                         />
                         <span className="text-sm font-medium text-amber-800">
                           Redeem Loyalty Points ({loyaltyData.loyaltyPoints} points = ₹{loyaltyData.redeemableValue})
-                        </span>
-                      </label>
-                    </div>
-                    {redeemPoints && (
+                        </span> */}
+                          </label>
+                        </div>
+                        {/* {redeemPoints && (
                       <p className="text-xs text-amber-600 mt-1">
                         You'll use {Math.min(loyaltyData.loyaltyPoints, Math.ceil(totalAmount / 0.05))} points for ₹{Math.min(loyaltyData.redeemableValue, totalAmount)} discount
                       </p>
+                    )} */}
+                      </div>
                     )}
-                  </div>
-                )}
-                {loyaltyLoading && (
-                  <p className="text-xs text-gray-500 mt-1">Checking loyalty points...</p>
-                )}
-              </div>
+                  {loyaltyLoading && (
+                    <p className="text-xs text-gray-500 mt-1">
+                      Checking existing customer...
+                    </p>
+                  )}
+                </div>
+                <div className="w-full md:flex-1">
+                  <Input
+                    placeholder="Customer Name"
+                    value={customerName}
+                    onChange={(e) => setCustomerName(e.target.value)}
+                    className="w-full md:flex-1"
+                    required
+                    disabled={existingCustomer !== null && !phoneError}
+                    style={{
+                      backgroundColor:
+                        existingCustomer !== null && !phoneError
+                          ? "#f3f4f6"
+                          : "white",
+                      cursor:
+                        existingCustomer !== null && !phoneError
+                          ? "not-allowed"
+                          : "text",
+                    }}
+                  />
+                  {existingCustomer !== null && !phoneError && (
+                    <p className="text-xs text-gray-500 mt-1">
+                      Existing customer - name cannot be edited
+                    </p>
+                  )}
+                </div>
               </div>
 
               <div className="flex flex-col md:flex-row gap-6 md:gap-10">
