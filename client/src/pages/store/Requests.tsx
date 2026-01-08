@@ -4,16 +4,11 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
+import { DataTable, FilterConfig } from "@/components/ui/data-table";
+import { useDataTable } from "@/hooks/use-data-table";
+import { ColumnDef } from "@tanstack/react-table";
 import { useAuth } from "@/lib/auth";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import type { StockRequestWithDetails } from "@shared/schema";
@@ -56,11 +51,21 @@ export default function StoreRequests() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  const { data: requests, isLoading: loadingRequests } = useQuery<
-    StockRequestWithDetails[]
-  >({
-    queryKey: ["/api/store/requests"],
-    enabled: !!user && user.role === "store",
+  const {
+    data: requests,
+    totalCount,
+    pageIndex,
+    pageSize,
+    isLoading,
+    isFetching,
+    handlePaginationChange,
+    handleSearchChange,
+    handleFiltersChange,
+    handleDateFilterChange,
+    refetch,
+  } = useDataTable<StockRequestWithDetails>({
+    queryKey: "/api/store/requests",
+    initialPageSize: 10,
   });
 
   const markReceivedMutation = useMutation({
@@ -72,7 +77,7 @@ export default function StoreRequests() {
       return response.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/store/requests"] });
+      refetch();
       queryClient.invalidateQueries({ queryKey: ["/api/store/products/paginated"] });
       queryClient.invalidateQueries({ queryKey: ["/api/store/stats"] });
       toast({ title: "Success", description: "Stock marked as received" });
@@ -96,6 +101,115 @@ export default function StoreRequests() {
     });
   };
 
+  const columns: ColumnDef<StockRequestWithDetails>[] = [
+    {
+      accessorKey: "saree.name",
+      header: "Product",
+      cell: ({ row }) => {
+        const request = row.original;
+        return (
+          <div className="flex items-center gap-3">
+            <img
+              src={
+                request.saree.imageUrl ||
+                "https://images.unsplash.com/photo-1610030469983-98e550d6193c?w=50"
+              }
+              alt=""
+              className="w-10 h-12 rounded object-cover"
+            />
+            <div>
+              <p className="font-medium line-clamp-1">
+                {request.saree.name}
+              </p>
+              <p className="text-xs text-muted-foreground font-mono">
+                {request.saree.sku}
+              </p>
+            </div>
+          </div>
+        );
+      },
+    },
+    {
+      accessorKey: "quantity",
+      header: "Quantity",
+      cell: ({ row }) => (
+        <Badge variant="outline">
+          {row.original.quantity} units
+        </Badge>
+      ),
+    },
+    {
+      accessorKey: "createdAt",
+      header: "Requested",
+      cell: ({ row }) => (
+        <span className="text-sm text-muted-foreground">
+          {formatDate(row.original.createdAt)}
+        </span>
+      ),
+    },
+    {
+      accessorKey: "status",
+      header: "Status",
+      cell: ({ row }) => {
+        const request = row.original;
+        const status = statusConfig[request.status] || statusConfig.pending;
+        const StatusIcon = status.icon;
+        return (
+          <Badge className={status.color}>
+            <StatusIcon className="h-3 w-3 mr-1" />
+            {status.label}
+          </Badge>
+        );
+      },
+    },
+    {
+      accessorKey: "notes",
+      header: "Notes",
+      cell: ({ row }) => (
+        <span className="max-w-[200px] truncate text-muted-foreground">
+          {row.original.notes || "-"}
+        </span>
+      ),
+    },
+    {
+      accessorKey: "actions",
+      header: "Actions",
+      cell: ({ row }) => {
+        const request = row.original;
+        return (
+          <>
+            {request.status === "dispatched" && (
+              <Button
+                size="sm"
+                onClick={() =>
+                  markReceivedMutation.mutate(request.id)
+                }
+                disabled={markReceivedMutation.isPending}
+                data-testid={`button-received-${request.id}`}
+              >
+                Mark Received
+              </Button>
+            )}
+          </>
+        );
+      },
+    },
+  ];
+
+  const filters: FilterConfig[] = [
+    {
+      key: "status",
+      label: "Status",
+      options: [
+        { value: "pending", label: "Pending" },
+        { value: "approved", label: "Approved" },
+        { value: "rejected", label: "Rejected" },
+        { value: "dispatched", label: "Dispatched" },
+        { value: "received", label: "Received" },
+      ],
+    },
+  ];
+
   return (
     <div>
       <div className="max-w-5xl mx-auto">
@@ -115,96 +229,21 @@ export default function StoreRequests() {
 
         <Card>
           <CardContent className="p-4">
-            {loadingRequests ? (
-              <div className="space-y-3">
-                {[...Array(3)].map((_, i) => (
-                  <Skeleton key={i} className="h-16" />
-                ))}
-              </div>
-            ) : requests && requests.length > 0 ? (
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Product</TableHead>
-                    <TableHead>Quantity</TableHead>
-                    <TableHead>Requested</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead>Notes</TableHead>
-                    <TableHead>Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {requests.map((request) => {
-                    const status =
-                      statusConfig[request.status] || statusConfig.pending;
-                    const StatusIcon = status.icon;
-
-                    return (
-                      <TableRow
-                        key={request.id}
-                        data-testid={`row-request-${request.id}`}
-                      >
-                        <TableCell>
-                          <div className="flex items-center gap-3">
-                            <img
-                              src={
-                                request.saree.imageUrl ||
-                                "https://images.unsplash.com/photo-1610030469983-98e550d6193c?w=50"
-                              }
-                              alt=""
-                              className="w-10 h-12 rounded object-cover"
-                            />
-                            <div>
-                              <p className="font-medium line-clamp-1">
-                                {request.saree.name}
-                              </p>
-                              <p className="text-xs text-muted-foreground font-mono">
-                                {request.saree.sku}
-                              </p>
-                            </div>
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          <Badge variant="outline">
-                            {request.quantity} units
-                          </Badge>
-                        </TableCell>
-                        <TableCell className="text-sm text-muted-foreground">
-                          {formatDate(request.createdAt)}
-                        </TableCell>
-                        <TableCell>
-                          <Badge className={status.color}>
-                            <StatusIcon className="h-3 w-3 mr-1" />
-                            {status.label}
-                          </Badge>
-                        </TableCell>
-                        <TableCell className="max-w-[200px] truncate text-muted-foreground">
-                          {request.notes || "-"}
-                        </TableCell>
-                        <TableCell>
-                          {request.status === "dispatched" && (
-                            <Button
-                              size="sm"
-                              onClick={() =>
-                                markReceivedMutation.mutate(request.id)
-                              }
-                              disabled={markReceivedMutation.isPending}
-                              data-testid={`button-received-${request.id}`}
-                            >
-                              Mark Received
-                            </Button>
-                          )}
-                        </TableCell>
-                      </TableRow>
-                    );
-                  })}
-                </TableBody>
-              </Table>
-            ) : (
-              <div className="text-center py-8 text-muted-foreground">
-                No stock requests yet. Create your first request.
-              </div>
-            )}
+            <DataTable
+              columns={columns}
+              data={requests}
+              totalCount={totalCount}
+              pageIndex={pageIndex}
+              pageSize={pageSize}
+              isLoading={isLoading}
+              onPaginationChange={handlePaginationChange}
+              onSearchChange={handleSearchChange}
+              onFiltersChange={handleFiltersChange}
+              onDateFilterChange={handleDateFilterChange}
+              searchPlaceholder="Search requests..."
+              filters={filters}
+              emptyMessage="No stock requests found"
+            />
           </CardContent>
         </Card>
       </div>

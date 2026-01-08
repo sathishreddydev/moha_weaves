@@ -155,11 +155,32 @@ export const storeRoutes = (app: Express) => {
       if (!user.storeId) {
         return res.status(400).json({ message: "No store assigned" });
       }
-      const requests = await storage.getStockRequests({
-        storeId: user.storeId,
-      });
-      res.json(requests);
+      
+      const params = parsePaginationParams(req.query);
+      const offset = getOffset(params.page, params.pageSize);
+      
+      const result = await storage.getStockRequestsPaginated(
+        user.storeId,
+        {
+          limit: params.pageSize,
+          offset,
+          search: params.search,
+          status: req.query.status as string,
+          dateFrom: params.dateFrom,
+          dateTo: params.dateTo,
+        }
+      );
+      
+      const response = createPaginatedResponse(
+        result.data,
+        result.total,
+        params.page,
+        params.pageSize
+      );
+      
+      res.json(response);
     } catch (error) {
+      console.error("Error fetching paginated requests:", error);
       res.status(500).json({ message: "Failed to fetch requests" });
     }
   });

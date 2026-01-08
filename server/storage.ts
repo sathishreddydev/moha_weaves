@@ -56,6 +56,7 @@ import {
   lte,
   lt,
   inArray,
+  count,
 } from "drizzle-orm";
 import { userService } from "./auth/authStorage";
 import { orderService } from "./order/orderStorage";
@@ -929,6 +930,80 @@ export class DatabaseStorage implements IStorage {
         fabric: row.fabrics,
       },
     }));
+  }
+
+  async getStockRequestsPaginated(
+    storeId: string,
+    options: {
+      limit: number;
+      offset: number;
+      search?: string;
+      status?: string;
+      dateFrom?: string;
+      dateTo?: string;
+    }
+  ): Promise<{ data: StockRequestWithDetails[]; total: number }> {
+    const conditions = [eq(stockRequests.storeId, storeId)];
+
+    if (options.status) {
+      conditions.push(eq(stockRequests.status, options.status as any));
+    }
+
+    if (options.search) {
+      conditions.push(
+        or(
+          ilike(sarees.name, `%${options.search}%`),
+          ilike(sarees.sku, `%${options.search}%`),
+          ilike(stockRequests.notes, `%${options.search}%`)
+        )!
+      );
+    }
+
+    if (options.dateFrom) {
+      conditions.push(gte(stockRequests.createdAt, new Date(options.dateFrom)));
+    }
+
+    if (options.dateTo) {
+      conditions.push(lte(stockRequests.createdAt, new Date(options.dateTo)));
+    }
+
+    const countResult = await db
+      .select({ count: count() })
+      .from(stockRequests)
+      .innerJoin(sarees, eq(stockRequests.sareeId, sarees.id))
+      .where(and(...conditions));
+
+    const total = Number(countResult[0]?.count || 0);
+
+    // Get paginated data
+    const result = await db
+      .select()
+      .from(stockRequests)
+      .innerJoin(stores, eq(stockRequests.storeId, stores.id))
+      .innerJoin(sarees, eq(stockRequests.sareeId, sarees.id))
+      .leftJoin(categories, eq(sarees.categoryId, categories.id))
+      .leftJoin(colors, eq(sarees.colorId, colors.id))
+      .leftJoin(fabrics, eq(sarees.fabricId, fabrics.id))
+      .where(and(...conditions))
+      .orderBy(desc(stockRequests.createdAt))
+      .limit(options.limit)
+      .offset(options.offset);
+
+    const results = result.map((row) => ({
+      ...row.stock_requests,
+      store: row.stores,
+      saree: {
+        ...row.sarees,
+        category: row.categories,
+        color: row.colors,
+        fabric: row.fabrics,
+      },
+    }));
+
+    return {
+      data: results,
+      total: countResult[0]?.count || 0,
+    };
   }
 
   async getStockRequest(

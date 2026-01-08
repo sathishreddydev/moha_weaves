@@ -70,6 +70,7 @@ export default function StoreInventoryPage() {
   const { data: stockRequests } = useQuery<StockRequestWithDetails[]>({
     queryKey: ["/api/store/requests"],
     enabled: !!user && user.role === "store",
+    select: (data: any) => data?.data || [],
   });
 
   const { data: stats } = useQuery({

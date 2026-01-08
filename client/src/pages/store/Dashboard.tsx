@@ -155,15 +155,15 @@ export default function StoreDashboard() {
             variant="outline"
             size="sm"
             onClick={() => refetchDashboard()}
-            disabled={isDashboardLoading}
+            disabled={isFetching}
           >
             <RefreshCw
-              className={`h-4 w-4 mr-2 ${isDashboardLoading ? "animate-spin" : ""}`}
+              className={`h-4 w-4 mr-2 ${isFetching ? "animate-spin" : ""}`}
             />
             Refresh
           </Button>
           <Link to="/store/sale">
-            <Button data-testid="button-new-sale">
+            <Button size={'sm'} data-testid="button-new-sale">
               <Plus className="h-4 w-4 mr-2" />
               New Sale
             </Button>
