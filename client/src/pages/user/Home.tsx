@@ -16,7 +16,6 @@ import { useQuery } from "@tanstack/react-query";
 import type { SareeWithDetails, Category } from "@shared/schema";
 import { useFilterStore } from "@/components/Store/useFilterStore";
 import { useEffect } from "react";
-import { s } from "node_modules/vite/dist/node/types.d-aGj9QkWt";
 
 const features = [
   {
@@ -61,7 +60,7 @@ export default function Home() {
     if (categories.length === 0) {
       fetchFilters();
     }
-  }, [categories]);
+  }, []);
 
   return (
     <div className="min-h-screen">

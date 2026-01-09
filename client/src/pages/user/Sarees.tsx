@@ -179,7 +179,7 @@ export default function Sarees() {
     if (!categories.length || !colors.length || !fabrics.length) {
       fetchFilters();
     }
-  }, [categories, colors, fabrics]);
+  }, []);
 
   const FilterSection = ({ title, children }: any) => (
     <div className="space-y-1">
