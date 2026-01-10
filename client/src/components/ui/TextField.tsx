@@ -1,3 +1,4 @@
+import { Input } from "./input";
 
 
 interface TextFieldProps {
@@ -21,9 +22,9 @@ export function TextField({
         </div>
       )}
 
-      <input
+      <Input
         className={`
-          border rounded-md py-2 px-3 w-full
+          py-2 px-3 w-full
           ${startAdornment ? "pl-10" : ""}
           ${endAdornment ? "pr-10" : ""}
           ${className}

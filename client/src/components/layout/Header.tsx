@@ -32,6 +32,7 @@ import { useAuth } from "@/lib/auth";
 import { useEffect, useState } from "react";
 import { useCartStore } from "../Store/useCartStore";
 import { useWishlistStore } from "../Store/useWishlistStore";
+import { TextField } from "../ui/TextField";
 
 const navLinks = [
   { href: "/", label: "Home" },
@@ -43,8 +44,6 @@ const navLinks = [
 export function Header() {
   const navigate = useNavigate();
   const { user, logout } = useAuth();
-  const [searchOpen, setSearchOpen] = useState(false);
-  const [searchQuery, setSearchQuery] = useState("");
 
   const getCart = useCartStore((s) => s.getCart);
   const cartCount = useCartStore((s) => s.count);
@@ -58,14 +57,6 @@ export function Header() {
     }
   }, [user]);
 
-  const handleSearch = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (searchQuery.trim()) {
-      navigate(`/sarees?search=${encodeURIComponent(searchQuery)}`);
-      setSearchOpen(false);
-      setSearchQuery("");
-    }
-  };
 
   const handleLogout = async () => {
     await logout();
@@ -142,17 +133,6 @@ export function Header() {
           </nav>
 
           <div className="flex items-center gap-2 ml-auto">
-            {!searchOpen && (
-              <Button
-                className="hidden md:flex"
-                variant="ghost"
-                size="icon"
-                onClick={() => setSearchOpen(true)}
-              >
-                <Search className="h-5 w-5" />
-              </Button>
-            )}
-
             {user && user.role === "user" && (
               <>
                 <Link to="/user/wishlist">
@@ -205,25 +185,41 @@ export function Header() {
                   {user.role === "user" && (
                     <>
                       <DropdownMenuItem asChild>
-                        <Link to="/user/orders" className="cursor-pointer" data-testid="link-orders">
+                        <Link
+                          to="/user/orders"
+                          className="cursor-pointer"
+                          data-testid="link-orders"
+                        >
                           <Package className="mr-2 h-4 w-4" />
                           My Orders
                         </Link>
                       </DropdownMenuItem>
                       <DropdownMenuItem asChild>
-                        <Link to="/user/wishlist" className="cursor-pointer" data-testid="link-wishlist-menu">
+                        <Link
+                          to="/user/wishlist"
+                          className="cursor-pointer"
+                          data-testid="link-wishlist-menu"
+                        >
                           <Heart className="mr-2 h-4 w-4" />
                           Wishlist
                         </Link>
                       </DropdownMenuItem>
                       <DropdownMenuItem asChild>
-                        <Link to="/user/addresses" className="cursor-pointer" data-testid="link-addresses">
+                        <Link
+                          to="/user/addresses"
+                          className="cursor-pointer"
+                          data-testid="link-addresses"
+                        >
                           <MapPin className="mr-2 h-4 w-4" />
                           My Addresses
                         </Link>
                       </DropdownMenuItem>
                       <DropdownMenuItem asChild>
-                        <Link to="/user/returns" className="cursor-pointer" data-testid="link-returns">
+                        <Link
+                          to="/user/returns"
+                          className="cursor-pointer"
+                          data-testid="link-returns"
+                        >
                           <RotateCcw className="mr-2 h-4 w-4" />
                           Returns
                         </Link>
@@ -250,33 +246,7 @@ export function Header() {
           </div>
         </div>
 
-        {searchOpen && (
-          <div className="pb-4">
-            <form onSubmit={handleSearch} className="flex gap-2">
-              <Input
-                type="search"
-                placeholder="Search for sarees..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="flex-1"
-                autoFocus
-              />
-
-              <Button type="submit">Search</Button>
-
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => {
-                  setSearchOpen(false);
-                  setSearchQuery("");
-                }}
-              >
-                Cancel
-              </Button>
-            </form>
-          </div>
-        )}
+       
       </div>
     </header>
   );

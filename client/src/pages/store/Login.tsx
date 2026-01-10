@@ -128,7 +128,7 @@ export default function StoreLogin() {
                       <FormLabel>Password</FormLabel>
                       <FormControl>
                         <TextField
-                            type={showPassword ? "text" : "password"}
+                          type={showPassword ? "text" : "password"}
                           placeholder="Password"
                           startAdornment={
                             <Lock className="h-4 w-4 text-gray-500" />
@@ -146,8 +146,7 @@ export default function StoreLogin() {
                               />
                             )
                           }
-                                                    {...field}
-
+                          {...field}
                         />
                       </FormControl>
                       <FormMessage />

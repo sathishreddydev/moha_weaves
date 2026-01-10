@@ -203,7 +203,7 @@ export default function SareeDetail() {
           {/* Product Title and Price Section */}
           <div className="space-y-3">
             <h1
-              className="font-serif text-xl lg:text-2xl font-bold text-gray-900 dark:text-white leading-tight"
+              className="text-xl font-bold"
               data-testid="text-product-name"
             >
               {saree.name}
