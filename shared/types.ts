@@ -22,8 +22,8 @@ export type Fabric = typeof tables.fabrics.$inferSelect;
 export type InsertFabric = z.infer<typeof schemas.insertFabricSchema>;
 export type Store = typeof tables.stores.$inferSelect;
 export type InsertStore = z.infer<typeof schemas.insertStoreSchema>;
-export type product = typeof tables.products.$inferSelect;
-export type InsertProduct = z.infer<typeof schemas.insertProdcutSchema>;
+export type Product = typeof tables.products.$inferSelect;
+export type InsertProduct = z.infer<typeof schemas.insertProductSchema>;
 export type StoreInventory = typeof tables.storeInventory.$inferSelect;
 export type InsertStoreInventory = z.infer<typeof schemas.insertStoreInventorySchema>;
 export type WishlistItem = typeof tables.wishlist.$inferSelect;
@@ -109,8 +109,9 @@ export type OnlineExchangeWithDetails = OnlineExchange & {
   })[];
 };
 
-export type ProductWithDetails = product & {
+export type ProductWithDetails = Product & {
   category?: Category | null;
+  subcategory?: Subcategory | null;
   color?: Color | null;
   fabric?: Fabric | null;
   storeAllocations?: {

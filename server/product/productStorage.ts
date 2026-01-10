@@ -1,11 +1,12 @@
 import {
   ProductWithDetails,
+  Product,
   products,
   categories,
+  subcategories,
   colors,
   fabrics,
   InsertProduct,
-  product,
   sales,
   saleProducts,
 } from "@shared/schema";
@@ -16,6 +17,7 @@ export interface IproductRepository {
   getProducts(filters?: {
     search?: string;
     category?: string;
+    subcategory?: string;
     color?: string;
     fabric?: string;
     featured?: boolean;
@@ -27,11 +29,11 @@ export interface IproductRepository {
     onSale?: boolean;
   }): Promise<ProductWithDetails[]>;
   getProduct(id: string): Promise<ProductWithDetails | undefined>;
-  createProduct(product: InsertProduct): Promise<product>;
+  createProduct(product: InsertProduct): Promise<Product>;
   updateProduct(
     id: string,
     data: Partial<InsertProduct>
-  ): Promise<product | undefined>;
+  ): Promise<Product | undefined>;
   deleteProduct(id: string): Promise<boolean>;
   getLowStockProducts(threshold?: number): Promise<ProductWithDetails[]>;
 }
@@ -39,6 +41,7 @@ export class productRepository {
   async getProducts(filters?: {
     search?: string;
     category?: string;
+    subcategory?: string;
     color?: string;
     fabric?: string;
     featured?: boolean;
@@ -61,6 +64,9 @@ export class productRepository {
     }
     if (filters?.category) {
       conditions.push(eq(products.categoryId, filters.category));
+    }
+    if (filters?.subcategory) {
+      conditions.push(eq(products.subcategoryId, filters.subcategory));
     }
     if (filters?.color) {
       conditions.push(eq(products.colorId, filters.color));
@@ -108,6 +114,7 @@ export class productRepository {
       .select()
       .from(products)
       .leftJoin(categories, eq(products.categoryId, categories.id))
+      .leftJoin(subcategories, eq(products.subcategoryId, subcategories.id))
       .leftJoin(colors, eq(products.colorId, colors.id))
       .leftJoin(fabrics, eq(products.fabricId, fabrics.id))
       .where(and(...conditions))
@@ -117,6 +124,7 @@ export class productRepository {
     const productResults = result.map((row) => ({
       ...row.products,
       category: row.categories,
+      subcategory: row.subcategories,
       color: row.colors,
       fabric: row.fabrics,
     }));
@@ -309,6 +317,7 @@ async getNewProducts(filters?: {
     .select()
     .from(products)
     .leftJoin(categories, eq(products.categoryId, categories.id))
+    .leftJoin(subcategories, eq(products.subcategoryId, subcategories.id))
     .leftJoin(colors, eq(products.colorId, colors.id))
     .leftJoin(fabrics, eq(products.fabricId, fabrics.id))
     .where(and(...conditions))
@@ -318,6 +327,7 @@ async getNewProducts(filters?: {
   const productResults = result.map((row) => ({
     ...row.products,
     category: row.categories,
+    subcategory: row.subcategories,
     color: row.colors,
     fabric: row.fabrics,
   }));
@@ -423,6 +433,7 @@ async getNewProducts(filters?: {
       .select()
       .from(products)
       .leftJoin(categories, eq(products.categoryId, categories.id))
+      .leftJoin(subcategories, eq(products.subcategoryId, subcategories.id))
       .leftJoin(colors, eq(products.colorId, colors.id))
       .leftJoin(fabrics, eq(products.fabricId, fabrics.id))
       .where(eq(products.id, id));
@@ -461,7 +472,6 @@ async getNewProducts(filters?: {
     }
 
     // Check for category-wide sale if no product-specific sale
-    // Only exclude category pricing when THIS product is explicitly mapped to a different sale
     if (!applicableSale && product.categoryId) {
       applicableSale = activeSales.find(
         (s) => s.categoryId === product.categoryId && 
@@ -489,6 +499,7 @@ async getNewProducts(filters?: {
     return {
       ...product,
       category: result.categories,
+      subcategory: result.subcategories,
       color: result.colors,
       fabric: result.fabrics,
       activeSale: applicableSale
@@ -504,7 +515,7 @@ async getNewProducts(filters?: {
     };
   }
 
-  async createProduct(product: InsertProduct): Promise<product> {
+  async createProduct(product: InsertProduct): Promise<Product> {
     // Auto-generate SKU if not provided: MH-YYYYMMDD-XXXXX (timestamp + random suffix)
     let productData = product;
     if (!product.sku) {
@@ -524,7 +535,7 @@ async getNewProducts(filters?: {
   async updateProduct(
     id: string,
     data: Partial<InsertProduct>
-  ): Promise<product | undefined> {
+  ): Promise<Product | undefined> {
     const [result] = await db
       .update(products)
       .set(data)

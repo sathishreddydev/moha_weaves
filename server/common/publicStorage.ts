@@ -26,16 +26,6 @@ export interface PublicStorage {
   ): Promise<Category | undefined>;
   deleteCategory(id: string): Promise<boolean>;
 
-  // Subcategories
-  getSubcategories(): Promise<Subcategory[]>;
-  getSubcategoriesByCategory(categoryId: string): Promise<Subcategory[]>;
-  createSubcategory(subcategory: InsertSubcategory): Promise<Subcategory>;
-  updateSubcategory(
-    id: string,
-    data: Partial<InsertSubcategory>
-  ): Promise<Subcategory | undefined>;
-  deleteSubcategory(id: string): Promise<boolean>;
-
   // Colors
   getColors(): Promise<Color[]>;
   getColor(id: string): Promise<Color | undefined>;
@@ -96,43 +86,6 @@ export class PublicRepository implements PublicStorage {
       .update(categories)
       .set({ isActive: false })
       .where(eq(categories.id, id))
-      .returning();
-    return !!result;
-  }
-
-  // Subcategories
-  async getSubcategories(): Promise<Subcategory[]> {
-    return db.select().from(subcategories).where(eq(subcategories.isActive, true));
-  }
-
-  async getSubcategoriesByCategory(categoryId: string): Promise<Subcategory[]> {
-    return db.select().from(subcategories).where(
-      eq(subcategories.categoryId, categoryId)
-    );
-  }
-
-  async createSubcategory(subcategory: InsertSubcategory): Promise<Subcategory> {
-    const [result] = await db.insert(subcategories).values(subcategory).returning();
-    return result;
-  }
-
-  async updateSubcategory(
-    id: string,
-    data: Partial<InsertSubcategory>
-  ): Promise<Subcategory | undefined> {
-    const [result] = await db
-      .update(subcategories)
-      .set(data)
-      .where(eq(subcategories.id, id))
-      .returning();
-    return result || undefined;
-  }
-
-  async deleteSubcategory(id: string): Promise<boolean> {
-    const [result] = await db
-      .update(subcategories)
-      .set({ isActive: false })
-      .where(eq(subcategories.id, id))
       .returning();
     return !!result;
   }

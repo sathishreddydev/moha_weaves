@@ -9,7 +9,7 @@ export const publicRoutes = (app: Express) => {
   app.get("/api/filters", async (req, res) => {
     try {
       const [categories, colors, fabrics] = await Promise.all([
-        publicStorage.getCategories(),
+        publicStorage.getCategoriesWithSubcategories(),
         publicStorage.getColors(),
         publicStorage.getFabrics(),
       ]);
@@ -23,30 +23,10 @@ export const publicRoutes = (app: Express) => {
   // Categories
   app.get("/api/categories", async (req, res) => {
     try {
-      const categories = await publicStorage.getCategories();
+      const categories = await publicStorage.getCategoriesWithSubcategories();
       res.json(categories);
     } catch (error) {
       res.status(500).json({ message: "Failed to fetch categories" });
-    }
-  });
-
-  // Colors
-  app.get("/api/colors", async (req, res) => {
-    try {
-      const colors = await publicStorage.getColors();
-      res.json(colors);
-    } catch (error) {
-      res.status(500).json({ message: "Failed to fetch colors" });
-    }
-  });
-
-  // Fabrics
-  app.get("/api/fabrics", async (req, res) => {
-    try {
-      const fabrics = await publicStorage.getFabrics();
-      res.json(fabrics);
-    } catch (error) {
-      res.status(500).json({ message: "Failed to fetch fabrics" });
     }
   });
 

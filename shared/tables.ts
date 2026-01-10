@@ -106,6 +106,7 @@ export const products = pgTable("products", {
   description: text("description"),
   price: decimal("price", { precision: 10, scale: 2 }).notNull(),
   categoryId: varchar("category_id").references(() => categories.id),
+  subcategoryId: varchar("subcategory_id").references(() => subcategories.id),
   colorId: varchar("color_id").references(() => colors.id),
   fabricId: varchar("fabric_id").references(() => fabrics.id),
   imageUrl: text("image_url"),

@@ -8,6 +8,7 @@ import { orderService } from "../order/orderStorage";
 import { storeService } from "server/store/storeStorage";
 import { inventoryService } from "./inventoryStorage";
 import { productService } from "server/product/productStorage";
+import { publicStorage } from "../common/publicStorage";
 const storeAllocationSchema = z.object({
   storeId: z.string().min(1, "Store ID is required"),
   quantity: z.number().int().min(0, "Quantity must be a non-negative integer"),
@@ -48,6 +49,7 @@ const productBaseSchema = z.object({
     .or(z.number())
     .transform((val) => String(val)),
   categoryId: emptyToNull,
+  subcategoryId: emptyToNull,
   colorId: emptyToNull,
   fabricId: emptyToNull,
   imageUrl: z
@@ -89,6 +91,21 @@ const productUpdateSchema = productBaseSchema.partial();
 
 export const inventoryRoutes = (app: Express) => {
   const authInventory = createAuthMiddleware(["inventory", "admin"]);
+
+  // Filters for inventory (categories with subcategories, colors, fabrics)
+  app.get("/api/inventory/filters", authInventory, async (req, res) => {
+    try {
+      const [categories, colors, fabrics] = await Promise.all([
+        publicStorage.getCategoriesWithSubcategories(),
+        publicStorage.getColors(),
+        publicStorage.getFabrics(),
+      ]);
+
+      res.json({ categories, colors, fabrics });
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch filters" });
+    }
+  });
 
   app.get("/api/inventory/low-stock", authInventory, async (req, res) => {
     try {
@@ -311,6 +328,7 @@ export const inventoryRoutes = (app: Express) => {
         pageSize,
         search,
         category,
+        subcategory,
         color,
         fabric,
         status,
@@ -325,6 +343,7 @@ export const inventoryRoutes = (app: Express) => {
           pageSize: params.pageSize,
           search: search as string,
           category: category as string,
+          subcategory: subcategory as string,
           color: color as string,
           fabric: fabric as string,
           status: status as string,

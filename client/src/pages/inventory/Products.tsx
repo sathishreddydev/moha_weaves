@@ -15,7 +15,6 @@ import {
 import Barcode from "react-barcode";
 import * as XLSX from "xlsx";
 import { saveAs } from "file-saver";
-import jsPDF from "jspdf";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -49,6 +48,7 @@ import { CloudinaryUploader } from "@/components/CloudinaryUploader";
 import type {
   ProductWithDetails,
   Category,
+  Subcategory,
   Color,
   Fabric,
   Store,
@@ -65,6 +65,7 @@ interface ProductFormData {
   description: string;
   price: string;
   categoryId: string;
+  subcategoryId: string;
   colorId: string;
   fabricId: string;
   imageUrl: string;
@@ -75,6 +76,12 @@ interface ProductFormData {
   distributionChannel: "shop" | "online" | "both";
   isFeatured: boolean;
   isActive: boolean;
+}
+
+interface FiltersData {
+  categories: (Category & { subcategories: Subcategory[] })[];
+  colors: Color[];
+  fabrics: Fabric[];
 }
 
 const formatPrice = (price: string | number) => {
@@ -109,6 +116,7 @@ export default function InventoryProducts() {
     description: "",
     price: "",
     categoryId: "",
+    subcategoryId: "", // Added missing subcategoryId property
     colorId: "",
     fabricId: "",
     imageUrl: "",
@@ -121,17 +129,13 @@ export default function InventoryProducts() {
     isActive: true,
   });
 
-  const { data: categories } = useQuery<Category[]>({
-    queryKey: ["/api/categories"],
+  const { data: filtersData } = useQuery<FiltersData>({
+    queryKey: ["/api/inventory/filters"],
   });
 
-  const { data: colors } = useQuery<Color[]>({
-    queryKey: ["/api/colors"],
-  });
-
-  const { data: fabrics } = useQuery<Fabric[]>({
-    queryKey: ["/api/fabrics"],
-  });
+  const categories = filtersData?.categories || [];
+  const colors = filtersData?.colors || [];
+  const fabrics = filtersData?.fabrics || [];
 
   const { data: stores } = useQuery<Store[]>({
     queryKey: ["/api/inventory/stores"],
@@ -158,6 +162,7 @@ export default function InventoryProducts() {
       formData: ProductFormData;
       allocations: StoreAllocation[];
     }) => {
+      console.log(data.formData);
       const response = await apiRequest("POST", "/api/inventory/products", {
         ...data.formData,
         price: data.formData.price,
@@ -274,6 +279,7 @@ export default function InventoryProducts() {
       description: "",
       price: "",
       categoryId: "",
+      subcategoryId: "",
       colorId: "",
       fabricId: "",
       imageUrl: "",
@@ -299,6 +305,7 @@ export default function InventoryProducts() {
       description: product.description || "",
       price: product.price.toString(),
       categoryId: product.categoryId || "",
+      subcategoryId: product.subcategoryId || "",
       colorId: product.colorId || "",
       fabricId: product.fabricId || "",
       imageUrl: product.imageUrl || "",
@@ -753,7 +760,7 @@ export default function InventoryProducts() {
       {
         key: "category",
         label: "Category",
-        options: (categories || []).map((cat) => ({
+        options: (categories || []).map((cat: Category & { subcategories: Subcategory[] }) => ({
           label: cat.name,
           value: cat.id,
         })),
@@ -761,7 +768,7 @@ export default function InventoryProducts() {
       {
         key: "color",
         label: "Color",
-        options: (colors || []).map((col) => ({
+        options: (colors || []).map((col: Color) => ({
           label: col.name,
           value: col.id,
         })),
@@ -769,7 +776,7 @@ export default function InventoryProducts() {
       {
         key: "fabric",
         label: "Fabric",
-        options: (fabrics || []).map((fab) => ({
+        options: (fabrics || []).map((fab: Fabric) => ({
           label: fab.name,
           value: fab.id,
         })),
@@ -950,6 +957,30 @@ export default function InventoryProducts() {
               </div>
 
               <div>
+                <Label htmlFor="subcategory">Subcategory</Label>
+                <Select
+                  value={formData.subcategoryId}
+                  onValueChange={(value) =>
+                    setFormData({ ...formData, subcategoryId: value })
+                  }
+                  disabled={!formData.categoryId}
+                >
+                  <SelectTrigger data-testid="select-subcategory">
+                    <SelectValue placeholder="Select subcategory" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {categories
+                      .find((cat: Category & { subcategories: Subcategory[] }) => cat.id === formData.categoryId)
+                      ?.subcategories.map((sub: Subcategory) => (
+                        <SelectItem key={sub.id} value={sub.id}>
+                          {sub.name}
+                        </SelectItem>
+                      ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div>
                 <Label htmlFor="color">Color</Label>
                 <Select
                   value={formData.colorId}
@@ -961,7 +992,7 @@ export default function InventoryProducts() {
                     <SelectValue placeholder="Select color" />
                   </SelectTrigger>
                   <SelectContent>
-                    {colors?.map((col) => (
+                    {colors?.map((col: Color) => (
                       <SelectItem key={col.id} value={col.id}>
                         <div className="flex items-center gap-2">
                           <span
@@ -988,7 +1019,7 @@ export default function InventoryProducts() {
                     <SelectValue placeholder="Select fabric" />
                   </SelectTrigger>
                   <SelectContent>
-                    {fabrics?.map((fab) => (
+                    {fabrics?.map((fab: Fabric) => (
                       <SelectItem key={fab.id} value={fab.id}>
                         {fab.name}
                       </SelectItem>

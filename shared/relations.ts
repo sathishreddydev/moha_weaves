@@ -26,11 +26,12 @@ export const categoriesRelations = relations(tables.categories, ({ many }) => ({
   subcategories: many(tables.subcategories),
 }));
 
-export const subcategoriesRelations = relations(tables.subcategories, ({ one }) => ({
+export const subcategoriesRelations = relations(tables.subcategories, ({ one, many }) => ({
   category: one(tables.categories, {
     fields: [tables.subcategories.categoryId],
     references: [tables.categories.id],
   }),
+  products: many(tables.products),
 }));
 
 export const colorsRelations = relations(tables.colors, ({ many }) => ({
@@ -61,6 +62,10 @@ export const productsRelations = relations(tables.products, ({ one, many }) => (
   category: one(tables.categories, {
     fields: [tables.products.categoryId],
     references: [tables.categories.id],
+  }),
+  subcategory: one(tables.subcategories, {
+    fields: [tables.products.subcategoryId],
+    references: [tables.subcategories.id],
   }),
   color: one(tables.colors, { fields: [tables.products.colorId], references: [tables.colors.id] }),
   fabric: one(tables.fabrics, { fields: [tables.products.fabricId], references: [tables.fabrics.id] }),

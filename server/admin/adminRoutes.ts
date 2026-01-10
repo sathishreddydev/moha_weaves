@@ -153,21 +153,28 @@ export const adminRoutes = (app: Express) => {
   // Admin product management
   app.get("/api/admin/products", authAdmin, async (req, res) => {
     try {
-      const { page, pageSize, search, category, status, dateFrom, dateTo } =
+      const { page, pageSize, search, category, subcategory, status, dateFrom, dateTo } =
         req.query;
 
       if (page && pageSize) {
         const params = parsePaginationParams(req.query);
-        const result = await storage.getProductsPaginated({
-          page: params.page,
-          pageSize: params.pageSize,
+        const result = await productService.getProducts({
           search: search as string,
           category: category as string,
-          status: status as string,
-          dateFrom: dateFrom as string,
-          dateTo: dateTo as string,
+          subcategory: subcategory as string,
+          limit: params.pageSize,
         });
-        return res.json(result);
+        
+        // Manual pagination for now
+        const startIndex = (params.page - 1) * params.pageSize;
+        const paginatedResults = result.slice(startIndex, startIndex + params.pageSize);
+        
+        return res.json({
+          data: paginatedResults,
+          totalCount: result.length,
+          page: params.page,
+          pageSize: params.pageSize,
+        });
       }
 
       const products = await productService.getProducts({});
@@ -224,30 +231,8 @@ export const adminRoutes = (app: Express) => {
 
   app.post("/api/admin/categories", authAdmin, async (req, res) => {
     try {
-      const { subcategories, ...categoryData } = req.body;
-      
-      // Create the category first
-      const category = await publicStorage.createCategory(categoryData);
-      
-      // If subcategories are provided, create them
-      if (subcategories && Array.isArray(subcategories) && subcategories.length > 0) {
-        const createdSubcategories = await Promise.all(
-          subcategories.map(sub => 
-            publicStorage.createSubcategory({
-              ...sub,
-              categoryId: category.id
-            })
-          )
-        );
-        
-        // Return category with subcategories
-        res.json({
-          ...category,
-          subcategories: createdSubcategories
-        });
-      } else {
-        res.json(category);
-      }
+      const category = await publicStorage.createCategory(req.body);
+      res.json(category);
     } catch (error) {
       res.status(500).json({ message: "Failed to create category" });
     }
@@ -271,55 +256,6 @@ export const adminRoutes = (app: Express) => {
       res.json({ success: true });
     } catch (error) {
       res.status(500).json({ message: "Failed to delete category" });
-    }
-  });
-
-  // Admin subcategory management
-  app.get("/api/admin/subcategories", authAdmin, async (req, res) => {
-    try {
-      const { categoryId } = req.query;
-      let subcategories;
-      if (categoryId) {
-        subcategories = await publicStorage.getSubcategoriesByCategory(categoryId as string);
-      } else {
-        subcategories = await publicStorage.getSubcategories();
-      }
-      res.json(subcategories);
-    } catch (error) {
-      res.status(500).json({ message: "Failed to fetch subcategories" });
-    }
-  });
-
-  app.post("/api/admin/subcategories", authAdmin, async (req, res) => {
-    try {
-      const subcategory = await publicStorage.createSubcategory(req.body);
-      res.json(subcategory);
-    } catch (error) {
-      res.status(500).json({ message: "Failed to create subcategory" });
-    }
-  });
-
-  app.patch("/api/admin/subcategories/:id", authAdmin, async (req, res) => {
-    try {
-      const subcategory = await publicStorage.updateSubcategory(
-        req.params.id,
-        req.body
-      );
-      if (!subcategory) {
-        return res.status(404).json({ message: "Subcategory not found" });
-      }
-      res.json(subcategory);
-    } catch (error) {
-      res.status(500).json({ message: "Failed to update subcategory" });
-    }
-  });
-
-  app.delete("/api/admin/subcategories/:id", authAdmin, async (req, res) => {
-    try {
-      await publicStorage.deleteSubcategory(req.params.id);
-      res.json({ success: true });
-    } catch (error) {
-      res.status(500).json({ message: "Failed to delete subcategory" });
     }
   });
 

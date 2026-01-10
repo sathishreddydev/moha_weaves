@@ -1,6 +1,7 @@
 import {
   users,
   categories,
+  subcategories,
   colors,
   fabrics,
   stores,
@@ -110,6 +111,9 @@ export interface IStorage {
     pageSize: number;
     search?: string;
     category?: string;
+    subcategory?: string;
+    color?: string;
+    fabric?: string;
     status?: string;
     dateFrom?: string;
     dateTo?: string;
@@ -471,6 +475,7 @@ export class DatabaseStorage implements IStorage {
     pageSize: number;
     search?: string;
     category?: string;
+    subcategory?: string;
     color?: string;
     fabric?: string;
     status?: string;
@@ -488,6 +493,7 @@ export class DatabaseStorage implements IStorage {
       pageSize,
       search,
       category,
+      subcategory,
       color,
       fabric,
       status,
@@ -496,10 +502,19 @@ export class DatabaseStorage implements IStorage {
     } = params;
     const offset = (page - 1) * pageSize;
 
-    const conditions: any[] = [eq(products.isActive, true)];
+    const conditions: any[] = [];
+
+    // Don't filter by isActive by default to allow both active/inactive filtering
+    if (status !== "inactive") {
+      conditions.push(eq(products.isActive, true));
+    }
 
     if (category) {
       conditions.push(eq(products.categoryId, category));
+    }
+
+    if (subcategory) {
+      conditions.push(eq(products.subcategoryId, subcategory));
     }
 
     if (color) {
@@ -547,6 +562,7 @@ export class DatabaseStorage implements IStorage {
       .select()
       .from(products)
       .leftJoin(categories, eq(products.categoryId, categories.id))
+      .leftJoin(subcategories, eq(products.subcategoryId, subcategories.id))
       .leftJoin(colors, eq(products.colorId, colors.id))
       .leftJoin(fabrics, eq(products.fabricId, fabrics.id))
       .where(whereClause)
@@ -593,6 +609,7 @@ export class DatabaseStorage implements IStorage {
         return {
           ...row.products,
           category: row.categories,
+          subcategory: row.subcategories,
           color: row.colors,
           fabric: row.fabrics,
           storeAllocations,

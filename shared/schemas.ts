@@ -33,7 +33,7 @@ export const insertStoreSchema = createInsertSchema(tables.stores).omit({
   createdAt: true,
 });
 
-export const insertProdcutSchema = createInsertSchema(tables.products).omit({
+export const insertProductSchema = createInsertSchema(tables.products).omit({
   id: true,
   createdAt: true,
 });
