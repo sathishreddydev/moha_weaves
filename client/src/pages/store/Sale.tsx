@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { ShoppingCart, Plus, Minus, Trash2, Tag, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -83,7 +83,7 @@ export default function StoreSale() {
   }, []);
 
   const { data: filterOptions } = useQuery<{
-    categories: { id: string; name: string }[];
+    categories: { id: string; name: string; subcategories?: { id: string; name: string; categoryId: string }[] }[];
     colors: { id: string; name: string; hexCode: string }[];
     fabrics: { id: string; name: string }[];
   }>({

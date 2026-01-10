@@ -3,6 +3,7 @@ import {
   stores,
   InsertStore,
   categories,
+  subcategories,
   colors,
   fabrics,
   products,
@@ -364,6 +365,7 @@ export class StoreRepository implements StoreStorage {
       .from(storeSaleItems)
       .leftJoin(products, eq(storeSaleItems.productId, products.id))
       .leftJoin(categories, eq(products.categoryId, categories.id))
+      .leftJoin(subcategories, eq(products.subcategoryId, subcategories.id))
       .leftJoin(colors, eq(products.colorId, colors.id))
       .leftJoin(fabrics, eq(products.fabricId, fabrics.id))
       .where(eq(storeSaleItems.saleId, saleId));

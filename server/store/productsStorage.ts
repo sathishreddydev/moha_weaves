@@ -2,6 +2,7 @@ import {
   storeInventory,
   products,
   categories,
+  subcategories,
   colors,
   fabrics,
   sales,
@@ -37,9 +38,10 @@ interface IStoreProductsStorage {
       limit: number;
       offset: number;
       search?: string;
-      category?: string;
-      color?: string;
-      fabric?: string;
+      categoryId?: string;
+      subcategoryId?: string;
+      colorId?: string;
+      fabricId?: string;
       dateFrom?: string;
       dateTo?: string;
     },
@@ -65,6 +67,7 @@ export class StoreProductsStorage implements IStoreProductsStorage {
       offset: number;
       search?: string;
       categoryId?: string;
+      subcategoryId?: string;
       colorId?: string;
       fabricId?: string;
       dateFrom?: string;
@@ -98,6 +101,11 @@ export class StoreProductsStorage implements IStoreProductsStorage {
       conditions.push(eq(products.categoryId, options.categoryId));
     }
 
+    // Filter by subcategory ID
+    if (options.subcategoryId) {
+      conditions.push(eq(products.subcategoryId, options.subcategoryId));
+    }
+
     // Filter by color ID
     if (options.colorId) {
       conditions.push(eq(products.colorId, options.colorId));
@@ -128,6 +136,7 @@ export class StoreProductsStorage implements IStoreProductsStorage {
         .from(storeInventory)
         .innerJoin(products, eq(storeInventory.productId, products.id))
         .leftJoin(categories, eq(products.categoryId, categories.id))
+        .leftJoin(subcategories, eq(products.subcategoryId, subcategories.id))
         .leftJoin(colors, eq(products.colorId, colors.id))
         .leftJoin(fabrics, eq(products.fabricId, fabrics.id))
         .where(whereClause)
@@ -247,6 +256,7 @@ export class StoreProductsStorage implements IStoreProductsStorage {
         product: {
           ...product,
           category: row.categories,
+          subcategory: row.subcategories,
           color: row.colors,
           fabric: row.fabrics,
           activeSale: applicableSale

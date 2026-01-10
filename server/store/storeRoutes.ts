@@ -131,6 +131,7 @@ export const storeRoutes = (app: Express) => {
           offset,
           search: params.search,
           categoryId: req.query.categoryId as string,
+          subcategoryId: req.query.subcategoryId as string,
           colorId: req.query.colorId as string,
           fabricId: req.query.fabricId as string,
           dateFrom: params.dateFrom,

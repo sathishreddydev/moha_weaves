@@ -219,6 +219,7 @@ export class productRepository {
 async getNewProducts(filters?: {
   search?: string;
   category?: string[]; 
+  subcategory?: string[];
   color?: string[];    
   fabric?: string[]; 
   featured?: boolean;
@@ -261,6 +262,18 @@ async getNewProducts(filters?: {
     const colorIds = matchingColors.map((c) => c.id);
     if (colorIds.length > 0) {
       conditions.push(inArray(products.colorId, colorIds));
+    }
+  }
+
+  // Filter by subcategory names - look up IDs from names
+  if (filters?.subcategory && filters.subcategory.length > 0) {
+    const matchingSubcategories = await db
+      .select({ id: subcategories.id })
+      .from(subcategories)
+      .where(inArray(subcategories.name, filters.subcategory));
+    const subcategoryIds = matchingSubcategories.map((s) => s.id);
+    if (subcategoryIds.length > 0) {
+      conditions.push(inArray(products.subcategoryId, subcategoryIds));
     }
   }
 

@@ -36,6 +36,7 @@ export const publicRoutes = (app: Express) => {
       const {
         search,
         category,
+        subcategory,
         color,
         fabric,
         featured,
@@ -48,6 +49,7 @@ export const publicRoutes = (app: Express) => {
       const products = await productService.getProducts({
         search: search as string,
         category: category as string,
+        subcategory: subcategory as string,
         color: color as string,
         fabric: fabric as string,
         featured: featured === "true",
@@ -69,6 +71,7 @@ export const publicRoutes = (app: Express) => {
       const {
         search,
         category,
+        subcategory,
         color,
         fabric,
         featured,
@@ -82,6 +85,7 @@ export const publicRoutes = (app: Express) => {
       const products = await productService.getNewProducts({
         search,
         category,
+        subcategory,
         color,
         fabric,
         featured: featured === true,

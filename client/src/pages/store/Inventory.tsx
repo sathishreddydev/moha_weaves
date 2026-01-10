@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { Link } from "react-router-dom";
 import { Package, Globe, Store, ArrowLeftRight, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -30,6 +30,25 @@ export default function StoreInventoryPage() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [productData, setProductData] = useState<ProductWithDetails>();
   const { categories, colors, fabrics, fetchFilters } = useFilterStore();
+  
+  const allSubcategories = categories.flatMap((cat) => cat.subcategories || []);
+  
+  // State to track current filters for dynamic subcategory options
+  const [currentFilters, setCurrentFilters] = useState<Record<string, string>>({});
+
+  // Get subcategories for selected categories
+  const selectedSubcategories = useMemo(() => {
+    if (!currentFilters.categoryId) return [];
+    const selectedCategoryIds = [currentFilters.categoryId];
+    return allSubcategories.filter(sub => selectedCategoryIds.includes(sub.categoryId));
+  }, [allSubcategories, currentFilters.categoryId]);
+
+  // Handle filter changes to update subcategory options
+  const handleFiltersChangeWithSubcategory = useCallback((filters: Record<string, string>) => {
+    setCurrentFilters(filters);
+    handleFiltersChange(filters);
+  }, []);
+  
   useEffect(() => {
     if (!categories.length || !colors.length || !fabrics.length) {
       fetchFilters();
@@ -54,6 +73,7 @@ export default function StoreInventoryPage() {
   } = useDataTable<any>({
     queryKey: "/api/store/products/paginated",
     initialPageSize: 10,
+    handleFiltersChange: handleFiltersChangeWithSubcategory,
   });
 
   const formatPrice = (price: number | string) => {
@@ -317,6 +337,15 @@ export default function StoreInventoryPage() {
           })) || [],
       },
       {
+        key: "subcategoryId",
+        label: "Subcategory",
+        options:
+          selectedSubcategories?.map((sub) => ({
+            label: sub.name,
+            value: sub.id,
+          })) || [],
+      },
+      {
         key: "colorId",
         label: "Color",
         options:
@@ -335,7 +364,7 @@ export default function StoreInventoryPage() {
           })) || [],
       },
     ],
-    [categories, colors, fabrics],
+    [categories, selectedSubcategories, colors, fabrics],
   );
 
   return (

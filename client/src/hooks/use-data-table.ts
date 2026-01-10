@@ -25,12 +25,14 @@ export interface UseDataTableOptions<T> {
   queryKey: string;
   initialPageSize?: number;
   buildUrl?: (params: TableParams) => string;
+  handleFiltersChange?: (filters: Record<string, string>) => void;
 }
 
 export function useDataTable<T>({
   queryKey,
   initialPageSize = 10,
   buildUrl,
+  handleFiltersChange: customHandleFiltersChange,
 }: UseDataTableOptions<T>) {
   const queryClient = useQueryClient();
   const [pageIndex, setPageIndex] = useState(0);
@@ -107,8 +109,9 @@ export function useDataTable<T>({
     (newFilters: Record<string, string>) => {
       setFilters(newFilters);
       setPageIndex(0);
+      customHandleFiltersChange?.(newFilters);
     },
-    [],
+    [customHandleFiltersChange],
   );
 
   const handleDateFilterChange = useCallback(

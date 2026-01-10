@@ -39,6 +39,7 @@ const parseFiltersFromURL = (search: string) => {
   return {
     search: params.get("search") || "",
     category: params.get("category")?.split(",").filter(Boolean) || [],
+    subcategory: params.get("subcategory")?.split(",").filter(Boolean) || [],
     color: params.get("color")?.split(",").filter(Boolean) || [],
     fabric: params.get("fabric")?.split(",").filter(Boolean) || [],
     featured: params.get("featured") === "true",
@@ -57,6 +58,8 @@ const serializeFiltersToURL = (filters: any) => {
   if (filters.search) params.set("search", filters.search);
   if (filters.category.length)
     params.set("category", filters.category.join(","));
+  if (filters.subcategory.length)
+    params.set("subcategory", filters.subcategory.join(","));
   if (filters.color.length) params.set("color", filters.color.join(","));
   if (filters.fabric.length) params.set("fabric", filters.fabric.join(","));
 
@@ -114,7 +117,7 @@ export default function products() {
     if (key === "priceRange" && typeof value !== "string") {
       setFilters((prev) => ({ ...prev, priceRange: value }));
     } else if (
-      ["category", "color", "fabric"].includes(key) &&
+      ["category", "subcategory", "color", "fabric"].includes(key) &&
       typeof value === "string"
     ) {
       setFilters((prev) => {
@@ -134,6 +137,7 @@ export default function products() {
     const params = new URLSearchParams(location.search);
 
     params.delete("category");
+    params.delete("subcategory");
     params.delete("color");
     params.delete("fabric");
     params.delete("minPrice");
@@ -150,6 +154,7 @@ export default function products() {
 
   const hasActiveFilters =
     filters.category.length > 0 ||
+    filters.subcategory.length > 0 ||
     filters.color.length > 0 ||
     filters.fabric.length > 0 ||
     filters.featured ||
@@ -171,9 +176,22 @@ export default function products() {
   });
 
   const categories = useFilterStore((state) => state.categories);
+  const subcategories = useFilterStore((state) => state.subcategories);
   const colors = useFilterStore((state) => state.colors);
   const fabrics = useFilterStore((state) => state.fabrics);
   const fetchFilters = useFilterStore((state) => state.fetchFilters);
+
+  // Get subcategories for selected categories
+  const selectedSubcategories = useMemo(() => {
+    if (filters.category.length === 0) return [];
+    const selectedCategoryIds = categories
+      .filter(cat => filters.category.includes(cat.name))
+      .map(cat => cat.id);
+    
+    return subcategories.filter(sub => 
+      selectedCategoryIds.includes(sub.categoryId)
+    );
+  }, [filters.category, categories, subcategories]);
 
   useEffect(() => {
     if (!categories.length || !colors.length || !fabrics.length) {
@@ -233,6 +251,30 @@ export default function products() {
               label={cat.name}
             />
           ))}
+        </FilterSection>
+
+        <FilterSection title="Subcategories">
+          {filters.category.length === 0 ? (
+            <div className="px-2 py-1.5 text-xs text-muted-foreground">
+              Select a category first to see subcategories
+            </div>
+          ) : selectedSubcategories.length === 0 ? (
+            <div className="px-2 py-1.5 text-xs text-muted-foreground">
+              No subcategories available for selected categories
+            </div>
+          ) : (
+            selectedSubcategories.map((sub) => (
+              <FilterItem
+                key={sub.id}
+                id={`sub-${sub.id}`}
+                checked={filters.subcategory.includes(sub.name)}
+                onChange={(checked) =>
+                  updateFilter("subcategory", sub.name, checked === true)
+                }
+                label={sub.name}
+              />
+            ))
+          )}
         </FilterSection>
 
         <FilterSection title="Colors">
