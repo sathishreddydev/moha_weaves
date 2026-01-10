@@ -13,7 +13,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { ProductCard } from "@/components/product/ProductCard";
 import { TrendingSalesBanner } from "./TrendingSales";
 import { useQuery } from "@tanstack/react-query";
-import type { SareeWithDetails, Category } from "@shared/schema";
+import type { ProductWithDetails, Category } from "@shared/schema";
 import { useFilterStore } from "@/components/Store/useFilterStore";
 import { useEffect } from "react";
 
@@ -41,16 +41,16 @@ const features = [
 ];
 
 export default function Home() {
-  const { data: featuredSarees, isLoading: loadingFeatured } = useQuery<
-    SareeWithDetails[]
+  const { data: featuredProducts, isLoading: loadingFeatured } = useQuery<
+    ProductWithDetails[]
   >({
-    queryKey: ["/api/sarees?sort=featured&limit=8"],
+    queryKey: ["/api/products?sort=featured&limit=8"],
   });
 
   const { data: newArrivals, isLoading: loadingNew } = useQuery<
-    SareeWithDetails[]
+    ProductWithDetails[]
   >({
-    queryKey: ["/api/sarees?sort=newest&limit=4"],
+    queryKey: ["/api/products?sort=newest&limit=4"],
   });
 
   const categories = useFilterStore((state) => state.categories);
@@ -68,7 +68,7 @@ export default function Home() {
         <div className="absolute inset-0 z-0">
           <img
             src="/banner1.png"
-            alt="Elegant saree collection"
+            alt="Elegant product collection"
             className="w-full h-full object-cover"
           />
           <div className="absolute inset-0 bg-gradient-to-r from-black/80 via-black/60 to-transparent" />
@@ -84,12 +84,12 @@ export default function Home() {
             </h1>
 
             <p className="text-sm sm:text-base text-white/90 mb-6 leading-relaxed">
-              Discover our exquisite collection of handcrafted sarees, woven
+              Discover our exquisite collection of handcrafted products, woven
               with stories of heritage and artistry.
             </p>
 
             <div className="flex gap-4 sm:gap-6">
-              <Link to="/sarees" className="w-full sm:w-auto">
+              <Link to="/products" className="w-full sm:w-auto">
                 <Button
                   size="lg"
                   className="w-full sm:w-auto bg-white text-primary hover:bg-white/90"
@@ -153,7 +153,7 @@ export default function Home() {
           ) : (
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
               {categories?.slice(0, 8).map((category) => (
-                <Link key={category.id} to={`/sarees?category=${category.id}`}>
+                <Link key={category.id} to={`/products?category=${category.id}`}>
                   <Card
                     className="group relative aspect-square overflow-hidden hover-elevate cursor-pointer"
                     data-testid={`card-category-${category.id}`}
@@ -180,7 +180,7 @@ export default function Home() {
         </div>
       </section>
 
-      {(featuredSarees?.length ?? 0) > 0 && (
+      {(featuredProducts?.length ?? 0) > 0 && (
         <section className="py-4 bg-muted/30">
           <div className="max-w-7xl mx-auto px-4">
             <div className="flex items-center justify-between mb-4">
@@ -199,7 +199,7 @@ export default function Home() {
                   Handpicked favorites from our collection
                 </p>
               </div>
-              <Link to="/sarees?sort=featured">
+              <Link to="/products?sort=featured">
                 <Button variant="ghost" data-testid="button-view-all-featured">
                   View All <ArrowRight className="ml-2 h-4 w-4" />
                 </Button>
@@ -218,8 +218,8 @@ export default function Home() {
               </div>
             ) : (
               <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-                {featuredSarees?.map((saree) => (
-                  <ProductCard key={saree.id} saree={saree} />
+                {featuredProducts?.map((product) => (
+                  <ProductCard key={product.id} product={product} />
                 ))}
               </div>
             )}
@@ -245,7 +245,7 @@ export default function Home() {
                 Fresh additions to our collection
               </p>
             </div>
-            <Link to="/sarees?sort=newest">
+            <Link to="/products?sort=newest">
               <Button variant="ghost" data-testid="button-view-all-new">
                 View All <ArrowRight className="ml-2 h-4 w-4" />
               </Button>
@@ -264,8 +264,8 @@ export default function Home() {
             </div>
           ) : (
             <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
-              {newArrivals?.map((saree) => (
-                <ProductCard key={saree.id} saree={saree} />
+              {newArrivals?.map((product) => (
+                <ProductCard key={product.id} product={product} />
               ))}
             </div>
           )}

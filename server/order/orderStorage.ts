@@ -11,7 +11,7 @@ import {
   orderItems,
   orders,
   OrderWithItems,
-  sarees,
+  products,
   stockMovements,
   itemStatusHistory,
   itemStatusEnum,
@@ -74,16 +74,16 @@ export class OrderRepository implements OrderStorage {
 
       // Deduct from online stock and total stock
       await db
-        .update(sarees)
+        .update(products)
         .set({
-          onlineStock: sql`${sarees.onlineStock} - ${item.quantity}`,
-          totalStock: sql`${sarees.totalStock} - ${item.quantity}`,
+          onlineStock: sql`${products.onlineStock} - ${item.quantity}`,
+          totalStock: sql`${products.totalStock} - ${item.quantity}`,
         })
-        .where(eq(sarees.id, item.sareeId));
+        .where(eq(products.id, item.productId));
 
       // Record stock movement (negative for deduction)
       await db.insert(stockMovements).values({
-        sareeId: item.sareeId,
+        productId: item.productId,
         quantity: -item.quantity,
         movementType: "sale",
         source: "online",
@@ -92,7 +92,7 @@ export class OrderRepository implements OrderStorage {
       });
 
       // Check for low stock and create alert
-      await storage.checkAndCreateStockAlert(item.sareeId);
+      await storage.checkAndCreateStockAlert(item.productId);
       
       itemIndex++;
     }
@@ -115,10 +115,10 @@ export class OrderRepository implements OrderStorage {
       const items = await db
         .select()
         .from(orderItems)
-        .innerJoin(sarees, eq(orderItems.sareeId, sarees.id))
-        .leftJoin(categories, eq(sarees.categoryId, categories.id))
-        .leftJoin(colors, eq(sarees.colorId, colors.id))
-        .leftJoin(fabrics, eq(sarees.fabricId, fabrics.id))
+        .innerJoin(products, eq(orderItems.productId, products.id))
+        .leftJoin(categories, eq(products.categoryId, categories.id))
+        .leftJoin(colors, eq(products.colorId, colors.id))
+        .leftJoin(fabrics, eq(products.fabricId, fabrics.id))
         .where(eq(orderItems.orderId, order.orders.id));
 
       result.push({
@@ -126,8 +126,8 @@ export class OrderRepository implements OrderStorage {
         customerName,
         items: items.map((row) => ({
           ...row.order_items,
-          saree: {
-            ...row.sarees,
+          product: {
+            ...row.products,
             category: row.categories,
             color: row.colors,
             fabric: row.fabrics,
@@ -146,10 +146,10 @@ export class OrderRepository implements OrderStorage {
     const itemsRows = await db
       .select()
       .from(orderItems)
-      .innerJoin(sarees, eq(orderItems.sareeId, sarees.id))
-      .leftJoin(categories, eq(sarees.categoryId, categories.id))
-      .leftJoin(colors, eq(sarees.colorId, colors.id))
-      .leftJoin(fabrics, eq(sarees.fabricId, fabrics.id))
+      .innerJoin(products, eq(orderItems.productId, products.id))
+      .leftJoin(categories, eq(products.categoryId, categories.id))
+      .leftJoin(colors, eq(products.colorId, colors.id))
+      .leftJoin(fabrics, eq(products.fabricId, fabrics.id))
       .where(eq(orderItems.orderId, order.id));
     const itemStatuses = await Promise.all(
       itemsRows.map(async (itemRow) => {
@@ -174,8 +174,8 @@ export class OrderRepository implements OrderStorage {
           ...row.order_items,
           status: row.order_items.status,
           currentStatus: statusObj?.currentStatus || row.order_items.status,
-          saree: {
-            ...row.sarees,
+          product: {
+            ...row.products,
             category: row.categories,
             color: row.colors,
             fabric: row.fabrics,

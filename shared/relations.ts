@@ -22,15 +22,15 @@ export const userAddressesRelations = relations(tables.userAddresses, ({ one }) 
 
 // Category, Color, Fabric relations
 export const categoriesRelations = relations(tables.categories, ({ many }) => ({
-  sarees: many(tables.sarees),
+  products: many(tables.products),
 }));
 
 export const colorsRelations = relations(tables.colors, ({ many }) => ({
-  sarees: many(tables.sarees),
+  products: many(tables.products),
 }));
 
 export const fabricsRelations = relations(tables.fabrics, ({ many }) => ({
-  sarees: many(tables.sarees),
+  products: many(tables.products),
 }));
 
 // Store relations
@@ -48,14 +48,14 @@ export const store_customersRelations = relations(tables.store_customers, ({ one
   sales: many(tables.storeSales),
 }));
 
-// Saree relations
-export const sareesRelations = relations(tables.sarees, ({ one, many }) => ({
+// product relations
+export const productsRelations = relations(tables.products, ({ one, many }) => ({
   category: one(tables.categories, {
-    fields: [tables.sarees.categoryId],
+    fields: [tables.products.categoryId],
     references: [tables.categories.id],
   }),
-  color: one(tables.colors, { fields: [tables.sarees.colorId], references: [tables.colors.id] }),
-  fabric: one(tables.fabrics, { fields: [tables.sarees.fabricId], references: [tables.fabrics.id] }),
+  color: one(tables.colors, { fields: [tables.products.colorId], references: [tables.colors.id] }),
+  fabric: one(tables.fabrics, { fields: [tables.products.fabricId], references: [tables.fabrics.id] }),
   wishlistItems: many(tables.wishlist),
   cartItems: many(tables.cart),
   orderItems: many(tables.orderItems),
@@ -71,26 +71,26 @@ export const storeInventoryRelations = relations(tables.storeInventory, ({ one }
     fields: [tables.storeInventory.storeId],
     references: [tables.stores.id],
   }),
-  saree: one(tables.sarees, {
-    fields: [tables.storeInventory.sareeId],
-    references: [tables.sarees.id],
+  product: one(tables.products, {
+    fields: [tables.storeInventory.productId],
+    references: [tables.products.id],
   }),
 }));
 
 // Cart and wishlist relations
 export const wishlistRelations = relations(tables.wishlist, ({ one }) => ({
   user: one(tables.users, { fields: [tables.wishlist.userId], references: [tables.users.id] }),
-  saree: one(tables.sarees, { fields: [tables.wishlist.sareeId], references: [tables.sarees.id] }),
+  product: one(tables.products, { fields: [tables.wishlist.productId], references: [tables.products.id] }),
 }));
 
 export const cartRelations = relations(tables.cart, ({ one }) => ({
   user: one(tables.users, { fields: [tables.cart.userId], references: [tables.users.id] }),
-  saree: one(tables.sarees, { fields: [tables.cart.sareeId], references: [tables.sarees.id] }),
+  product: one(tables.products, { fields: [tables.cart.productId], references: [tables.products.id] }),
 }));
 
 export const storeCartRelations = relations(tables.storeCart, ({ one }) => ({
   store: one(tables.stores, { fields: [tables.storeCart.storeId], references: [tables.stores.id] }),
-  saree: one(tables.sarees, { fields: [tables.storeCart.sareeId], references: [tables.sarees.id] }),
+  product: one(tables.products, { fields: [tables.storeCart.productId], references: [tables.products.id] }),
 }));
 
 // Order relations
@@ -105,7 +105,7 @@ export const ordersRelations = relations(tables.orders, ({ one, many }) => ({
 
 export const orderItemsRelations = relations(tables.orderItems, ({ one, many }) => ({
   order: one(tables.orders, { fields: [tables.orderItems.orderId], references: [tables.orders.id] }),
-  saree: one(tables.sarees, { fields: [tables.orderItems.sareeId], references: [tables.sarees.id] }),
+  product: one(tables.products, { fields: [tables.orderItems.productId], references: [tables.products.id] }),
   statusHistory: many(tables.itemStatusHistory),
 }));
 
@@ -122,9 +122,9 @@ export const storeSaleItemsRelations = relations(tables.storeSaleItems, ({ one }
     fields: [tables.storeSaleItems.saleId],
     references: [tables.storeSales.id],
   }),
-  saree: one(tables.sarees, {
-    fields: [tables.storeSaleItems.sareeId],
-    references: [tables.sarees.id],
+  product: one(tables.products, {
+    fields: [tables.storeSaleItems.productId],
+    references: [tables.products.id],
   }),
 }));
 
@@ -138,9 +138,9 @@ export const stockRequestsRelations = relations(tables.stockRequests, ({ one }) 
     fields: [tables.stockRequests.requestedBy],
     references: [tables.users.id],
   }),
-  saree: one(tables.sarees, {
-    fields: [tables.stockRequests.sareeId],
-    references: [tables.sarees.id],
+  product: one(tables.products, {
+    fields: [tables.stockRequests.productId],
+    references: [tables.products.id],
   }),
 }));
 
@@ -197,9 +197,9 @@ export const onlineExchangeItemsRelations = relations(tables.onlineExchangeItems
     fields: [tables.onlineExchangeItems.orderItemId],
     references: [tables.orderItems.id],
   }),
-  exchangeSaree: one(tables.sarees, {
-    fields: [tables.onlineExchangeItems.exchangeSareeId],
-    references: [tables.sarees.id],
+  exchangeProduct: one(tables.products, {
+    fields: [tables.onlineExchangeItems.exchangeproductId],
+    references: [tables.products.id],
   }),
 }));
 
@@ -215,9 +215,9 @@ export const refundsRelations = relations(tables.refunds, ({ one }) => ({
 
 // Product reviews relations
 export const productReviewsRelations = relations(tables.productReviews, ({ one }) => ({
-  saree: one(tables.sarees, {
-    fields: [tables.productReviews.sareeId],
-    references: [tables.sarees.id],
+  product: one(tables.products, {
+    fields: [tables.productReviews.productId],
+    references: [tables.products.id],
   }),
   user: one(tables.users, { fields: [tables.productReviews.userId], references: [tables.users.id] }),
   order: one(tables.orders, {
@@ -242,9 +242,9 @@ export const salesRelations = relations(tables.sales, ({ one, many }) => ({
 
 export const saleProductsRelations = relations(tables.saleProducts, ({ one }) => ({
   sale: one(tables.sales, { fields: [tables.saleProducts.saleId], references: [tables.sales.id] }),
-  saree: one(tables.sarees, {
-    fields: [tables.saleProducts.sareeId],
-    references: [tables.sarees.id],
+  product: one(tables.products, {
+    fields: [tables.saleProducts.productId],
+    references: [tables.products.id],
   }),
 }));
 
@@ -275,9 +275,9 @@ export const itemStatusHistoryRelations = relations(tables.itemStatusHistory, ({
 
 // Stock management relations
 export const stockMovementsRelations = relations(tables.stockMovements, ({ one }) => ({
-  saree: one(tables.sarees, {
-    fields: [tables.stockMovements.sareeId],
-    references: [tables.sarees.id],
+  product: one(tables.products, {
+    fields: [tables.stockMovements.productId],
+    references: [tables.products.id],
   }),
   store: one(tables.stores, {
     fields: [tables.stockMovements.storeId],
@@ -286,9 +286,9 @@ export const stockMovementsRelations = relations(tables.stockMovements, ({ one }
 }));
 
 export const stockTransfersRelations = relations(tables.stockTransfers, ({ one }) => ({
-  saree: one(tables.sarees, {
-    fields: [tables.stockTransfers.sareeId],
-    references: [tables.sarees.id],
+  product: one(tables.products, {
+    fields: [tables.stockTransfers.productId],
+    references: [tables.products.id],
   }),
   fromStore: one(tables.stores, {
     fields: [tables.stockTransfers.fromStoreId],
@@ -307,9 +307,9 @@ export const stockTransfersRelations = relations(tables.stockTransfers, ({ one }
 export const inventoryAdjustmentsRelations = relations(
   tables.inventoryAdjustments,
   ({ one }) => ({
-    saree: one(tables.sarees, {
-      fields: [tables.inventoryAdjustments.sareeId],
-      references: [tables.sarees.id],
+    product: one(tables.products, {
+      fields: [tables.inventoryAdjustments.productId],
+      references: [tables.products.id],
     }),
     store: one(tables.stores, {
       fields: [tables.inventoryAdjustments.storeId],
@@ -354,9 +354,9 @@ export const storeExchangeReturnItemsRelations = relations(
       fields: [tables.storeExchangeReturnItems.saleItemId],
       references: [tables.storeSaleItems.id],
     }),
-    saree: one(tables.sarees, {
-      fields: [tables.storeExchangeReturnItems.sareeId],
-      references: [tables.sarees.id],
+    product: one(tables.products, {
+      fields: [tables.storeExchangeReturnItems.productId],
+      references: [tables.products.id],
     }),
   })
 );
@@ -368,9 +368,9 @@ export const storeExchangeNewItemsRelations = relations(
       fields: [tables.storeExchangeNewItems.exchangeId],
       references: [tables.storeExchanges.id],
     }),
-    saree: one(tables.sarees, {
-      fields: [tables.storeExchangeNewItems.sareeId],
-      references: [tables.sarees.id],
+    product: one(tables.products, {
+      fields: [tables.storeExchangeNewItems.productId],
+      references: [tables.products.id],
     }),
   })
 );

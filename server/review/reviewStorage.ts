@@ -3,18 +3,18 @@ import {
   users,
   ProductReview,
   InsertProductReview,
-  SareeWithReviews,
-  SareeWithDetails,
+  ProductWithReviews,
+  ProductWithDetails,
   categories,
   colors,
   fabrics,
   orderItems,
   orders,
-  sarees,
+  products,
 } from "@shared/schema";
 import { eq, desc, and } from "drizzle-orm";
 import { db } from "server/db";
-import { sareeService } from "server/saree/sareeStorage";
+import { productService } from "server/product/productStorage";
 
 export type ReviewWithUser = Omit<
   typeof productReviews.$inferSelect,
@@ -27,7 +27,7 @@ export type ReviewWithUser = Omit<
 };
 export interface IReviewStorage {
   // Product Reviews
-  getProductReviews(sareeId: string): Promise<ReviewWithUser[]>;
+  getProductReviews(productId: string): Promise<ReviewWithUser[]>;
   getReview(id: string): Promise<ProductReview | undefined>;
   createReview(review: InsertProductReview): Promise<ReviewWithUser[]>;
   updateReviewApproval(
@@ -35,22 +35,22 @@ export interface IReviewStorage {
     isApproved: boolean
   ): Promise<ProductReview | undefined>;
   getUserReviews(userId: string): Promise<ProductReview[]>;
-  getSareeWithReviews(sareeId: string): Promise<SareeWithReviews | undefined>;
-  canUserReviewProduct(userId: string, sareeId: string): Promise<boolean>;
+  getProductWithReviews(productId: string): Promise<ProductWithReviews | undefined>;
+  canUserReviewProduct(userId: string, productId: string): Promise<boolean>;
   getAllReviews(filters?: {
     approved?: boolean;
     limit?: number;
-  }): Promise<(ProductReview & { saree: SareeWithDetails })[]>;
+  }): Promise<(ProductReview & { product: ProductWithDetails })[]>;
 }
 
 export class ReviewRepository implements IReviewStorage {
   // Product Reviews
-  async getProductReviews(sareeId: string): Promise<ReviewWithUser[]> {
+  async getProductReviews(productId: string): Promise<ReviewWithUser[]> {
     const rows = await db
       .select()
       .from(productReviews)
       .innerJoin(users, eq(users.id, productReviews.userId))
-      .where(eq(productReviews.sareeId, sareeId))
+      .where(eq(productReviews.productId, productId))
       .orderBy(desc(productReviews.createdAt));
 
     return rows.map((row) => ({
@@ -76,7 +76,7 @@ export class ReviewRepository implements IReviewStorage {
       .values(review)
       .returning({ id: productReviews.id });
 
-    return this.getProductReviews(review.sareeId);
+    return this.getProductReviews(review.productId);
   }
 
   async updateReviewApproval(
@@ -99,20 +99,20 @@ export class ReviewRepository implements IReviewStorage {
       .orderBy(desc(productReviews.createdAt));
   }
 
-  async getSareeWithReviews(
-    sareeId: string
-  ): Promise<SareeWithReviews | undefined> {
-    const saree = await sareeService.getSaree(sareeId);
-    if (!saree) return undefined;
+  async getProductWithReviews(
+    productId: string
+  ): Promise<ProductWithReviews | undefined> {
+    const product = await productService.getProduct(productId);
+    if (!product) return undefined;
 
-    const reviews = await this.getProductReviews(sareeId);
+    const reviews = await this.getProductReviews(productId);
     const avgRating =
       reviews.length > 0
         ? reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length
         : 0;
 
     return {
-      ...saree,
+      ...product,
       reviews,
       averageRating: avgRating,
       reviewCount: reviews.length,
@@ -121,7 +121,7 @@ export class ReviewRepository implements IReviewStorage {
 
   async canUserReviewProduct(
     userId: string,
-    sareeId: string
+    productId: string
   ): Promise<boolean> {
     const deliveredOrders = await db
       .select()
@@ -131,7 +131,7 @@ export class ReviewRepository implements IReviewStorage {
         and(
           eq(orders.userId, userId),
           eq(orders.status, "completed"),
-          eq(orderItems.sareeId, sareeId)
+          eq(orderItems.productId, productId)
         )
       );
 
@@ -143,7 +143,7 @@ export class ReviewRepository implements IReviewStorage {
       .where(
         and(
           eq(productReviews.userId, userId),
-          eq(productReviews.sareeId, sareeId)
+          eq(productReviews.productId, productId)
         )
       );
 
@@ -152,7 +152,7 @@ export class ReviewRepository implements IReviewStorage {
 
   async getAllReviews(filters?: { limit?: number }): Promise<
     (ProductReview & {
-      saree: SareeWithDetails;
+      product: ProductWithDetails;
       user: { id: string; name: string };
     })[]
   > {
@@ -160,10 +160,10 @@ export class ReviewRepository implements IReviewStorage {
       .select()
       .from(productReviews)
       .innerJoin(users, eq(users.id, productReviews.userId))
-      .innerJoin(sarees, eq(productReviews.sareeId, sarees.id))
-      .leftJoin(categories, eq(sarees.categoryId, categories.id))
-      .leftJoin(colors, eq(sarees.colorId, colors.id))
-      .leftJoin(fabrics, eq(sarees.fabricId, fabrics.id))
+      .innerJoin(products, eq(productReviews.productId, products.id))
+      .leftJoin(categories, eq(products.categoryId, categories.id))
+      .leftJoin(colors, eq(products.colorId, colors.id))
+      .leftJoin(fabrics, eq(products.fabricId, fabrics.id))
       .orderBy(desc(productReviews.createdAt))
       .limit(filters?.limit || 100);
 
@@ -173,8 +173,8 @@ export class ReviewRepository implements IReviewStorage {
         id: row.users.id,
         name: row.users.name,
       },
-      saree: {
-        ...row.sarees,
+      product: {
+        ...row.products,
         category: row.categories,
         color: row.colors,
         fabric: row.fabrics,

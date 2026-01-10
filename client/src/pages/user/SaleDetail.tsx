@@ -6,7 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ProductCard } from "@/components/product/ProductCard";
 import { useQuery } from "@tanstack/react-query";
-import type { SaleWithProducts, SareeWithDetails } from "@shared/schema";
+import type { SaleWithProducts, ProductWithDetails } from "@shared/schema";
 
 export default function SaleDetail() {
   const { id } = useParams<{ id: string }>();
@@ -16,9 +16,9 @@ export default function SaleDetail() {
     enabled: !!id,
   });
 
-  const { data: saleProducts, isLoading: loadingProducts } = useQuery<SareeWithDetails[]>({
+  const { data: saleProducts, isLoading: loadingProducts } = useQuery<ProductWithDetails[]>({
     queryKey: sale?.offerType === "category" && sale?.categoryId
-      ? [`/api/sarees?category=${sale.categoryId}&onSale=true`]
+      ? [`/api/products?category=${sale.categoryId}&onSale=true`]
       : [`/api/sales/${id}/products`],
     enabled: !!sale,
   });
@@ -165,7 +165,7 @@ export default function SaleDetail() {
                   </a>
                 )}
                 {sale.categoryId && (
-                  <Link to={`/sarees?category=${sale.categoryId}`}>
+                  <Link to={`/products?category=${sale.categoryId}`}>
                     <Button size="lg" variant="outline">
                       Browse Category
                     </Button>
@@ -187,7 +187,7 @@ export default function SaleDetail() {
             {saleProducts.map((product) => (
               <ProductCard
                 key={product.id}
-                saree={product}
+                product={product}
               />
             ))}
           </div>

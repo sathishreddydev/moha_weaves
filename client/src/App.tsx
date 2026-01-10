@@ -15,8 +15,8 @@ import Unauthorized from "./Unauthorized";
 
 const NotFound = lazy(() => import("@/pages/not-found"));
 const Home = lazy(() => import("@/pages/user/Home"));
-const Sarees = lazy(() => import("@/pages/user/Sarees"));
-const SareeDetail = lazy(() => import("@/pages/user/SareeDetail"));
+const Products = lazy(() => import("@/pages/user/Products"));
+const ProductDetail = lazy(() => import("@/pages/user/ProductDetail"));
 const Categories = lazy(() => import("@/pages/user/Categories"));
 const Cart = lazy(() => import("@/pages/user/Cart"));
 const Wishlist = lazy(() => import("@/pages/user/Wishlist"));
@@ -42,7 +42,7 @@ const SaleDetail = lazy(() => import("@/pages/user/SaleDetail"));
 
 const AdminLogin = lazy(() => import("@/pages/admin/Login"));
 const AdminDashboard = lazy(() => import("@/pages/admin/Dashboard"));
-const AdminSarees = lazy(() => import("@/pages/admin/Sarees"));
+const AdminProducts = lazy(() => import("@/pages/admin/Products"));
 const AdminCategories = lazy(() => import("@/pages/admin/Categories"));
 const AdminColors = lazy(() => import("@/pages/admin/Colors"));
 const AdminFabrics = lazy(() => import("@/pages/admin/Fabrics"));
@@ -56,7 +56,7 @@ const AdminSettings = lazy(() => import("@/pages/admin/Settings"));
 
 const InventoryLogin = lazy(() => import("@/pages/inventory/Login"));
 const InventoryDashboard = lazy(() => import("@/pages/inventory/Dashboard"));
-const InventorySarees = lazy(() => import("@/pages/inventory/Sarees"));
+const InventoryProducts = lazy(() => import("@/pages/inventory/Products"));
 const InventoryStockDistribution = lazy(
   () => import("@/pages/inventory/StockDistribution")
 );
@@ -152,7 +152,7 @@ function Router() {
               <Route element={<AdminLayout />}>
                 <Route index element={<Navigate to="dashboard" replace />} />
                 <Route path="dashboard" element={<AdminDashboard />} />
-                <Route path="sarees" element={<AdminSarees />} />
+                <Route path="products" element={<AdminProducts />} />
                 <Route path="categories" element={<AdminCategories />} />
                 <Route path="colors" element={<AdminColors />} />
                 <Route path="fabrics" element={<AdminFabrics />} />
@@ -182,7 +182,7 @@ function Router() {
                 <Route index element={<Navigate to="dashboard" replace />} />
 
                 <Route path="dashboard" element={<InventoryDashboard />} />
-                <Route path="sarees" element={<InventorySarees />} />
+                <Route path="products" element={<InventoryProducts />} />
                 <Route
                   path="distribution"
                   element={<InventoryStockDistribution />}
@@ -237,8 +237,8 @@ function Router() {
       <Suspense fallback={<LoadingFallback />}>
         <Routes>
           <Route path="/" element={<Home />} />
-          <Route path="/sarees" element={<Sarees />} />
-          <Route path="/sarees/:id" element={<SareeDetail />} />
+          <Route path="/products" element={<Products />} />
+          <Route path="/products/:id" element={<ProductDetail />} />
           <Route path="/categories" element={<Categories />} />
           <Route path="/sales" element={<Sales />} />
           <Route path="/sales/:id" element={<SaleDetail />} />

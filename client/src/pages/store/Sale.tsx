@@ -10,11 +10,11 @@ import { ColumnDef } from "@tanstack/react-table";
 import { useAuth } from "@/lib/auth";
 import { useQuery } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
-import type { SareeWithDetails } from "@shared/schema";
+import type { ProductWithDetails } from "@shared/schema";
 import { useStoreCart } from "./Hook/cartStore";
 
 type ShopProduct = {
-  saree: SareeWithDetails & {
+  product: ProductWithDetails & {
     activeSale?: {
       id: string;
       name: string;
@@ -29,12 +29,12 @@ type ShopProduct = {
 
 interface CartItem {
   id: string;
-  sareeId: string;
+  productId: string;
   quantity: number;
   unitPrice: number;
   lineAmount: number;
   storeStock: number;
-  saree: {
+  product: {
     id: string;
     name: string;
     code: string;
@@ -68,12 +68,12 @@ export default function StoreSale() {
     removeLoading,
     setStoreId,
   } = useStoreCart();
-  const disabledBtn = (sareeId: string) => {
+  const disabledBtn = (productId: string) => {
     return (
       loading ||
-      addCartLoading[sareeId] ||
-      updateCartLoading[sareeId] ||
-      removeLoading[sareeId]
+      addCartLoading[productId] ||
+      updateCartLoading[productId] ||
+      removeLoading[productId]
     );
   };
   useEffect(() => {
@@ -126,16 +126,16 @@ export default function StoreSale() {
     }
 
     const existing = cartItems.find(
-      (item) => item.sareeId === product.saree.id,
+      (item) => item.productId === product.product.id,
     );
     const price =
-      product.saree.activeSale && product.saree.discountedPrice
-        ? product.saree.discountedPrice
-        : parseFloat(product.saree.price);
+      product.product.activeSale && product.product.discountedPrice
+        ? product.product.discountedPrice
+        : parseFloat(product.product.price);
 
     if (existing) {
       if (existing.quantity < product.storeStock) {
-        addItem(product.saree.id, 1, price);
+        addItem(product.product.id, 1, price);
       } else {
         toast({
           title: "Limit reached",
@@ -143,13 +143,13 @@ export default function StoreSale() {
         });
       }
     } else {
-      addItem(product.saree.id, 1, price);
+      addItem(product.product.id, 1, price);
     }
   };
 
-  const updateQuantity = (sareeId: string, delta: number) => {
+  const updateQuantity = (productId: string, delta: number) => {
     const updatedCart = cartItems.map((item) => {
-      if (item.sareeId !== sareeId) return item;
+      if (item.productId !== productId) return item;
       const newQty = item.quantity + delta;
       if (newQty < 1) return item;
       if (newQty > item.storeStock) {
@@ -165,58 +165,58 @@ export default function StoreSale() {
         lineAmount: newQty * item.unitPrice,
       };
     });
-    updateItems(updatedCart, sareeId);
+    updateItems(updatedCart, productId);
   };
 
-  const removeFromCart = (sareeId: string) => {
-    deleteItem(sareeId);
+  const removeFromCart = (productId: string) => {
+    deleteItem(productId);
   };
 
   const displayProducts = tableProducts;
   const displayLoading = tableLoading;
   const productColumns: ColumnDef<ShopProduct>[] = [
     {
-      accessorKey: "saree.imageUrl",
+      accessorKey: "product.imageUrl",
       header: "Image",
       cell: ({ row }) => (
         <img
           src={
-            row.original.saree.imageUrl ||
+            row.original.product.imageUrl ||
             "https://images.unsplash.com/photo-1610030469983-98e550d6193c?w=50"
           }
-          alt={row.original.saree.name}
+          alt={row.original.product.name}
           className="w-12 h-16 rounded object-cover"
         />
       ),
     },
     {
-      accessorKey: "saree.name",
+      accessorKey: "product.name",
       header: "Product",
       cell: ({ row }) => (
         <div>
           <p className="font-medium text-sm line-clamp-1">
-            {row.original.saree.name}
+            {row.original.product.name}
           </p>
           <p className="text-xs text-muted-foreground font-mono">
-            {row.original.saree.sku || "-"}
+            {row.original.product.sku || "-"}
           </p>
         </div>
       ),
     },
     {
-      accessorKey: "saree.category.name",
+      accessorKey: "product.category.name",
       header: "Category",
       cell: ({ row }) => (
         <span className="text-sm">
-          {row.original.saree.category?.name || "-"}
+          {row.original.product.category?.name || "-"}
         </span>
       ),
     },
     {
-      accessorKey: "saree.color.name",
+      accessorKey: "product.color.name",
       header: "Color",
       cell: ({ row }) => {
-        const color = row.original.saree.color;
+        const color = row.original.product.color;
         if (!color) return <span className="text-sm">-</span>;
         return (
           <div className="flex items-center gap-2">
@@ -230,33 +230,33 @@ export default function StoreSale() {
       },
     },
     {
-      accessorKey: "saree.fabric.name",
+      accessorKey: "product.fabric.name",
       header: "Fabric",
       cell: ({ row }) => (
         <span className="text-sm">
-          {row.original.saree.fabric?.name || "-"}
+          {row.original.product.fabric?.name || "-"}
         </span>
       ),
     },
     {
-      accessorKey: "saree.price",
+      accessorKey: "product.price",
       header: "Price",
       cell: ({ row }) => {
         const item = row.original;
         return (
           <div>
-            {item.saree.activeSale && item.saree.discountedPrice ? (
+            {item.product.activeSale && item.product.discountedPrice ? (
               <div className="flex items-center gap-2">
                 <span className="font-semibold text-primary">
-                  {formatPrice(item.saree.discountedPrice)}
+                  {formatPrice(item.product.discountedPrice)}
                 </span>
                 <span className="text-xs text-muted-foreground line-through">
-                  {formatPrice(item.saree.price)}
+                  {formatPrice(item.product.price)}
                 </span>
               </div>
             ) : (
               <span className="font-semibold text-primary">
-                {formatPrice(item.saree.price)}
+                {formatPrice(item.product.price)}
               </span>
             )}
           </div>
@@ -286,8 +286,8 @@ export default function StoreSale() {
       header: "Actions",
       cell: ({ row }) => {
         const product = row.original;
-        const inCart = cartItems.some((c) => c.sareeId === product.saree.id);
-        const cartItem = cartItems.find((c) => c.sareeId === product.saree.id);
+        const inCart = cartItems.some((c) => c.productId === product.product.id);
+        const cartItem = cartItems.find((c) => c.productId === product.product.id);
         const outOfStock = product.storeStock === 0;
 
         if (inCart && cartItem) {
@@ -297,9 +297,9 @@ export default function StoreSale() {
                 variant="outline"
                 size="icon"
                 className="h-8 w-8"
-                onClick={() => updateQuantity(product.saree.id, -1)}
+                onClick={() => updateQuantity(product.product.id, -1)}
                 disabled={
-                  disabledBtn(product.saree.id) || cartItem.quantity <= 1
+                  disabledBtn(product.product.id) || cartItem.quantity <= 1
                 }
               >
                 <Minus className="h-3 w-3" />
@@ -311,9 +311,9 @@ export default function StoreSale() {
                 variant="outline"
                 size="icon"
                 className="h-8 w-8"
-                onClick={() => updateQuantity(product.saree.id, 1)}
+                onClick={() => updateQuantity(product.product.id, 1)}
                 disabled={
-                  disabledBtn(product.saree.id) ||
+                  disabledBtn(product.product.id) ||
                   cartItem.quantity >= product.storeStock
                 }
               >
@@ -323,8 +323,8 @@ export default function StoreSale() {
                 variant="ghost"
                 size="icon"
                 className="h-8 w-8 text-red-600 hover:text-red-700"
-                onClick={() => removeFromCart(product.saree.id)}
-                disabled={disabledBtn(product.saree.id)}
+                onClick={() => removeFromCart(product.product.id)}
+                disabled={disabledBtn(product.product.id)}
               >
                 <Trash2 className="h-3 w-3" />
               </Button>
@@ -336,9 +336,9 @@ export default function StoreSale() {
           <Button
             variant="ghost"
             size="icon"
-            disabled={disabledBtn(product.saree.id) || outOfStock}
+            disabled={disabledBtn(product.product.id) || outOfStock}
             onClick={() => addToCart(product)}
-            data-testid={`product-${product.saree.id}`}
+            data-testid={`product-${product.product.id}`}
           >
             <Plus className="h-4 w-4" />
           </Button>

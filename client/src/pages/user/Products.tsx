@@ -21,7 +21,7 @@ import {
 } from "@/components/ui/select";
 import { ProductCard } from "@/components/product/ProductCard";
 import { useQuery } from "@tanstack/react-query";
-import type { SareeWithDetails } from "@shared/schema";
+import type { ProductWithDetails } from "@shared/schema";
 import { useFilterStore } from "@/components/Store/useFilterStore";
 import { CheckedState } from "@radix-ui/react-checkbox";
 import PriceRangeSlider from "@/components/product/PriceRangeSlider";
@@ -71,7 +71,7 @@ const serializeFiltersToURL = (filters: any) => {
 
   return params.toString();
 };
-export default function Sarees() {
+export default function products() {
   const location = useLocation();
   const navigate = useNavigate();
 
@@ -157,10 +157,10 @@ export default function Sarees() {
     filters.priceRange.min !== 0 ||
     filters.priceRange.max !== 100000;
 
-  const { data: sarees, isLoading } = useQuery<SareeWithDetails[]>({
-    queryKey: ["sarees", filters],
+  const { data: products, isLoading } = useQuery<ProductWithDetails[]>({
+    queryKey: ["products", filters],
     queryFn: async () => {
-      const res = await fetch("/api/getSarees", {
+      const res = await fetch("/api/getProducts", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(filters),
@@ -300,7 +300,7 @@ export default function Sarees() {
             <div className="px-6 lg:hidden">
               <Input
                 type="search"
-                placeholder="Search sarees..."
+                placeholder="Search products..."
                 value={filters.search}
                 onChange={(e) => updateFilter("search", e.target.value)}
               />
@@ -360,16 +360,16 @@ export default function Sarees() {
                 </div>
               ))}
             </div>
-          ) : sarees && sarees.length > 0 ? (
+          ) : products && products.length > 0 ? (
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 px-6">
-              {sarees.map((saree) => (
-                <ProductCard key={saree.id} saree={saree} />
+              {products.map((product) => (
+                <ProductCard key={product.id} product={product} />
               ))}
             </div>
           ) : (
             <div className="text-center py-16">
               <p className="text-muted-foreground mb-4">
-                No sarees found matching your criteria.
+                No products found matching your criteria.
               </p>
               <Button onClick={clearFilters} variant="outline">
                 Clear filters

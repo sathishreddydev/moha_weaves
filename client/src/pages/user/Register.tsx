@@ -97,7 +97,7 @@ export default function UserRegister() {
             Moha
           </Link>
           <p className="text-muted-foreground mt-2">
-            Begin your saree journey with us
+            Begin your product journey with us
           </p>
         </div>
 

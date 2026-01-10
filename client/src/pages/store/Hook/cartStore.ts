@@ -5,12 +5,12 @@ import { toast } from "@/hooks/use-toast";
 
 interface CartItem {
   id: string;
-  sareeId: string;
+  productId: string;
   quantity: number;
   unitPrice: number;
   lineAmount: number;
   storeStock: number;
-  saree: {
+  product: {
     id: string;
     name: string;
     code: string;
@@ -30,9 +30,9 @@ interface StoreCartState {
 
   setStoreId: (storeId: string) => void;
   fetchCart: () => Promise<void>;
-  addItem: (sareeId: string, quantity: number, unitPrice: number) => Promise<void>;
-  updateItems: (items: CartItem[], sareeId: string) => Promise<void>;
-  deleteItem: (sareeId: string) => Promise<void>;
+  addItem: (productId: string, quantity: number, unitPrice: number) => Promise<void>;
+  updateItems: (items: CartItem[], productId: string) => Promise<void>;
+  deleteItem: (productId: string) => Promise<void>;
   clearCart: () => void;
 }
 
@@ -67,15 +67,15 @@ export const useStoreCart = create<StoreCartState>((set, get) => ({
     }
   },
 
-  addItem: async (sareeId, quantity, unitPrice) => {
+  addItem: async (productId, quantity, unitPrice) => {
     const { storeId } = get();
     if (!storeId) return;
 
     set((state) => ({
-      addCartLoading: { ...state.addCartLoading, [sareeId]: true },
+      addCartLoading: { ...state.addCartLoading, [productId]: true },
     }));
     try {
-      const res = await axios.post(`/api/store/cart`, { sareeId, quantity, unitPrice });
+      const res = await axios.post(`/api/store/cart`, { productId, quantity, unitPrice });
       set({ items: res.data.items || [] });
 
       toast({
@@ -91,20 +91,20 @@ export const useStoreCart = create<StoreCartState>((set, get) => ({
       });
     } finally {
       set((state) => ({
-        addCartLoading: { ...state.addCartLoading, [sareeId]: false },
+        addCartLoading: { ...state.addCartLoading, [productId]: false },
       }));
     }
   },
 
-  updateItems: async (items, sareeId) => {
+  updateItems: async (items, productId) => {
     const { storeId } = get();
     if (!storeId) return;
 
     set(produce((state: StoreCartState) => {
       items.forEach(item => {
-        state.itemLoading[item.sareeId] = true;
+        state.itemLoading[item.productId] = true;
       });
-      state.updateCartLoading[sareeId] = true;
+      state.updateCartLoading[productId] = true;
     }));
 
     try {
@@ -113,7 +113,7 @@ export const useStoreCart = create<StoreCartState>((set, get) => ({
 
       set(produce((state: StoreCartState) => {
         updatedItems.forEach((updatedItem: CartItem) => {
-          const existingItem = state.items.find(i => i.sareeId === updatedItem.sareeId);
+          const existingItem = state.items.find(i => i.productId === updatedItem.productId);
           if (existingItem) {
             existingItem.quantity = updatedItem.quantity;
             existingItem.unitPrice = updatedItem.unitPrice;
@@ -121,7 +121,7 @@ export const useStoreCart = create<StoreCartState>((set, get) => ({
           } else {
             state.items.push(updatedItem);
           }
-          state.itemLoading[updatedItem.sareeId] = false;
+          state.itemLoading[updatedItem.productId] = false;
         });
       }));
 
@@ -134,9 +134,9 @@ export const useStoreCart = create<StoreCartState>((set, get) => ({
 
       set(produce((state: StoreCartState) => {
         items.forEach(item => {
-          state.itemLoading[item.sareeId] = false;
+          state.itemLoading[item.productId] = false;
         });
-        state.updateCartLoading[sareeId] = false;
+        state.updateCartLoading[productId] = false;
 
       }));
 
@@ -146,20 +146,20 @@ export const useStoreCart = create<StoreCartState>((set, get) => ({
       });
     } finally {
       set((state) => ({
-        updateCartLoading: { ...state.updateCartLoading, [sareeId]: false },
+        updateCartLoading: { ...state.updateCartLoading, [productId]: false },
       }));
     }
   },
 
-  deleteItem: async (sareeId) => {
+  deleteItem: async (productId) => {
     const { storeId } = get();
     if (!storeId) return;
 
     set((state) => ({
-      addCartLoading: { ...state.removeLoading, [sareeId]: true },
+      addCartLoading: { ...state.removeLoading, [productId]: true },
     }));
     try {
-      await axios.delete(`/api/store/cart/${sareeId}`);
+      await axios.delete(`/api/store/cart/${productId}`);
       await get().fetchCart();
 
       toast({
@@ -175,7 +175,7 @@ export const useStoreCart = create<StoreCartState>((set, get) => ({
       });
     } finally {
       set((state) => ({
-        addCartLoading: { ...state.removeLoading, [sareeId]: false },
+        addCartLoading: { ...state.removeLoading, [productId]: false },
       }));
     }
   },

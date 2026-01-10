@@ -1,1 +1,0 @@
-ALTER TABLE "store_sales" ALTER COLUMN "id" DROP DEFAULT;

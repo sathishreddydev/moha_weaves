@@ -12,11 +12,11 @@ import {
 
 import { useAuth } from "@/lib/auth";
 import { useQuery } from "@tanstack/react-query";
-import type { ProductReview, User, SareeWithDetails } from "@shared/schema";
+import type { ProductReview, User, ProductWithDetails } from "@shared/schema";
 
 type ReviewWithDetails = ProductReview & {
   user: User;
-  saree: SareeWithDetails;
+  product: ProductWithDetails;
 };
 
 export default function AdminReviews() {
@@ -77,10 +77,10 @@ export default function AdminReviews() {
                     <TableCell>
                       <div className="flex items-center gap-3">
                         <img
-                          src={review.saree.imageUrl ?? ""}
+                          src={review.product.imageUrl ?? ""}
                           className="w-10 h-12 rounded object-cover"
                         />
-                        <span className="font-medium">{review.saree.name}</span>
+                        <span className="font-medium">{review.product.name}</span>
                       </div>
                     </TableCell>
                     <TableCell>

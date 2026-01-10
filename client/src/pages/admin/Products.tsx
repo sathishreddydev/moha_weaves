@@ -14,7 +14,7 @@ import { useQuery } from "@tanstack/react-query";
 import { DataTable, FilterConfig } from "@/components/ui/data-table";
 import { useDataTable } from "@/hooks/use-data-table";
 import { ColumnDef } from "@tanstack/react-table";
-import type { SareeWithDetails, Category } from "@shared/schema";
+import type { ProductWithDetails, Category } from "@shared/schema";
 
 const formatPrice = (price: string | number) => {
   const numPrice = typeof price === "string" ? parseFloat(price) : price;
@@ -25,9 +25,9 @@ const formatPrice = (price: string | number) => {
   }).format(numPrice);
 };
 
-export default function AdminSarees() {
+export default function AdminProducts() {
   const navigate = useNavigate();
-  const [viewingSaree, setViewingSaree] = useState<SareeWithDetails | null>(
+  const [viewingProduct, setViewingProduct] = useState<ProductWithDetails | null>(
     null
   );
 
@@ -36,7 +36,7 @@ export default function AdminSarees() {
   });
 
   const {
-    data: sarees,
+    data: products,
     totalCount,
     pageIndex,
     pageSize,
@@ -45,12 +45,12 @@ export default function AdminSarees() {
     handleSearchChange,
     handleFiltersChange,
     handleDateFilterChange,
-  } = useDataTable<SareeWithDetails>({
-    queryKey: "/api/admin/sarees",
+  } = useDataTable<ProductWithDetails>({
+    queryKey: "/api/admin/products",
     initialPageSize: 10,
   });
 
-  const columns: ColumnDef<SareeWithDetails>[] = useMemo(
+  const columns: ColumnDef<ProductWithDetails>[] = useMemo(
     () => [
       {
         accessorKey: "imageUrl",
@@ -148,7 +148,7 @@ export default function AdminSarees() {
           <Button
             variant="ghost"
             size="icon"
-            onClick={() => setViewingSaree(row.original)}
+            onClick={() => setViewingProduct(row.original)}
             data-testid={`button-view-${row.original.id}`}
           >
             <Eye className="h-4 w-4" />
@@ -190,10 +190,10 @@ export default function AdminSarees() {
               className="text-2xl font-semibold"
               data-testid="text-page-title"
             >
-              Saree Stock Overview
+              product Stock Overview
             </h1>
             <p className="text-muted-foreground">
-              View saree inventory details (read-only)
+              View product inventory details (read-only)
             </p>
           </div>
         </div>
@@ -202,7 +202,7 @@ export default function AdminSarees() {
           <CardContent className="p-4">
             <DataTable
               columns={columns}
-              data={sarees}
+              data={products}
               totalCount={totalCount}
               pageIndex={pageIndex}
               pageSize={pageSize}
@@ -211,83 +211,83 @@ export default function AdminSarees() {
               onFiltersChange={handleFiltersChange}
               onDateFilterChange={handleDateFilterChange}
               isLoading={isLoading}
-              searchPlaceholder="Search sarees..."
+              searchPlaceholder="Search products..."
               filters={filters}
               dateFilter={{ key: "date", label: "Filter by date" }}
-              emptyMessage="No sarees found"
+              emptyMessage="No products found"
             />
           </CardContent>
         </Card>
       </div>
 
       <Dialog
-        open={!!viewingSaree}
-        onOpenChange={(open) => !open && setViewingSaree(null)}
+        open={!!viewingProduct}
+        onOpenChange={(open) => !open && setViewingProduct(null)}
       >
         <DialogContent className="max-w-2xl">
           <DialogHeader>
-            <DialogTitle>Saree Details</DialogTitle>
+            <DialogTitle>product Details</DialogTitle>
           </DialogHeader>
-          {viewingSaree && (
+          {viewingProduct && (
             <div className="space-y-4">
               <div className="flex gap-6">
                 <div className="w-32 h-40 rounded overflow-hidden bg-muted flex-shrink-0">
                   <img
                     src={
-                      viewingSaree.imageUrl ||
+                      viewingProduct.imageUrl ||
                       "https://images.unsplash.com/photo-1610030469983-98e550d6193c?w=200"
                     }
-                    alt={viewingSaree.name}
+                    alt={viewingProduct.name}
                     className="w-full h-full object-cover"
                   />
                 </div>
                 <div className="flex-1 space-y-2">
-                  <h3 className="text-xl font-semibold">{viewingSaree.name}</h3>
+                  <h3 className="text-xl font-semibold">{viewingProduct.name}</h3>
                   <p className="text-2xl font-bold text-primary">
-                    {formatPrice(viewingSaree.price)}
+                    {formatPrice(viewingProduct.price)}
                   </p>
                   <div className="flex flex-wrap gap-2">
                     <Badge variant="outline">
-                      {viewingSaree.sku || "No SKU"}
+                      {viewingProduct.sku || "No SKU"}
                     </Badge>
                     <Badge
-                      variant={viewingSaree.isActive ? "default" : "secondary"}
+                      variant={viewingProduct.isActive ? "default" : "secondary"}
                     >
-                      {viewingSaree.isActive ? "Active" : "Inactive"}
+                      {viewingProduct.isActive ? "Active" : "Inactive"}
                     </Badge>
-                    {viewingSaree.isFeatured && (
+                    {viewingProduct.isFeatured && (
                       <Badge variant="secondary">Featured</Badge>
                     )}
                     <Badge variant="outline" className="capitalize">
-                      {viewingSaree.distributionChannel}
+                      {viewingProduct.distributionChannel}
                     </Badge>
                   </div>
                 </div>
               </div>
 
-              {viewingSaree.description && (
+              {viewingProduct.description && (
                 <div>
                   <h4 className="font-medium text-sm text-muted-foreground mb-1">
                     Description
                   </h4>
-                  <p className="text-sm">{viewingSaree.description}</p>
+                  <p className="text-sm">{viewingProduct.description}</p>
                 </div>
               )}
 
               <div className="grid grid-cols-3 gap-4">
                 <div className="p-3 bg-muted rounded-lg text-center">
                   <p className="text-2xl font-bold">
-                    {viewingSaree.totalStock}
+                    {viewingProduct.totalStock}
                   </p>
                   <p className="text-xs text-muted-foreground">Total Stock</p>
                 </div>
                 <div className="p-3 bg-muted rounded-lg text-center">
                   <p className="text-2xl font-bold text-blue-600">
-                    {viewingSaree.onlineStock}
+                    {viewingProduct.onlineStock}
                   </p>
                   <p className="text-xs text-muted-foreground">Online Stock</p>
                 </div>
-                {viewingSaree?.storeAllocations?.map((item, index) => (
+                {viewingProduct?.storeAllocations?.map((item, index) => (
                   <div
                     key={index}
                     className="p-3 bg-muted rounded-lg text-center"
@@ -306,25 +306,25 @@ export default function AdminSarees() {
                 <div>
                   <span className="text-muted-foreground">Category:</span>
                   <span className="ml-2 font-medium">
-                    {viewingSaree.category?.name || "N/A"}
+                    {viewingProduct.category?.name || "N/A"}
                   </span>
                 </div>
                 <div>
                   <span className="text-muted-foreground">Color:</span>
                   <span className="ml-2 font-medium flex items-center gap-1">
-                    {viewingSaree.color?.hexCode && (
+                    {viewingProduct.color?.hexCode && (
                       <span
                         className="w-3 h-3 rounded-full inline-block"
-                        style={{ backgroundColor: viewingSaree.color.hexCode }}
+                        style={{ backgroundColor: viewingProduct.color.hexCode }}
                       />
                     )}
-                    {viewingSaree.color?.name || "N/A"}
+                    {viewingProduct.color?.name || "N/A"}
                   </span>
                 </div>
                 <div>
                   <span className="text-muted-foreground">Fabric:</span>
                   <span className="ml-2 font-medium">
-                    {viewingSaree.fabric?.name || "N/A"}
+                    {viewingProduct.fabric?.name || "N/A"}
                   </span>
                 </div>
               </div>

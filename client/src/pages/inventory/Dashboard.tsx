@@ -24,7 +24,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import type {
-  SareeWithDetails,
+  ProductWithDetails,
   Order,
   StockRequestWithDetails,
 } from "@shared/schema";
@@ -37,7 +37,7 @@ export default function InventoryDashboard() {
   const isInventoryUser = !!user && (user.role === "inventory" || user.role === "admin");
 
   const { data: lowStockItems, isLoading: loadingStock } = useQuery<
-    SareeWithDetails[]
+    ProductWithDetails[]
   >({
     queryKey: ["/api/inventory/low-stock"],
     enabled: isInventoryUser,
@@ -54,8 +54,8 @@ export default function InventoryDashboard() {
   });
 
   const updateDistributionMutation = useMutation({
-    mutationFn: ({ sareeId, channel }: { sareeId: string; channel: string }) =>
-      apiRequest("PATCH", `/api/inventory/sarees/${sareeId}/distribution`, {
+    mutationFn: ({ productId, channel }: { productId: string; channel: string }) =>
+      apiRequest("PATCH", `/api/inventory/products/${productId}/distribution`, {
         channel,
       }),
     onSuccess: () => {
@@ -129,7 +129,7 @@ export default function InventoryDashboard() {
       <Card className="mb-8">
         <CardHeader className="flex flex-row items-center justify-between">
           <CardTitle>Low Stock Items</CardTitle>
-          <Link to="/inventory/sarees">
+          <Link to="/inventory/products">
             <Button variant="ghost" size="sm">
               View All
             </Button>
@@ -152,24 +152,24 @@ export default function InventoryDashboard() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {lowStockItems.slice(0, 5).map((saree) => (
-                  <TableRow key={saree.id}>
+                {lowStockItems.slice(0, 5).map((product) => (
+                  <TableRow key={product.id}>
                     <TableCell>
                       <div className="flex items-center gap-3">
                         <img
                           src={
-                            saree.imageUrl ||
+                            product.imageUrl ||
                             "https://images.unsplash.com/photo-1610030469983-98e550d6193c?w=50&h=50&fit=crop"
                           }
-                          alt={saree.name}
+                          alt={product.name}
                           className="w-10 h-10 rounded object-cover"
                         />
                         <div>
                           <p className="font-medium text-sm line-clamp-1">
-                            {saree.name}
+                            {product.name}
                           </p>
                           <p className="text-xs text-muted-foreground">
-                            {saree.sku}
+                            {product.sku}
                           </p>
                         </div>
                       </div>
@@ -177,13 +177,13 @@ export default function InventoryDashboard() {
                     <TableCell>
                       <Badge
                         variant={
-                          saree.totalStock < 5 ? "destructive" : "secondary"
+                          product.totalStock < 5 ? "destructive" : "secondary"
                         }
                       >
-                        {saree.totalStock}
+                        {product.totalStock}
                       </Badge>
                     </TableCell>
-                    <TableCell>{saree.onlineStock}</TableCell>
+                    <TableCell>{product.onlineStock}</TableCell>
                   </TableRow>
                 ))}
               </TableBody>
@@ -215,7 +215,7 @@ export default function InventoryDashboard() {
                   className="flex items-center justify-between p-3 border rounded-lg"
                 >
                   <div>
-                    <p className="font-medium text-sm">{request.saree.name}</p>
+                    <p className="font-medium text-sm">{request.product.name}</p>
                     <p className="text-xs text-muted-foreground">
                       {request.store.name} • Qty: {request.quantity}
                     </p>

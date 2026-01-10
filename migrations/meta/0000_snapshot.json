@@ -1,5 +1,5 @@
 {
-  "id": "2bd3faa8-5d7f-4db5-a12f-a59e4846c60e",
+  "id": "863086bc-8e0c-4e6f-987e-d746ced51b96",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "version": "7",
   "dialect": "postgresql",
@@ -65,8 +65,8 @@
           "primaryKey": false,
           "notNull": true
         },
-        "saree_id": {
-          "name": "saree_id",
+        "product_id": {
+          "name": "product_id",
           "type": "varchar",
           "primaryKey": false,
           "notNull": true
@@ -101,12 +101,12 @@
           "onDelete": "no action",
           "onUpdate": "no action"
         },
-        "cart_saree_id_sarees_id_fk": {
-          "name": "cart_saree_id_sarees_id_fk",
+        "cart_product_id_products_id_fk": {
+          "name": "cart_product_id_products_id_fk",
           "tableFrom": "cart",
-          "tableTo": "sarees",
+          "tableTo": "products",
           "columnsFrom": [
-            "saree_id"
+            "product_id"
           ],
           "columnsTo": [
             "id"
@@ -217,6 +217,77 @@
           ]
         }
       },
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.contact_messages": {
+      "name": "contact_messages",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "varchar",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "name": {
+          "name": "name",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "email": {
+          "name": "email",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "phone": {
+          "name": "phone",
+          "type": "varchar(20)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "subject": {
+          "name": "subject",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "message": {
+          "name": "message",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "status": {
+          "name": "status",
+          "type": "varchar(50)",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'pending'"
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
       "policies": {},
       "checkConstraints": {},
       "isRLSEnabled": false
@@ -493,8 +564,8 @@
           "notNull": true,
           "default": "gen_random_uuid()"
         },
-        "saree_id": {
-          "name": "saree_id",
+        "product_id": {
+          "name": "product_id",
           "type": "varchar",
           "primaryKey": false,
           "notNull": true
@@ -539,12 +610,12 @@
       },
       "indexes": {},
       "foreignKeys": {
-        "inventory_adjustments_saree_id_sarees_id_fk": {
-          "name": "inventory_adjustments_saree_id_sarees_id_fk",
+        "inventory_adjustments_product_id_products_id_fk": {
+          "name": "inventory_adjustments_product_id_products_id_fk",
           "tableFrom": "inventory_adjustments",
-          "tableTo": "sarees",
+          "tableTo": "products",
           "columnsFrom": [
-            "saree_id"
+            "product_id"
           ],
           "columnsTo": [
             "id"
@@ -782,8 +853,8 @@
           "primaryKey": false,
           "notNull": true
         },
-        "exchange_saree_id": {
-          "name": "exchange_saree_id",
+        "exchange_product_id": {
+          "name": "exchange_product_id",
           "type": "varchar",
           "primaryKey": false,
           "notNull": false
@@ -830,12 +901,12 @@
           "onDelete": "no action",
           "onUpdate": "no action"
         },
-        "online_exchange_items_exchange_saree_id_sarees_id_fk": {
-          "name": "online_exchange_items_exchange_saree_id_sarees_id_fk",
+        "online_exchange_items_exchange_product_id_products_id_fk": {
+          "name": "online_exchange_items_exchange_product_id_products_id_fk",
           "tableFrom": "online_exchange_items",
-          "tableTo": "sarees",
+          "tableTo": "products",
           "columnsFrom": [
-            "exchange_saree_id"
+            "exchange_product_id"
           ],
           "columnsTo": [
             "id"
@@ -994,8 +1065,7 @@
           "name": "id",
           "type": "varchar",
           "primaryKey": true,
-          "notNull": true,
-          "default": "gen_random_uuid()"
+          "notNull": true
         },
         "order_id": {
           "name": "order_id",
@@ -1003,8 +1073,8 @@
           "primaryKey": false,
           "notNull": true
         },
-        "saree_id": {
-          "name": "saree_id",
+        "product_id": {
+          "name": "product_id",
           "type": "varchar",
           "primaryKey": false,
           "notNull": true
@@ -1082,12 +1152,12 @@
           "onDelete": "no action",
           "onUpdate": "no action"
         },
-        "order_items_saree_id_sarees_id_fk": {
-          "name": "order_items_saree_id_sarees_id_fk",
+        "order_items_product_id_products_id_fk": {
+          "name": "order_items_product_id_products_id_fk",
           "tableFrom": "order_items",
-          "tableTo": "sarees",
+          "tableTo": "products",
           "columnsFrom": [
-            "saree_id"
+            "product_id"
           ],
           "columnsTo": [
             "id"
@@ -1110,8 +1180,7 @@
           "name": "id",
           "type": "varchar",
           "primaryKey": true,
-          "notNull": true,
-          "default": "gen_random_uuid()"
+          "notNull": true
         },
         "user_id": {
           "name": "user_id",
@@ -1263,8 +1332,8 @@
           "notNull": true,
           "default": "gen_random_uuid()"
         },
-        "saree_id": {
-          "name": "saree_id",
+        "product_id": {
+          "name": "product_id",
           "type": "varchar",
           "primaryKey": false,
           "notNull": true
@@ -1343,12 +1412,12 @@
       },
       "indexes": {},
       "foreignKeys": {
-        "product_reviews_saree_id_sarees_id_fk": {
-          "name": "product_reviews_saree_id_sarees_id_fk",
+        "product_reviews_product_id_products_id_fk": {
+          "name": "product_reviews_product_id_products_id_fk",
           "tableFrom": "product_reviews",
-          "tableTo": "sarees",
+          "tableTo": "products",
           "columnsFrom": [
-            "saree_id"
+            "product_id"
           ],
           "columnsTo": [
             "id"
@@ -1385,6 +1454,177 @@
       },
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.products": {
+      "name": "products",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "varchar",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "name": {
+          "name": "name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "description": {
+          "name": "description",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "price": {
+          "name": "price",
+          "type": "numeric(10, 2)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "category_id": {
+          "name": "category_id",
+          "type": "varchar",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "color_id": {
+          "name": "color_id",
+          "type": "varchar",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "fabric_id": {
+          "name": "fabric_id",
+          "type": "varchar",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "image_url": {
+          "name": "image_url",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "images": {
+          "name": "images",
+          "type": "text[]",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "video_url": {
+          "name": "video_url",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "sku": {
+          "name": "sku",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "total_stock": {
+          "name": "total_stock",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
+        },
+        "online_stock": {
+          "name": "online_stock",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
+        },
+        "distribution_channel": {
+          "name": "distribution_channel",
+          "type": "distribution_channel",
+          "typeSchema": "public",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'both'"
+        },
+        "is_active": {
+          "name": "is_active",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
+        },
+        "is_featured": {
+          "name": "is_featured",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "products_category_id_categories_id_fk": {
+          "name": "products_category_id_categories_id_fk",
+          "tableFrom": "products",
+          "tableTo": "categories",
+          "columnsFrom": [
+            "category_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "products_color_id_colors_id_fk": {
+          "name": "products_color_id_colors_id_fk",
+          "tableFrom": "products",
+          "tableTo": "colors",
+          "columnsFrom": [
+            "color_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "products_fabric_id_fabrics_id_fk": {
+          "name": "products_fabric_id_fabrics_id_fk",
+          "tableFrom": "products",
+          "tableTo": "fabrics",
+          "columnsFrom": [
+            "fabric_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "products_sku_unique": {
+          "name": "products_sku_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "sku"
+          ]
+        }
+      },
       "policies": {},
       "checkConstraints": {},
       "isRLSEnabled": false
@@ -1862,8 +2102,8 @@
           "primaryKey": false,
           "notNull": true
         },
-        "saree_id": {
-          "name": "saree_id",
+        "product_id": {
+          "name": "product_id",
           "type": "varchar",
           "primaryKey": false,
           "notNull": true
@@ -1891,12 +2131,12 @@
           "onDelete": "no action",
           "onUpdate": "no action"
         },
-        "sale_products_saree_id_sarees_id_fk": {
-          "name": "sale_products_saree_id_sarees_id_fk",
+        "sale_products_product_id_products_id_fk": {
+          "name": "sale_products_product_id_products_id_fk",
           "tableFrom": "sale_products",
-          "tableTo": "sarees",
+          "tableTo": "products",
           "columnsFrom": [
-            "saree_id"
+            "product_id"
           ],
           "columnsTo": [
             "id"
@@ -2034,177 +2274,6 @@
       "checkConstraints": {},
       "isRLSEnabled": false
     },
-    "public.sarees": {
-      "name": "sarees",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "varchar",
-          "primaryKey": true,
-          "notNull": true,
-          "default": "gen_random_uuid()"
-        },
-        "name": {
-          "name": "name",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "description": {
-          "name": "description",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "price": {
-          "name": "price",
-          "type": "numeric(10, 2)",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "category_id": {
-          "name": "category_id",
-          "type": "varchar",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "color_id": {
-          "name": "color_id",
-          "type": "varchar",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "fabric_id": {
-          "name": "fabric_id",
-          "type": "varchar",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "image_url": {
-          "name": "image_url",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "images": {
-          "name": "images",
-          "type": "text[]",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "video_url": {
-          "name": "video_url",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "sku": {
-          "name": "sku",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "total_stock": {
-          "name": "total_stock",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "default": 0
-        },
-        "online_stock": {
-          "name": "online_stock",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "default": 0
-        },
-        "distribution_channel": {
-          "name": "distribution_channel",
-          "type": "distribution_channel",
-          "typeSchema": "public",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "'both'"
-        },
-        "is_active": {
-          "name": "is_active",
-          "type": "boolean",
-          "primaryKey": false,
-          "notNull": true,
-          "default": false
-        },
-        "is_featured": {
-          "name": "is_featured",
-          "type": "boolean",
-          "primaryKey": false,
-          "notNull": true,
-          "default": false
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        }
-      },
-      "indexes": {},
-      "foreignKeys": {
-        "sarees_category_id_categories_id_fk": {
-          "name": "sarees_category_id_categories_id_fk",
-          "tableFrom": "sarees",
-          "tableTo": "categories",
-          "columnsFrom": [
-            "category_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        },
-        "sarees_color_id_colors_id_fk": {
-          "name": "sarees_color_id_colors_id_fk",
-          "tableFrom": "sarees",
-          "tableTo": "colors",
-          "columnsFrom": [
-            "color_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        },
-        "sarees_fabric_id_fabrics_id_fk": {
-          "name": "sarees_fabric_id_fabrics_id_fk",
-          "tableFrom": "sarees",
-          "tableTo": "fabrics",
-          "columnsFrom": [
-            "fabric_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {
-        "sarees_sku_unique": {
-          "name": "sarees_sku_unique",
-          "nullsNotDistinct": false,
-          "columns": [
-            "sku"
-          ]
-        }
-      },
-      "policies": {},
-      "checkConstraints": {},
-      "isRLSEnabled": false
-    },
     "public.serviceable_pincodes": {
       "name": "serviceable_pincodes",
       "schema": "",
@@ -2283,8 +2352,8 @@
           "notNull": true,
           "default": "gen_random_uuid()"
         },
-        "saree_id": {
-          "name": "saree_id",
+        "product_id": {
+          "name": "product_id",
           "type": "varchar",
           "primaryKey": false,
           "notNull": true
@@ -2338,12 +2407,12 @@
       },
       "indexes": {},
       "foreignKeys": {
-        "stock_movements_saree_id_sarees_id_fk": {
-          "name": "stock_movements_saree_id_sarees_id_fk",
+        "stock_movements_product_id_products_id_fk": {
+          "name": "stock_movements_product_id_products_id_fk",
           "tableFrom": "stock_movements",
-          "tableTo": "sarees",
+          "tableTo": "products",
           "columnsFrom": [
-            "saree_id"
+            "product_id"
           ],
           "columnsTo": [
             "id"
@@ -2394,8 +2463,8 @@
           "primaryKey": false,
           "notNull": true
         },
-        "saree_id": {
-          "name": "saree_id",
+        "product_id": {
+          "name": "product_id",
           "type": "varchar",
           "primaryKey": false,
           "notNull": true
@@ -2469,12 +2538,12 @@
           "onDelete": "no action",
           "onUpdate": "no action"
         },
-        "stock_requests_saree_id_sarees_id_fk": {
-          "name": "stock_requests_saree_id_sarees_id_fk",
+        "stock_requests_product_id_products_id_fk": {
+          "name": "stock_requests_product_id_products_id_fk",
           "tableFrom": "stock_requests",
-          "tableTo": "sarees",
+          "tableTo": "products",
           "columnsFrom": [
-            "saree_id"
+            "product_id"
           ],
           "columnsTo": [
             "id"
@@ -2500,8 +2569,8 @@
           "notNull": true,
           "default": "gen_random_uuid()"
         },
-        "saree_id": {
-          "name": "saree_id",
+        "product_id": {
+          "name": "product_id",
           "type": "varchar",
           "primaryKey": false,
           "notNull": true
@@ -2567,12 +2636,12 @@
       },
       "indexes": {},
       "foreignKeys": {
-        "stock_transfers_saree_id_sarees_id_fk": {
-          "name": "stock_transfers_saree_id_sarees_id_fk",
+        "stock_transfers_product_id_products_id_fk": {
+          "name": "stock_transfers_product_id_products_id_fk",
           "tableFrom": "stock_transfers",
-          "tableTo": "sarees",
+          "tableTo": "products",
           "columnsFrom": [
-            "saree_id"
+            "product_id"
           ],
           "columnsTo": [
             "id"
@@ -2639,6 +2708,98 @@
       "checkConstraints": {},
       "isRLSEnabled": false
     },
+    "public.store_cart": {
+      "name": "store_cart",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "varchar",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "store_id": {
+          "name": "store_id",
+          "type": "varchar",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "product_id": {
+          "name": "product_id",
+          "type": "varchar",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "quantity": {
+          "name": "quantity",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 1
+        },
+        "unit_price": {
+          "name": "unit_price",
+          "type": "numeric(10, 2)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "line_amount": {
+          "name": "line_amount",
+          "type": "numeric(10, 2)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "store_cart_store_id_stores_id_fk": {
+          "name": "store_cart_store_id_stores_id_fk",
+          "tableFrom": "store_cart",
+          "tableTo": "stores",
+          "columnsFrom": [
+            "store_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "store_cart_product_id_products_id_fk": {
+          "name": "store_cart_product_id_products_id_fk",
+          "tableFrom": "store_cart",
+          "tableTo": "products",
+          "columnsFrom": [
+            "product_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
     "public.store_exchange_new_items": {
       "name": "store_exchange_new_items",
       "schema": "",
@@ -2656,8 +2817,8 @@
           "primaryKey": false,
           "notNull": true
         },
-        "saree_id": {
-          "name": "saree_id",
+        "product_id": {
+          "name": "product_id",
           "type": "varchar",
           "primaryKey": false,
           "notNull": true
@@ -2696,12 +2857,12 @@
           "onDelete": "no action",
           "onUpdate": "no action"
         },
-        "store_exchange_new_items_saree_id_sarees_id_fk": {
-          "name": "store_exchange_new_items_saree_id_sarees_id_fk",
+        "store_exchange_new_items_product_id_products_id_fk": {
+          "name": "store_exchange_new_items_product_id_products_id_fk",
           "tableFrom": "store_exchange_new_items",
-          "tableTo": "sarees",
+          "tableTo": "products",
           "columnsFrom": [
-            "saree_id"
+            "product_id"
           ],
           "columnsTo": [
             "id"
@@ -2739,8 +2900,8 @@
           "primaryKey": false,
           "notNull": true
         },
-        "saree_id": {
-          "name": "saree_id",
+        "product_id": {
+          "name": "product_id",
           "type": "varchar",
           "primaryKey": false,
           "notNull": true
@@ -2792,12 +2953,12 @@
           "onDelete": "no action",
           "onUpdate": "no action"
         },
-        "store_exchange_return_items_saree_id_sarees_id_fk": {
-          "name": "store_exchange_return_items_saree_id_sarees_id_fk",
+        "store_exchange_return_items_product_id_products_id_fk": {
+          "name": "store_exchange_return_items_product_id_products_id_fk",
           "tableFrom": "store_exchange_return_items",
-          "tableTo": "sarees",
+          "tableTo": "products",
           "columnsFrom": [
-            "saree_id"
+            "product_id"
           ],
           "columnsTo": [
             "id"
@@ -2975,8 +3136,8 @@
           "primaryKey": false,
           "notNull": true
         },
-        "saree_id": {
-          "name": "saree_id",
+        "product_id": {
+          "name": "product_id",
           "type": "varchar",
           "primaryKey": false,
           "notNull": true
@@ -3011,12 +3172,12 @@
           "onDelete": "no action",
           "onUpdate": "no action"
         },
-        "store_inventory_saree_id_sarees_id_fk": {
-          "name": "store_inventory_saree_id_sarees_id_fk",
+        "store_inventory_product_id_products_id_fk": {
+          "name": "store_inventory_product_id_products_id_fk",
           "tableFrom": "store_inventory",
-          "tableTo": "sarees",
+          "tableTo": "products",
           "columnsFrom": [
-            "saree_id"
+            "product_id"
           ],
           "columnsTo": [
             "id"
@@ -3048,8 +3209,8 @@
           "primaryKey": false,
           "notNull": true
         },
-        "saree_id": {
-          "name": "saree_id",
+        "product_id": {
+          "name": "product_id",
           "type": "varchar",
           "primaryKey": false,
           "notNull": true
@@ -3089,12 +3250,12 @@
           "onDelete": "no action",
           "onUpdate": "no action"
         },
-        "store_sale_items_saree_id_sarees_id_fk": {
-          "name": "store_sale_items_saree_id_sarees_id_fk",
+        "store_sale_items_product_id_products_id_fk": {
+          "name": "store_sale_items_product_id_products_id_fk",
           "tableFrom": "store_sale_items",
-          "tableTo": "sarees",
+          "tableTo": "products",
           "columnsFrom": [
-            "saree_id"
+            "product_id"
           ],
           "columnsTo": [
             "id"
@@ -3117,8 +3278,7 @@
           "name": "id",
           "type": "varchar",
           "primaryKey": true,
-          "notNull": true,
-          "default": "gen_random_uuid()"
+          "notNull": true
         },
         "store_id": {
           "name": "store_id",
@@ -3131,6 +3291,12 @@
           "type": "varchar",
           "primaryKey": false,
           "notNull": true
+        },
+        "customer_id": {
+          "name": "customer_id",
+          "type": "varchar",
+          "primaryKey": false,
+          "notNull": false
         },
         "customer_name": {
           "name": "customer_name",
@@ -3149,6 +3315,27 @@
           "type": "numeric(10, 2)",
           "primaryKey": false,
           "notNull": true
+        },
+        "discount_amount": {
+          "name": "discount_amount",
+          "type": "numeric(10, 2)",
+          "primaryKey": false,
+          "notNull": false,
+          "default": "'0'"
+        },
+        "tax_amount": {
+          "name": "tax_amount",
+          "type": "numeric(10, 2)",
+          "primaryKey": false,
+          "notNull": false,
+          "default": "'0'"
+        },
+        "payment_mode": {
+          "name": "payment_mode",
+          "type": "varchar",
+          "primaryKey": false,
+          "notNull": false,
+          "default": "'cash'"
         },
         "sale_type": {
           "name": "sale_type",
@@ -3193,10 +3380,104 @@
           ],
           "onDelete": "no action",
           "onUpdate": "no action"
+        },
+        "store_sales_customer_id_store_customers_id_fk": {
+          "name": "store_sales_customer_id_store_customers_id_fk",
+          "tableFrom": "store_sales",
+          "tableTo": "store_customers",
+          "columnsFrom": [
+            "customer_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.store_customers": {
+      "name": "store_customers",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "varchar",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "name": {
+          "name": "name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "phone": {
+          "name": "phone",
+          "type": "varchar",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "store_id": {
+          "name": "store_id",
+          "type": "varchar",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "loyalty_points": {
+          "name": "loyalty_points",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "store_customers_store_id_stores_id_fk": {
+          "name": "store_customers_store_id_stores_id_fk",
+          "tableFrom": "store_customers",
+          "tableTo": "stores",
+          "columnsFrom": [
+            "store_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "store_customers_phone_unique": {
+          "name": "store_customers_phone_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "phone"
+          ]
+        }
+      },
       "policies": {},
       "checkConstraints": {},
       "isRLSEnabled": false
@@ -3447,8 +3728,8 @@
           "primaryKey": false,
           "notNull": true
         },
-        "saree_id": {
-          "name": "saree_id",
+        "product_id": {
+          "name": "product_id",
           "type": "varchar",
           "primaryKey": false,
           "notNull": true
@@ -3476,12 +3757,12 @@
           "onDelete": "no action",
           "onUpdate": "no action"
         },
-        "wishlist_saree_id_sarees_id_fk": {
-          "name": "wishlist_saree_id_sarees_id_fk",
+        "wishlist_product_id_products_id_fk": {
+          "name": "wishlist_product_id_products_id_fk",
           "tableFrom": "wishlist",
-          "tableTo": "sarees",
+          "tableTo": "products",
           "columnsFrom": [
-            "saree_id"
+            "product_id"
           ],
           "columnsTo": [
             "id"

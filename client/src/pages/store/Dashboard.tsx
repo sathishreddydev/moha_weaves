@@ -38,7 +38,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import type {
-  SareeWithDetails,
+  ProductWithDetails,
   StoreSaleWithItems,
   Category,
   Color,
@@ -57,12 +57,12 @@ interface StoreStats {
   weeklySalesGrowth?: number;
   monthlyRevenueGrowth?: number;
   topSellingProducts?: Array<{
-    saree: SareeWithDetails;
+    product: ProductWithDetails;
     quantity: number;
     revenue: number;
   }>;
   lowStockProducts?: Array<{
-    saree: SareeWithDetails;
+    product: ProductWithDetails;
     currentStock: number;
     reorderLevel: number;
   }>;
@@ -78,7 +78,7 @@ interface StoreStats {
 }
 
 type ShopProduct = {
-  saree: SareeWithDetails;
+  product: ProductWithDetails;
   storeStock: number;
 };
 
@@ -104,7 +104,7 @@ type DashboardData = {
   stats: StoreStats;
   recentSales: StoreSaleWithItems[];
   lowStockProducts: {
-    saree: SareeWithDetails;
+    product: ProductWithDetails;
     currentStock: number;
     reorderLevel: number;
   }[];
@@ -374,7 +374,7 @@ export default function StoreDashboard() {
                       .slice(0, 5)
                       .map((product, index) => (
                         <div
-                          key={product.saree.id}
+                          key={product.product.id}
                           className="flex items-center justify-between"
                         >
                           <div className="flex items-center gap-3">
@@ -383,7 +383,7 @@ export default function StoreDashboard() {
                             </span>
                             <img
                               src={
-                                product.saree.imageUrl ||
+                                product.product.imageUrl ||
                                 "https://images.unsplash.com/photo-1610030469983-98e550d6193c?w=50"
                               }
                               alt=""
@@ -391,7 +391,7 @@ export default function StoreDashboard() {
                             />
                             <div>
                               <p className="text-sm font-medium line-clamp-1">
-                                {product.saree.name}
+                                {product.product.name}
                               </p>
                               <p className="text-xs text-muted-foreground">
                                 {product.quantity} sold
@@ -431,13 +431,13 @@ export default function StoreDashboard() {
                 <div className="space-y-3">
                   {lowStockProducts.slice(0, 5).map((product) => (
                     <div
-                      key={product.saree.id}
+                      key={product.product.id}
                       className="flex items-center justify-between"
                     >
                       <div className="flex items-center gap-3">
                         <img
                           src={
-                            product.saree.imageUrl ||
+                            product.product.imageUrl ||
                             "https://images.unsplash.com/photo-1610030469983-98e550d6193c?w=50"
                           }
                           alt=""
@@ -445,10 +445,10 @@ export default function StoreDashboard() {
                         />
                         <div>
                           <p className="text-sm font-medium line-clamp-1">
-                            {product.saree.name}
+                            {product.product.name}
                           </p>
                           <p className="text-xs text-muted-foreground">
-                            SKU: {product.saree.sku}
+                            SKU: {product.product.sku}
                           </p>
                         </div>
                       </div>
@@ -520,7 +520,7 @@ export default function StoreDashboard() {
                                 <img
                                   key={idx}
                                   src={
-                                    item.saree.imageUrl ||
+                                    item.product.imageUrl ||
                                     "https://images.unsplash.com/photo-1610030469983-98e550d6193c?w=50"
                                   }
                                   alt=""
@@ -723,7 +723,7 @@ export default function StoreDashboard() {
                         >
                           <div className="flex items-center gap-2">
                             <Package className="h-4 w-4 text-blue-500" />
-                            <span>Request for {request.saree.name}</span>
+                            <span>Request for {request.product.name}</span>
                           </div>
                           <Badge variant="outline" className="text-xs">
                             {request.status}

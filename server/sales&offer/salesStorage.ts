@@ -21,9 +21,9 @@ export interface SalesStorage {
   createSale(data: InsertSale): Promise<Sale>;
   updateSale(id: string, data: Partial<InsertSale>): Promise<Sale | undefined>;
   deleteSale(id: string): Promise<void>;
-  addProductsToSale(saleId: string, sareeIds: string[]): Promise<void>;
-  getActiveSalesForSaree(
-    sareeId: string,
+  addProductsToSale(saleId: string, productIds: string[]): Promise<void>;
+  getActiveSalesForProduct(
+    productId: string,
     categoryId?: string
   ): Promise<SaleWithProducts[]>;
 }
@@ -94,7 +94,7 @@ export class SalesRepository implements SalesStorage {
       ...sale,
       products: products.map((p) => ({
         ...p,
-        saree: null, // Placeholder for saree details
+        product: null, // Placeholder for product details
       })),
       productCount: products.length,
     };
@@ -141,22 +141,22 @@ async deleteSale(id: string): Promise<void> {
 }
 
 
-  async addProductsToSale(saleId: string, sareeIds: string[]): Promise<void> {
-    if (!sareeIds || sareeIds.length === 0) return;
+  async addProductsToSale(saleId: string, productIds: string[]): Promise<void> {
+    if (!productIds || productIds.length === 0) return;
 
     await db.transaction(async (tx) => {
       // First, remove existing products for this sale
       await tx.delete(saleProducts).where(eq(saleProducts.saleId, saleId));
 
       // Then add the new products
-      for (const sareeId of sareeIds) {
-        await tx.insert(saleProducts).values({ saleId, sareeId });
+      for (const productId of productIds) {
+        await tx.insert(saleProducts).values({ saleId, productId });
       }
     });
   }
 
-  async getActiveSalesForSaree(
-    sareeId: string,
+  async getActiveSalesForProduct(
+    productId: string,
     categoryId?: string
   ): Promise<SaleWithProducts[]> {
     const now = new Date();
@@ -170,23 +170,23 @@ async deleteSale(id: string): Promise<void> {
       conditions.push(eq(sales.categoryId, categoryId));
     }
 
-    // Find sales that include the specific saree
-    const salesWithSaree = await db
+    // Find sales that include the specific product
+    const salesWithProduct = await db
       .select()
       .from(sales)
       .innerJoin(saleProducts, eq(sales.id, saleProducts.saleId))
-      .where(and(...conditions, eq(saleProducts.sareeId, sareeId)));
+      .where(and(...conditions, eq(saleProducts.productId, productId)));
 
     // Fetch products for each sale (simplified, actual products might be complex)
     const result: SaleWithProducts[] = [];
-    for (const sale of salesWithSaree) {
+    for (const sale of salesWithProduct) {
       const products = await db
         .select()
         .from(saleProducts)
         .where(eq(saleProducts.saleId, sale.sales.id));
       result.push({
         ...sale.sales,
-        products: products.map((p) => ({ ...p, saree: null })),
+        products: products.map((p) => ({ ...p, product: null })),
       });
     }
 
@@ -200,7 +200,7 @@ async deleteSale(id: string): Promise<void> {
           and(
             ...conditions,
             eq(sales.categoryId, categoryId),
-            sql`NOT EXISTS (SELECT 1 FROM sale_products WHERE sale_id = sales.id AND saree_id = ${sareeId})`
+            sql`NOT EXISTS (SELECT 1 FROM sale_products WHERE sale_id = sales.id AND product_id = ${productId})`
           )
         );
 
@@ -212,7 +212,7 @@ async deleteSale(id: string): Promise<void> {
           .where(eq(saleProducts.saleId, sale.sales.id));
         categorySalesWithProducts.push({
           ...sale.sales,
-          products: products.map((p) => ({ ...p, saree: null })),
+          products: products.map((p) => ({ ...p, product: null })),
         });
       }
       result.push(...categorySalesWithProducts);

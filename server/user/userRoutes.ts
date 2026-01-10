@@ -1,13 +1,8 @@
-import type { Express, Request, Response, NextFunction } from "express";
+import type { Express } from "express";
 import { storage } from "../storage";
 import { createAuthMiddleware } from "../authMiddleware";
 import { orderService } from "server/order/orderStorage";
 import { couponsService } from "server/coupons/couponsStorage";
-import { sareeService } from "server/saree/sareeStorage";
-import { returnService } from "server/inventory/returnServices";
-import { db } from "server/db";
-import { returnItems, returnRequests } from "@shared/schema";
-import { and, eq, inArray, sql } from "drizzle-orm";
 
 const authUser = createAuthMiddleware(["user"]);
 export const userRoutes = (app: Express) => {

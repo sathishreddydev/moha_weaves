@@ -245,12 +245,12 @@ export default function Invoice() {
                       <tr key={item.id} className="group">
                         <td className="py-3 px-2">
                           <span className="font-medium text-slate-700 text-xs">
-                            {item.saree?.sku || item.sareeId}
+                            {item.product?.sku || item.productId}
                           </span>
                         </td>
                         <td className="py-3 px-2">
                           <span className="text-slate-600 text-xs">
-                            {item.saree?.name || "Product"}
+                            {item.product?.name || "Product"}
                           </span>
                         </td>
                         <td className="py-3 px-2 text-center">
@@ -336,12 +336,12 @@ export default function Invoice() {
                                       <tr key={itemIndex} className="group">
                                         <td className="py-3 px-2">
                                           <span className="font-medium text-slate-700 text-xs">
-                                            {item.saree?.sku || item.sareeId}
+                                            {item.product?.sku || item.productId}
                                           </span>
                                         </td>
                                         <td className="py-3 px-2">
                                           <span className="text-slate-600 text-xs">
-                                            {item.saree?.name || "Product"}
+                                            {item.product?.name || "Product"}
                                           </span>
                                         </td>
                                         <td className="py-3 px-2 text-center">
@@ -404,12 +404,12 @@ export default function Invoice() {
                                     <tr key={itemIndex} className="group">
                                       <td className="py-3 px-2">
                                         <span className="font-medium text-slate-700 text-xs">
-                                          {item.saree?.sku || item.sareeId}
+                                          {item.product?.sku || item.productId}
                                         </span>
                                       </td>
                                       <td className="py-3 px-2">
                                         <span className="text-slate-600 text-xs">
-                                          {item.saree?.name || "Product"}
+                                          {item.product?.name || "Product"}
                                         </span>
                                       </td>
                                       <td className="py-3 px-2 text-center">

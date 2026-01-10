@@ -73,8 +73,8 @@ export default function Wishlist() {
         <p className="text-muted-foreground mb-6">
           Start adding items you love to your wishlist.
         </p>
-        <Link to="/sarees">
-          <Button data-testid="button-shop">Browse Sarees</Button>
+        <Link to="/products">
+          <Button data-testid="button-shop">Browse products</Button>
         </Link>
       </div>
     );
@@ -91,7 +91,7 @@ export default function Wishlist() {
 
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
         {wishlistItems.map((item) => (
-          <ProductCard key={item.id} saree={item.saree} />
+          <ProductCard key={item.id} product={item.product} />
         ))}
       </div>
     </div>

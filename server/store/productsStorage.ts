@@ -1,6 +1,6 @@
 import {
   storeInventory,
-  sarees,
+  products,
   categories,
   colors,
   fabrics,
@@ -12,7 +12,7 @@ import {
   storeSales,
 } from "@shared/tables";
 import {
-  SareeWithDetails,
+  ProductWithDetails,
   StockRequestWithDetails,
   StoreExchangeWithDetails,
   StoreSaleWithItems,
@@ -44,7 +44,7 @@ interface IStoreProductsStorage {
       dateTo?: string;
     },
   ): Promise<{
-    data: { saree: SareeWithDetails; storeStock: number }[];
+    data: { product: ProductWithDetails; storeStock: number }[];
     total: number;
     totalProducts?: number;
     inStockProducts?: number;
@@ -72,7 +72,7 @@ export class StoreProductsStorage implements IStoreProductsStorage {
     },
   ): Promise<{
     data: {
-      saree: SareeWithDetails;
+      product: ProductWithDetails;
       storeStock: number;
       stockRequests: any[];
     }[];
@@ -87,57 +87,57 @@ export class StoreProductsStorage implements IStoreProductsStorage {
     if (options.search) {
       conditions.push(
         or(
-          ilike(sarees.name, `%${options.search}%`),
-          ilike(sarees.sku, `%${options.search}%`),
+          ilike(products.name, `%${options.search}%`),
+          ilike(products.sku, `%${options.search}%`),
         )!,
       );
     }
 
     // Filter by category ID
     if (options.categoryId) {
-      conditions.push(eq(sarees.categoryId, options.categoryId));
+      conditions.push(eq(products.categoryId, options.categoryId));
     }
 
     // Filter by color ID
     if (options.colorId) {
-      conditions.push(eq(sarees.colorId, options.colorId));
+      conditions.push(eq(products.colorId, options.colorId));
     }
 
     // Filter by fabric ID
     if (options.fabricId) {
-      conditions.push(eq(sarees.fabricId, options.fabricId));
+      conditions.push(eq(products.fabricId, options.fabricId));
     }
 
     // Date filters (based on product creation date)
     if (options.dateFrom) {
-      conditions.push(gte(sarees.createdAt, new Date(options.dateFrom)));
+      conditions.push(gte(products.createdAt, new Date(options.dateFrom)));
     }
 
     if (options.dateTo) {
       // Add one day to include the entire end date
       const endDate = new Date(options.dateTo);
       endDate.setDate(endDate.getDate() + 1);
-      conditions.push(lte(sarees.createdAt, endDate));
+      conditions.push(lte(products.createdAt, endDate));
     }
 
     const whereClause = and(...conditions);
 
-    const [allSarees, countResult] = await Promise.all([
+    const [allProducts, countResult] = await Promise.all([
       db
         .select()
         .from(storeInventory)
-        .innerJoin(sarees, eq(storeInventory.sareeId, sarees.id))
-        .leftJoin(categories, eq(sarees.categoryId, categories.id))
-        .leftJoin(colors, eq(sarees.colorId, colors.id))
-        .leftJoin(fabrics, eq(sarees.fabricId, fabrics.id))
+        .innerJoin(products, eq(storeInventory.productId, products.id))
+        .leftJoin(categories, eq(products.categoryId, categories.id))
+        .leftJoin(colors, eq(products.colorId, colors.id))
+        .leftJoin(fabrics, eq(products.fabricId, fabrics.id))
         .where(whereClause)
-        .orderBy(desc(sarees.createdAt))
+        .orderBy(desc(products.createdAt))
         .limit(options.limit)
         .offset(options.offset),
       db
         .select({ count: sql<number>`count(*)::int` })
         .from(storeInventory)
-        .innerJoin(sarees, eq(storeInventory.sareeId, sarees.id))
+        .innerJoin(products, eq(storeInventory.productId, products.id))
         .where(whereClause),
     ]);
 
@@ -157,10 +157,10 @@ export class StoreProductsStorage implements IStoreProductsStorage {
     // Fetch sale product mappings
     const saleProductMappings = await db.select().from(saleProducts);
 
-    // Fetch stock requests for all sarees in the result (batch query - efficient)
-    const sareeIds = allSarees.map((row) => row.sarees.id);
+    // Fetch stock requests for all products in the result (batch query - efficient)
+    const productIds = allProducts.map((row) => row.products.id);
     const stockRequestsData =
-      sareeIds.length > 0
+      productIds.length > 0
         ? await db
             .select()
             .from(stockRequests)
@@ -168,21 +168,21 @@ export class StoreProductsStorage implements IStoreProductsStorage {
             .where(
               and(
                 eq(stockRequests.storeId, storeId),
-                inArray(stockRequests.sareeId, sareeIds),
+                inArray(stockRequests.productId, productIds),
               ),
             )
             .orderBy(desc(stockRequests.createdAt))
         : [];
 
-    // Group stock requests by saree ID for efficient lookup
-    const stockRequestsBySaree = stockRequestsData.reduce(
+    // Group stock requests by product ID for efficient lookup
+    const stockRequestsByProduct = stockRequestsData.reduce(
       (acc, row) => {
-        const sareeId = row.stock_requests.sareeId;
-        if (!acc[sareeId]) {
-          acc[sareeId] = [];
+        const productId = row.stock_requests.productId;
+        if (!acc[productId]) {
+          acc[productId] = [];
         }
         // Only include essential fields that frontend needs
-        acc[sareeId].push({
+        acc[productId].push({
           ...row.stock_requests,
         });
         return acc;
@@ -190,32 +190,32 @@ export class StoreProductsStorage implements IStoreProductsStorage {
       {} as Record<string, any[]>,
     );
 
-    const data = allSarees.map((row) => {
-      const saree = row.sarees;
+    const data = allProducts.map((row) => {
+      const product = row.products;
 
       // Find applicable sale
       let applicableSale = null;
       const productSaleMapping = saleProductMappings.find(
-        (sp) => sp.sareeId === saree.id,
+        (sp) => sp.productId === product.id,
       );
       if (productSaleMapping) {
         applicableSale = activeSales.find(
           (s) => s.id === productSaleMapping.saleId,
         );
       }
-      // Only exclude category pricing when THIS saree is explicitly mapped to a different sale
-      if (!applicableSale && saree.categoryId) {
+      // Only exclude category pricing when THIS product is explicitly mapped to a different sale
+      if (!applicableSale && product.categoryId) {
         applicableSale = activeSales.find(
           (s) =>
-            s.categoryId === saree.categoryId &&
+            s.categoryId === product.categoryId &&
             !saleProductMappings.some(
-              (sp) => sp.saleId === s.id && sp.sareeId === saree.id,
+              (sp) => sp.saleId === s.id && sp.productId === product.id,
             ),
         );
       }
 
       // Calculate discounted price using consistent logic across all flows
-      let discountedPrice = parseFloat(saree.price);
+      let discountedPrice = parseFloat(product.price);
       if (applicableSale) {
         const originalPrice = discountedPrice;
         if (
@@ -244,8 +244,8 @@ export class StoreProductsStorage implements IStoreProductsStorage {
       }
 
       return {
-        saree: {
-          ...saree,
+        product: {
+          ...product,
           category: row.categories,
           color: row.colors,
           fabric: row.fabrics,
@@ -261,7 +261,7 @@ export class StoreProductsStorage implements IStoreProductsStorage {
           discountedPrice: applicableSale ? discountedPrice : undefined,
         },
         storeStock: row.store_inventory.quantity,
-        stockRequests: stockRequestsBySaree[saree.id] || [],
+        stockRequests: stockRequestsByProduct[product.id] || [],
       };
     });
 
@@ -302,12 +302,12 @@ export class StoreProductsStorage implements IStoreProductsStorage {
     weeklySalesGrowth?: number;
     monthlyRevenueGrowth?: number;
     topSellingProducts?: Array<{
-      saree: SareeWithDetails;
+      product: ProductWithDetails;
       quantity: number;
       revenue: number;
     }>;
     lowStockProducts?: Array<{
-      saree: SareeWithDetails;
+      product: ProductWithDetails;
       currentStock: number;
       reorderLevel: number;
     }>;
@@ -445,7 +445,7 @@ export class StoreProductsStorage implements IStoreProductsStorage {
     // Top selling products (last 30 days)
     const topProductsQuery = await db
       .select({
-        sareeId: storeSaleItems.sareeId,
+        productId: storeSaleItems.productId,
         totalQuantity: sql<number>`sum(${storeSaleItems.quantity})::int`,
         totalRevenue: sql<number>`sum(${storeSaleItems.quantity}::numeric * ${storeSaleItems.price}::numeric)::float`,
       })
@@ -460,7 +460,7 @@ export class StoreProductsStorage implements IStoreProductsStorage {
           ),
         ),
       )
-      .groupBy(storeSaleItems.sareeId)
+      .groupBy(storeSaleItems.productId)
       .orderBy(sql`sum(${storeSaleItems.quantity}) DESC`)
       .limit(5);
 
@@ -469,10 +469,10 @@ export class StoreProductsStorage implements IStoreProductsStorage {
     const lowStockProductsData = await db
       .select()
       .from(storeInventory)
-      .innerJoin(sarees, eq(storeInventory.sareeId, sarees.id))
-      .leftJoin(categories, eq(sarees.categoryId, categories.id))
-      .leftJoin(colors, eq(sarees.colorId, colors.id))
-      .leftJoin(fabrics, eq(sarees.fabricId, fabrics.id))
+      .innerJoin(products, eq(storeInventory.productId, products.id))
+      .leftJoin(categories, eq(products.categoryId, categories.id))
+      .leftJoin(colors, eq(products.colorId, colors.id))
+      .leftJoin(fabrics, eq(products.fabricId, fabrics.id))
       .where(
         and(
           eq(storeInventory.storeId, storeId),
@@ -483,8 +483,8 @@ export class StoreProductsStorage implements IStoreProductsStorage {
       .limit(10);
 
     const lowStockProducts = lowStockProductsData.map((row) => ({
-      saree: {
-        ...row.sarees,
+      product: {
+        ...row.products,
         category: row.categories,
         color: row.colors,
         fabric: row.fabrics,

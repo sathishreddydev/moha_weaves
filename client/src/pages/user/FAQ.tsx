@@ -11,7 +11,7 @@ const faqData = [
     questions: [
       {
         question: "What is Moha Weaves?",
-        answer: "Moha Weaves is a premium online store specializing in handcrafted sarees and traditional Indian textiles. We work directly with skilled artisans to bring you authentic, high-quality products that celebrate India's rich textile heritage."
+        answer: "Moha Weaves is a premium online store specializing in handcrafted products and traditional Indian textiles. We work directly with skilled artisans to bring you authentic, high-quality products that celebrate India's rich textile heritage."
       },
       {
         question: "Where are your products sourced from?",
@@ -32,12 +32,12 @@ const faqData = [
     icon: Package,
     questions: [
       {
-        question: "What types of sarees do you offer?",
-        answer: "We offer a wide variety of sarees including silk sarees, cotton sarees, designer sarees, traditional sarees, and fusion wear. Our collection includes Kanchipuram silk, Banarasi silk, Mysore silk, Chanderi, and many more regional specialties."
+        question: "What types of products do you offer?",
+        answer: "We offer a wide variety of products including silk products, cotton products, designer products, traditional products, and fusion wear. Our collection includes Kanchipuram silk, Banarasi silk, Mysore silk, Chanderi, and many more regional specialties."
       },
       {
         question: "How do I choose the right size?",
-        answer: "Most sarees come in standard sizes (5.5-6 meters for the saree and 0.8-1 meter for the blouse piece). Each product page includes detailed measurements. For custom sizing, please contact our customer service."
+        answer: "Most products come in standard sizes (5.5-6 meters for the product and 0.8-1 meter for the blouse piece). Each product page includes detailed measurements. For custom sizing, please contact our customer service."
       },
       {
         question: "Are the colors in the photos accurate?",

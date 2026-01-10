@@ -5,7 +5,7 @@ import {
   InsertOrderItem,
   orders,
   orderItems,
-  sarees,
+  products,
   stockMovements,
 } from "@shared/schema";
 import { db } from "server/db";
@@ -39,22 +39,22 @@ export async function createOrderTransaction(
 
       // Deduct stock
       const updated = await trx
-        .update(sarees)
+        .update(products)
         .set({
-          onlineStock: sql`${sarees.onlineStock} - ${item.quantity}`,
-          totalStock: sql`${sarees.totalStock} - ${item.quantity}`,
+          onlineStock: sql`${products.onlineStock} - ${item.quantity}`,
+          totalStock: sql`${products.totalStock} - ${item.quantity}`,
         })
-        .where(eq(sarees.id, item.sareeId))
-        .returning({ onlineStock: sarees.onlineStock })
+        .where(eq(products.id, item.productId))
+        .returning({ onlineStock: products.onlineStock })
         .execute();
 
       if (!updated[0] || updated[0].onlineStock < 0) {
-        throw new Error(`Insufficient stock for sareeId ${item.sareeId}`);
+        throw new Error(`Insufficient stock for productId ${item.productId}`);
       }
 
       // Record stock movement
       await trx.insert(stockMovements).values({
-        sareeId: item.sareeId,
+        productId: item.productId,
         quantity: -item.quantity,
         movementType: "sale",
         source: "online",
@@ -63,7 +63,7 @@ export async function createOrderTransaction(
       });
 
       // Low stock alert
-      await storage.checkAndCreateStockAlert(item.sareeId);
+      await storage.checkAndCreateStockAlert(item.productId);
       
       itemIndex++;
     }

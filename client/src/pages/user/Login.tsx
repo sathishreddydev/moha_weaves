@@ -86,7 +86,7 @@ export default function UserLogin() {
             Moha
           </Link>
           <p className="text-muted-foreground mt-2">
-            Welcome back to your saree journey
+            Welcome back to your product journey
           </p>
         </div>
 

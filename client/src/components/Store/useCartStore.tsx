@@ -1,18 +1,18 @@
 import { create } from "zustand";
 import { produce } from "immer";
 import { apiRequest } from "@/lib/queryClient";
-import type { CartItemWithSaree } from "@shared/schema";
+import type { CartItemWithProduct } from "@shared/schema";
 import { toast } from "@/hooks/use-toast";
 
 interface CartState {
-  cart: CartItemWithSaree[];
+  cart: CartItemWithProduct[];
   count: number;
   isLoadingCart: boolean;
-  isAddingItem: Record<string, boolean>; // key = sareeId
+  isAddingItem: Record<string, boolean>; // key = productId
   isUpdatingItem: Record<string, boolean>; // key = cartItemId
   isRemovingItem: Record<string, boolean>; // key = cartItemId
   getCart: () => Promise<void>;
-  addItem: (sareeId: string, quantity: number) => Promise<void>;
+  addItem: (productId: string, quantity: number) => Promise<void>;
   updateQuantity: (id: string, quantity: number) => Promise<void>;
   removeItem: (id: string) => Promise<void>;
   clearCart: () => void;
@@ -43,21 +43,21 @@ export const useCartStore = create<CartState>((set, get) => ({
     }
   },
 
-  addItem: async (sareeId, quantity) => {
+  addItem: async (productId, quantity) => {
     set((state) => ({
-      isAddingItem: { ...state.isAddingItem, [sareeId]: true },
+      isAddingItem: { ...state.isAddingItem, [productId]: true },
     }));
 
     try {
       const res = await apiRequest("POST", "/api/user/cart", {
-        sareeId,
+        productId,
         quantity,
       });
       const data = await res.json();
       set({ cart: data.cart, count: data.count });
 
       const addedItem = data.cart.find(
-        (c: CartItemWithSaree) => c.saree.id === sareeId
+        (c: CartItemWithProduct) => c.product.id === productId
       );
 
       toast({
@@ -65,13 +65,13 @@ export const useCartStore = create<CartState>((set, get) => ({
         description: addedItem ? (
           <div className="flex items-center gap-3">
             <img
-              src={addedItem.saree.imageUrl ?? ""}
-              alt={addedItem.saree.name}
+              src={addedItem.product.imageUrl ?? ""}
+              alt={addedItem.product.name}
               className="h-14 w-14 rounded-lg object-cover border border-gray-200"
             />
             <div className="flex flex-col">
               <span className="text-sm font-semibold">
-                {addedItem.saree.name}
+                {addedItem.product.name}
               </span>
               <span className="text-xs text-gray-500">
                 Successfully added to your cart
@@ -90,7 +90,7 @@ export const useCartStore = create<CartState>((set, get) => ({
       });
     } finally {
       set((state) => ({
-        isAddingItem: { ...state.isAddingItem, [sareeId]: false },
+        isAddingItem: { ...state.isAddingItem, [productId]: false },
       }));
     }
   },
@@ -104,12 +104,12 @@ export const useCartStore = create<CartState>((set, get) => ({
       const cartItem = get().cart.find((c) => c.id === id);
       if (!cartItem) return;
 
-      if (quantity <= 0 || cartItem.saree.onlineStock <= 0) {
+      if (quantity <= 0 || cartItem.product.onlineStock <= 0) {
         await get().removeItem(id);
         return;
       }
 
-      if (quantity > cartItem.saree.onlineStock) return;
+      if (quantity > cartItem.product.onlineStock) return;
 
       const res = await apiRequest("PATCH", `/api/user/cart/${id}`, {
         quantity,
@@ -118,7 +118,7 @@ export const useCartStore = create<CartState>((set, get) => ({
 
       set(
         produce((state) => {
-          const item = state.cart.find((c: CartItemWithSaree) => c.id === id);
+          const item = state.cart.find((c: CartItemWithProduct) => c.id === id);
           if (item) item.quantity = quantity;
           state.count = data.count;
         })
@@ -129,13 +129,13 @@ export const useCartStore = create<CartState>((set, get) => ({
         description: cartItem ? (
           <div className="flex items-center gap-3">
             <img
-              src={cartItem.saree.imageUrl ?? ""}
-              alt={cartItem.saree.name}
+              src={cartItem.product.imageUrl ?? ""}
+              alt={cartItem.product.name}
               className="h-14 w-14 rounded-lg object-cover border border-gray-200"
             />
             <div className="flex flex-col">
               <span className="text-sm font-semibold">
-                {cartItem.saree.name}
+                {cartItem.product.name}
               </span>
               <span className="text-xs text-gray-500">Quantity updated</span>
             </div>
@@ -170,7 +170,7 @@ export const useCartStore = create<CartState>((set, get) => ({
 
       set(
         produce((state) => {
-          state.cart = state.cart.filter((c: CartItemWithSaree) => c.id !== id);
+          state.cart = state.cart.filter((c: CartItemWithProduct) => c.id !== id);
           state.count = data.count;
         })
       );
@@ -180,13 +180,13 @@ export const useCartStore = create<CartState>((set, get) => ({
         description: cartItem ? (
           <div className="flex items-center gap-3">
             <img
-              src={cartItem.saree.imageUrl ?? ""}
-              alt={cartItem.saree.name}
+              src={cartItem.product.imageUrl ?? ""}
+              alt={cartItem.product.name}
               className="h-14 w-14 rounded-lg object-cover border border-gray-200"
             />
             <div className="flex flex-col">
               <span className="text-sm font-semibold">
-                {cartItem.saree.name}
+                {cartItem.product.name}
               </span>
               <span className="text-xs text-gray-500">
                 Successfully removed

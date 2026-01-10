@@ -1,53 +1,53 @@
-import { InsertSaree, Saree, storeInventory, stores } from "@shared/schema";
+import { InsertProduct, product, storeInventory, stores } from "@shared/schema";
 import { and, eq } from "drizzle-orm";
 import { db } from "server/db";
-import { sareeService } from "server/saree/sareeStorage";
+import { productService } from "server/product/productStorage";
 import { storeService } from "server/store/storeStorage";
 
 interface IStorage {
-  createSareeWithAllocations(
-    saree: InsertSaree,
+  createProductWithAllocations(
+    product: InsertProduct,
     storeAllocations: { storeId: string; quantity: number }[]
-  ): Promise<Saree>;
-  updateSareeWithAllocations(
+  ): Promise<product>;
+  updateProductWithAllocations(
     id: string,
-    data: Partial<InsertSaree>,
+    data: Partial<InsertProduct>,
     storeAllocations: { storeId: string; quantity: number }[]
-  ): Promise<Saree | undefined>;
-  getSareeAllocations(
-    sareeId: string
+  ): Promise<product | undefined>;
+  getProductAllocations(
+    productId: string
   ): Promise<{ storeId: string; storeName: string; quantity: number }[]>;
 }
 
 export class InventoryRepository implements IStorage {
-  async createSareeWithAllocations(
-    saree: InsertSaree,
+  async createProductWithAllocations(
+    product: InsertProduct,
     storeAllocations: { storeId: string; quantity: number }[]
-  ): Promise<Saree> {
+  ): Promise<product> {
     return await db.transaction(async (tx) => {
-      const createdSaree = await sareeService.createSaree(saree);
+      const createdProduct = await productService.createProduct(product);
 
       for (const allocation of storeAllocations) {
         await tx.insert(storeInventory).values({
           storeId: allocation.storeId,
-          sareeId: createdSaree.id,
+          productId: createdProduct.id,
           quantity: allocation.quantity,
           updatedAt: new Date(),
         });
       }
 
-      return createdSaree;
+      return createdProduct;
     });
   }
 
-  async updateSareeWithAllocations(
+  async updateProductWithAllocations(
     id: string,
-    data: Partial<InsertSaree>,
+    data: Partial<InsertProduct>,
     storeAllocations: { storeId: string; quantity: number }[]
-  ): Promise<Saree | undefined> {
+  ): Promise<product | undefined> {
     return await db.transaction(async (tx) => {
-      const updatedSaree = await sareeService.updateSaree(id, data);
-      if (!updatedSaree) return undefined;
+      const updatedProduct = await productService.updateProduct(id, data);
+      if (!updatedProduct) return undefined;
 
       for (const allocation of storeAllocations) {
         const existing = await storeService.getStoreInventoryItem(
@@ -61,25 +61,25 @@ export class InventoryRepository implements IStorage {
             .where(
               and(
                 eq(storeInventory.storeId, allocation.storeId),
-                eq(storeInventory.sareeId, id)
+                eq(storeInventory.productId, id)
               )
             );
         } else {
           await tx.insert(storeInventory).values({
             storeId: allocation.storeId,
-            sareeId: id,
+            productId: id,
             quantity: allocation.quantity,
             updatedAt: new Date(),
           });
         }
       }
 
-      return updatedSaree;
+      return updatedProduct;
     });
   }
 
-  async getSareeAllocations(
-    sareeId: string
+  async getProductAllocations(
+    productId: string
   ): Promise<{ storeId: string; storeName: string; quantity: number }[]> {
     const allocations = await db
       .select({
@@ -87,7 +87,7 @@ export class InventoryRepository implements IStorage {
         quantity: storeInventory.quantity,
       })
       .from(storeInventory)
-      .where(eq(storeInventory.sareeId, sareeId));
+      .where(eq(storeInventory.productId, productId));
 
     const result = await Promise.all(
       allocations.map(async (alloc) => {

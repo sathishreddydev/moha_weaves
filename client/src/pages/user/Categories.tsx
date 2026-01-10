@@ -25,7 +25,7 @@ export default function Categories() {
           Shop by Category
         </h1>
         <p className="text-muted-foreground max-w-2xl mx-auto">
-          Explore our curated collections of handcrafted sarees, each category
+          Explore our curated collections of handcrafted products, each category
           representing a unique tradition and artistry.
         </p>
       </div>
@@ -39,7 +39,7 @@ export default function Categories() {
       ) : categories && categories.length > 0 ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {categories.map((category) => (
-            <Link key={category.id} to={`/sarees?category=${category.id}`}>
+            <Link key={category.id} to={`/products?category=${category.id}`}>
               <Card
                 className="group relative aspect-[4/3] overflow-hidden hover-elevate cursor-pointer"
                 data-testid={`card-category-${category.id}`}

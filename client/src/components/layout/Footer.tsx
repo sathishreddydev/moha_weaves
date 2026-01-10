@@ -6,7 +6,7 @@ export function Footer() {
           <div className="max-w-md text-center md:text-left">
             <div className="text-lg font-semibold text-white">Moha</div>
             <p className="mt-1 text-xs text-white/90">
-              Discover the finest collection of handcrafted sarees, celebrating
+              Discover the finest collection of handcrafted products, celebrating
               the rich textile heritage of India.
             </p>
           </div>

@@ -1,7 +1,7 @@
 import type { Express } from "express";
 import { publicStorage } from "./publicStorage";
 import { storage } from "../storage";
-import { sareeService } from "server/saree/sareeStorage";
+import { productService } from "server/product/productStorage";
 import { salesService } from "server/sales&offer/salesStorage";
 import { reviewService } from "server/review/reviewStorage";
 
@@ -50,8 +50,8 @@ export const publicRoutes = (app: Express) => {
     }
   });
 
-  // Sarees
-  app.get("/api/sarees", async (req, res) => {
+  // products
+  app.get("/api/products", async (req, res) => {
     try {
       const {
         search,
@@ -65,7 +65,7 @@ export const publicRoutes = (app: Express) => {
         limit,
       } = req.query;
 
-      const sarees = await sareeService.getSarees({
+      const products = await productService.getProducts({
         search: search as string,
         category: category as string,
         color: color as string,
@@ -78,13 +78,13 @@ export const publicRoutes = (app: Express) => {
         distributionChannel: "online",
       });
 
-      res.json(sarees);
+      res.json(products);
     } catch (error) {
-      console.error("Sarees fetch error:", error);
-      res.status(500).json({ message: "Failed to fetch sarees" });
+      console.error("products fetch error:", error);
+      res.status(500).json({ message: "Failed to fetch products" });
     }
   });
-  app.post("/api/getSarees", async (req, res) => {
+  app.post("/api/getProducts", async (req, res) => {
     try {
       const {
         search,
@@ -99,7 +99,7 @@ export const publicRoutes = (app: Express) => {
         onSale,
       } = req.body;
 
-      const sarees = await sareeService.getNewSarees({
+      const products = await productService.getNewProducts({
         search,
         category,
         color,
@@ -113,26 +113,26 @@ export const publicRoutes = (app: Express) => {
         distributionChannel: "online",
       });
 
-      res.json(sarees);
+      res.json(products);
     } catch (error) {
-      console.error("Sarees fetch error:", error);
-      res.status(500).json({ message: "Failed to fetch sarees" });
+      console.error("products fetch error:", error);
+      res.status(500).json({ message: "Failed to fetch products" });
     }
   });
 
-  app.get("/api/sarees/:id", async (req, res) => {
+  app.get("/api/products/:id", async (req, res) => {
     try {
-      const saree = await sareeService.getSaree(req.params.id);
-      if (!saree) {
-        return res.status(404).json({ message: "Saree not found" });
+      const product = await productService.getProduct(req.params.id);
+      if (!product) {
+        return res.status(404).json({ message: "product not found" });
       }
-      res.json(saree);
+      res.json(product);
     } catch (error) {
-      res.status(500).json({ message: "Failed to fetch saree" });
+      res.status(500).json({ message: "Failed to fetch product" });
     }
   });
-  // Public: Get reviews for a saree
-  app.get("/api/sarees/:id/reviews", async (req, res) => {
+  // Public: Get reviews for a product
+  app.get("/api/products/:id/reviews", async (req, res) => {
     try {
       const reviews = await reviewService.getProductReviews(req.params.id);
       const totalReviews = reviews.length;
@@ -163,16 +163,16 @@ export const publicRoutes = (app: Express) => {
     }
   });
 
-  // Public: Get saree with reviews and ratings
-  app.get("/api/sarees/:id/with-reviews", async (req, res) => {
+  // Public: Get product with reviews and ratings
+  app.get("/api/products/:id/with-reviews", async (req, res) => {
     try {
-      const saree = await reviewService.getSareeWithReviews(req.params.id);
-      if (!saree) {
-        return res.status(404).json({ message: "Saree not found" });
+      const product = await reviewService.getProductWithReviews(req.params.id);
+      if (!product) {
+        return res.status(404).json({ message: "product not found" });
       }
-      res.json(saree);
+      res.json(product);
     } catch (error) {
-      res.status(500).json({ message: "Failed to fetch saree with reviews" });
+      res.status(500).json({ message: "Failed to fetch product with reviews" });
     }
   });
 

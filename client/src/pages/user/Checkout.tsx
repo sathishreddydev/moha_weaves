@@ -26,7 +26,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { z } from "zod";
-import type { CartItemWithSaree, UserAddress, Coupon } from "@shared/schema";
+import type { CartItemWithProduct, UserAddress, Coupon } from "@shared/schema";
 import { useCartStore } from "@/components/Store/useCartStore";
 import { useAddressStore } from "@/components/Store/useAddressesStore";
 import OrderSuccess from "./OrderSuccess";
@@ -331,7 +331,7 @@ export default function Checkout() {
       <div className="max-w-7xl mx-auto px-4 py-16 text-center">
         <ShoppingBag className="h-16 w-16 mx-auto text-muted-foreground mb-4" />
         <h2 className="text-2xl font-semibold mb-2">Your cart is empty</h2>
-        <Link to="/sarees">
+        <Link to="/products">
           <Button data-testid="button-shop">Continue Shopping</Button>
         </Link>
       </div>
@@ -344,9 +344,9 @@ export default function Checkout() {
 
   const subtotal = cartItems.reduce((sum, item) => {
     const basePrice =
-      item.saree.activeSale && item.saree.discountedPrice
-        ? item.saree.discountedPrice
-        : item.saree.price;
+      item.product.activeSale && item.product.discountedPrice
+        ? item.product.discountedPrice
+        : item.product.price;
 
     const price =
       typeof basePrice === "string" ? parseFloat(basePrice) : basePrice;
@@ -668,31 +668,31 @@ export default function Checkout() {
                     <div className="w-16 h-20 rounded-md overflow-hidden bg-muted flex-shrink-0">
                       <img
                         src={
-                          item.saree.imageUrl ||
+                          item.product.imageUrl ||
                           "https://images.unsplash.com/photo-1610030469983-98e550d6193c?w=100&h=150&fit=crop"
                         }
-                        alt={item.saree.name}
+                        alt={item.product.name}
                         className="w-full h-full object-cover"
                       />
                     </div>
                     <div className="flex-1 min-w-0">
                       <h4 className="font-medium text-sm line-clamp-1">
-                        {item.saree.name}
+                        {item.product.name}
                       </h4>
                       <p className="text-sm text-muted-foreground">
                         Qty: {item.quantity}
                       </p>
                       <div className="mt-2">
-                        {item.saree.activeSale && item.saree.discountedPrice ? (
+                        {item.product.activeSale && item.product.discountedPrice ? (
                           <div className="flex items-center gap-2">
                             <p
                               className="font-semibold text-primary"
                               data-testid={`text-item-price-${item.id}`}
                             >
-                              {formatPrice(item.saree.discountedPrice)}
+                              {formatPrice(item.product.discountedPrice)}
                             </p>
                             <p className="text-xs text-muted-foreground line-through">
-                              {formatPrice(item.saree.price)}
+                              {formatPrice(item.product.price)}
                             </p>
                           </div>
                         ) : (
@@ -700,7 +700,7 @@ export default function Checkout() {
                             className="font-semibold text-primary"
                             data-testid={`text-item-price-${item.id}`}
                           >
-                            {formatPrice(item.saree.price)}
+                            {formatPrice(item.product.price)}
                           </p>
                         )}
                       </div>{" "}

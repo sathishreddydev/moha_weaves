@@ -4,7 +4,7 @@ import {
   orders,
   RefreshToken,
   refreshTokens,
-  sarees,
+  products,
   storeSales,
   User,
   users,
@@ -14,7 +14,7 @@ import { db } from "server/db";
 export interface IStorage {
   getAdminStats(): Promise<{
     totalUsers: number;
-    totalSarees: number;
+    totalProducts: number;
     totalOrders: number;
     totalRevenue: number;
     pendingOrders: number;
@@ -30,7 +30,7 @@ export class AdminRepository implements IStorage {
   // Stats
   async getAdminStats(): Promise<{
     totalUsers: number;
-    totalSarees: number;
+    totalProducts: number;
     totalOrders: number;
     totalRevenue: number;
     pendingOrders: number;
@@ -43,10 +43,10 @@ export class AdminRepository implements IStorage {
     const [userCount] = await db
       .select({ count: sql<number>`count(*)::int` })
       .from(users);
-    const [sareeCount] = await db
+    const [productCount] = await db
       .select({ count: sql<number>`count(*)::int` })
-      .from(sarees)
-      .where(eq(sarees.isActive, true));
+      .from(products)
+      .where(eq(products.isActive, true));
     const [orderCount] = await db
       .select({ count: sql<number>`count(*)::int` })
       .from(orders);
@@ -73,12 +73,12 @@ export class AdminRepository implements IStorage {
       .where(eq(orders.status, "created"));
     const [lowStockCount] = await db
       .select({ count: sql<number>`count(*)::int` })
-      .from(sarees)
-      .where(and(eq(sarees.isActive, true), lte(sarees.totalStock, 10)));
+      .from(products)
+      .where(and(eq(products.isActive, true), lte(products.totalStock, 10)));
 
     return {
       totalUsers: userCount?.count || 0,
-      totalSarees: sareeCount?.count || 0,
+      totalProducts: productCount?.count || 0,
       totalOnlineOrders: orderCount?.count || 0,
       totalStoreSales: storeSalesCount?.count || 0,
       totalOrders: (orderCount?.count || 0) + (storeSalesCount?.count || 0),

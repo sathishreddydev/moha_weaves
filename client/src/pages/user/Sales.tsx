@@ -78,9 +78,9 @@ export default function Sales() {
           Sales & Offers
         </h1>
         <p className="text-muted-foreground max-w-2xl mx-auto mb-6">
-          Discover amazing deals on our exquisite collection of sarees. Limited time offers you don't want to miss!
+          Discover amazing deals on our exquisite collection of products. Limited time offers you don't want to miss!
         </p>
-        <Link to="/sarees?onSale=true">
+        <Link to="/products?onSale=true">
           <Button size="lg" data-testid="button-shop-all-sale">
             <Tag className="h-4 w-4 mr-2" />
             Shop All Sale Products
@@ -178,8 +178,8 @@ export default function Sales() {
             <Tag className="h-16 w-16 mx-auto text-muted-foreground mb-4" />
             <h3 className="text-xl font-semibold mb-2">No active offers</h3>
             <p className="text-muted-foreground mb-6">Check back soon for amazing deals!</p>
-            <Link to="/sarees">
-              <Button>Browse All Sarees</Button>
+            <Link to="/products">
+              <Button>Browse All products</Button>
             </Link>
           </div>
         )}

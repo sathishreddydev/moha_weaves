@@ -38,10 +38,10 @@ export const reviewRoutes = (app: Express) => {
       res.status(500).json({ message: "Failed to fetch reviews" });
     }
   });
-  app.post("/api/sarees/:id/reviews", authUser, async (req, res) => {
+  app.post("/api/products/:id/reviews", authUser, async (req, res) => {
     try {
       const user = (req as any).user;
-      const sareeId = req.params.id;
+      const productId = req.params.id;
       const { rating, comment, title, images } = req.body;
 
       if (rating < 1 || rating > 5) {
@@ -56,7 +56,7 @@ export const reviewRoutes = (app: Express) => {
           .json({ message: `Review flagged: ${spamCheck.reason}` });
       }
       const reviews = await reviewService.createReview({
-        sareeId,
+        productId,
         userId: user.id,
         rating,
         title,
@@ -94,12 +94,12 @@ export const reviewRoutes = (app: Express) => {
   });
 
   // User: Check if user can review a product
-  app.get("/api/user/can-review/:sareeId", authUser, async (req, res) => {
+  app.get("/api/user/can-review/:productId", authUser, async (req, res) => {
     try {
       const user = (req as any).user;
       const canReview = await reviewService.canUserReviewProduct(
         user.id,
-        req.params.sareeId
+        req.params.productId
       );
       res.json({ canReview });
     } catch (error) {
@@ -111,7 +111,7 @@ export const reviewRoutes = (app: Express) => {
   app.post("/api/user/reviews", authUser, async (req, res) => {
     try {
       const user = (req as any).user;
-      const { sareeId, orderId, rating, title, comment, images } = req.body;
+      const { productId, orderId, rating, title, comment, images } = req.body;
 
       // Validate rating
       if (rating < 1 || rating > 5) {
@@ -123,7 +123,7 @@ export const reviewRoutes = (app: Express) => {
       // Check if user can review
       const canReview = await reviewService.canUserReviewProduct(
         user.id,
-        sareeId
+        productId
       );
       if (!canReview) {
         return res.status(400).json({
@@ -133,7 +133,7 @@ export const reviewRoutes = (app: Express) => {
       }
 
       const review = await reviewService.createReview({
-        sareeId,
+        productId,
         userId: user.id,
         orderId,
         rating,

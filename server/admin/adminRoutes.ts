@@ -8,8 +8,8 @@ import { publicStorage } from "server/common/publicStorage";
 import { storeService } from "server/store/storeStorage";
 import { salesService } from "server/sales&offer/salesStorage";
 import { couponsService } from "server/coupons/couponsStorage";
-import { sareeService } from "server/saree/sareeStorage";
 import { AdminServices } from "./adminStorage";
+import { productService } from "server/product/productStorage";
 
 export const adminRoutes = (app: Express) => {
   const authAdmin = createAuthMiddleware(["admin"]);
@@ -150,15 +150,15 @@ export const adminRoutes = (app: Express) => {
     }
   });
 
-  // Admin saree management
-  app.get("/api/admin/sarees", authAdmin, async (req, res) => {
+  // Admin product management
+  app.get("/api/admin/products", authAdmin, async (req, res) => {
     try {
       const { page, pageSize, search, category, status, dateFrom, dateTo } =
         req.query;
 
       if (page && pageSize) {
         const params = parsePaginationParams(req.query);
-        const result = await storage.getSareesPaginated({
+        const result = await storage.getProductsPaginated({
           page: params.page,
           pageSize: params.pageSize,
           search: search as string,
@@ -170,37 +170,37 @@ export const adminRoutes = (app: Express) => {
         return res.json(result);
       }
 
-      const sarees = await sareeService.getSarees({});
-      res.json(sarees);
+      const products = await productService.getProducts({});
+      res.json(products);
     } catch (error) {
-      res.status(500).json({ message: "Failed to fetch sarees" });
+      res.status(500).json({ message: "Failed to fetch products" });
     }
   });
 
-  app.post("/api/admin/sarees", authAdmin, async (req, res) => {
+  app.post("/api/admin/products", authAdmin, async (req, res) => {
     try {
-      const saree = await sareeService.createSaree(req.body);
-      res.json(saree);
+      const product = await productService.createProduct(req.body);
+      res.json(product);
     } catch (error) {
-      res.status(500).json({ message: "Failed to create saree" });
+      res.status(500).json({ message: "Failed to create product" });
     }
   });
 
-  app.patch("/api/admin/sarees/:id", authAdmin, async (req, res) => {
+  app.patch("/api/admin/products/:id", authAdmin, async (req, res) => {
     try {
-      const saree = await sareeService.updateSaree(req.params.id, req.body);
-      res.json(saree);
+      const product = await productService.updateProduct(req.params.id, req.body);
+      res.json(product);
     } catch (error) {
-      res.status(500).json({ message: "Failed to update saree" });
+      res.status(500).json({ message: "Failed to update product" });
     }
   });
 
-  app.delete("/api/admin/sarees/:id", authAdmin, async (req, res) => {
+  app.delete("/api/admin/products/:id", authAdmin, async (req, res) => {
     try {
-      await sareeService.deleteSaree(req.params.id);
+      await productService.deleteProduct(req.params.id);
       res.json({ success: true });
     } catch (error) {
-      res.status(500).json({ message: "Failed to delete saree" });
+      res.status(500).json({ message: "Failed to delete product" });
     }
   });
 
@@ -728,10 +728,10 @@ export const adminRoutes = (app: Express) => {
   // Admin: Stock Movement Endpoints
   app.get("/api/admin/stock-movements", authAdmin, async (req, res) => {
     try {
-      const { source, sareeId, limit } = req.query;
+      const { source, productId, limit } = req.query;
       const movements = await storage.getStockMovements({
         source: source as string,
-        sareeId: sareeId as string,
+        productId: productId as string,
         limit: limit ? parseInt(limit as string) : undefined,
       });
       res.json(movements);

@@ -23,12 +23,12 @@ import { useAuth } from "@/lib/auth";
 
 interface CartItem {
   id: string;
-  sareeId: string;
+  productId: string;
   quantity: number;
   unitPrice: number;
   lineAmount: number;
   storeStock: number;
-  saree: {
+  product: {
     id: string;
     name: string;
     code: string;
@@ -111,8 +111,8 @@ export default function Cart() {
   const [redeemPoints, setRedeemPoints] = useState(false);
   const [loyaltyLoading, setLoyaltyLoading] = useState(false);
   const [pagination, setPagination] = useState({ pageIndex: 0, pageSize: 10 });
-  const disabledBtn = (sareeId: string) => {
-    return loading || updateCartLoading[sareeId] || removeLoading[sareeId];
+  const disabledBtn = (productId: string) => {
+    return loading || updateCartLoading[productId] || removeLoading[productId];
   };
   useEffect(() => {
     if (!storeId) return;
@@ -123,11 +123,11 @@ export default function Cart() {
   const updateQuantity = (
     itemId: string,
     newQuantity: number,
-    sareeId: string,
+    productId: string,
     storeStock: number,
   ) => {
     if (newQuantity <= 0) {
-      removeFromCart(itemId, sareeId);
+      removeFromCart(itemId, productId);
       return;
     }
 
@@ -150,11 +150,11 @@ export default function Cart() {
         : item,
     );
 
-    updateItems(updatedItems, sareeId);
+    updateItems(updatedItems, productId);
   };
 
-  const removeFromCart = (itemId: string, sareeId: string) => {
-    deleteItem(sareeId);
+  const removeFromCart = (itemId: string, productId: string) => {
+    deleteItem(productId);
   };
 
   const applyCoupon = async () => {
@@ -368,14 +368,14 @@ export default function Cart() {
 
   const columns: ColumnDef<CartItem>[] = [
     {
-      accessorKey: "saree.code",
+      accessorKey: "product.code",
       header: "Item Code",
-      cell: ({ row }) => row.original.saree?.code || row.original.sareeId,
+      cell: ({ row }) => row.original.product?.code || row.original.productId,
     },
     {
-      accessorKey: "saree.name",
+      accessorKey: "product.name",
       header: "Description",
-      cell: ({ row }) => row.original.saree?.name || "Product",
+      cell: ({ row }) => row.original.product?.name || "Product",
     },
     {
       accessorKey: "quantity",
@@ -391,11 +391,11 @@ export default function Cart() {
                 updateQuantity(
                   item.id,
                   item.quantity - 1,
-                  item.sareeId,
+                  item.productId,
                   item.storeStock,
                 )
               }
-              disabled={disabledBtn(item.sareeId) || item.quantity <= 1}
+              disabled={disabledBtn(item.productId) || item.quantity <= 1}
               className="h-6 w-6"
             >
               <Minus className="h-3 w-3" />
@@ -408,12 +408,12 @@ export default function Cart() {
                 updateQuantity(
                   item.id,
                   item.quantity + 1,
-                  item.sareeId,
+                  item.productId,
                   item.storeStock,
                 )
               }
               disabled={
-                disabledBtn(item.sareeId) || item.quantity >= item.storeStock
+                disabledBtn(item.productId) || item.quantity >= item.storeStock
               }
               className="h-6 w-6"
             >
@@ -430,13 +430,13 @@ export default function Cart() {
         const item = row.original;
         return (
           <div>
-            {item.saree.activeSale && item.saree.discountedPrice ? (
+            {item.product.activeSale && item.product.discountedPrice ? (
               <div className="flex items-center gap-2">
                 <span className="font-semibold text-primary">
-                  {formatPrice(item.saree.discountedPrice)}
+                  {formatPrice(item.product.discountedPrice)}
                 </span>
                 <span className="text-xs text-muted-foreground line-through">
-                  {formatPrice(item.saree.price || "0")}
+                  {formatPrice(item.product.price || "0")}
                 </span>
               </div>
             ) : (
@@ -453,14 +453,14 @@ export default function Cart() {
         const item = row.original;
         return (
           <div>
-            {item.saree.activeSale && item.saree.discountedPrice ? (
+            {item.product.activeSale && item.product.discountedPrice ? (
               <div className="flex items-center gap-2">
                 <span className="font-semibold text-primary">
-                  {formatPrice(item.saree.discountedPrice * item.quantity)}
+                  {formatPrice(item.product.discountedPrice * item.quantity)}
                 </span>
                 <span className="text-xs text-muted-foreground line-through">
                   {formatPrice(
-                    parseFloat(item.saree.price || "0") * item.quantity,
+                    parseFloat(item.product.price || "0") * item.quantity,
                   )}
                 </span>
               </div>
@@ -478,11 +478,11 @@ export default function Cart() {
         const item = row.original;
         return (
           <Button
-            onClick={() => removeFromCart(item.id, item.sareeId)}
+            onClick={() => removeFromCart(item.id, item.productId)}
             variant="ghost"
             size="sm"
             className="text-red-600 h-6 w-6 p-0"
-            disabled={disabledBtn(item.sareeId)}
+            disabled={disabledBtn(item.productId)}
           >
             <Trash2 size={14} />
           </Button>

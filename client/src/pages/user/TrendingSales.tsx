@@ -18,8 +18,8 @@ interface Sale {
   bannerImage?: string;
   products: Array<{
     id: string;
-    sareeId: string;
-    saree?: {
+    productId: string;
+    product?: {
       id: string;
       name: string;
       imageUrl?: string;

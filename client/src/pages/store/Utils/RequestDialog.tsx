@@ -7,27 +7,27 @@ import { useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { toast } from "@/hooks/use-toast";
 import { AdaptiveModal } from "../../../components/common/AdaptiveModal";
-import { SareeWithDetails } from "@shared/schema";
+import { ProductWithDetails } from "@shared/schema";
 
 interface RequestDialogProps {
   dialogOpen: boolean;
   setDialogOpen: (open: boolean) => void;
-  sareeData: SareeWithDetails | undefined;
+  productData: ProductWithDetails | undefined;
 }
 
 export const RequestDialog = ({
   dialogOpen,
   setDialogOpen,
-  sareeData,
+  productData,
 }: RequestDialogProps) => {
   const [formData, setFormData] = useState({
     quantity: 1,
     notes: "",
   });
-  const sareeId = sareeData?.id;
+  const productId = productData?.id;
   const createRequestMutation = useMutation({
     mutationFn: async (data: {
-      sareeId: string;
+      productId: string;
       quantity: number;
       notes: string;
     }) => {
@@ -54,12 +54,12 @@ export const RequestDialog = ({
   });
   const handleSubmitRequest = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!sareeId) {
+    if (!productId) {
       toast({ title: "Error", description: "Please select a product" });
       return;
     }
     createRequestMutation.mutate({
-      sareeId,
+      productId,
       quantity: formData.quantity,
       notes: formData.notes,
     });
@@ -95,12 +95,12 @@ export const RequestDialog = ({
         onOpenChange={setDialogOpen}
       >
         <form onSubmit={handleSubmitRequest} className="space-y-4">
-          {sareeData && (
+          {productData && (
             <div className="p-3 bg-gray-50 rounded-lg">
               <div className="flex items-center gap-3">
                 <img
                   src={
-                    sareeData.imageUrl ||
+                    productData.imageUrl ||
                     "https://images.unsplash.com/photo-1610030469983-98e550d6193c?w=50"
                   }
                   alt=""
@@ -108,8 +108,8 @@ export const RequestDialog = ({
                 />
                 <div>
                   <h3 className="font-medium text-sm text-gray-900">Product Details</h3>
-                  <p className="text-sm font-medium mt-1">{sareeData.name}</p>
-                  <p className="text-xs text-gray-500">SKU: {sareeData.sku || 'N/A'}</p>
+                  <p className="text-sm font-medium mt-1">{productData.name}</p>
+                  <p className="text-xs text-gray-500">SKU: {productData.sku || 'N/A'}</p>
                 </div>
               </div>
             </div>

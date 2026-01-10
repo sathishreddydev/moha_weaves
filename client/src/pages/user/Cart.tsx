@@ -74,7 +74,7 @@ export default function Cart() {
         <p className="text-muted-foreground mb-6">
           Start shopping to add items to your cart.
         </p>
-        <Link to="/sarees">
+        <Link to="/products">
           <Button data-testid="button-shop">
             <ArrowLeft className="h-4 w-4 mr-2" />
             Continue Shopping
@@ -86,13 +86,13 @@ export default function Cart() {
 
   const subtotal = cartItems.reduce((sum, item) => {
     // Use discounted price if available, otherwise use regular price
-    const price = item.saree.discountedPrice
-      ? typeof item.saree.discountedPrice === "string"
-        ? parseFloat(item.saree.discountedPrice)
-        : item.saree.discountedPrice
-      : typeof item.saree.price === "string"
-      ? parseFloat(item.saree.price)
-      : item.saree.price;
+    const price = item.product.discountedPrice
+      ? typeof item.product.discountedPrice === "string"
+        ? parseFloat(item.product.discountedPrice)
+        : item.product.discountedPrice
+      : typeof item.product.price === "string"
+      ? parseFloat(item.product.price)
+      : item.product.price;
     return sum + price * item.quantity;
   }, 0);
 
@@ -121,43 +121,43 @@ export default function Cart() {
               data-testid={`card-cart-item-${item.id}`}
             >
               <div className="flex gap-4">
-                <Link to={`/sarees/${item.saree.id}`}>
+                <Link to={`/products/${item.product.id}`}>
                   <div className="w-24 h-32 rounded-md overflow-hidden bg-muted flex-shrink-0">
                     <img
                       src={
-                        item.saree.imageUrl ||
+                        item.product.imageUrl ||
                         "https://images.unsplash.com/photo-1610030469983-98e550d6193c?w=200&h=300&fit=crop"
                       }
-                      alt={item.saree.name}
+                      alt={item.product.name}
                       className="w-full h-full object-cover"
                     />
                   </div>
                 </Link>
 
                 <div className="flex-1 min-w-0">
-                  <Link to={`/sarees/${item.saree.id}`}>
+                  <Link to={`/products/${item.product.id}`}>
                     <h3
                       className="font-medium hover:text-primary line-clamp-2"
                       data-testid={`text-item-name-${item.id}`}
                     >
-                      {item.saree.name}
+                      {item.product.name}
                     </h3>
                   </Link>
                   <div className="text-sm text-muted-foreground mt-1">
-                    {item.saree.category?.name}
-                    {item.saree.color && ` • ${item.saree.color.name}`}
+                    {item.product.category?.name}
+                    {item.product.color && ` • ${item.product.color.name}`}
                   </div>
                   <div className="mt-2">
-                    {item.saree.activeSale && item.saree.discountedPrice ? (
+                    {item.product.activeSale && item.product.discountedPrice ? (
                       <div className="flex items-center gap-2">
                         <p
                           className="font-semibold text-primary"
                           data-testid={`text-item-price-${item.id}`}
                         >
-                          {formatPrice(item.saree.discountedPrice)}
+                          {formatPrice(item.product.discountedPrice)}
                         </p>
                         <p className="text-xs text-muted-foreground line-through">
-                          {formatPrice(item.saree.price)}
+                          {formatPrice(item.product.price)}
                         </p>
                       </div>
                     ) : (
@@ -165,7 +165,7 @@ export default function Cart() {
                         className="font-semibold text-primary"
                         data-testid={`text-item-price-${item.id}`}
                       >
-                        {formatPrice(item.saree.price)}
+                        {formatPrice(item.product.price)}
                       </p>
                     )}
                   </div>
@@ -198,7 +198,7 @@ export default function Cart() {
                           updateQuantity(item.id, item.quantity + 1)
                         }
                         disabled={
-                          item.quantity >= item.saree.onlineStock ||
+                          item.quantity >= item.product.onlineStock ||
                           isButtonDisabled(item.id)
                         }
                         data-testid={`button-quantity-plus-${item.id}`}
@@ -267,7 +267,7 @@ export default function Cart() {
               <ArrowRight className="h-4 w-4 ml-2" />
             </Button>
 
-            <Link to="/sarees">
+            <Link to="/products">
               <Button
                 variant="ghost"
                 className="w-full mt-2"

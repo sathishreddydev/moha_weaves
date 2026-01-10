@@ -39,7 +39,7 @@ export const refreshTokens = pgTable("refresh_tokens", {
   isRevoked: boolean("is_revoked").notNull().default(false),
 });
 
-// Categories for sarees
+// Categories for products
 export const categories = pgTable("categories", {
   id: varchar("id")
     .primaryKey()
@@ -83,8 +83,8 @@ export const stores = pgTable("stores", {
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
-// Sarees (products)
-export const sarees = pgTable("sarees", {
+// products (products)
+export const products = pgTable("products", {
   id: varchar("id")
     .primaryKey()
     .default(sql`gen_random_uuid()`),
@@ -116,8 +116,8 @@ export const storeInventory = pgTable("store_inventory", {
   storeId: varchar("store_id")
     .references(() => stores.id)
     .notNull(),
-  sareeId: varchar("saree_id")
-    .references(() => sarees.id)
+  productId: varchar("product_id")
+    .references(() => products.id)
     .notNull(),
   quantity: integer("quantity").notNull().default(0),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
@@ -131,8 +131,8 @@ export const wishlist = pgTable("wishlist", {
   userId: varchar("user_id")
     .references(() => users.id)
     .notNull(),
-  sareeId: varchar("saree_id")
-    .references(() => sarees.id)
+  productId: varchar("product_id")
+    .references(() => products.id)
     .notNull(),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
@@ -145,8 +145,8 @@ export const storeCart = pgTable("store_cart", {
   storeId: varchar("store_id")
     .references(() => stores.id)
     .notNull(),
-  sareeId: varchar("saree_id")
-    .references(() => sarees.id)
+  productId: varchar("product_id")
+    .references(() => products.id)
     .notNull(),
   quantity: integer("quantity").notNull().default(1),
   unitPrice: decimal("unit_price", { precision: 10, scale: 2 }).notNull(),
@@ -163,8 +163,8 @@ export const cart = pgTable("cart", {
   userId: varchar("user_id")
     .references(() => users.id)
     .notNull(),
-  sareeId: varchar("saree_id")
-    .references(() => sarees.id)
+  productId: varchar("product_id")
+    .references(() => products.id)
     .notNull(),
   quantity: integer("quantity").notNull().default(1),
   createdAt: timestamp("created_at").notNull().defaultNow(),
@@ -212,8 +212,8 @@ export const orderItems = pgTable("order_items", {
   orderId: varchar("order_id")
     .references(() => orders.id)
     .notNull(),
-  sareeId: varchar("saree_id")
-    .references(() => sarees.id)
+  productId: varchar("product_id")
+    .references(() => products.id)
     .notNull(),
   quantity: integer("quantity").notNull(),
   price: decimal("price", { precision: 10, scale: 2 }).notNull(),
@@ -271,8 +271,8 @@ export const storeSaleItems = pgTable("store_sale_items", {
   saleId: varchar("sale_id")
     .references(() => storeSales.id)
     .notNull(),
-  sareeId: varchar("saree_id")
-    .references(() => sarees.id)
+  productId: varchar("product_id")
+    .references(() => products.id)
     .notNull(),
   quantity: integer("quantity").notNull(),
   price: decimal("price", { precision: 10, scale: 2 }).notNull(),
@@ -320,8 +320,8 @@ export const stockRequests = pgTable("stock_requests", {
   requestedBy: varchar("requested_by")
     .references(() => users.id)
     .notNull(),
-  sareeId: varchar("saree_id")
-    .references(() => sarees.id)
+  productId: varchar("product_id")
+    .references(() => products.id)
     .notNull(),
   quantity: integer("quantity").notNull(),
   status: enums.requestStatusEnum("status").notNull().default("pending"),
@@ -411,7 +411,7 @@ export const onlineExchangeItems = pgTable("online_exchange_items", {
     .references(() => orderItems.id)
     .notNull(),
   quantity: integer("quantity").notNull(),
-  exchangeSareeId: varchar("exchange_saree_id").references(() => sarees.id),
+  exchangeproductId: varchar("exchange_product_id").references(() => products.id),
   condition: text("condition"),
   isRestockable: boolean("is_restockable").default(true),
 });
@@ -449,8 +449,8 @@ export const productReviews = pgTable("product_reviews", {
   id: varchar("id")
     .primaryKey()
     .default(sql`gen_random_uuid()`),
-  sareeId: varchar("saree_id")
-    .references(() => sarees.id)
+  productId: varchar("product_id")
+    .references(() => products.id)
     .notNull(),
   userId: varchar("user_id")
     .references(() => users.id)
@@ -521,8 +521,8 @@ export const saleProducts = pgTable("sale_products", {
   saleId: varchar("sale_id")
     .references(() => sales.id)
     .notNull(),
-  sareeId: varchar("saree_id")
-    .references(() => sarees.id)
+  productId: varchar("product_id")
+    .references(() => products.id)
     .notNull(),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
@@ -596,8 +596,8 @@ export const stockMovements = pgTable("stock_movements", {
   id: varchar("id")
     .primaryKey()
     .default(sql`gen_random_uuid()`),
-  sareeId: varchar("saree_id")
-    .references(() => sarees.id)
+  productId: varchar("product_id")
+    .references(() => products.id)
     .notNull(),
   quantity: integer("quantity").notNull(),
   movementType: enums.stockMovementTypeEnum("movement_type")
@@ -615,8 +615,8 @@ export const stockTransfers = pgTable("stock_transfers", {
   id: varchar("id")
     .primaryKey()
     .default(sql`gen_random_uuid()`),
-  sareeId: varchar("saree_id")
-    .references(() => sarees.id)
+  productId: varchar("product_id")
+    .references(() => products.id)
     .notNull(),
   fromStoreId: varchar("from_store_id").references(() => stores.id),
   toStoreId: varchar("to_store_id")
@@ -638,8 +638,8 @@ export const inventoryAdjustments = pgTable("inventory_adjustments", {
   id: varchar("id")
     .primaryKey()
     .default(sql`gen_random_uuid()`),
-  sareeId: varchar("saree_id")
-    .references(() => sarees.id)
+  productId: varchar("product_id")
+    .references(() => products.id)
     .notNull(),
   storeId: varchar("store_id").references(() => stores.id),
   quantity: integer("quantity").notNull(),
@@ -696,8 +696,8 @@ export const storeExchangeReturnItems = pgTable("store_exchange_return_items", {
   saleItemId: varchar("sale_item_id")
     .references(() => storeSaleItems.id)
     .notNull(),
-  sareeId: varchar("saree_id")
-    .references(() => sarees.id)
+  productId: varchar("product_id")
+    .references(() => products.id)
     .notNull(),
   quantity: integer("quantity").notNull(),
   unitPrice: decimal("unit_price", { precision: 10, scale: 2 }).notNull(),
@@ -712,8 +712,8 @@ export const storeExchangeNewItems = pgTable("store_exchange_new_items", {
   exchangeId: varchar("exchange_id")
     .references(() => storeExchanges.id)
     .notNull(),
-  sareeId: varchar("saree_id")
-    .references(() => sarees.id)
+  productId: varchar("product_id")
+    .references(() => products.id)
     .notNull(),
   quantity: integer("quantity").notNull(),
   unitPrice: decimal("unit_price", { precision: 10, scale: 2 }).notNull(),

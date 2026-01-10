@@ -22,7 +22,7 @@ export function ProductSharePopover({
   const shareUrl =
     url || (typeof window !== "undefined" ? window.location.href : "");
 
-  const shareText = `Check out this saree: ${name} - ${price}`;
+  const shareText = `Check out this product: ${name} - ${price}`;
 
   const shareOnWhatsApp = () => {
     window.open(
@@ -34,7 +34,7 @@ export function ProductSharePopover({
   };
 
   const shareOnEmail = () => {
-    const subject = encodeURIComponent(`Saree Recommendation: ${name}`);
+    const subject = encodeURIComponent(`product Recommendation: ${name}`);
     const body = encodeURIComponent(`${shareText}\n\n${shareUrl}`);
     window.location.href = `mailto:?subject=${subject}&body=${body}`;
   };

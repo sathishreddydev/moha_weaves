@@ -133,7 +133,7 @@ export default function Orders() {
           const s = debouncedSearch.toLowerCase();
           const matchesOrderId = order.id.toLowerCase().includes(s);
           const matchesProduct = order.items.some((item) =>
-            item.saree.name.toLowerCase().includes(s)
+            item.product.name.toLowerCase().includes(s)
           );
           if (!matchesOrderId && !matchesProduct) return false;
         }
@@ -218,8 +218,8 @@ export default function Orders() {
         <p className="text-muted-foreground mb-6">
           Start shopping to place your first order.
         </p>
-        <Link to="/sarees">
-          <Button data-testid="button-shop">Browse Sarees</Button>
+        <Link to="/products">
+          <Button data-testid="button-shop">Browse products</Button>
         </Link>
       </div>
     );
@@ -384,10 +384,10 @@ export default function Orders() {
                           <div className="w-16 h-20 rounded-md overflow-hidden bg-muted flex-shrink-0">
                             <img
                               src={
-                                item.saree.imageUrl ||
+                                item.product.imageUrl ||
                                 "https://images.unsplash.com/photo-1610030469983-98e550d6193c?w=100&h=150&fit=crop"
                               }
-                              alt={item.saree.name}
+                              alt={item.product.name}
                               className="w-full h-full object-cover"
                             />
                           </div>
@@ -395,7 +395,7 @@ export default function Orders() {
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center justify-between">
                               <h4 className="font-medium text-sm line-clamp-1 hover:text-primary">
-                                {item.saree.name}
+                                {item.product.name}
                               </h4>
                               <Badge className={displayStatus.color}>
                                 {displayStatus.label}
@@ -407,7 +407,7 @@ export default function Orders() {
                                   Qty: {item.quantity}
                                 </p>
                                 {item.status === "delivered" && (
-                                  <WriteReview saree={item.saree} />
+                                  <WriteReview product={item.product} />
                                 )}
                               </div>
                               <div 

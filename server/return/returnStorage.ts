@@ -2,7 +2,7 @@ import {
   returnRequests,
   returnItems,
   orderItems,
-  sarees,
+  products,
   categories,
   colors,
   fabrics,
@@ -26,7 +26,7 @@ export type ReturnRequestWithDetails = ReturnRequest & {
   user: any;
   items: (any & {
     orderItem: {
-      saree: any;
+      product: any;
     };
   })[];
   refund?: any;
@@ -160,10 +160,10 @@ export class ReturnStorage implements IReturnStorage {
         .select()
         .from(returnItems)
         .innerJoin(orderItems, eq(returnItems.orderItemId, orderItems.id))
-        .innerJoin(sarees, eq(orderItems.sareeId, sarees.id))
-        .leftJoin(categories, eq(sarees.categoryId, categories.id))
-        .leftJoin(colors, eq(sarees.colorId, colors.id))
-        .leftJoin(fabrics, eq(sarees.fabricId, fabrics.id))
+        .innerJoin(products, eq(orderItems.productId, products.id))
+        .leftJoin(categories, eq(products.categoryId, categories.id))
+        .leftJoin(colors, eq(products.colorId, colors.id))
+        .leftJoin(fabrics, eq(products.fabricId, fabrics.id))
         .where(eq(returnItems.returnRequestId, request.id));
 
       const [refund] = await db
@@ -180,8 +180,8 @@ export class ReturnStorage implements IReturnStorage {
             ...item.return_items,
             orderItem: {
               ...item.order_items,
-              saree: {
-                ...item.sarees,
+              product: {
+                ...item.products,
                 category: item.categories,
                 color: item.colors,
                 fabric: item.fabrics,
@@ -246,10 +246,10 @@ export class ReturnStorage implements IReturnStorage {
       .select()
       .from(returnItems)
       .innerJoin(orderItems, eq(returnItems.orderItemId, orderItems.id))
-      .innerJoin(sarees, eq(orderItems.sareeId, sarees.id))
-      .leftJoin(categories, eq(sarees.categoryId, categories.id))
-      .leftJoin(colors, eq(sarees.colorId, colors.id))
-      .leftJoin(fabrics, eq(sarees.fabricId, fabrics.id))
+      .innerJoin(products, eq(orderItems.productId, products.id))
+      .leftJoin(categories, eq(products.categoryId, categories.id))
+      .leftJoin(colors, eq(products.colorId, colors.id))
+      .leftJoin(fabrics, eq(products.fabricId, fabrics.id))
       .where(eq(returnItems.returnRequestId, request.id));
 
     const [refund] = await db
@@ -265,8 +265,8 @@ export class ReturnStorage implements IReturnStorage {
         ...item.return_items,
         orderItem: {
           ...item.order_items,
-          saree: {
-            ...item.sarees,
+          product: {
+            ...item.products,
             category: item.categories,
             color: item.colors,
             fabric: item.fabrics,
@@ -284,7 +284,7 @@ export class ReturnStorage implements IReturnStorage {
     return await db.transaction(async (tx) => {
       let calculatedRefundAmount = request.refundAmount;
       if (!calculatedRefundAmount && request.resolution === "refund") {
-        const orderItemsWithSarees = await tx
+        const orderItemsWithProducts = await tx
           .select({
             orderItemId: orderItems.id,
             price: orderItems.price,
@@ -294,7 +294,7 @@ export class ReturnStorage implements IReturnStorage {
           .where(eq(orderItems.orderId, request.orderId));
 
         const totalRefund = items.reduce((total, item) => {
-          const orderItem = orderItemsWithSarees.find(oi => oi.orderItemId === item.orderItemId);
+          const orderItem = orderItemsWithProducts.find(oi => oi.orderItemId === item.orderItemId);
           if (orderItem) {
             return total + (parseFloat(orderItem.price.toString()) * item.quantity);
           }
@@ -389,7 +389,7 @@ export class ReturnStorage implements IReturnStorage {
 
         if (status === "return_completed" && item.isRestockable) {
           await tx.insert(stockMovements).values({
-            sareeId: item.orderItem.saree.id,
+            productId: item.orderItem.product.id,
             quantity: item.quantity,
             movementType: "return",
             source: "online",

@@ -36,7 +36,7 @@ import { TextField } from "../ui/TextField";
 
 const navLinks = [
   { href: "/", label: "Home" },
-  { href: "/sarees", label: "Shop All" },
+  { href: "/products", label: "Shop All" },
   { href: "/sales", label: "Sales & Offers" },
   { href: "/categories", label: "Categories" },
 ];

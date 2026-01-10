@@ -11,17 +11,17 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
-import type { SareeWithDetails } from "@shared/schema";
+import type { ProductWithDetails } from "@shared/schema";
 
 interface ProductImageGalleryProps {
-  saree: SareeWithDetails;
+  product: ProductWithDetails;
   images: string[];
   selectedImage: number;
   onImageSelect: (index: number) => void;
 }
 
 export function ProductImageGallery({
-  saree,
+  product,
   images,
   selectedImage,
   onImageSelect,
@@ -84,7 +84,7 @@ export function ProductImageGallery({
             <div className="aspect-square w-full overflow-hidden rounded-lg bg-gradient-to-br from-muted/50 to-muted shadow-lg">
               <img
                 src={images[selectedImage]}
-                alt={saree.name}
+                alt={product.name}
                 className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105 cursor-zoom-in"
                 onClick={handleZoomOpen}
                 data-testid="img-product-main"
@@ -99,7 +99,7 @@ export function ProductImageGallery({
               </button>
 
               {/* Featured Badge */}
-              {saree.isFeatured && (
+              {product.isFeatured && (
                 <div className="absolute top-4 left-4">
                   <Badge className="bg-gradient-to-r from-amber-500 to-amber-600 text-white border-0 shadow-lg">
                     <Sparkles className="h-3 w-3 mr-1" />
@@ -121,14 +121,14 @@ export function ProductImageGallery({
               )}
 
               {/* Color Display */}
-              {saree.color && (
+              {product.color && (
                 <div className="absolute bottom-4 right-4">
                   <div className="bg-white/90 backdrop-blur-sm p-2 rounded-full shadow-lg">
                     <div className="flex items-center gap-2">
                       <Palette className="h-3 w-3 text-gray-600" />
                       <div
                         className="w-4 h-4 rounded-full border border-gray-300"
-                        style={{ backgroundColor: saree.color.hexCode }}
+                        style={{ backgroundColor: product.color.hexCode }}
                       />
                     </div>
                   </div>
@@ -190,7 +190,7 @@ export function ProductImageGallery({
             {/* Zoomed Image */}
             <img
               src={images[zoomedImage]}
-              alt={`${saree.name} - Zoomed view`}
+              alt={`${product.name} - Zoomed view`}
               className="max-w-full max-h-full object-contain"
             />
 

@@ -1,20 +1,20 @@
 import { Button } from "@/components/ui/button";
-import { CartItemWithSaree, SareeWithDetails } from "@shared/schema";
+import { CartItemWithProduct, ProductWithDetails } from "@shared/schema";
 import { Minus, Plus } from "lucide-react";
 
 
 export const CartQuantity = ({
-  saree,
+  product,
   cartItems,
   updateQuantity,
   isButtonDisabled,
 }: {
-  saree: SareeWithDetails;
-  cartItems: CartItemWithSaree[];
+  product: ProductWithDetails;
+  cartItems: CartItemWithProduct[];
   updateQuantity: (id: string, quantity: number) => void;
   isButtonDisabled: (id: string) => boolean;
 }) => {
-  const item = cartItems.find((c) => c.saree.id === saree.id);
+  const item = cartItems.find((c) => c.product.id === product.id);
   if (!item) return null;
 
   return (
@@ -42,7 +42,7 @@ export const CartQuantity = ({
         size="icon"
         className="h-8 w-8"
         onClick={() => updateQuantity(item.id, item.quantity + 1)}
-        disabled={item.quantity >= item.saree.onlineStock || isButtonDisabled(item.id)}
+        disabled={item.quantity >= item.product.onlineStock || isButtonDisabled(item.id)}
         data-testid={`button-quantity-plus-${item.id}`}
       >
         <Plus className="h-3 w-3" />

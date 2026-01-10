@@ -5,7 +5,7 @@ import {
   categories,
   colors,
   fabrics,
-  sarees,
+  products,
   stockMovements,
   storeInventory,
   StoreSale,
@@ -21,7 +21,7 @@ import {
   storeExchanges,
   StoreExchangeWithDetails,
   users,
-  SareeWithDetails,
+  ProductWithDetails,
   StoreInventory,
   sales,
   saleProducts,
@@ -54,7 +54,7 @@ export interface StoreStorage {
       customerName: string;
       customerPhone: string;
       items: Array<{
-        sareeId: string;
+        productId: string;
         quantity: number;
         unitPrice: number;
         lineAmount: number;
@@ -117,13 +117,13 @@ export interface StoreStorage {
       originalSaleId: string;
       returnItems: {
         saleItemId: string;
-        sareeId: string;
+        productId: string;
         quantity: number;
         unitPrice: string;
         returnAmount: string;
       }[];
       newItems?: {
-        sareeId: string;
+        productId: string;
         quantity: number;
         unitPrice: string;
         lineAmount: string;
@@ -136,7 +136,7 @@ export interface StoreStorage {
   ): Promise<StoreExchange>;
   getShopAvailableProducts(
     storeId: string,
-  ): Promise<{ saree: SareeWithDetails; storeStock: number }[]>;
+  ): Promise<{ product: ProductWithDetails; storeStock: number }[]>;
   getAllStoreSales(): Promise<StoreSaleWithItems[]>;
   getStoreSales(storeId: string, limit?: number): Promise<StoreSaleWithItems[]>;
   getStoreSalesPaginated(
@@ -151,27 +151,27 @@ export interface StoreStorage {
   ): Promise<{ data: StoreSaleWithItems[]; total: number }>;
   updateStoreInventory(
     storeId: string,
-    sareeId: string,
+    productId: string,
     quantity: number,
   ): Promise<StoreInventory>;
   getStoreInventory(
     storeId: string,
-  ): Promise<(StoreInventory & { saree: SareeWithDetails })[]>;
+  ): Promise<(StoreInventory & { product: ProductWithDetails })[]>;
   getLowStockProducts(storeId: string): Promise<
     Array<{
-      saree: SareeWithDetails;
+      product: ProductWithDetails;
       currentStock: number;
       reorderLevel: number;
     }>
   >;
   getStoreInventoryItem(
     storeId: string,
-    sareeId: string,
+    productId: string,
   ): Promise<StoreInventory | undefined>;
   getStoreCart(storeId: string): Promise<{ items: any[] }>;
   deleteFromStoreCart(
     storeId: string,
-    sareeId: string,
+    productId: string,
   ): Promise<{ items: any[] }>;
   updateStoreCart(storeId: string, items: any[]): Promise<{ items: any[] }>;
   clearStoreCart(storeId: string): Promise<{ items: any[] }>;
@@ -264,7 +264,7 @@ export class StoreRepository implements StoreStorage {
       customerName: string;
       customerPhone: string;
       items: Array<{
-        sareeId: string;
+        productId: string;
         quantity: number;
         unitPrice: number;
         lineAmount: number;
@@ -299,7 +299,7 @@ export class StoreRepository implements StoreStorage {
     for (const item of data.items) {
       await db.insert(storeSaleItems).values({
         saleId: newSale.id,
-        sareeId: item.sareeId,
+        productId: item.productId,
         quantity: item.quantity,
         price: item.unitPrice.toString(),
       });
@@ -311,19 +311,19 @@ export class StoreRepository implements StoreStorage {
         .where(
           and(
             eq(storeInventory.storeId, storeId),
-            eq(storeInventory.sareeId, item.sareeId),
+            eq(storeInventory.productId, item.productId),
           ),
         );
 
       // Deduct from total stock
       await db
-        .update(sarees)
-        .set({ totalStock: sql`${sarees.totalStock} - ${item.quantity}` })
-        .where(eq(sarees.id, item.sareeId));
+        .update(products)
+        .set({ totalStock: sql`${products.totalStock} - ${item.quantity}` })
+        .where(eq(products.id, item.productId));
 
       // Record stock movement (negative for deduction)
       await db.insert(stockMovements).values({
-        sareeId: item.sareeId,
+        productId: item.productId,
         quantity: -item.quantity,
         movementType: "sale",
         source: "store",
@@ -362,10 +362,10 @@ export class StoreRepository implements StoreStorage {
     const items = await db
       .select()
       .from(storeSaleItems)
-      .leftJoin(sarees, eq(storeSaleItems.sareeId, sarees.id))
-      .leftJoin(categories, eq(sarees.categoryId, categories.id))
-      .leftJoin(colors, eq(sarees.colorId, colors.id))
-      .leftJoin(fabrics, eq(sarees.fabricId, fabrics.id))
+      .leftJoin(products, eq(storeSaleItems.productId, products.id))
+      .leftJoin(categories, eq(products.categoryId, categories.id))
+      .leftJoin(colors, eq(products.colorId, colors.id))
+      .leftJoin(fabrics, eq(products.fabricId, fabrics.id))
       .where(eq(storeSaleItems.saleId, saleId));
 
     const itemsWithReturns = await Promise.all(
@@ -384,8 +384,8 @@ export class StoreRepository implements StoreStorage {
         return {
           ...item.store_sale_items,
           returnedQuantity,
-          saree: {
-            ...item.sarees!,
+          product: {
+            ...item.products!,
             category: item.categories,
             color: item.colors,
             fabric: item.fabrics,
@@ -431,10 +431,10 @@ export class StoreRepository implements StoreStorage {
       const items = await db
         .select()
         .from(storeSaleItems)
-        .innerJoin(sarees, eq(storeSaleItems.sareeId, sarees.id))
-        .leftJoin(categories, eq(sarees.categoryId, categories.id))
-        .leftJoin(colors, eq(sarees.colorId, colors.id))
-        .leftJoin(fabrics, eq(sarees.fabricId, fabrics.id))
+        .innerJoin(products, eq(storeSaleItems.productId, products.id))
+        .leftJoin(categories, eq(products.categoryId, categories.id))
+        .leftJoin(colors, eq(products.colorId, colors.id))
+        .leftJoin(fabrics, eq(products.fabricId, fabrics.id))
         .where(eq(storeSaleItems.saleId, row.store_sales.id));
 
       const itemsWithReturns = await Promise.all(
@@ -455,8 +455,8 @@ export class StoreRepository implements StoreStorage {
           return {
             ...item.store_sale_items,
             returnedQuantity,
-            saree: {
-              ...item.sarees!,
+            product: {
+              ...item.products!,
               category: item.categories,
               color: item.colors,
               fabric: item.fabrics,
@@ -613,19 +613,19 @@ export class StoreRepository implements StoreStorage {
     const returnItemsList = await db
       .select()
       .from(storeExchangeReturnItems)
-      .leftJoin(sarees, eq(storeExchangeReturnItems.sareeId, sarees.id))
-      .leftJoin(categories, eq(sarees.categoryId, categories.id))
-      .leftJoin(colors, eq(sarees.colorId, colors.id))
-      .leftJoin(fabrics, eq(sarees.fabricId, fabrics.id))
+      .leftJoin(products, eq(storeExchangeReturnItems.productId, products.id))
+      .leftJoin(categories, eq(products.categoryId, categories.id))
+      .leftJoin(colors, eq(products.colorId, colors.id))
+      .leftJoin(fabrics, eq(products.fabricId, fabrics.id))
       .where(eq(storeExchangeReturnItems.exchangeId, id));
 
     const newItemsList = await db
       .select()
       .from(storeExchangeNewItems)
-      .leftJoin(sarees, eq(storeExchangeNewItems.sareeId, sarees.id))
-      .leftJoin(categories, eq(sarees.categoryId, categories.id))
-      .leftJoin(colors, eq(sarees.colorId, colors.id))
-      .leftJoin(fabrics, eq(sarees.fabricId, fabrics.id))
+      .leftJoin(products, eq(storeExchangeNewItems.productId, products.id))
+      .leftJoin(categories, eq(products.categoryId, categories.id))
+      .leftJoin(colors, eq(products.colorId, colors.id))
+      .leftJoin(fabrics, eq(products.fabricId, fabrics.id))
       .where(eq(storeExchangeNewItems.exchangeId, id));
 
     return {
@@ -635,8 +635,8 @@ export class StoreRepository implements StoreStorage {
       processor: exchange.users!,
       returnItems: returnItemsList.map((item) => ({
         ...item.store_exchange_return_items,
-        saree: {
-          ...item.sarees!,
+        product: {
+          ...item.products!,
           category: item.categories,
           color: item.colors,
           fabric: item.fabrics,
@@ -644,8 +644,8 @@ export class StoreRepository implements StoreStorage {
       })),
       newItems: newItemsList.map((item) => ({
         ...item.store_exchange_new_items,
-        saree: {
-          ...item.sarees!,
+        product: {
+          ...item.products!,
           category: item.categories,
           color: item.colors,
           fabric: item.fabrics,
@@ -690,20 +690,20 @@ export class StoreRepository implements StoreStorage {
             .where(
               and(
                 eq(storeInventory.storeId, exchange.storeId),
-                eq(storeInventory.sareeId, item.sareeId),
+                eq(storeInventory.productId, item.productId),
               ),
             );
 
-          // Update total stock in sarees table
+          // Update total stock in products table
           await tx
-            .update(sarees)
+            .update(products)
             .set({
-              totalStock: sql`${sarees.totalStock} + ${item.quantity}`,
+              totalStock: sql`${products.totalStock} + ${item.quantity}`,
             })
-            .where(eq(sarees.id, item.sareeId));
+            .where(eq(products.id, item.productId));
 
           await tx.insert(stockMovements).values({
-            sareeId: item.sareeId,
+            productId: item.productId,
             quantity: item.quantity,
             movementType: "return",
             source: "store",
@@ -732,20 +732,20 @@ export class StoreRepository implements StoreStorage {
             .where(
               and(
                 eq(storeInventory.storeId, exchange.storeId),
-                eq(storeInventory.sareeId, item.sareeId),
+                eq(storeInventory.productId, item.productId),
               ),
             );
 
-          // Update total stock in sarees table
+          // Update total stock in products table
           await tx
-            .update(sarees)
+            .update(products)
             .set({
-              totalStock: sql`${sarees.totalStock} - ${item.quantity}`,
+              totalStock: sql`${products.totalStock} - ${item.quantity}`,
             })
-            .where(eq(sarees.id, item.sareeId));
+            .where(eq(products.id, item.productId));
 
           await tx.insert(stockMovements).values({
-            sareeId: item.sareeId,
+            productId: item.productId,
             quantity: -item.quantity,
             movementType: "sale",
             source: "store",
@@ -767,13 +767,13 @@ export class StoreRepository implements StoreStorage {
       originalSaleId: string;
       returnItems: {
         saleItemId: string;
-        sareeId: string;
+        productId: string;
         quantity: number;
         unitPrice: string;
         returnAmount: string;
       }[];
       newItems?: {
-        sareeId: string;
+        productId: string;
         quantity: number;
         unitPrice: string;
         lineAmount: string;
@@ -823,7 +823,7 @@ export class StoreRepository implements StoreStorage {
     for (const returnItem of data.returnItems) {
       if (
         !returnItem.saleItemId ||
-        !returnItem.sareeId ||
+        !returnItem.productId ||
         !returnItem.quantity ||
         !returnItem.unitPrice ||
         !returnItem.returnAmount
@@ -858,7 +858,7 @@ export class StoreRepository implements StoreStorage {
     if (data.newItems && data.newItems.length > 0) {
       for (const newItem of data.newItems) {
         if (
-          !newItem.sareeId ||
+          !newItem.productId ||
           !newItem.quantity ||
           !newItem.unitPrice ||
           !newItem.lineAmount
@@ -869,10 +869,10 @@ export class StoreRepository implements StoreStorage {
         // Check store inventory
         const inventory = await this.getStoreInventoryItem(
           storeId,
-          newItem.sareeId,
+          newItem.productId,
         );
         if (!inventory || inventory.quantity < newItem.quantity) {
-          throw new Error(`Insufficient stock for item ${newItem.sareeId}`);
+          throw new Error(`Insufficient stock for item ${newItem.productId}`);
         }
 
         // Validate new item amount
@@ -1011,10 +1011,10 @@ export class StoreRepository implements StoreStorage {
       const returnItemsList = await db
         .select()
         .from(storeExchangeReturnItems)
-        .leftJoin(sarees, eq(storeExchangeReturnItems.sareeId, sarees.id))
-        .leftJoin(categories, eq(sarees.categoryId, categories.id))
-        .leftJoin(colors, eq(sarees.colorId, colors.id))
-        .leftJoin(fabrics, eq(sarees.fabricId, fabrics.id))
+        .leftJoin(products, eq(storeExchangeReturnItems.productId, products.id))
+        .leftJoin(categories, eq(products.categoryId, categories.id))
+        .leftJoin(colors, eq(products.colorId, colors.id))
+        .leftJoin(fabrics, eq(products.fabricId, fabrics.id))
         .where(
           eq(storeExchangeReturnItems.exchangeId, exchange.store_exchanges.id),
         );
@@ -1022,10 +1022,10 @@ export class StoreRepository implements StoreStorage {
       const newItemsList = await db
         .select()
         .from(storeExchangeNewItems)
-        .leftJoin(sarees, eq(storeExchangeNewItems.sareeId, sarees.id))
-        .leftJoin(categories, eq(sarees.categoryId, categories.id))
-        .leftJoin(colors, eq(sarees.colorId, colors.id))
-        .leftJoin(fabrics, eq(sarees.fabricId, fabrics.id))
+        .leftJoin(products, eq(storeExchangeNewItems.productId, products.id))
+        .leftJoin(categories, eq(products.categoryId, categories.id))
+        .leftJoin(colors, eq(products.colorId, colors.id))
+        .leftJoin(fabrics, eq(products.fabricId, fabrics.id))
         .where(
           eq(storeExchangeNewItems.exchangeId, exchange.store_exchanges.id),
         );
@@ -1037,8 +1037,8 @@ export class StoreRepository implements StoreStorage {
         processor: exchange.users!,
         returnItems: returnItemsList.map((item) => ({
           ...item.store_exchange_return_items,
-          saree: {
-            ...item.sarees!,
+          product: {
+            ...item.products!,
             category: item.categories,
             color: item.colors,
             fabric: item.fabrics,
@@ -1046,8 +1046,8 @@ export class StoreRepository implements StoreStorage {
         })),
         newItems: newItemsList.map((item) => ({
           ...item.store_exchange_new_items,
-          saree: {
-            ...item.sarees!,
+          product: {
+            ...item.products!,
             category: item.categories,
             color: item.colors,
             fabric: item.fabrics,
@@ -1063,14 +1063,14 @@ export class StoreRepository implements StoreStorage {
   }
   async getShopAvailableProducts(
     storeId: string,
-  ): Promise<{ saree: SareeWithDetails; storeStock: number }[]> {
+  ): Promise<{ product: ProductWithDetails; storeStock: number }[]> {
     const result = await db
       .select()
       .from(storeInventory)
-      .innerJoin(sarees, eq(storeInventory.sareeId, sarees.id))
-      .leftJoin(categories, eq(sarees.categoryId, categories.id))
-      .leftJoin(colors, eq(sarees.colorId, colors.id))
-      .leftJoin(fabrics, eq(sarees.fabricId, fabrics.id))
+      .innerJoin(products, eq(storeInventory.productId, products.id))
+      .leftJoin(categories, eq(products.categoryId, categories.id))
+      .leftJoin(colors, eq(products.colorId, colors.id))
+      .leftJoin(fabrics, eq(products.fabricId, fabrics.id))
       .where(
         and(
           eq(storeInventory.storeId, storeId),
@@ -1094,31 +1094,31 @@ export class StoreRepository implements StoreStorage {
     const saleProductMappings = await db.select().from(saleProducts);
 
     return result.map((row) => {
-      const saree = row.sarees;
+      const product = row.products;
 
       // Find applicable sale
       let applicableSale = null;
       const productSaleMapping = saleProductMappings.find(
-        (sp) => sp.sareeId === saree.id,
+        (sp) => sp.productId === product.id,
       );
       if (productSaleMapping) {
         applicableSale = activeSales.find(
           (s) => s.id === productSaleMapping.saleId,
         );
       }
-      // Only exclude category pricing when THIS saree is explicitly mapped to a different sale
-      if (!applicableSale && saree.categoryId) {
+      // Only exclude category pricing when THIS product is explicitly mapped to a different sale
+      if (!applicableSale && product.categoryId) {
         applicableSale = activeSales.find(
           (s) =>
-            s.categoryId === saree.categoryId &&
+            s.categoryId === product.categoryId &&
             !saleProductMappings.some(
-              (sp) => sp.saleId === s.id && sp.sareeId === saree.id,
+              (sp) => sp.saleId === s.id && sp.productId === product.id,
             ),
         );
       }
 
       // Calculate discounted price using consistent logic across all flows
-      let discountedPrice = parseFloat(saree.price);
+      let discountedPrice = parseFloat(product.price);
       if (applicableSale) {
         const originalPrice = discountedPrice;
         if (
@@ -1147,8 +1147,8 @@ export class StoreRepository implements StoreStorage {
       }
 
       return {
-        saree: {
-          ...saree,
+        product: {
+          ...product,
           category: row.categories,
           color: row.colors,
           fabric: row.fabrics,
@@ -1170,7 +1170,7 @@ export class StoreRepository implements StoreStorage {
 
   async updateStoreInventory(
     storeId: string,
-    sareeId: string,
+    productId: string,
     quantity: number,
   ): Promise<StoreInventory> {
     const [result] = await db
@@ -1179,7 +1179,7 @@ export class StoreRepository implements StoreStorage {
       .where(
         and(
           eq(storeInventory.storeId, storeId),
-          eq(storeInventory.sareeId, sareeId),
+          eq(storeInventory.productId, productId),
         ),
       )
       .returning();
@@ -1188,7 +1188,7 @@ export class StoreRepository implements StoreStorage {
       // If no existing record, insert a new one
       const [inserted] = await db
         .insert(storeInventory)
-        .values({ storeId, sareeId, quantity, updatedAt: new Date() })
+        .values({ storeId, productId, quantity, updatedAt: new Date() })
         .returning();
       return inserted;
     }
@@ -1233,10 +1233,10 @@ export class StoreRepository implements StoreStorage {
       const items = await db
         .select()
         .from(storeSaleItems)
-        .innerJoin(sarees, eq(storeSaleItems.sareeId, sarees.id))
-        .leftJoin(categories, eq(sarees.categoryId, categories.id))
-        .leftJoin(colors, eq(sarees.colorId, colors.id))
-        .leftJoin(fabrics, eq(sarees.fabricId, fabrics.id))
+        .innerJoin(products, eq(storeSaleItems.productId, products.id))
+        .leftJoin(categories, eq(products.categoryId, categories.id))
+        .leftJoin(colors, eq(products.colorId, colors.id))
+        .leftJoin(fabrics, eq(products.fabricId, fabrics.id))
         .where(eq(storeSaleItems.saleId, row.store_sales.id));
 
       // Get eligibility data for this sale
@@ -1250,31 +1250,31 @@ export class StoreRepository implements StoreStorage {
         store: row.stores,
         eligibilityData,
         items: items.map((itemRow) => {
-          const saree = itemRow.sarees;
+          const product = itemRow.products;
 
           // Find applicable sale (same logic as cart)
           let applicableSale = null;
           const productSaleMapping = saleProductMappings.find(
-            (sp) => sp.sareeId === saree.id,
+            (sp) => sp.productId === product.id,
           );
           if (productSaleMapping) {
             applicableSale = activeSales.find(
               (s) => s.id === productSaleMapping.saleId,
             );
           }
-          // Only exclude category pricing when THIS saree is explicitly mapped to a different sale
-          if (!applicableSale && saree.categoryId) {
+          // Only exclude category pricing when THIS product is explicitly mapped to a different sale
+          if (!applicableSale && product.categoryId) {
             applicableSale = activeSales.find(
               (s) =>
-                s.categoryId === saree.categoryId &&
+                s.categoryId === product.categoryId &&
                 !saleProductMappings.some(
-                  (sp) => sp.saleId === s.id && sp.sareeId === saree.id,
+                  (sp) => sp.saleId === s.id && sp.productId === product.id,
                 ),
             );
           }
 
           // Calculate discounted price
-          let discountedPrice = parseFloat(saree.price);
+          let discountedPrice = parseFloat(product.price);
           if (applicableSale) {
             const originalPrice = discountedPrice;
             if (
@@ -1305,8 +1305,8 @@ export class StoreRepository implements StoreStorage {
 
           return {
             ...itemRow.store_sale_items,
-            saree: {
-              ...itemRow.sarees,
+            product: {
+              ...itemRow.products,
               category: itemRow.categories,
               color: itemRow.colors,
               fabric: itemRow.fabrics,
@@ -1378,10 +1378,10 @@ export class StoreRepository implements StoreStorage {
       const items = await db
         .select()
         .from(storeSaleItems)
-        .innerJoin(sarees, eq(storeSaleItems.sareeId, sarees.id))
-        .leftJoin(categories, eq(sarees.categoryId, categories.id))
-        .leftJoin(colors, eq(sarees.colorId, colors.id))
-        .leftJoin(fabrics, eq(sarees.fabricId, fabrics.id))
+        .innerJoin(products, eq(storeSaleItems.productId, products.id))
+        .leftJoin(categories, eq(products.categoryId, categories.id))
+        .leftJoin(colors, eq(products.colorId, colors.id))
+        .leftJoin(fabrics, eq(products.fabricId, fabrics.id))
         .where(eq(storeSaleItems.saleId, row.store_sales.id));
 
       // Get eligibility data for this sale
@@ -1396,8 +1396,8 @@ export class StoreRepository implements StoreStorage {
         eligibilityData,
         items: items.map((itemRow) => ({
           ...itemRow.store_sale_items,
-          saree: {
-            ...itemRow.sarees,
+          product: {
+            ...itemRow.products,
             category: itemRow.categories,
             color: itemRow.colors,
             fabric: itemRow.fabrics,
@@ -1425,10 +1425,10 @@ export class StoreRepository implements StoreStorage {
       const items = await db
         .select()
         .from(storeSaleItems)
-        .innerJoin(sarees, eq(storeSaleItems.sareeId, sarees.id))
-        .leftJoin(categories, eq(sarees.categoryId, categories.id))
-        .leftJoin(colors, eq(sarees.colorId, colors.id))
-        .leftJoin(fabrics, eq(sarees.fabricId, fabrics.id))
+        .innerJoin(products, eq(storeSaleItems.productId, products.id))
+        .leftJoin(categories, eq(products.categoryId, categories.id))
+        .leftJoin(colors, eq(products.colorId, colors.id))
+        .leftJoin(fabrics, eq(products.fabricId, fabrics.id))
         .where(eq(storeSaleItems.saleId, row.store_sales.id));
 
       // Get eligibility data for this sale
@@ -1443,8 +1443,8 @@ export class StoreRepository implements StoreStorage {
         eligibilityData,
         items: items.map((itemRow) => ({
           ...itemRow.store_sale_items,
-          saree: {
-            ...itemRow.sarees,
+          product: {
+            ...itemRow.products,
             category: itemRow.categories,
             color: itemRow.colors,
             fabric: itemRow.fabrics,
@@ -1458,20 +1458,20 @@ export class StoreRepository implements StoreStorage {
   // Store Inventory
   async getStoreInventory(
     storeId: string,
-  ): Promise<(StoreInventory & { saree: SareeWithDetails })[]> {
+  ): Promise<(StoreInventory & { product: ProductWithDetails })[]> {
     const result = await db
       .select()
       .from(storeInventory)
-      .innerJoin(sarees, eq(storeInventory.sareeId, sarees.id))
-      .leftJoin(categories, eq(sarees.categoryId, categories.id))
-      .leftJoin(colors, eq(sarees.colorId, colors.id))
-      .leftJoin(fabrics, eq(sarees.fabricId, fabrics.id))
+      .innerJoin(products, eq(storeInventory.productId, products.id))
+      .leftJoin(categories, eq(products.categoryId, categories.id))
+      .leftJoin(colors, eq(products.colorId, colors.id))
+      .leftJoin(fabrics, eq(products.fabricId, fabrics.id))
       .where(eq(storeInventory.storeId, storeId));
 
     return result.map((row) => ({
       ...row.store_inventory,
-      saree: {
-        ...row.sarees,
+      product: {
+        ...row.products,
         category: row.categories,
         color: row.colors,
         fabric: row.fabrics,
@@ -1481,7 +1481,7 @@ export class StoreRepository implements StoreStorage {
 
   async getLowStockProducts(storeId: string): Promise<
     Array<{
-      saree: SareeWithDetails;
+      product: ProductWithDetails;
       currentStock: number;
       reorderLevel: number;
     }>
@@ -1492,7 +1492,7 @@ export class StoreRepository implements StoreStorage {
     const result = await db
       .select()
       .from(storeInventory)
-      .innerJoin(sarees, eq(storeInventory.sareeId, sarees.id))
+      .innerJoin(products, eq(storeInventory.productId, products.id))
       .where(
         and(
           eq(storeInventory.storeId, storeId),
@@ -1502,7 +1502,7 @@ export class StoreRepository implements StoreStorage {
       .orderBy(storeInventory.quantity); // Order by quantity (lowest first)
 
     return result.map((row) => ({
-      saree: row.sarees,
+      product: row.products,
       currentStock: row.store_inventory.quantity,
       reorderLevel: REORDER_LEVEL,
     }));
@@ -1510,7 +1510,7 @@ export class StoreRepository implements StoreStorage {
 
   async getStoreInventoryItem(
     storeId: string,
-    sareeId: string,
+    productId: string,
   ): Promise<StoreInventory | undefined> {
     const [result] = await db
       .select()
@@ -1518,7 +1518,7 @@ export class StoreRepository implements StoreStorage {
       .where(
         and(
           eq(storeInventory.storeId, storeId),
-          eq(storeInventory.sareeId, sareeId),
+          eq(storeInventory.productId, productId),
         ),
       );
     return result || undefined;
@@ -1526,7 +1526,7 @@ export class StoreRepository implements StoreStorage {
 
   async addToStoreCart(
     storeId: string,
-    sareeId: string,
+    productId: string,
     quantity: number,
     unitPrice: number,
   ): Promise<{ items: any[] }> {
@@ -1537,7 +1537,7 @@ export class StoreRepository implements StoreStorage {
         .select()
         .from(storeCart)
         .where(
-          and(eq(storeCart.storeId, storeId), eq(storeCart.sareeId, sareeId)),
+          and(eq(storeCart.storeId, storeId), eq(storeCart.productId, productId)),
         )
         .limit(1);
 
@@ -1558,7 +1558,7 @@ export class StoreRepository implements StoreStorage {
 
         await tx.insert(storeCart).values({
           storeId,
-          sareeId,
+          productId,
           quantity,
           unitPrice: price.toString(),
           lineAmount: lineAmount.toString(),
@@ -1573,14 +1573,14 @@ export class StoreRepository implements StoreStorage {
     const cartItems = await db
       .select()
       .from(storeCart)
-      .innerJoin(sarees, eq(storeCart.sareeId, sarees.id))
-      .leftJoin(categories, eq(sarees.categoryId, categories.id))
-      .leftJoin(colors, eq(sarees.colorId, colors.id))
-      .leftJoin(fabrics, eq(sarees.fabricId, fabrics.id))
+      .innerJoin(products, eq(storeCart.productId, products.id))
+      .leftJoin(categories, eq(products.categoryId, categories.id))
+      .leftJoin(colors, eq(products.colorId, colors.id))
+      .leftJoin(fabrics, eq(products.fabricId, fabrics.id))
       .leftJoin(
         storeInventory,
         and(
-          eq(storeInventory.sareeId, sarees.id),
+          eq(storeInventory.productId, products.id),
           eq(storeInventory.storeId, storeId),
         ),
       )
@@ -1604,31 +1604,31 @@ export class StoreRepository implements StoreStorage {
 
     return {
       items: cartItems.map((item) => {
-        const saree = item.sarees;
+        const product = item.products;
 
         // Find applicable sale (same logic as user cart)
         let applicableSale = null;
         const productSaleMapping = saleProductMappings.find(
-          (sp) => sp.sareeId === saree.id,
+          (sp) => sp.productId === product.id,
         );
         if (productSaleMapping) {
           applicableSale = activeSales.find(
             (s) => s.id === productSaleMapping.saleId,
           );
         }
-        // Only exclude category pricing when THIS saree is explicitly mapped to a different sale
-        if (!applicableSale && saree.categoryId) {
+        // Only exclude category pricing when THIS product is explicitly mapped to a different sale
+        if (!applicableSale && product.categoryId) {
           applicableSale = activeSales.find(
             (s) =>
-              s.categoryId === saree.categoryId &&
+              s.categoryId === product.categoryId &&
               !saleProductMappings.some(
-                (sp) => sp.saleId === s.id && sp.sareeId === saree.id,
+                (sp) => sp.saleId === s.id && sp.productId === product.id,
               ),
           );
         }
 
         // Calculate discounted price
-        let discountedPrice = parseFloat(saree.price);
+        let discountedPrice = parseFloat(product.price);
         if (applicableSale) {
           const originalPrice = discountedPrice;
           if (
@@ -1664,17 +1664,17 @@ export class StoreRepository implements StoreStorage {
 
         return {
           id: item.store_cart.id,
-          sareeId: item.store_cart.sareeId,
+          productId: item.store_cart.productId,
           quantity: item.store_cart.quantity,
           unitPrice: effectivePrice,
           lineAmount,
           storeStock: item.store_inventory?.quantity || 0,
-          saree: {
-            id: item.sarees.id,
-            name: item.sarees.name,
-            code: item.sarees.sku || item.sarees.id,
-            image: item.sarees.imageUrl,
-            price: item.sarees.price,
+          product: {
+            id: item.products.id,
+            name: item.products.name,
+            code: item.products.sku || item.products.id,
+            image: item.products.imageUrl,
+            price: item.products.price,
             category: item.categories,
             color: item.colors,
             fabric: item.fabrics,
@@ -1696,12 +1696,12 @@ export class StoreRepository implements StoreStorage {
 
   async deleteFromStoreCart(
     storeId: string,
-    sareeId: string,
+    productId: string,
   ): Promise<{ items: any[] }> {
     await db
       .delete(storeCart)
       .where(
-        and(eq(storeCart.storeId, storeId), eq(storeCart.sareeId, sareeId)),
+        and(eq(storeCart.storeId, storeId), eq(storeCart.productId, productId)),
       );
 
     // Return updated cart after deletion
@@ -1720,7 +1720,7 @@ export class StoreRepository implements StoreStorage {
           .where(
             and(
               eq(storeCart.storeId, storeId),
-              eq(storeCart.sareeId, item.sareeId),
+              eq(storeCart.productId, item.productId),
             ),
           )
           .limit(1);
@@ -1743,13 +1743,13 @@ export class StoreRepository implements StoreStorage {
             .where(
               and(
                 eq(storeCart.storeId, storeId),
-                eq(storeCart.sareeId, item.sareeId),
+                eq(storeCart.productId, item.productId),
               ),
             );
         } else {
           await tx.insert(storeCart).values({
             storeId,
-            sareeId: item.sareeId,
+            productId: item.productId,
             quantity,
             unitPrice: unitPrice.toString(),
             lineAmount: lineAmount.toString(),

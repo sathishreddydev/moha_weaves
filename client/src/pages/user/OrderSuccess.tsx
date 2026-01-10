@@ -30,7 +30,7 @@ const OrderSuccess: React.FC<OrderSuccessProps> = ({ orderId }) => {
             View Order
           </Button>
         </Link>
-        <Link to="/sarees">
+        <Link to="/products">
           <Button variant="outline" className="w-full" data-testid="button-continue-shopping">
             Continue Shopping
           </Button>

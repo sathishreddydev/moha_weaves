@@ -20,15 +20,15 @@ interface StockMovementStats {
   totalOnlineCleared: number;
   totalStoreCleared: number;
   onlineMovements: {
-    sareeId: string;
-    sareeName: string;
+    productId: string;
+    productName: string;
     quantity: number;
     orderRefId: string;
     createdAt: string;
   }[];
   storeMovements: {
-    sareeId: string;
-    sareeName: string;
+    productId: string;
+    productName: string;
     quantity: number;
     orderRefId: string;
     storeId: string | null;
@@ -56,12 +56,12 @@ export default function InventoryAnalytics() {
     const productMap = new Map<string, { name: string; quantity: number }>();
 
     movements.forEach((movement) => {
-      const existing = productMap.get(movement.sareeId);
+      const existing = productMap.get(movement.productId);
       if (existing) {
         existing.quantity += movement.quantity;
       } else {
-        productMap.set(movement.sareeId, {
-          name: movement.sareeName,
+        productMap.set(movement.productId, {
+          name: movement.productName,
           quantity: movement.quantity,
         });
       }
@@ -250,7 +250,7 @@ export default function InventoryAnalytics() {
                       >
                         <div className="flex-1">
                           <p className="font-medium text-sm line-clamp-1">
-                            {movement.sareeName}
+                            {movement.productName}
                           </p>
                           <p className="text-xs text-muted-foreground">
                             Order: {movement.orderRefId.slice(0, 8)}
@@ -293,7 +293,7 @@ export default function InventoryAnalytics() {
                       >
                         <div className="flex-1">
                           <p className="font-medium text-sm line-clamp-1">
-                            {movement.sareeName}
+                            {movement.productName}
                           </p>
                           <p className="text-xs text-muted-foreground">
                             {movement.storeName || "Unknown Store"}

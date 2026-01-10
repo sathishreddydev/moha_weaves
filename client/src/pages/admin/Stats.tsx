@@ -10,7 +10,7 @@ import {
 interface DashboardStatsProps {
   stats: {
     totalUsers: number;
-    totalSarees: number;
+    totalProducts: number;
     totalOrders: number;
     totalRevenue: number;
     pendingOrders: number;
@@ -76,10 +76,10 @@ export function DashboardStats({ stats, formatPrice }: DashboardStatsProps) {
       />
 
       <StatCard
-        title="Total Sarees"
-        value={stats.totalSarees}
+        title="Total products"
+        value={stats.totalProducts}
         icon={Package}
-        to="/admin/sarees"
+        to="/admin/products"
         accent="bg-purple-100 text-purple-700"
         subtitle={`${stats.lowStockItems} low stock`}
       />

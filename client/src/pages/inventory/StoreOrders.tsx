@@ -108,10 +108,10 @@ export default function InventoryStoreOrders() {
               >
                 <img
                   src={
-                    item.saree?.imageUrl ||
+                    item.product?.imageUrl ||
                     "https://images.unsplash.com/photo-1610030469983-98e550d6193c?w=50"
                   }
-                  alt={item.saree?.name || "Saree"}
+                  alt={item.product?.name || "product"}
                   className="w-full h-full object-cover"
                 />
               </div>

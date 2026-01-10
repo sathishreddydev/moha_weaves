@@ -2,7 +2,7 @@ import { db } from "server/db";
 import { eq, and, sql, lte, gte } from "drizzle-orm";
 
 import {
-  sarees,
+  products,
   categories,
   colors,
   fabrics,
@@ -10,13 +10,13 @@ import {
   saleProducts,
   cart,
   wishlist,
-  CartItemWithSaree,
-  WishlistItemWithSaree,
+  CartItemWithProduct,
+  WishlistItemWithProduct,
   InsertCartItem,
   InsertWishlistItem,
 } from "@shared/schema";
 
-export class SareeRepository {
+export class productRepository {
   applySalePricing(price: string, sale: any) {
     if (!sale) return undefined;
 
@@ -59,26 +59,26 @@ export class SareeRepository {
     return { activeSales, mappings };
   }
 
-  async buildSaree(row: any, activeSales: any[], mappings: any[]) {
-    const saree = row.sarees;
+  async buildProduct(row: any, activeSales: any[], mappings: any[]) {
+    const product = row.products;
 
     let applicableSale: any = null;
 
-    const productMapping = mappings.find((m) => m.sareeId === saree.id);
+    const productMapping = mappings.find((m) => m.productId === product.id);
     if (productMapping) {
       applicableSale = activeSales.find((s) => s.id === productMapping.saleId);
     }
 
-    if (!applicableSale && saree.categoryId) {
+    if (!applicableSale && product.categoryId) {
       applicableSale = activeSales.find(
-        (s) => s.categoryId === saree.categoryId
+        (s) => s.categoryId === product.categoryId
       );
     }
 
-    const discountedPrice = this.applySalePricing(saree.price, applicableSale);
+    const discountedPrice = this.applySalePricing(product.price, applicableSale);
 
     return {
-      ...saree,
+      ...product,
       category: row.categories,
       color: row.colors,
       fabric: row.fabrics,
@@ -95,52 +95,52 @@ export class SareeRepository {
     };
   }
 
-  async getSaree(id: string) {
+  async getProduct(id: string) {
     const rows = await db
       .select()
-      .from(sarees)
-      .leftJoin(categories, eq(sarees.categoryId, categories.id))
-      .leftJoin(colors, eq(sarees.colorId, colors.id))
-      .leftJoin(fabrics, eq(sarees.fabricId, fabrics.id))
-      .where(eq(sarees.id, id));
+      .from(products)
+      .leftJoin(categories, eq(products.categoryId, categories.id))
+      .leftJoin(colors, eq(products.colorId, colors.id))
+      .leftJoin(fabrics, eq(products.fabricId, fabrics.id))
+      .where(eq(products.id, id));
 
     if (!rows.length) return null;
 
     const { activeSales, mappings } = await this.loadSaleData();
 
-    return await this.buildSaree(rows[0], activeSales, mappings);
+    return await this.buildProduct(rows[0], activeSales, mappings);
   }
 }
 
-export const sareeRepo = new SareeRepository();
+export const productRepo = new productRepository();
 
 export class CartRepository {
   async buildCart(userId: string): Promise<{
-    cart: CartItemWithSaree[];
+    cart: CartItemWithProduct[];
     count: number;
   }> {
     const rows = await db
       .select()
       .from(cart)
-      .innerJoin(sarees, eq(cart.sareeId, sarees.id))
-      .leftJoin(categories, eq(sarees.categoryId, categories.id))
-      .leftJoin(colors, eq(sarees.colorId, colors.id))
-      .leftJoin(fabrics, eq(sarees.fabricId, fabrics.id))
+      .innerJoin(products, eq(cart.productId, products.id))
+      .leftJoin(categories, eq(products.categoryId, categories.id))
+      .leftJoin(colors, eq(products.colorId, colors.id))
+      .leftJoin(fabrics, eq(products.fabricId, fabrics.id))
       .where(eq(cart.userId, userId));
 
-    const { activeSales, mappings } = await sareeRepo.loadSaleData();
+    const { activeSales, mappings } = await productRepo.loadSaleData();
 
-    const cartItems: CartItemWithSaree[] = await Promise.all(
+    const cartItems: CartItemWithProduct[] = await Promise.all(
       rows.map(async (row) => {
-        const saree = await sareeRepo.buildSaree(row, activeSales, mappings);
+        const product = await productRepo.buildProduct(row, activeSales, mappings);
 
         return {
           id: row.cart.id,
           createdAt: row.cart.createdAt,
           userId: row.cart.userId,
-          sareeId: row.cart.sareeId,
+          productId: row.cart.productId,
           quantity: row.cart.quantity,
-          saree,
+          product,
         };
       })
     );
@@ -166,7 +166,7 @@ export class CartRepository {
     const [existing] = await db
       .select()
       .from(cart)
-      .where(and(eq(cart.userId, item.userId), eq(cart.sareeId, item.sareeId)));
+      .where(and(eq(cart.userId, item.userId), eq(cart.productId, item.productId)));
 
     if (existing) {
       const newQuantity = existing.quantity + (item.quantity || 1);
@@ -218,30 +218,30 @@ export const cartServices = new CartRepository();
 
 export class WishlistRepository {
   async buildWishlist(userId: string): Promise<{
-    wishlist: WishlistItemWithSaree[];
+    wishlist: WishlistItemWithProduct[];
     count: number;
   }> {
     const rows = await db
       .select()
       .from(wishlist)
-      .innerJoin(sarees, eq(wishlist.sareeId, sarees.id))
-      .leftJoin(categories, eq(sarees.categoryId, categories.id))
-      .leftJoin(colors, eq(sarees.colorId, colors.id))
-      .leftJoin(fabrics, eq(sarees.fabricId, fabrics.id))
+      .innerJoin(products, eq(wishlist.productId, products.id))
+      .leftJoin(categories, eq(products.categoryId, categories.id))
+      .leftJoin(colors, eq(products.colorId, colors.id))
+      .leftJoin(fabrics, eq(products.fabricId, fabrics.id))
       .where(eq(wishlist.userId, userId));
 
-    const { activeSales, mappings } = await sareeRepo.loadSaleData();
+    const { activeSales, mappings } = await productRepo.loadSaleData();
 
-    const wishlistItems: WishlistItemWithSaree[] = await Promise.all(
+    const wishlistItems: WishlistItemWithProduct[] = await Promise.all(
       rows.map(async (row) => {
-        const saree = await sareeRepo.buildSaree(row, activeSales, mappings);
+        const product = await productRepo.buildProduct(row, activeSales, mappings);
 
         return {
           id: row.wishlist.id,
           createdAt: row.wishlist.createdAt,
           userId: row.wishlist.userId,
-          sareeId: row.wishlist.sareeId,
-          saree,
+          productId: row.wishlist.productId,
+          product,
         };
       })
     );
@@ -263,7 +263,7 @@ export class WishlistRepository {
       .where(
         and(
           eq(wishlist.userId, item.userId),
-          eq(wishlist.sareeId, item.sareeId)
+          eq(wishlist.productId, item.productId)
         )
       );
 
@@ -274,19 +274,19 @@ export class WishlistRepository {
     return await this.buildWishlist(item.userId);
   }
 
-  async removeFromWishlist(userId: string, sareeId: string) {
+  async removeFromWishlist(userId: string, productId: string) {
     await db
       .delete(wishlist)
-      .where(and(eq(wishlist.userId, userId), eq(wishlist.sareeId, sareeId)));
+      .where(and(eq(wishlist.userId, userId), eq(wishlist.productId, productId)));
 
     return await this.buildWishlist(userId);
   }
 
-  async isInWishlist(userId: string, sareeId: string) {
+  async isInWishlist(userId: string, productId: string) {
     const [result] = await db
       .select()
       .from(wishlist)
-      .where(and(eq(wishlist.userId, userId), eq(wishlist.sareeId, sareeId)));
+      .where(and(eq(wishlist.userId, userId), eq(wishlist.productId, productId)));
 
     return !!result;
   }

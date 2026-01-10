@@ -11,7 +11,7 @@ import { DashboardStats } from "./Stats";
 
 interface DashboardStats {
   totalUsers: number;
-  totalSarees: number;
+  totalProducts: number;
   totalOrders: number;
   totalRevenue: number;
   pendingOrders: number;

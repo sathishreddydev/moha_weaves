@@ -7,12 +7,12 @@ import { Badge } from "@/components/ui/badge";
 import { DataTable, FilterConfig } from "@/components/ui/data-table";
 import { useDataTable } from "@/hooks/use-data-table";
 import { ColumnDef } from "@tanstack/react-table";
-import type { SareeWithDetails, StockRequestWithDetails } from "@shared/schema";
+import type { ProductWithDetails, StockRequestWithDetails } from "@shared/schema";
 import { RequestDialog } from "./Utils/RequestDialog";
 import { useFilterStore } from "@/components/Store/useFilterStore";
 
 type ShopProduct = {
-  saree: SareeWithDetails & {
+  product: ProductWithDetails & {
     activeSale?: {
       id: string;
       name: string;
@@ -28,7 +28,7 @@ type ShopProduct = {
 
 export default function StoreInventoryPage() {
   const [dialogOpen, setDialogOpen] = useState(false);
-  const [sareeData, setSareeData] = useState<SareeWithDetails>();
+  const [productData, setProductData] = useState<ProductWithDetails>();
   const { categories, colors, fabrics, fetchFilters } = useFilterStore();
   useEffect(() => {
     if (!categories.length || !colors.length || !fabrics.length) {
@@ -139,11 +139,11 @@ export default function StoreInventoryPage() {
   };
   const requestDailog = (item: ShopProduct) => {
     setDialogOpen(true);
-    setSareeData(item.saree);
+    setProductData(item.product);
   };
   const inventoryColumns: ColumnDef<ShopProduct>[] = [
     {
-      accessorKey: "saree.imageUrl",
+      accessorKey: "product.imageUrl",
       header: "Product",
       cell: ({ row }) => {
         const item = row.original;
@@ -151,64 +151,64 @@ export default function StoreInventoryPage() {
           <div className="flex items-center gap-3">
             <img
               src={
-                item.saree.imageUrl ||
+                item.product.imageUrl ||
                 "https://images.unsplash.com/photo-1610030469983-98e550d6193c?w=50"
               }
               alt=""
               className="w-10 h-12 rounded object-cover"
             />
             <span className="font-medium max-w-[200px] truncate">
-              {item.saree.name}
+              {item.product.name}
             </span>
           </div>
         );
       },
     },
     {
-      accessorKey: "saree.sku",
+      accessorKey: "product.sku",
       header: "SKU",
       cell: ({ row }) => (
         <span className="text-muted-foreground font-mono text-sm">
-          {row.original.saree.sku || "-"}
+          {row.original.product.sku || "-"}
         </span>
       ),
     },
     {
-      accessorKey: "saree.category.name",
+      accessorKey: "product.category.name",
       header: "Category",
       cell: ({ row }) => (
-        <span>{row.original.saree.category?.name || "-"}</span>
+        <span>{row.original.product.category?.name || "-"}</span>
       ),
     },
     {
-      accessorKey: "saree.color.name",
+      accessorKey: "product.color.name",
       header: "Color",
-      cell: ({ row }) => <span>{row.original.saree.color?.name || "-"}</span>,
+      cell: ({ row }) => <span>{row.original.product.color?.name || "-"}</span>,
     },
     {
-      accessorKey: "saree.fabric.name",
+      accessorKey: "product.fabric.name",
       header: "Fabric",
-      cell: ({ row }) => <span>{row.original.saree.fabric?.name || "-"}</span>,
+      cell: ({ row }) => <span>{row.original.product.fabric?.name || "-"}</span>,
     },
     {
-      accessorKey: "saree.price",
+      accessorKey: "product.price",
       header: "Price",
       cell: ({ row }) => {
         const item = row.original;
         return (
           <div>
-            {item.saree.activeSale && item.saree.discountedPrice ? (
+            {item.product.activeSale && item.product.discountedPrice ? (
               <div className="flex items-center gap-2">
                 <span className="font-semibold text-primary">
-                  {formatPrice(item.saree.discountedPrice)}
+                  {formatPrice(item.product.discountedPrice)}
                 </span>
                 <span className="text-xs text-muted-foreground line-through">
-                  {formatPrice(item.saree.price)}
+                  {formatPrice(item.product.price)}
                 </span>
               </div>
             ) : (
               <span className="font-medium">
-                {formatPrice(item.saree.price)}
+                {formatPrice(item.product.price)}
               </span>
             )}
           </div>
@@ -216,10 +216,10 @@ export default function StoreInventoryPage() {
       },
     },
     {
-      accessorKey: "saree.distributionChannel",
+      accessorKey: "product.distributionChannel",
       header: "Availability",
       cell: ({ row }) =>
-        getDistributionBadge(row.original.saree.distributionChannel),
+        getDistributionBadge(row.original.product.distributionChannel),
     },
     {
       accessorKey: "storeStock",
@@ -424,7 +424,7 @@ export default function StoreInventoryPage() {
         <RequestDialog
           dialogOpen={dialogOpen}
           setDialogOpen={setDialogOpen}
-          sareeData={sareeData}
+          productData={productData}
         />
       )}
     </div>

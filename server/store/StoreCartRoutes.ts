@@ -7,7 +7,7 @@ import { CustomerService } from "./customerStorage";
 
 const cartItemSchema = z.object({
   id: z.string().optional(),
-  sareeId: z.string(),
+  productId: z.string(),
   quantity: z.number().min(1),
   unitPrice: z.number().min(0),
   lineAmount: z.number().min(0),
@@ -15,7 +15,7 @@ const cartItemSchema = z.object({
 });
 
 export const addToCartSchema = z.object({
-  sareeId: z.string(),
+  productId: z.string(),
   quantity: z.number().min(1),
   unitPrice: z.number().min(0),
 });
@@ -26,7 +26,7 @@ export const updateCartSchema = z.object({
       id: z.string(),
       quantity: z.number().min(1).optional(),
       unitPrice: z.number().min(0).optional(),
-      sareeId: z.string(),
+      productId: z.string(),
     })
   ),
 });
@@ -90,7 +90,7 @@ export const storeCartRoutes = (app: Express) => {
 
       const inventory = await storeRepo.getStoreInventoryItem(
         storeId,
-        validatedData.sareeId
+        validatedData.productId
       );
 
       if (!inventory || inventory.quantity < validatedData.quantity) {
@@ -102,7 +102,7 @@ export const storeCartRoutes = (app: Express) => {
 
       const updatedCart = await storeRepo.addToStoreCart(
         storeId,
-        validatedData.sareeId,
+        validatedData.productId,
         validatedData.quantity,
         validatedData.unitPrice
       );
@@ -135,11 +135,11 @@ export const storeCartRoutes = (app: Express) => {
       for (const item of validatedData.items) {
         if (item.quantity === undefined) continue; // Skip items without quantity
 
-        const inventory = await storeRepo.getStoreInventoryItem(storeId, item.sareeId);
+        const inventory = await storeRepo.getStoreInventoryItem(storeId, item.productId);
         if (!inventory || inventory.quantity < item.quantity) {
           return res.status(400).json({
             error: "Insufficient stock",
-            message: `Only ${inventory?.quantity || 0} items available for item ${item.sareeId}`
+            message: `Only ${inventory?.quantity || 0} items available for item ${item.productId}`
           });
         }
       }
@@ -155,15 +155,15 @@ export const storeCartRoutes = (app: Express) => {
     }
   });
 
-  app.delete("/api/store/cart/:sareeId", authStore, async (req: Request, res: Response) => {
+  app.delete("/api/store/cart/:productId", authStore, async (req: Request, res: Response) => {
     try {
       const storeId = req.user?.storeId;
       if (!storeId) return res.status(401).json({ error: "Store not authenticated" });
 
-      const { sareeId } = req.params;
+      const { productId } = req.params;
       const storeRepo = new StoreRepository();
 
-      await storeRepo.deleteFromStoreCart(storeId, sareeId);
+      await storeRepo.deleteFromStoreCart(storeId, productId);
 
       res.json({ message: "Item removed from cart successfully" });
     } catch (error) {
@@ -202,11 +202,11 @@ export const storeCartRoutes = (app: Express) => {
 
       // Validate stock availability for all checkout items
       for (const item of validatedData.items) {
-        const inventory = await storeRepo.getStoreInventoryItem(storeId, item.sareeId);
+        const inventory = await storeRepo.getStoreInventoryItem(storeId, item.productId);
         if (!inventory || inventory.quantity < item.quantity) {
           return res.status(400).json({
             error: "Insufficient stock",
-            message: `Only ${inventory?.quantity || 0} items available for item ${item.sareeId}. Cannot complete checkout.`
+            message: `Only ${inventory?.quantity || 0} items available for item ${item.productId}. Cannot complete checkout.`
           });
         }
       }

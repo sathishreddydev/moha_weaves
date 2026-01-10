@@ -265,8 +265,8 @@ export default function InventoryExchanges() {
                 {(exchange.items || []).slice(0, 3).map((item, idx) => (
                   <div key={idx} className="h-7 w-7 rounded border-2 border-white bg-blue-100 flex items-center justify-center text-[10px] font-bold text-blue-600 overflow-hidden">
                     <img
-                      src={item.orderItem?.saree?.imageUrl || "https://images.unsplash.com/photo-1610030469983-98e550d6193c?w=20"}
-                      alt={item.orderItem?.saree?.name || "Item"}
+                      src={item.orderItem?.product?.imageUrl || "https://images.unsplash.com/photo-1610030469983-98e550d6193c?w=20"}
+                      alt={item.orderItem?.product?.name || "Item"}
                       className="w-full h-full object-cover"
                     />
                   </div>
@@ -351,23 +351,23 @@ export default function InventoryExchanges() {
             <div className="flex items-center gap-4 mb-4 md:mb-0">
               <div className="p-3 bg-slate-50 rounded-lg border border-slate-100 overflow-hidden">
                 <img
-                  src={item.orderItem?.saree?.imageUrl || "https://images.unsplash.com/photo-1610030469983-98e550d6193c?w=40"}
-                  alt={item.orderItem?.saree?.name || "Item"}
+                  src={item.orderItem?.product?.imageUrl || "https://images.unsplash.com/photo-1610030469983-98e550d6193c?w=40"}
+                  alt={item.orderItem?.product?.name || "Item"}
                   className="w-8 h-8 object-cover rounded"
                 />
               </div>
               <div>
-                <h4 className="font-semibold text-slate-800">{item.orderItem?.saree?.name || 'Unknown Item'}</h4>
+                <h4 className="font-semibold text-slate-800">{item.orderItem?.product?.name || 'Unknown Item'}</h4>
                 <div className="text-xs text-slate-500 flex items-center gap-2">
                   <span>SKU: {item.orderItemId}</span>
                   <span className="h-1 w-1 bg-slate-300 rounded-full"></span>
                   <span>Qty: {item.quantity}</span>
                   <span className="h-1 w-1 bg-slate-300 rounded-full"></span>
-                  <span>{formatPrice(item.orderItem?.saree?.price || 0)} each</span>
+                  <span>{formatPrice(item.orderItem?.product?.price || 0)} each</span>
                 </div>
-                {item.exchangeSareeId && (
+                {item.exchangeproductId && (
                   <div className="text-xs text-slate-500 flex items-center gap-2 mt-1">
-                    <span className="font-medium">Exchange for:</span> New Item ID: {item.exchangeSareeId}
+                    <span className="font-medium">Exchange for:</span> New Item ID: {item.exchangeproductId}
                   </div>
                 )}
               </div>
@@ -486,7 +486,7 @@ export default function InventoryExchanges() {
             <div className="py-2 border-b">
               <div className="flex items-center gap-3 mb-2">
                 <img
-                  src={updateDialog.request.items[0]?.orderItem?.saree?.imageUrl || "https://images.unsplash.com/photo-1610030469983-98e550d6193c?w=60"}
+                  src={updateDialog.request.items[0]?.orderItem?.product?.imageUrl || "https://images.unsplash.com/photo-1610030469983-98e550d6193c?w=60"}
                   alt=""
                   className="w-12 h-15 rounded object-cover"
                 />

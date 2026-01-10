@@ -198,11 +198,11 @@ export const storeRoutes = (app: Express) => {
       if (!user.storeId) {
         return res.status(400).json({ message: "No store assigned" });
       }
-      const { sareeId, quantity, notes } = req.body;
+      const { productId, quantity, notes } = req.body;
       const request = await storage.createStockRequest({
         storeId: user.storeId,
         requestedBy: user.id,
-        sareeId,
+        productId,
         quantity,
         notes,
       });

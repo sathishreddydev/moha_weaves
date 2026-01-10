@@ -214,10 +214,10 @@ export default function StoreExchangeHistory() {
                   className="flex items-center justify-between p-2 bg-red-50 rounded border border-red-200"
                 >
                   <div className="flex-1">
-                    <p className="font-medium text-sm">{item.saree.name}</p>
+                    <p className="font-medium text-sm">{item.product.name}</p>
                     <p className="text-xs text-muted-foreground">
-                      {item.saree.category?.name} • {item.saree.color?.name} •{" "}
-                      {item.saree.fabric?.name}
+                      {item.product.category?.name} • {item.product.color?.name} •{" "}
+                      {item.product.fabric?.name}
                     </p>
                     <p className="text-xs text-muted-foreground">
                       Qty: {item.quantity} × {formatPrice(item.unitPrice)} ={" "}
@@ -247,10 +247,10 @@ export default function StoreExchangeHistory() {
                   className="flex items-center justify-between p-2 bg-green-50 rounded border border-green-200"
                 >
                   <div className="flex-1">
-                    <p className="font-medium text-sm">{item.saree.name}</p>
+                    <p className="font-medium text-sm">{item.product.name}</p>
                     <p className="text-xs text-muted-foreground">
-                      {item.saree.category?.name} • {item.saree.color?.name} •{" "}
-                      {item.saree.fabric?.name}
+                      {item.product.category?.name} • {item.product.color?.name} •{" "}
+                      {item.product.fabric?.name}
                     </p>
                     <p className="text-xs text-muted-foreground">
                       Qty: {item.quantity} × {formatPrice(item.unitPrice)} ={" "}

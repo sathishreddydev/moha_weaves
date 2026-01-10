@@ -47,7 +47,7 @@ import { useDataTable } from "@/hooks/use-data-table";
 import { ColumnDef } from "@tanstack/react-table";
 import { CloudinaryUploader } from "@/components/CloudinaryUploader";
 import type {
-  SareeWithDetails,
+  ProductWithDetails,
   Category,
   Color,
   Fabric,
@@ -60,7 +60,7 @@ interface StoreAllocation {
   quantity: number;
 }
 
-interface SareeFormData {
+interface ProductFormData {
   name: string;
   description: string;
   price: string;
@@ -86,25 +86,25 @@ const formatPrice = (price: string | number) => {
   }).format(numPrice);
 };
 
-export default function InventorySarees() {
+export default function InventoryProducts() {
   const navigate = useNavigate();
   const { user, logout } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [dialogOpen, setDialogOpen] = useState(false);
-  const [editingSaree, setEditingSaree] = useState<SareeWithDetails | null>(null);
+  const [editingProduct, setEditingProduct] = useState<ProductWithDetails | null>(null);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
-  const [deletingSareeId, setDeletingSareeId] = useState<string | null>(null);
+  const [deletingproductId, setDeletingproductId] = useState<string | null>(null);
   const [storeAllocations, setStoreAllocations] = useState<StoreAllocation[]>([]);
   const [printDialogOpen, setPrintDialogOpen] = useState(false);
-  const [printingSaree, setPrintingSaree] = useState<SareeWithDetails | null>(null);
+  const [printingProduct, setPrintingProduct] = useState<ProductWithDetails | null>(null);
   const printRef = useRef<HTMLDivElement>(null);
   const [selectedRows, setSelectedRows] = useState<Set<string>>(new Set());
   const [bulkDeleteDialogOpen, setBulkDeleteDialogOpen] = useState(false);
   const [bulkPrintDialogOpen, setBulkPrintDialogOpen] = useState(false);
   const bulkPrintRef = useRef<HTMLDivElement>(null);
 
-  const [formData, setFormData] = useState<SareeFormData>({
+  const [formData, setFormData] = useState<ProductFormData>({
     name: "",
     description: "",
     price: "",
@@ -138,7 +138,7 @@ export default function InventorySarees() {
   });
 
   const {
-    data: sarees,
+    data: products,
     totalCount,
     pageIndex,
     pageSize,
@@ -148,17 +148,17 @@ export default function InventorySarees() {
     handleFiltersChange,
     handleDateFilterChange,
     refetch,
-  } = useDataTable<SareeWithDetails>({
-    queryKey: "/api/inventory/sarees",
+  } = useDataTable<ProductWithDetails>({
+    queryKey: "/api/inventory/products",
     initialPageSize: 10,
   });
 
   const createMutation = useMutation({
     mutationFn: async (data: {
-      formData: SareeFormData;
+      formData: ProductFormData;
       allocations: StoreAllocation[];
     }) => {
-      const response = await apiRequest("POST", "/api/inventory/sarees", {
+      const response = await apiRequest("POST", "/api/inventory/products", {
         ...data.formData,
         price: data.formData.price,
         storeAllocations: data.allocations
@@ -172,13 +172,13 @@ export default function InventorySarees() {
     },
     onSuccess: () => {
       refetch();
-      toast({ title: "Success", description: "Saree created successfully" });
+      toast({ title: "Success", description: "product created successfully" });
       handleCloseDialog();
     },
     onError: (error: Error) => {
       toast({
         title: "Error",
-        description: error.message || "Failed to create saree",
+        description: error.message || "Failed to create product",
         variant: "destructive",
       });
     },
@@ -191,12 +191,12 @@ export default function InventorySarees() {
       allocations,
     }: {
       id: string;
-      data: SareeFormData;
+      data: ProductFormData;
       allocations: StoreAllocation[];
     }) => {
       const response = await apiRequest(
         "PATCH",
-        `/api/inventory/sarees/${id}`,
+        `/api/inventory/products/${id}`,
         {
           ...data,
           price: data.price,
@@ -212,13 +212,13 @@ export default function InventorySarees() {
     },
     onSuccess: () => {
       refetch();
-      toast({ title: "Success", description: "Saree updated successfully" });
+      toast({ title: "Success", description: "product updated successfully" });
       handleCloseDialog();
     },
     onError: (error: Error) => {
       toast({
         title: "Error",
-        description: error.message || "Failed to update saree",
+        description: error.message || "Failed to update product",
         variant: "destructive",
       });
     },
@@ -226,18 +226,18 @@ export default function InventorySarees() {
 
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
-      await apiRequest("DELETE", `/api/inventory/sarees/${id}`);
+      await apiRequest("DELETE", `/api/inventory/products/${id}`);
     },
     onSuccess: () => {
       refetch();
-      toast({ title: "Success", description: "Saree deleted successfully" });
+      toast({ title: "Success", description: "product deleted successfully" });
       setDeleteDialogOpen(false);
-      setDeletingSareeId(null);
+      setDeletingproductId(null);
     },
     onError: () => {
       toast({
         title: "Error",
-        description: "Failed to delete saree",
+        description: "Failed to delete product",
         variant: "destructive",
       });
     },
@@ -246,14 +246,14 @@ export default function InventorySarees() {
   const bulkDeleteMutation = useMutation({
     mutationFn: async (ids: string[]) => {
       await Promise.all(
-        ids.map((id) => apiRequest("DELETE", `/api/inventory/sarees/${id}`))
+        ids.map((id) => apiRequest("DELETE", `/api/inventory/products/${id}`))
       );
     },
     onSuccess: () => {
       refetch();
       toast({ 
         title: "Success", 
-        description: `${selectedRows.size} saree(s) deleted successfully` 
+        description: `${selectedRows.size} product(s) deleted successfully` 
       });
       setBulkDeleteDialogOpen(false);
       setSelectedRows(new Set());
@@ -261,14 +261,14 @@ export default function InventorySarees() {
     onError: () => {
       toast({
         title: "Error",
-        description: "Failed to delete selected sarees",
+        description: "Failed to delete selected products",
         variant: "destructive",
       });
     },
   });
 
   const handleOpenCreate = () => {
-    setEditingSaree(null);
+    setEditingProduct(null);
     setFormData({
       name: "",
       description: "",
@@ -292,28 +292,28 @@ export default function InventorySarees() {
     setDialogOpen(true);
   };
 
-  const handleOpenEdit = async (saree: SareeWithDetails) => {
-    setEditingSaree(saree);
+  const handleOpenEdit = async (product: ProductWithDetails) => {
+    setEditingProduct(product);
     setFormData({
-      name: saree.name,
-      description: saree.description || "",
-      price: saree.price.toString(),
-      categoryId: saree.categoryId || "",
-      colorId: saree.colorId || "",
-      fabricId: saree.fabricId || "",
-      imageUrl: saree.imageUrl || "",
-      images: (saree as any).images || [],
-      videoUrl: (saree as any).videoUrl || "",
-      totalStock: saree.totalStock,
-      onlineStock: saree.onlineStock,
-      distributionChannel: saree.distributionChannel,
-      isFeatured: saree.isFeatured,
-      isActive: saree.isActive,
+      name: product.name,
+      description: product.description || "",
+      price: product.price.toString(),
+      categoryId: product.categoryId || "",
+      colorId: product.colorId || "",
+      fabricId: product.fabricId || "",
+      imageUrl: product.imageUrl || "",
+      images: (product as any).images || [],
+      videoUrl: (product as any).videoUrl || "",
+      totalStock: product.totalStock,
+      onlineStock: product.onlineStock,
+      distributionChannel: product.distributionChannel,
+      isFeatured: product.isFeatured,
+      isActive: product.isActive,
     });
 
     try {
       const response = await fetch(
-        `/api/inventory/sarees/${saree.id}/allocations`,
+        `/api/inventory/products/${product.id}/allocations`,
         { credentials: "include" }
       );
       const existingAllocations = await response.json();
@@ -345,7 +345,7 @@ export default function InventorySarees() {
 
   const handleCloseDialog = () => {
     setDialogOpen(false);
-    setEditingSaree(null);
+    setEditingProduct(null);
     setStoreAllocations([]);
   };
 
@@ -377,9 +377,9 @@ export default function InventorySarees() {
       }
     }
 
-    if (editingSaree) {
+    if (editingProduct) {
       updateMutation.mutate({
-        id: editingSaree.id,
+        id: editingProduct.id,
         data: formData,
         allocations: storeAllocations,
       });
@@ -405,8 +405,8 @@ export default function InventorySarees() {
       ? formData.totalStock - totalStoreAllocated
       : formData.totalStock - formData.onlineStock - totalStoreAllocated;
 
-  const handlePrintBarcode = (saree: SareeWithDetails) => {
-    setPrintingSaree(saree);
+  const handlePrintBarcode = (product: ProductWithDetails) => {
+    setPrintingProduct(product);
     setPrintDialogOpen(true);
   };
 
@@ -504,40 +504,40 @@ export default function InventorySarees() {
 
   const handleSelectAll = (checked: boolean) => {
     if (checked) {
-      setSelectedRows(new Set(sarees.map((s) => s.id)));
+      setSelectedRows(new Set(products.map((s) => s.id)));
     } else {
       setSelectedRows(new Set());
     }
   };
 
   const handleDownloadExcel = () => {
-    if (!sarees || sarees.length === 0) {
+    if (!products || products.length === 0) {
       toast({
         title: "No Data",
-        description: "No sarees to download",
+        description: "No products to download",
         variant: "destructive",
       });
       return;
     }
 
-    const excelData = sarees.map((saree) => ({
-      SKU: saree.sku || "-",
-      Name: saree.name,
-      Category: saree.category?.name || "-",
-      Color: saree.color?.name || "-",
-      Fabric: saree.fabric?.name || "-",
-      Price: saree.price,
-      "Total Stock": saree.totalStock,
-      "Online Stock": saree.onlineStock,
-      "Distribution Channel": saree.distributionChannel,
-      Status: saree.isActive ? "Active" : "Inactive",
-      Featured: saree.isFeatured ? "Yes" : "No",
-      Description: saree.description || "-",
+    const excelData = products.map((product) => ({
+      SKU: product.sku || "-",
+      Name: product.name,
+      Category: product.category?.name || "-",
+      Color: product.color?.name || "-",
+      Fabric: product.fabric?.name || "-",
+      Price: product.price,
+      "Total Stock": product.totalStock,
+      "Online Stock": product.onlineStock,
+      "Distribution Channel": product.distributionChannel,
+      Status: product.isActive ? "Active" : "Inactive",
+      Featured: product.isFeatured ? "Yes" : "No",
+      Description: product.description || "-",
     }));
 
     const worksheet = XLSX.utils.json_to_sheet(excelData);
     const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, worksheet, "Sarees");
+    XLSX.utils.book_append_sheet(workbook, worksheet, "products");
 
     // Set column widths
     const columnWidths = [
@@ -563,7 +563,7 @@ export default function InventorySarees() {
     const data = new Blob([excelBuffer], {
       type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
     });
-    saveAs(data, `sarees_inventory_${new Date().toISOString().split("T")[0]}.xlsx`);
+    saveAs(data, `products_inventory_${new Date().toISOString().split("T")[0]}.xlsx`);
 
     toast({
       title: "Success",
@@ -571,12 +571,12 @@ export default function InventorySarees() {
     });
   };
 
-  const columns: ColumnDef<SareeWithDetails>[] = useMemo(
+  const columns: ColumnDef<ProductWithDetails>[] = useMemo(
     () => [
       {
         id: "select",
         header: ({ table }) => {
-          const allOnPage = sarees.map((s) => s.id);
+          const allOnPage = products.map((s) => s.id);
           const allSelected = allOnPage.length > 0 && allOnPage.every((id) => selectedRows.has(id));
           return (
             <input
@@ -712,7 +712,7 @@ export default function InventorySarees() {
         header: "Actions",
         cell: ({ row }) => (
           <div className="flex items-center gap-2">
-            <Link to={`/sarees/${row.original.id}`}>
+            <Link to={`/products/${row.original.id}`}>
               <Button
                 variant="ghost"
                 size="icon"
@@ -734,7 +734,7 @@ export default function InventorySarees() {
               size="icon"
               className="text-destructive"
               onClick={() => {
-                setDeletingSareeId(row.original.id);
+                setDeletingproductId(row.original.id);
                 setDeleteDialogOpen(true);
               }}
               data-testid={`button-delete-${row.original.id}`}
@@ -745,7 +745,7 @@ export default function InventorySarees() {
         ),
       },
     ],
-    [selectedRows, sarees]
+    [selectedRows, products]
   );
 
   const filters: FilterConfig[] = useMemo(
@@ -792,9 +792,9 @@ export default function InventorySarees() {
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
           <div>
             <h1 className="text-2xl font-semibold" data-testid="text-page-title">
-              Sarees
+              products
             </h1>
-            <p className="text-muted-foreground">Manage saree inventory</p>
+            <p className="text-muted-foreground">Manage product inventory</p>
             {selectedRows.size > 0 && (
               <p className="text-sm text-primary mt-1">
                 {selectedRows.size} item(s) selected
@@ -830,9 +830,9 @@ export default function InventorySarees() {
               <Download className="h-4 w-4 mr-2" />
               Download Excel
             </Button>
-            <Button onClick={handleOpenCreate} data-testid="button-add-saree">
+            <Button onClick={handleOpenCreate} data-testid="button-add-product">
               <Plus className="h-4 w-4 mr-2" />
-              Add Saree
+              Add product
             </Button>
           </div>
         </div>
@@ -841,7 +841,7 @@ export default function InventorySarees() {
           <CardContent className="p-4">
             <DataTable
               columns={columns}
-              data={sarees}
+              data={products}
               totalCount={totalCount}
               pageIndex={pageIndex}
               pageSize={pageSize}
@@ -850,10 +850,10 @@ export default function InventorySarees() {
               onFiltersChange={handleFiltersChange}
               onDateFilterChange={handleDateFilterChange}
               isLoading={isLoading}
-              searchPlaceholder="Search sarees..."
+              searchPlaceholder="Search products..."
               filters={filters}
               dateFilter={{ key: "date", label: "Filter by date" }}
-              emptyMessage="No sarees found"
+              emptyMessage="No products found"
             />
           </CardContent>
         </Card>
@@ -863,12 +863,12 @@ export default function InventorySarees() {
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>
-              {editingSaree ? "Edit Saree" : "Add New Saree"}
+              {editingProduct ? "Edit product" : "Add New product"}
             </DialogTitle>
             <DialogDescription>
-              {editingSaree
-                ? "Update the saree details below"
-                : "Fill in the details to create a new saree"}
+              {editingProduct
+                ? "Update the product details below"
+                : "Fill in the details to create a new product"}
             </DialogDescription>
           </DialogHeader>
           <form onSubmit={handleSubmit} className="space-y-4">
@@ -912,12 +912,12 @@ export default function InventorySarees() {
                 />
               </div>
 
-              {editingSaree && (
+              {editingProduct && (
                 <div>
                   <Label htmlFor="sku">SKU</Label>
                   <Input
                     id="sku"
-                    value={editingSaree.sku || ""}
+                    value={editingProduct.sku || ""}
                     disabled
                     className="bg-muted cursor-not-allowed"
                     data-testid="input-sku"
@@ -1334,7 +1334,7 @@ export default function InventorySarees() {
               >
                 {createMutation.isPending || updateMutation.isPending
                   ? "Saving..."
-                  : editingSaree
+                  : editingProduct
                   ? "Update"
                   : "Create"}
               </Button>
@@ -1346,9 +1346,9 @@ export default function InventorySarees() {
       <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Delete Saree</DialogTitle>
+            <DialogTitle>Delete product</DialogTitle>
             <DialogDescription>
-              Are you sure you want to delete this saree? This action cannot be
+              Are you sure you want to delete this product? This action cannot be
               undone.
             </DialogDescription>
           </DialogHeader>
@@ -1362,7 +1362,7 @@ export default function InventorySarees() {
             <Button
               variant="destructive"
               onClick={() =>
-                deletingSareeId && deleteMutation.mutate(deletingSareeId)
+                deletingproductId && deleteMutation.mutate(deletingproductId)
               }
               disabled={deleteMutation.isPending}
               data-testid="button-confirm-delete"
@@ -1376,9 +1376,9 @@ export default function InventorySarees() {
       <Dialog open={bulkDeleteDialogOpen} onOpenChange={setBulkDeleteDialogOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Delete Multiple Sarees</DialogTitle>
+            <DialogTitle>Delete Multiple products</DialogTitle>
             <DialogDescription>
-              Are you sure you want to delete {selectedRows.size} saree(s)? This action cannot be undone.
+              Are you sure you want to delete {selectedRows.size} product(s)? This action cannot be undone.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
@@ -1406,54 +1406,54 @@ export default function InventorySarees() {
             <DialogTitle>Print Multiple Products with Barcodes</DialogTitle>
           </DialogHeader>
           <div ref={bulkPrintRef}>
-            {sarees
+            {products
               .filter((s) => selectedRows.has(s.id))
-              .map((saree) => (
-                <div key={saree.id} className="product-details">
+              .map((product) => (
+                <div key={product.id} className="product-details">
                   <h1 className="text-xl font-bold text-center mb-4">
                     Product Details
                   </h1>
                   <div className="space-y-3">
                     <div className="detail-row flex justify-between border-b pb-2">
                       <span className="label font-semibold">SKU:</span>
-                      <span>{saree.sku || "-"}</span>
+                      <span>{product.sku || "-"}</span>
                     </div>
                     <div className="detail-row flex justify-between border-b pb-2">
                       <span className="label font-semibold">Name:</span>
-                      <span>{saree.name}</span>
+                      <span>{product.name}</span>
                     </div>
                     <div className="detail-row flex justify-between border-b pb-2">
                       <span className="label font-semibold">Category:</span>
-                      <span>{saree.category?.name || "-"}</span>
+                      <span>{product.category?.name || "-"}</span>
                     </div>
                     <div className="detail-row flex justify-between border-b pb-2">
                       <span className="label font-semibold">Color:</span>
-                      <span>{saree.color?.name || "-"}</span>
+                      <span>{product.color?.name || "-"}</span>
                     </div>
                     <div className="detail-row flex justify-between border-b pb-2">
                       <span className="label font-semibold">Fabric:</span>
-                      <span>{saree.fabric?.name || "-"}</span>
+                      <span>{product.fabric?.name || "-"}</span>
                     </div>
                     <div className="detail-row flex justify-between border-b pb-2">
                       <span className="label font-semibold">Price:</span>
-                      <span>{formatPrice(saree.price)}</span>
+                      <span>{formatPrice(product.price)}</span>
                     </div>
                     <div className="detail-row flex justify-between border-b pb-2">
                       <span className="label font-semibold">Total Stock:</span>
-                      <span>{saree.totalStock}</span>
+                      <span>{product.totalStock}</span>
                     </div>
                     <div className="detail-row flex justify-between border-b pb-2">
                       <span className="label font-semibold">Online Stock:</span>
-                      <span>{saree.onlineStock}</span>
+                      <span>{product.onlineStock}</span>
                     </div>
                     <div className="detail-row flex justify-between border-b pb-2">
                       <span className="label font-semibold">Distribution Channel:</span>
-                      <span className="capitalize">{saree.distributionChannel}</span>
+                      <span className="capitalize">{product.distributionChannel}</span>
                     </div>
                   </div>
                   <div className="barcode-container mt-6 flex justify-center">
                     <Barcode
-                      value={saree.sku || saree.id}
+                      value={product.sku || product.id}
                       width={2}
                       height={60}
                       displayValue={true}
@@ -1479,7 +1479,7 @@ export default function InventorySarees() {
           <DialogHeader>
             <DialogTitle>Print Product Details with Barcode</DialogTitle>
           </DialogHeader>
-          {printingSaree && (
+          {printingProduct && (
             <div ref={printRef} className="product-details">
               <h1 className="text-xl font-bold text-center mb-4">
                 Product Details
@@ -1487,50 +1487,50 @@ export default function InventorySarees() {
               <div className="space-y-3">
                 <div className="detail-row flex justify-between border-b pb-2">
                   <span className="label font-semibold">SKU:</span>
-                  <span>{printingSaree.sku || "-"}</span>
+                  <span>{printingProduct.sku || "-"}</span>
                 </div>
                 <div className="detail-row flex justify-between border-b pb-2">
                   <span className="label font-semibold">Name:</span>
-                  <span>{printingSaree.name}</span>
+                  <span>{printingProduct.name}</span>
                 </div>
                 <div className="detail-row flex justify-between border-b pb-2">
                   <span className="label font-semibold">Category:</span>
-                  <span>{printingSaree.category?.name || "-"}</span>
+                  <span>{printingProduct.category?.name || "-"}</span>
                 </div>
                 <div className="detail-row flex justify-between border-b pb-2">
                   <span className="label font-semibold">Color:</span>
-                  <span>{printingSaree.color?.name || "-"}</span>
+                  <span>{printingProduct.color?.name || "-"}</span>
                 </div>
                 <div className="detail-row flex justify-between border-b pb-2">
                   <span className="label font-semibold">Fabric:</span>
-                  <span>{printingSaree.fabric?.name || "-"}</span>
+                  <span>{printingProduct.fabric?.name || "-"}</span>
                 </div>
                 <div className="detail-row flex justify-between border-b pb-2">
                   <span className="label font-semibold">Price:</span>
-                  <span>{formatPrice(printingSaree.price)}</span>
+                  <span>{formatPrice(printingProduct.price)}</span>
                 </div>
                 <div className="detail-row flex justify-between border-b pb-2">
                   <span className="label font-semibold">Total Stock:</span>
-                  <span>{printingSaree.totalStock}</span>
+                  <span>{printingProduct.totalStock}</span>
                 </div>
                 <div className="detail-row flex justify-between border-b pb-2">
                   <span className="label font-semibold">Online Stock:</span>
-                  <span>{printingSaree.onlineStock}</span>
+                  <span>{printingProduct.onlineStock}</span>
                 </div>
                 <div className="detail-row flex justify-between border-b pb-2">
                   <span className="label font-semibold">Distribution Channel:</span>
-                  <span className="capitalize">{printingSaree.distributionChannel}</span>
+                  <span className="capitalize">{printingProduct.distributionChannel}</span>
                 </div>
-                {printingSaree.description && (
+                {printingProduct.description && (
                   <div className="detail-row flex justify-between border-b pb-2">
                     <span className="label font-semibold">Description:</span>
-                    <span className="text-right max-w-md">{printingSaree.description}</span>
+                    <span className="text-right max-w-md">{printingProduct.description}</span>
                   </div>
                 )}
               </div>
               <div className="barcode-container mt-6 flex justify-center">
                 <Barcode
-                  value={printingSaree.sku || printingSaree.id}
+                  value={printingProduct.sku || printingProduct.id}
                   width={2}
                   height={60}
                   displayValue={true}

@@ -23,7 +23,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/lib/auth";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
-import type { OrderWithItems, ItemStatusHistory, ReturnRequestWithDetails, Refund, SareeWithDetails, OnlineExchangeWithDetails } from "@shared/schema";
+import type { OrderWithItems, ItemStatusHistory, ReturnRequestWithDetails, Refund, ProductWithDetails, OnlineExchangeWithDetails } from "@shared/schema";
 import { itemStatusConfig, isItemDelivered, returnReasons, getItemStatusConfig } from "@/constants/itemStatusConfig";
 import { WriteReview } from "@/components/product/WriteReview";
 
@@ -45,23 +45,23 @@ export default function ItemOrderDetails() {
 
   const item = order?.items?.find(item => item.id === itemId);
 
-  const { data: sareesWithStock } = useQuery<Array<{ id: string; stock: number }>>({
-    queryKey: ["saree-stock", item?.saree?.id],
+  const { data: productWithStock } = useQuery<Array<{ id: string; stock: number }>>({
+    queryKey: ["product-stock", item?.product?.id],
     queryFn: async () => {
-      if (!item?.saree?.id) return [];
-      const res = await fetch("/api/getSarees", {
+      if (!item?.product?.id) return [];
+      const res = await fetch("/api/getProducts", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ids: [item.saree.id] }),
+        body: JSON.stringify({ ids: [item.product.id] }),
       });
       if (!res.ok) throw new Error("Failed to fetch stock");
       const data = await res.json();
       return data.map((s: any) => ({ id: s.id, stock: Number(s.onlineStock) || 0 }));
     },
-    enabled: !!item?.saree?.id,
+    enabled: !!item?.product?.id,
   });
 
-  const stockBySareeId = new Map(sareesWithStock?.map((s) => [s.id, s.stock]) || []);
+  const stockByproductId = new Map(productWithStock?.map((s) => [s.id, s.stock]) || []);
 
   const { data: eligibility } = useQuery<{ itemId: string; eligible: boolean; reason?: string; remainingDays?: number }[]>({
     queryKey: ["/api/user/orders", orderId, "return-eligibility"],
@@ -165,7 +165,7 @@ export default function ItemOrderDetails() {
     if (!item) return;
 
     if (resolutionType === "exchange") {
-      const stock = stockBySareeId.get(item.saree.id) ?? 0;
+      const stock = stockByproductId.get(item.product.id) ?? 0;
       if (stock <= 0) {
         toast({
           title: "Item is out of stock and cannot be exchanged",
@@ -185,7 +185,7 @@ export default function ItemOrderDetails() {
         orderItemId: item.id,
         quantity: item.quantity,
         reason: returnReason,
-        exchangeSareeId: resolutionType === "exchange" ? item.saree.id : null,
+        exchangeproductId: resolutionType === "exchange" ? item.product.id : null,
       }],
     });
   };
@@ -264,15 +264,15 @@ export default function ItemOrderDetails() {
           <div className="flex gap-6 mb-6">
             <div className="flex-shrink-0 w-40 aspect-[4/5] overflow-hidden rounded-lg bg-muted">
               <img
-                src={item.saree.imageUrl || "https://images.unsplash.com/photo-1610030469983-98e550d6193c?w=400&h=500&fit=crop"}
-                alt={item.saree.name}
+                src={item.product.imageUrl || "https://images.unsplash.com/photo-1610030469983-98e550d6193c?w=400&h=500&fit=crop"}
+                alt={item.product.name}
                 className="w-full h-full object-cover"
               />
             </div>
 
             <div className="flex-1">
               <h1 className="font-serif text-2xl font-semibold mb-2">
-                {item.saree.name}
+                {item.product.name}
               </h1>
 
               <div className="space-y-1 mb-4">
@@ -297,7 +297,7 @@ export default function ItemOrderDetails() {
                 {formatPrice(item.price)}
               </p>
 
-              <WriteReview saree={item.saree} />
+              <WriteReview product={item.product} />
             </div>
           </div>
 
@@ -499,14 +499,14 @@ export default function ItemOrderDetails() {
                       >
                         <div className="w-12 h-16 rounded-md overflow-hidden bg-muted flex-shrink-0">
                           <img
-                            src={orderItem.saree.imageUrl || "https://images.unsplash.com/photo-1610030469983-98e550d6193c?w=50&h=70&fit=crop"}
-                            alt={orderItem.saree.name}
+                            src={orderItem.product.imageUrl || "https://images.unsplash.com/photo-1610030469983-98e550d6193c?w=50&h=70&fit=crop"}
+                            alt={orderItem.product.name}
                             className="w-full h-full object-cover"
                           />
                         </div>
                         <div className="flex-1 min-w-0">
                           <h4 className="font-medium text-sm hover:text-primary line-clamp-1">
-                            {orderItem.saree.name}
+                            {orderItem.product.name}
                           </h4>
                           <p className="text-xs text-muted-foreground mt-1">
                             Qty: {orderItem.quantity} • {formatPrice(orderItem.price)}
@@ -576,7 +576,7 @@ export default function ItemOrderDetails() {
               ID: {item.id}
             </p>
             <p className="text-sm text-muted-foreground">
-              Name: {item.saree.name}
+              Name: {item.product.name}
             </p>
             {resolutionType === "exchange" && (
               <p className="text-sm text-muted-foreground mt-1">

@@ -255,18 +255,18 @@ export default function InventoryRequests() {
                         <div className="flex items-center gap-3">
                           <img
                             src={
-                              request.saree.imageUrl ||
+                              request.product.imageUrl ||
                               "https://images.unsplash.com/photo-1610030469983-98e550d6193c?w=50"
                             }
-                            alt={request.saree.name}
+                            alt={request.product.name}
                             className="w-10 h-12 rounded object-cover"
                           />
                           <div>
                             <p className="font-medium line-clamp-1">
-                              {request.saree.name}
+                              {request.product.name}
                             </p>
                             <p className="text-xs text-muted-foreground font-mono">
-                              {request.saree.sku}
+                              {request.product.sku}
                             </p>
                           </div>
                         </div>

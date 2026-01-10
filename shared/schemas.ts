@@ -29,7 +29,7 @@ export const insertStoreSchema = createInsertSchema(tables.stores).omit({
   createdAt: true,
 });
 
-export const insertSareeSchema = createInsertSchema(tables.sarees).omit({
+export const insertProdcutSchema = createInsertSchema(tables.products).omit({
   id: true,
   createdAt: true,
 });
@@ -196,11 +196,11 @@ export type CustomerPurchase = {
 
 export type CustomerPurchaseItem = {
   id: string;
-  sareeId: string;
+  productId: string;
   quantity: number; // notNull in database
   price: string;
   returnedQuantity: number; // notNull in database
-  saree: {
+  product: {
     id: string;
     name: string;
     code: string;

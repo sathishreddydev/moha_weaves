@@ -2,7 +2,7 @@ import {
   onlineExchanges,
   onlineExchangeItems,
   orderItems,
-  sarees,
+  products,
   categories,
   colors,
   fabrics,
@@ -31,7 +31,7 @@ export type OnlineExchangeWithDetails = OnlineExchange & {
   user: any;
   items: (any & {
     orderItem: {
-      saree: any;
+      product: any;
     };
   })[];
 
@@ -123,10 +123,10 @@ export class OnlineExchangeStorage implements IOnlineExchangeStorage {
         .select()
         .from(onlineExchangeItems)
         .innerJoin(orderItems, eq(onlineExchangeItems.orderItemId, orderItems.id))
-        .innerJoin(sarees, eq(orderItems.sareeId, sarees.id))
-        .leftJoin(categories, eq(sarees.categoryId, categories.id))
-        .leftJoin(colors, eq(sarees.colorId, colors.id))
-        .leftJoin(fabrics, eq(sarees.fabricId, fabrics.id))
+        .innerJoin(products, eq(orderItems.productId, products.id))
+        .leftJoin(categories, eq(products.categoryId, categories.id))
+        .leftJoin(colors, eq(products.colorId, colors.id))
+        .leftJoin(fabrics, eq(products.fabricId, fabrics.id))
         .where(eq(onlineExchangeItems.exchangeId, exchange.id));
 
       if (orderWithItems && user) {
@@ -140,8 +140,8 @@ export class OnlineExchangeStorage implements IOnlineExchangeStorage {
               ...itemWithoutId,
               orderItem: {
                 ...item.order_items,
-                saree: {
-                  ...item.sarees,
+                product: {
+                  ...item.products,
                   category: item.categories,
                   color: item.colors,
                   fabric: item.fabrics,
@@ -209,10 +209,10 @@ export class OnlineExchangeStorage implements IOnlineExchangeStorage {
       .select()
       .from(onlineExchangeItems)
       .innerJoin(orderItems, eq(onlineExchangeItems.orderItemId, orderItems.id))
-      .innerJoin(sarees, eq(orderItems.sareeId, sarees.id))
-      .leftJoin(categories, eq(sarees.categoryId, categories.id))
-      .leftJoin(colors, eq(sarees.colorId, colors.id))
-      .leftJoin(fabrics, eq(sarees.fabricId, fabrics.id))
+      .innerJoin(products, eq(orderItems.productId, products.id))
+      .leftJoin(categories, eq(products.categoryId, categories.id))
+      .leftJoin(colors, eq(products.colorId, colors.id))
+      .leftJoin(fabrics, eq(products.fabricId, fabrics.id))
       .where(eq(onlineExchangeItems.exchangeId, exchange.id));
 
     return {
@@ -225,8 +225,8 @@ export class OnlineExchangeStorage implements IOnlineExchangeStorage {
           ...itemWithoutId,
           orderItem: {
             ...item.order_items,
-            saree: {
-              ...item.sarees,
+            product: {
+              ...item.products,
               category: item.categories,
               color: item.colors,
               fabric: item.fabrics,
@@ -343,7 +343,7 @@ export class OnlineExchangeStorage implements IOnlineExchangeStorage {
       for (const item of onlineExchange.items) {
         if (item.isRestockable) {
           await tx.insert(stockMovements).values({
-            sareeId: item.orderItem.saree.id,
+            productId: item.orderItem.product.id,
             quantity: item.quantity,
             movementType: "return",
             source: "online",
@@ -352,9 +352,9 @@ export class OnlineExchangeStorage implements IOnlineExchangeStorage {
           });
         }
 
-        if (item.exchangeSareeId) {
+        if (item.exchangeproductId) {
           await tx.insert(stockMovements).values({
-            sareeId: item.exchangeSareeId,
+            productId: item.exchangeproductId,
             quantity: -item.quantity,
             movementType: "sale",
             source: "online",
@@ -413,7 +413,7 @@ export class OnlineExchangeStorage implements IOnlineExchangeStorage {
           orderItem.status === "return_completed";
 
         if (!isDelivered) {
-          return { eligible: false, reason: `Item ${orderItem.saree.name} must be delivered to initiate exchange` };
+          return { eligible: false, reason: `Item ${orderItem.product.name} must be delivered to initiate exchange` };
         }
 
         // Check if this item has already been exchanged
@@ -422,7 +422,7 @@ export class OnlineExchangeStorage implements IOnlineExchangeStorage {
         const exchangedQty = Number(existingExchange || 0);
 
         if (purchasedQty <= exchangedQty) {
-          return { eligible: false, reason: `Item ${orderItem.saree.name} has already been fully exchanged` };
+          return { eligible: false, reason: `Item ${orderItem.product.name} has already been fully exchanged` };
         }
 
         eligibleItems.push(orderItemId);

@@ -14,7 +14,7 @@ import { userRoutes } from "./user/userRoutes";
 import { publicRoutes } from "./common/publicRoutes";
 import multer from "multer";
 import { salesService } from "./sales&offer/salesStorage";
-import { sareeService } from "./saree/sareeStorage";
+import { productService } from "./product/productStorage";
 import { reviewRoutes } from "./review/reviewRoutes";
 import { refundRoutes } from "./refund/refundRoutes";
 import { returnRoutes } from "./return/returnRoutes";
@@ -288,16 +288,16 @@ export async function registerRoutes(
 
     if (sale.offerType === "category" && sale.categoryId) {
       // Get all products in this category
-      products = await sareeService.getSarees({ 
+      products = await productService.getProducts({ 
         category: sale.categoryId,
         onSale: true 
       });
     } else if (sale.offerType === "product") {
       // Get specific products in the sale
-      const sareeIds = sale.products.map(p => p.sareeId).filter(Boolean);
-      if (sareeIds.length > 0) {
-        const allSarees = await sareeService.getSarees({ onSale: true });
-        products = allSarees.filter(s => sareeIds.includes(s.id));
+      const productIds = sale.products.map(p => p.productId).filter(Boolean);
+      if (productIds.length > 0) {
+        const allProducts = await productService.getProducts({ onSale: true });
+        products = allProducts.filter(s => productIds.includes(s.id));
       }
     }
 

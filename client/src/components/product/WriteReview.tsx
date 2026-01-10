@@ -8,13 +8,13 @@ import { useAuth } from "@/lib/auth";
 import { useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { AdaptiveModal } from "@/components/common/AdaptiveModal";
-import { SareeWithDetails } from "@shared/schema";
+import { ProductWithDetails } from "@shared/schema";
 
 interface ReviewsProps {
-  saree: SareeWithDetails;
+  product: ProductWithDetails;
 }
 
-export function WriteReview({ saree }: ReviewsProps) {
+export function WriteReview({ product }: ReviewsProps) {
   const { user } = useAuth();
   const { toast } = useToast();
   const [showForm, setShowForm] = useState(false);
@@ -26,7 +26,7 @@ export function WriteReview({ saree }: ReviewsProps) {
     mutationFn: async (data: { rating: number; comment: string }) => {
       const response = await apiRequest(
         "POST",
-        `/api/sarees/${saree.id}/reviews`,
+        `/api/products/${product.id}/reviews`,
         data
       );
       return response.json();
@@ -34,7 +34,7 @@ export function WriteReview({ saree }: ReviewsProps) {
     onSuccess: () => {
       toast({ title: "Review submitted successfully" });
       queryClient.invalidateQueries({
-        queryKey: ["/api/sarees", saree.id, "reviews"],
+        queryKey: ["/api/products", product.id, "reviews"],
       });
       setShowForm(false);
       setRating(5);
@@ -126,16 +126,16 @@ export function WriteReview({ saree }: ReviewsProps) {
               <div className="w-16 h-20 rounded-md overflow-hidden bg-muted flex-shrink-0">
                 <img
                   src={
-                    saree.imageUrl ||
+                    product.imageUrl ||
                     "https://images.unsplash.com/photo-1610030469983-98e550d6193c?w=100&h=150&fit=crop"
                   }
-                  alt={saree.name}
+                  alt={product.name}
                   className="w-full h-full object-cover"
                 />
               </div>
               <div className="flex-1 min-w-0">
                 <h4 className="font-medium text-sm line-clamp-1 hover:text-primary">
-                  {saree.name}
+                  {product.name}
                 </h4>
                 {renderStars(rating, true)}
               </div>

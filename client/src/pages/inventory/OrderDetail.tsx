@@ -284,15 +284,15 @@ export default function InventoryOrderDetail() {
                   <div className="w-12 h-16 rounded overflow-hidden bg-muted">
                     <img
                       src={
-                        item.saree?.imageUrl ||
+                        item.product?.imageUrl ||
                         "https://images.unsplash.com/photo-1610030469983-98e550d6193c?w=60"
                       }
-                      alt={item.saree?.name || "Saree"}
+                      alt={item.product?.name || "product"}
                       className="w-full h-full object-cover"
                     />
                   </div>
                   <div className="flex-1 min-w-0">
-                    <div className="font-medium text-sm truncate">{item.saree?.name || "Unknown"}</div>
+                    <div className="font-medium text-sm truncate">{item.product?.name || "Unknown"}</div>
                     <div className="text-xs text-muted-foreground">
                       Qty: {item.quantity} x {formatPrice(item.price)}
                     </div>
@@ -399,7 +399,7 @@ export default function InventoryOrderDetail() {
               <tbody>
                 {(order.items || []).map((item) => (
                   <tr key={item.id}>
-                    <td>{item.saree?.name || "Item"}</td>
+                    <td>{item.product?.name || "Item"}</td>
                     <td className="right">{item.quantity}</td>
                     <td className="right">{formatPrice(item.price)}</td>
                     <td className="right">{formatPrice(Number(item.quantity) * Number(item.price))}</td>

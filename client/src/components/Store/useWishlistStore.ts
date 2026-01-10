@@ -2,17 +2,17 @@ import { create } from "zustand";
 import { produce } from "immer";
 import { apiRequest } from "@/lib/queryClient";
 import { toast } from "@/hooks/use-toast";
-import type { WishlistItemWithSaree } from "@shared/schema";
+import type { WishlistItemWithProduct } from "@shared/schema";
 
 interface WishlistState {
-  wishlist: WishlistItemWithSaree[];
+  wishlist: WishlistItemWithProduct[];
   count: number;
   isLoadingWishlist: boolean;
   isAddingItem: boolean;
   isRemovingItem: boolean;
   getWishlist: () => Promise<void>;
-  addItem: (sareeId: string) => Promise<void>;
-  removeItem: (sareeId: string) => Promise<void>;
+  addItem: (productId: string) => Promise<void>;
+  removeItem: (productId: string) => Promise<void>;
   clearWishlist: () => void;
 }
 
@@ -40,10 +40,10 @@ export const useWishlistStore = create<WishlistState>((set, get) => ({
     }
   },
 
-  addItem: async (sareeId) => {
+  addItem: async (productId) => {
     set({ isAddingItem: true });
     try {
-      const res = await apiRequest("POST", "/api/user/wishlist", { sareeId });
+      const res = await apiRequest("POST", "/api/user/wishlist", { productId });
       const data = await res.json();
       set({ wishlist: data.wishlist, count: data.count });
       toast({ title: "Added", description: "Item added to wishlist." });
@@ -58,15 +58,15 @@ export const useWishlistStore = create<WishlistState>((set, get) => ({
     }
   },
 
-  removeItem: async (sareeId) => {
+  removeItem: async (productId) => {
     set({ isRemovingItem: true });
     try {
-      const res = await apiRequest("DELETE", `/api/user/wishlist/${sareeId}`);
+      const res = await apiRequest("DELETE", `/api/user/wishlist/${productId}`);
       const data = await res.json();
       set(
         produce((state) => {
           state.wishlist = state.wishlist.filter(
-            (item: WishlistItemWithSaree) => item.sareeId !== sareeId
+            (item: WishlistItemWithProduct) => item.productId !== productId
           );
           state.count = data.count;
         })

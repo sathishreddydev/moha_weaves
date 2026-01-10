@@ -13,7 +13,7 @@ import { useQuery } from "@tanstack/react-query";
 import { DataTable, FilterConfig } from "@/components/ui/data-table";
 import { useDataTable } from "@/hooks/use-data-table";
 import { ColumnDef } from "@tanstack/react-table";
-import type { SareeWithDetails, Store as StoreType, Category } from "@shared/schema";
+import type { ProductWithDetails, Store as StoreType, Category } from "@shared/schema";
 
 interface StoreAllocation {
   storeId: string;
@@ -21,7 +21,7 @@ interface StoreAllocation {
   quantity: number;
 }
 
-interface StockDistributionRow extends SareeWithDetails {
+interface StockDistributionRow extends ProductWithDetails {
   unallocated: number;
   storeAllocations: StoreAllocation[];
 }
@@ -44,7 +44,7 @@ export default function StockDistribution() {
   });
 
   const {
-    data: sarees,
+    data: products,
     totalCount,
     pageIndex,
     pageSize,
@@ -54,27 +54,27 @@ export default function StockDistribution() {
     handleFiltersChange,
     handleDateFilterChange,
     refetch,
-  } = useDataTable<SareeWithDetails>({
-    queryKey: "/api/inventory/sarees",
+  } = useDataTable<ProductWithDetails>({
+    queryKey: "/api/inventory/products",
     initialPageSize: 10,
   });
 
-  const sareeIdsKey = useMemo(() => {
-    if (!sarees || sarees.length === 0) return "";
-    return sarees.map((s) => s.id).join(",");
-  }, [sarees]);
+  const productIdsKey = useMemo(() => {
+    if (!products || products.length === 0) return "";
+    return products.map((s) => s.id).join(",");
+  }, [products]);
 
-  // Fetch allocations for each saree and calculate unallocated stock
+  // Fetch allocations for each product and calculate unallocated stock
   const { data: distributionData, isLoading: isLoadingAllocations } = useQuery({
-    queryKey: ["/api/inventory/stock-distribution", sareeIdsKey],
+    queryKey: ["/api/inventory/stock-distribution", productIdsKey],
     queryFn: async () => {
-      if (!sarees || sarees.length === 0) return [];
+      if (!products || products.length === 0) return [];
 
       const results = await Promise.all(
-        sarees.map(async (saree) => {
+        products.map(async (product) => {
           try {
             const response = await fetch(
-              `/api/inventory/sarees/${saree.id}/allocations`,
+              `/api/inventory/products/${product.id}/allocations`,
               { credentials: "include" }
             );
             if (!response.ok) {
@@ -87,16 +87,16 @@ export default function StockDistribution() {
               0
             );
             const unallocated =
-              saree.totalStock - saree.onlineStock - totalStoreStock;
+              product.totalStock - product.onlineStock - totalStoreStock;
 
             return {
-              ...saree,
+              ...product,
               unallocated: Math.max(0, unallocated),
               storeAllocations: allocations,
             };
           } catch (error) {
             return {
-              ...saree,
+              ...product,
               unallocated: 0,
               storeAllocations: [],
             };
@@ -106,7 +106,7 @@ export default function StockDistribution() {
 
       return results;
     },
-    enabled: !!sarees && sarees.length > 0 && !!sareeIdsKey,
+    enabled: !!products && products.length > 0 && !!productIdsKey,
   });
 
   const formatPrice = (price: string | number) => {
@@ -132,7 +132,7 @@ export default function StockDistribution() {
       },
       {
         accessorKey: "name",
-        header: "Saree Name",
+        header: "product Name",
         cell: ({ row }) => (
           <div className="max-w-[200px]">
             <span className="font-medium line-clamp-1">{row.original.name}</span>

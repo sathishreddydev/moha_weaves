@@ -25,10 +25,10 @@ export const cartRoutes = (app: Express) => {
 
   app.post("/api/user/cart", authUser, async (req, res) => {
     try {
-      const { sareeId, quantity = 1 } = req.body;
+      const { productId, quantity = 1 } = req.body;
       const { cart, count } = await cartServices.addToCart({
         userId: (req as any).user.id,
-        sareeId,
+        productId,
         quantity,
       });
 
@@ -90,10 +90,10 @@ export const cartRoutes = (app: Express) => {
 
   app.post("/api/user/wishlist", authUser, async (req, res) => {
     try {
-      const { sareeId } = req.body;
+      const { productId } = req.body;
       const userId = (req as any).user.id;
 
-      const result = await wishlistServices.addToWishlist({ userId, sareeId });
+      const result = await wishlistServices.addToWishlist({ userId, productId });
 
       res.json(result);
     } catch (error) {
@@ -101,12 +101,12 @@ export const cartRoutes = (app: Express) => {
     }
   });
 
-  app.delete("/api/user/wishlist/:sareeId", authUser, async (req, res) => {
+  app.delete("/api/user/wishlist/:productId", authUser, async (req, res) => {
     try {
       const userId = (req as any).user.id;
       const result = await wishlistServices.removeFromWishlist(
         userId,
-        req.params.sareeId
+        req.params.productId
       );
 
       res.json(result);

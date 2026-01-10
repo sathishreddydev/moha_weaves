@@ -25,7 +25,7 @@ import { useAuth } from "@/lib/auth";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
-import type { SareeWithDetails, StoreSaleWithItems } from "@shared/schema";
+import type { ProductWithDetails, StoreSaleWithItems } from "@shared/schema";
 import {
   Select,
   SelectTrigger,
@@ -35,7 +35,7 @@ import {
 } from "@/components/ui/select";
 
 type ShopProduct = {
-  saree: SareeWithDetails & {
+  product: ProductWithDetails & {
     activeSale?: {
       id: string;
       name: string;
@@ -50,8 +50,8 @@ type ShopProduct = {
 
 interface ReturnItem {
   saleItemId: string;
-  sareeId: string;
-  saree: SareeWithDetails;
+  productId: string;
+  product: ProductWithDetails;
   quantity: number;
   maxQuantity: number;
   unitPrice: string;
@@ -59,8 +59,8 @@ interface ReturnItem {
 }
 
 interface NewCartItem {
-  sareeId: string;
-  saree: SareeWithDetails;
+  productId: string;
+  product: ProductWithDetails;
   quantity: number;
   maxQuantity: number;
   unitPrice: string;
@@ -69,11 +69,11 @@ interface NewCartItem {
 
 interface SaleItemWithAvailable {
   id: string;
-  sareeId: string;
+  productId: string;
   quantity: number;
   returnedQuantity: number;
   price: string;
-  saree: SareeWithDetails & {
+  product: ProductWithDetails & {
     activeSale?: {
       id: string;
       name: string;
@@ -151,13 +151,13 @@ export default function StoreExchange() {
       originalSaleId: string;
       returnItems: {
         saleItemId: string;
-        sareeId: string;
+        productId: string;
         quantity: number;
         unitPrice: string;
         returnAmount: string;
       }[];
       newItems: {
-        sareeId: string;
+        productId: string;
         quantity: number;
         unitPrice: string;
         lineAmount: string;
@@ -294,17 +294,17 @@ export default function StoreExchange() {
         ...returnItems,
         {
           saleItemId: saleItem.id,
-          sareeId: saleItem.sareeId,
-          saree: saleItem.saree,
+          productId: saleItem.productId,
+          product: saleItem.product,
           quantity: 1,
           maxQuantity: saleItem.availableQuantity,
           unitPrice:
-            saleItem.saree.activeSale && saleItem.saree.discountedPrice
-              ? saleItem.saree.discountedPrice.toString()
+            saleItem.product.activeSale && saleItem.product.discountedPrice
+              ? saleItem.product.discountedPrice.toString()
               : saleItem.price,
           returnAmount:
-            saleItem.saree.activeSale && saleItem.saree.discountedPrice
-              ? saleItem.saree.discountedPrice.toString()
+            saleItem.product.activeSale && saleItem.product.discountedPrice
+              ? saleItem.product.discountedPrice.toString()
               : saleItem.price,
         },
       ]);
@@ -350,12 +350,12 @@ export default function StoreExchange() {
       });
       return;
     }
-    const existing = newItems.find((item) => item.sareeId === product.saree.id);
+    const existing = newItems.find((item) => item.productId === product.product.id);
     if (existing) {
       if (existing.quantity < product.storeStock) {
         setNewItems(
           newItems.map((item) =>
-            item.sareeId === product.saree.id
+            item.productId === product.product.id
               ? {
                   ...item,
                   quantity: item.quantity + 1,
@@ -377,28 +377,28 @@ export default function StoreExchange() {
       setNewItems([
         ...newItems,
         {
-          sareeId: product.saree.id,
-          saree: product.saree,
+          productId: product.product.id,
+          product: product.product,
           quantity: 1,
           maxQuantity: product.storeStock,
           unitPrice:
-            product.saree.activeSale && product.saree.discountedPrice
-              ? product.saree.discountedPrice.toString()
-              : product.saree.price,
+            product.product.activeSale && product.product.discountedPrice
+              ? product.product.discountedPrice.toString()
+              : product.product.price,
           lineAmount:
-            product.saree.activeSale && product.saree.discountedPrice
-              ? product.saree.discountedPrice.toString()
-              : product.saree.price,
+            product.product.activeSale && product.product.discountedPrice
+              ? product.product.discountedPrice.toString()
+              : product.product.price,
         },
       ]);
     }
   };
 
-  const updateNewItemQuantity = (sareeId: string, delta: number) => {
+  const updateNewItemQuantity = (productId: string, delta: number) => {
     setNewItems(
       newItems
         .map((item) => {
-          if (item.sareeId !== sareeId) return item;
+          if (item.productId !== productId) return item;
           const newQty = item.quantity + delta;
           if (newQty < 1) return null;
           if (newQty > item.maxQuantity) {
@@ -418,8 +418,8 @@ export default function StoreExchange() {
     );
   };
 
-  const removeNewItem = (sareeId: string) => {
-    setNewItems(newItems.filter((item) => item.sareeId !== sareeId));
+  const removeNewItem = (productId: string) => {
+    setNewItems(newItems.filter((item) => item.productId !== productId));
   };
 
   const returnTotal = returnItems.reduce(
@@ -464,7 +464,7 @@ export default function StoreExchange() {
       if (parseFloat(newItem.lineAmount) <= 0) return false;
 
       // Check inventory availability
-      const inventory = products?.find((p) => p.saree.id === newItem.sareeId);
+      const inventory = products?.find((p) => p.product.id === newItem.productId);
       if (!inventory || inventory.storeStock < newItem.quantity) {
         return false;
       }
@@ -523,7 +523,7 @@ export default function StoreExchange() {
       if (returnItem.quantity > returnItem.maxQuantity) {
         toast({
           title: "Invalid quantity",
-          description: `Cannot return more than ${returnItem.maxQuantity} items for ${returnItem.saree.name}`,
+          description: `Cannot return more than ${returnItem.maxQuantity} items for ${returnItem.product.name}`,
           variant: "destructive",
         });
         return false;
@@ -561,11 +561,11 @@ export default function StoreExchange() {
     // New Items are truly optional - only validate if present
     if (newItems.length > 0) {
       for (const newItem of newItems) {
-        const inventory = products?.find((p) => p.saree.id === newItem.sareeId);
+        const inventory = products?.find((p) => p.product.id === newItem.productId);
         if (!inventory || inventory.storeStock < newItem.quantity) {
           toast({
             title: "Insufficient stock",
-            description: `Only ${inventory?.storeStock || 0} units available for ${newItem.saree.name}`,
+            description: `Only ${inventory?.storeStock || 0} units available for ${newItem.product.name}`,
             variant: "destructive",
           });
           return false;
@@ -654,7 +654,7 @@ export default function StoreExchange() {
       ) {
         toast({
           title: "Invalid Quantity",
-          description: `Invalid quantity for ${returnItem.saree.name}. Max: ${returnItem.maxQuantity}`,
+          description: `Invalid quantity for ${returnItem.product.name}. Max: ${returnItem.maxQuantity}`,
           variant: "destructive",
         });
         return;
@@ -662,7 +662,7 @@ export default function StoreExchange() {
       if (parseFloat(returnItem.returnAmount) <= 0) {
         toast({
           title: "Invalid Amount",
-          description: `Invalid return amount for ${returnItem.saree.name}`,
+          description: `Invalid return amount for ${returnItem.product.name}`,
           variant: "destructive",
         });
         return;
@@ -687,11 +687,11 @@ export default function StoreExchange() {
         return;
       }
 
-      const inventory = products?.find((p) => p.saree.id === newItem.sareeId);
+      const inventory = products?.find((p) => p.product.id === newItem.productId);
       if (!inventory || inventory.storeStock < newItem.quantity) {
         toast({
           title: "Insufficient Stock",
-          description: `Only ${inventory?.storeStock || 0} units available for ${newItem.saree.name}`,
+          description: `Only ${inventory?.storeStock || 0} units available for ${newItem.product.name}`,
           variant: "destructive",
         });
         return;
@@ -751,13 +751,13 @@ export default function StoreExchange() {
       originalSaleId: selectedSaleId!,
       returnItems: returnItems.map((item) => ({
         saleItemId: item.saleItemId,
-        sareeId: item.sareeId,
+        productId: item.productId,
         quantity: item.quantity,
         unitPrice: item.unitPrice,
         returnAmount: item.returnAmount,
       })),
       newItems: newItems.map((item) => ({
-        sareeId: item.sareeId,
+        productId: item.productId,
         quantity: item.quantity,
         unitPrice: item.unitPrice,
         lineAmount: item.lineAmount,
@@ -772,8 +772,8 @@ export default function StoreExchange() {
   const filteredProducts = products?.filter(
     (item) =>
       item.storeStock > 0 &&
-      (item.saree.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        item.saree.sku?.toLowerCase().includes(searchQuery.toLowerCase())),
+      (item.product.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        item.product.sku?.toLowerCase().includes(searchQuery.toLowerCase())),
   );
 
   return (
@@ -1005,7 +1005,7 @@ export default function StoreExchange() {
                         <div className="flex items-center gap-3">
                           <img
                             src={
-                              item.saree.imageUrl ||
+                              item.product.imageUrl ||
                               "https://images.unsplash.com/photo-1610030469983-98e550d6193c?w=50"
                             }
                             alt=""
@@ -1013,14 +1013,14 @@ export default function StoreExchange() {
                           />
                           <div>
                             <p className="font-medium text-sm line-clamp-1">
-                              {item.saree.name}
+                              {item.product.name}
                             </p>
                             <p className="text-sm text-primary font-semibold">
-                              {item.saree.activeSale &&
-                              item.saree.discountedPrice ? (
+                              {item.product.activeSale &&
+                              item.product.discountedPrice ? (
                                 <div className="flex items-center gap-2">
                                   <span>
-                                    {formatPrice(item.saree.discountedPrice)}
+                                    {formatPrice(item.product.discountedPrice)}
                                   </span>
                                   <span className="text-xs text-muted-foreground line-through">
                                     {formatPrice(item.price)}
@@ -1068,7 +1068,7 @@ export default function StoreExchange() {
                         >
                           <img
                             src={
-                              item.saree.imageUrl ||
+                              item.product.imageUrl ||
                               "https://images.unsplash.com/photo-1610030469983-98e550d6193c?w=50"
                             }
                             alt=""
@@ -1076,7 +1076,7 @@ export default function StoreExchange() {
                           />
                           <div className="flex-1">
                             <p className="font-medium text-sm line-clamp-1">
-                              {item.saree.name}
+                              {item.product.name}
                             </p>
                             <p className="text-xs text-muted-foreground">
                               {formatPrice(item.unitPrice)} each
@@ -1171,19 +1171,19 @@ export default function StoreExchange() {
                       {filteredProducts && filteredProducts.length > 0 ? (
                         filteredProducts.map((item) => {
                           const inNew = newItems.find(
-                            (c) => c.sareeId === item.saree.id,
+                            (c) => c.productId === item.product.id,
                           );
 
                           return (
                             <div
-                              key={item.saree.id}
+                              key={item.product.id}
                               className="flex items-center justify-between p-3 rounded-lg border hover-elevate cursor-pointer"
                               onClick={() => addNewItem(item)}
                             >
                               <div className="flex items-center gap-3">
                                 <img
                                   src={
-                                    item.saree.imageUrl ||
+                                    item.product.imageUrl ||
                                     "https://images.unsplash.com/photo-1610030469983-98e550d6193c?w=50"
                                   }
                                   alt=""
@@ -1191,24 +1191,24 @@ export default function StoreExchange() {
                                 />
                                 <div>
                                   <p className="font-medium text-sm line-clamp-1">
-                                    {item.saree.name}
+                                    {item.product.name}
                                   </p>
                                   <p className="text-sm text-primary font-semibold">
-                                    {item.saree.activeSale &&
-                                    item.saree.discountedPrice ? (
+                                    {item.product.activeSale &&
+                                    item.product.discountedPrice ? (
                                       <div className="flex items-center gap-2">
                                         <span>
                                           {formatPrice(
-                                            item.saree.discountedPrice,
+                                            item.product.discountedPrice,
                                           )}
                                         </span>
                                         <span className="text-xs text-muted-foreground line-through">
-                                          {formatPrice(item.saree.price)}
+                                          {formatPrice(item.product.price)}
                                         </span>
                                       </div>
                                     ) : (
                                       <span>
-                                        {formatPrice(item.saree.price)}
+                                        {formatPrice(item.product.price)}
                                       </span>
                                     )}
                                   </p>
@@ -1245,12 +1245,12 @@ export default function StoreExchange() {
                       <div className="space-y-2">
                         {newItems.map((item) => (
                           <div
-                            key={item.sareeId}
+                            key={item.productId}
                             className="flex items-center gap-3 p-2 border rounded-lg bg-green-50 dark:bg-green-950/20"
                           >
                             <img
                               src={
-                                item.saree.imageUrl ||
+                                item.product.imageUrl ||
                                 "https://images.unsplash.com/photo-1610030469983-98e550d6193c?w=50"
                               }
                               alt=""
@@ -1258,7 +1258,7 @@ export default function StoreExchange() {
                             />
                             <div className="flex-1">
                               <p className="font-medium text-sm line-clamp-1">
-                                {item.saree.name}
+                                {item.product.name}
                               </p>
                               <p className="text-xs text-muted-foreground">
                                 {formatPrice(item.unitPrice)} each
@@ -1271,7 +1271,7 @@ export default function StoreExchange() {
                                 className="h-7 w-7"
                                 onClick={(e) => {
                                   e.stopPropagation();
-                                  updateNewItemQuantity(item.sareeId, -1);
+                                  updateNewItemQuantity(item.productId, -1);
                                 }}
                               >
                                 <Minus className="h-3 w-3" />
@@ -1285,7 +1285,7 @@ export default function StoreExchange() {
                                 className="h-7 w-7"
                                 onClick={(e) => {
                                   e.stopPropagation();
-                                  updateNewItemQuantity(item.sareeId, 1);
+                                  updateNewItemQuantity(item.productId, 1);
                                 }}
                               >
                                 <Plus className="h-3 w-3" />
@@ -1296,7 +1296,7 @@ export default function StoreExchange() {
                                 className="h-7 w-7 text-destructive"
                                 onClick={(e) => {
                                   e.stopPropagation();
-                                  removeNewItem(item.sareeId);
+                                  removeNewItem(item.productId);
                                 }}
                               >
                                 <Trash2 className="h-4 w-4" />

@@ -36,28 +36,28 @@ import { ProductImageGallery } from "@/components/product/ProductImageGallery";
 import { Reviews } from "@/components/product/Reviews";
 import { useAuth } from "@/lib/auth";
 import { useQuery } from "@tanstack/react-query";
-import type { SareeWithDetails } from "@shared/schema";
+import type { ProductWithDetails } from "@shared/schema";
 import { useCartStore } from "@/components/Store/useCartStore";
 import { useWishlistStore } from "@/components/Store/useWishlistStore";
 import { CartQuantity } from "./common/CartQuantity";
 import { ProductSharePopover } from "@/components/common/ProductSharePopover";
 import { cn } from "@/lib/utils";
 
-export default function SareeDetail() {
+export default function ProductDetail() {
   const { id } = useParams();
   const { user } = useAuth();
   const [selectedImage, setSelectedImage] = useState(0);
   const [rating, setRating] = useState(5);
   const [hoverRating, setHoverRating] = useState(0);
-  const { data: saree, isLoading } = useQuery<SareeWithDetails>({
-    queryKey: ["/api/sarees", id],
+  const { data: product, isLoading } = useQuery<ProductWithDetails>({
+    queryKey: ["/api/products", id],
   });
 
-  const relatedQueryString = saree?.categoryId
-    ? `/api/sarees?category=${saree.categoryId}&limit=4`
+  const relatedQueryString = product?.categoryId
+    ? `/api/products?category=${product.categoryId}&limit=4`
     : null;
 
-  const { data: relatedSarees } = useQuery<SareeWithDetails[]>({
+  const { data: relatedProducts } = useQuery<ProductWithDetails[]>({
     queryKey: [relatedQueryString],
     enabled: !!relatedQueryString,
   });
@@ -71,8 +71,8 @@ export default function SareeDetail() {
   const addWishlistItem = useWishlistStore((state) => state.addItem);
   const removeWishlistItem = useWishlistStore((state) => state.removeItem);
   const isAddingWishlistItem = useWishlistStore((state) => state.isAddingItem);
-  const isInCart = cartItems?.some((item) => item.saree.id === id);
-  const isInWishlist = wishlistItems?.some((item) => item.sareeId === id);
+  const isInCart = cartItems?.some((item) => item.product.id === id);
+  const isInWishlist = wishlistItems?.some((item) => item.productId === id);
   const isRemovingWishlistItem = useWishlistStore(
     (state) => state.isRemovingItem,
   );
@@ -84,9 +84,9 @@ export default function SareeDetail() {
       ratingDistribution: Record<number, number>;
     };
   }>({
-    queryKey: ["/api/sarees", id, "reviews"],
+    queryKey: ["/api/products", id, "reviews"],
     queryFn: async () => {
-      const res = await fetch(`/api/sarees/${id}/reviews`);
+      const res = await fetch(`/api/products/${id}/reviews`);
       if (!res.ok) throw new Error("Failed to fetch reviews");
       return res.json();
     },
@@ -143,11 +143,11 @@ export default function SareeDetail() {
     );
   }
 
-  if (!saree) {
+  if (!product) {
     return (
       <div className="max-w-7xl mx-auto px-4 py-16 text-center">
         <h2 className="text-xl font-semibold mb-4">Product not found</h2>
-        <Link to="/sarees">
+        <Link to="/products">
           <Button variant="outline" data-testid="button-back-to-shop">
             <ArrowLeft className="h-4 w-4 mr-2" />
             Back to Shop
@@ -157,7 +157,7 @@ export default function SareeDetail() {
     );
   }
 
-  const images = [saree.imageUrl, ...(saree.images || [])].filter(
+  const images = [product.imageUrl, ...(product.images || [])].filter(
     Boolean,
   ) as string[];
   if (images.length === 0) {
@@ -165,9 +165,9 @@ export default function SareeDetail() {
   }
 
   const isOnlineAvailable =
-    saree.distributionChannel === "online" ||
-    saree.distributionChannel === "both";
-  const hasStock = saree.onlineStock > 0;
+    product.distributionChannel === "online" ||
+    product.distributionChannel === "both";
+  const hasStock = product.onlineStock > 0;
   const isButtonDisabled = (id: string) => {
     return Boolean(
       isAddingItem[id] || isUpdatingItem[id] || isRemovingItem[id],
@@ -181,18 +181,18 @@ export default function SareeDetail() {
           Home
         </Link>
         <span>/</span>
-        <Link to="/sarees" className="hover:text-primary transition-colors">
-          Sarees
+        <Link to="/products" className="hover:text-primary transition-colors">
+          products
         </Link>
         <span>/</span>
-        <span className="text-foreground font-medium">{saree.name}</span>
+        <span className="text-foreground font-medium">{product.name}</span>
       </nav>
 
       <div className="grid lg:grid-cols-5 gap-4 lg:gap-6">
         {/* Image Section - 60% width */}
         <div className="lg:col-span-3">
           <ProductImageGallery
-            saree={saree}
+            product={product}
             images={images}
             selectedImage={selectedImage}
             onImageSelect={setSelectedImage}
@@ -206,15 +206,15 @@ export default function SareeDetail() {
               className="text-xl font-bold"
               data-testid="text-product-name"
             >
-              {saree.name}
+              {product.name}
             </h1>
             <div className="flex items-baseline gap-2">
-              {!saree.activeSale || !saree.discountedPrice ? (
+              {!product.activeSale || !product.discountedPrice ? (
                 <p
                   className="text-2xl font-bold text-primary"
                   data-testid="text-product-price"
                 >
-                  {formatPrice(saree.price)}
+                  {formatPrice(product.price)}
                 </p>
               ) : (
                 <>
@@ -222,16 +222,16 @@ export default function SareeDetail() {
                     className="text-2xl font-bold text-primary"
                     data-testid="text-product-price"
                   >
-                    {formatPrice(saree.discountedPrice)}
+                    {formatPrice(product.discountedPrice)}
                   </p>
                   <p className="text-lg text-muted-foreground line-through">
-                    {formatPrice(saree.price)}
+                    {formatPrice(product.price)}
                   </p>
                   <Badge className="bg-red-500 text-white border-0 text-sm px-2 py-1">
                     {Math.round(
                       (1 -
-                        parseFloat(saree.discountedPrice.toString()) /
-                          parseFloat(saree.price)) *
+                        parseFloat(product.discountedPrice.toString()) /
+                          parseFloat(product.price)) *
                         100,
                     )}
                     % OFF
@@ -248,7 +248,7 @@ export default function SareeDetail() {
                 <div className="flex items-center gap-2 px-3 py-2 bg-green-50 dark:bg-green-900/20 rounded-lg border border-green-200 dark:border-green-800">
                   <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
                   <span className="text-sm font-medium text-green-700 dark:text-green-400">
-                    {saree.onlineStock} In Stock
+                    {product.onlineStock} In Stock
                   </span>
                 </div>
               ) : (
@@ -273,8 +273,8 @@ export default function SareeDetail() {
           <div className="p-4 bg-muted/30 rounded-lg border border-border/50">
             <div className="prose max-w-none dark:prose-invert">
               <p className="text-gray-700 dark:text-gray-300 leading-relaxed text-sm">
-                {saree.description ||
-                  "This exquisite saree showcases finest craftsmanship, blending traditional artistry with contemporary elegance."}
+                {product.description ||
+                  "This exquisite product showcases finest craftsmanship, blending traditional artistry with contemporary elegance."}
               </p>
             </div>
           </div>
@@ -286,7 +286,7 @@ export default function SareeDetail() {
                 {isInCart ? (
                   <div className="flex-1">
                     <CartQuantity
-                      saree={saree}
+                      product={product}
                       cartItems={cartItems}
                       updateQuantity={updateQuantity}
                       isButtonDisabled={isButtonDisabled}
@@ -295,8 +295,8 @@ export default function SareeDetail() {
                 ) : (
                   <Button
                     className="flex-1 h-12 text-sm font-semibold bg-gradient-to-r from-primary to-primary/90 hover:from-primary/90 hover:to-primary shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-[1.02]"
-                    onClick={() => addCartItem(saree.id, 1)}
-                    disabled={isButtonDisabled(saree.id)}
+                    onClick={() => addCartItem(product.id, 1)}
+                    disabled={isButtonDisabled(product.id)}
                     data-testid="button-add-to-cart"
                   >
                     <ShoppingBag className="h-4 w-4 mr-2" />
@@ -311,15 +311,15 @@ export default function SareeDetail() {
                     className="h-12 w-12 rounded-full bg-background/90 backdrop-blur-sm border-2 hover:bg-background hover:scale-110 transition-all duration-300 shadow-md hover:shadow-lg"
                     onClick={() =>
                       isInWishlist
-                        ? removeWishlistItem(saree.id)
-                        : addWishlistItem(saree.id)
+                        ? removeWishlistItem(product.id)
+                        : addWishlistItem(product.id)
                     }
                     disabled={
                       isInWishlist
                         ? isRemovingWishlistItem
                         : isAddingWishlistItem
                     }
-                    data-testid={`button-wishlist-${saree.id}`}
+                    data-testid={`button-wishlist-${product.id}`}
                   >
                     <Heart
                       className={cn(
@@ -332,8 +332,8 @@ export default function SareeDetail() {
                   </Button>
                   <div className="h-12 w-12 rounded-full bg-background/90 backdrop-blur-sm border-2 shadow-md hover:shadow-lg transition-all duration-300 hover:scale-110 flex items-center justify-center">
                     <ProductSharePopover
-                      name={saree.name}
-                      price={formatPrice(saree.discountedPrice || saree.price)}
+                      name={product.name}
+                      price={formatPrice(product.discountedPrice || product.price)}
                     />
                   </div>
                 </div>
@@ -411,7 +411,7 @@ export default function SareeDetail() {
                       SKU
                     </span>
                     <span className="text-foreground">
-                      {saree.sku || "N/A"}
+                      {product.sku || "N/A"}
                     </span>
                   </div>
                   <div className="flex justify-between py-1 border-b border-border/50">
@@ -419,7 +419,7 @@ export default function SareeDetail() {
                       Category
                     </span>
                     <span className="text-foreground">
-                      {saree.category?.name || "N/A"}
+                      {product.category?.name || "N/A"}
                     </span>
                   </div>
                   <div className="flex justify-between py-1 border-b border-border/50">
@@ -427,7 +427,7 @@ export default function SareeDetail() {
                       Fabric
                     </span>
                     <span className="text-foreground">
-                      {saree.fabric?.name || "N/A"}
+                      {product.fabric?.name || "N/A"}
                     </span>
                   </div>
                   <div className="flex justify-between py-1 border-b border-border/50">
@@ -435,7 +435,7 @@ export default function SareeDetail() {
                       Color
                     </span>
                     <span className="text-foreground">
-                      {saree.color?.name || "N/A"}
+                      {product.color?.name || "N/A"}
                     </span>
                   </div>
                   <div className="flex justify-between py-1 border-b border-border/50">
@@ -443,7 +443,7 @@ export default function SareeDetail() {
                       Stock
                     </span>
                     <span className="text-foreground">
-                      {saree.onlineStock} units
+                      {product.onlineStock} units
                     </span>
                   </div>
                   <div className="flex justify-between py-1 border-b border-border/50">
@@ -451,7 +451,7 @@ export default function SareeDetail() {
                       Availability
                     </span>
                     <span className="text-foreground">
-                      {saree.distributionChannel}
+                      {product.distributionChannel}
                     </span>
                   </div>
                 </div>
@@ -524,21 +524,21 @@ export default function SareeDetail() {
       </div>
 
       {/* Enhanced Related Products */}
-      {relatedSarees && relatedSarees.length > 0 && (
+      {relatedProducts && relatedProducts.length > 0 && (
         <section className="mt-20">
           <div className="text-center mb-5">
             <h2 className="font-serif text-xl font-bold text-gray-900 dark:text-white">
               You May Also Like
             </h2>
             <p className="text-sm text-muted-foreground max-w-2xl mx-auto">
-              Discover more exquisite sarees that complement your style and
+              Discover more exquisite products that complement your style and
               preferences
             </p>
           </div>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
-            {relatedSarees.map((s) => (
+            {relatedProducts.map((s) => (
               <div key={s.id} className="group">
-                <ProductCard saree={s} />
+                <ProductCard product={s} />
               </div>
             ))}
           </div>
@@ -552,10 +552,10 @@ export default function SareeDetail() {
             <div className="flex items-center justify-between gap-4">
               <div className="flex-1">
                 <h3 className="font-semibold text-sm text-gray-900 dark:text-white line-clamp-1">
-                  {saree.name}
+                  {product.name}
                 </h3>
                 <p className="text-lg font-bold text-primary">
-                  {formatPrice(saree.discountedPrice || saree.price)}
+                  {formatPrice(product.discountedPrice || product.price)}
                 </p>
               </div>
               <div className="flex items-center gap-3">
@@ -565,8 +565,8 @@ export default function SareeDetail() {
                   className="h-12 w-12 rounded-full"
                   onClick={() =>
                     isInWishlist
-                      ? removeWishlistItem(saree.id)
-                      : addWishlistItem(saree.id)
+                      ? removeWishlistItem(product.id)
+                      : addWishlistItem(product.id)
                   }
                   disabled={
                     isInWishlist ? isRemovingWishlistItem : isAddingWishlistItem
@@ -581,7 +581,7 @@ export default function SareeDetail() {
                 </Button>
                 {isInCart ? (
                   <CartQuantity
-                    saree={saree}
+                    product={product}
                     cartItems={cartItems}
                     updateQuantity={updateQuantity}
                     isButtonDisabled={isButtonDisabled}
@@ -589,8 +589,8 @@ export default function SareeDetail() {
                 ) : (
                   <Button
                     className="h-12 px-6 font-semibold"
-                    onClick={() => addCartItem(saree.id, 1)}
-                    disabled={isButtonDisabled(saree.id)}
+                    onClick={() => addCartItem(product.id, 1)}
+                    disabled={isButtonDisabled(product.id)}
                   >
                     <ShoppingBag className="h-5 w-5 mr-2" />
                     Add to Cart

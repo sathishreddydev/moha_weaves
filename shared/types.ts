@@ -16,8 +16,8 @@ export type Fabric = typeof tables.fabrics.$inferSelect;
 export type InsertFabric = z.infer<typeof schemas.insertFabricSchema>;
 export type Store = typeof tables.stores.$inferSelect;
 export type InsertStore = z.infer<typeof schemas.insertStoreSchema>;
-export type Saree = typeof tables.sarees.$inferSelect;
-export type InsertSaree = z.infer<typeof schemas.insertSareeSchema>;
+export type product = typeof tables.products.$inferSelect;
+export type InsertProduct = z.infer<typeof schemas.insertProdcutSchema>;
 export type StoreInventory = typeof tables.storeInventory.$inferSelect;
 export type InsertStoreInventory = z.infer<typeof schemas.insertStoreInventorySchema>;
 export type WishlistItem = typeof tables.wishlist.$inferSelect;
@@ -98,12 +98,12 @@ export type OnlineExchangeWithDetails = OnlineExchange & {
   user: any;
   items: (Omit<OnlineExchangeItem, 'id'> & {
     orderItem: {
-      saree: any;
+      product: any;
     };
   })[];
 };
 
-export type SareeWithDetails = Saree & {
+export type ProductWithDetails = product & {
   category?: Category | null;
   color?: Color | null;
   fabric?: Fabric | null;
@@ -123,26 +123,26 @@ export type SareeWithDetails = Saree & {
   discountedPrice?: number;
 };
 
-export type CartItemWithSaree = CartItem & {
-  saree: SareeWithDetails;
+export type CartItemWithProduct = CartItem & {
+  product: ProductWithDetails;
 };
 
-export type WishlistItemWithSaree = WishlistItem & {
-  saree: SareeWithDetails;
+export type WishlistItemWithProduct = WishlistItem & {
+  product: ProductWithDetails;
 };
 
 export type OrderWithItems = Order & {
   customerName?: string;
-  items: (OrderItem & { saree: SareeWithDetails })[];
+  items: (OrderItem & { product: ProductWithDetails })[];
 };
 
 export type StockRequestWithDetails = StockRequest & {
-  saree: SareeWithDetails;
+  product: ProductWithDetails;
   store: Store;
 };
 
 export type StoreSaleWithItems = StoreSale & {
-  items: (StoreSaleItem & { saree: SareeWithDetails })[];
+  items: (StoreSaleItem & { product: ProductWithDetails })[];
   store: Store;
   eligibilityData?: {
     eligible: boolean;
@@ -158,7 +158,7 @@ export type StoreSaleWithItems = StoreSale & {
   };
 };
 
-export type SareeWithReviews = SareeWithDetails & {
+export type ProductWithReviews = ProductWithDetails & {
   reviews?: ReviewWithUser[];
   averageRating?: number;
   reviewCount?: number;
@@ -168,7 +168,7 @@ export type ReturnRequestWithDetails = ReturnRequest & {
   order: OrderWithItems;
   user: User;
   items: (ReturnItem & {
-    orderItem: OrderItem & { saree: SareeWithDetails };
+    orderItem: OrderItem & { product: ProductWithDetails };
   })[];
   refund?: Refund;
 };
@@ -184,13 +184,13 @@ export type CouponWithUsage = Coupon & {
 };
 
 export type StockTransferWithDetails = StockTransfer & {
-  saree: SareeWithDetails;
+  product: ProductWithDetails;
   fromStore?: Store;
   toStore: Store;
 };
 
 export type InventoryAdjustmentWithDetails = InventoryAdjustment & {
-  saree: SareeWithDetails;
+  product: ProductWithDetails;
   store?: Store;
 };
 
@@ -198,13 +198,13 @@ export type StoreExchangeWithDetails = StoreExchange & {
   store: Store;
   originalSale: StoreSaleWithItems;
   processor: User;
-  returnItems: (StoreExchangeReturnItem & { saree: SareeWithDetails })[];
-  newItems: (StoreExchangeNewItem & { saree: SareeWithDetails })[];
+  returnItems: (StoreExchangeReturnItem & { product: ProductWithDetails })[];
+  newItems: (StoreExchangeNewItem & { product: ProductWithDetails })[];
 };
 
 export type SaleWithDetails = Sale & {
   category?: Category | null;
-  products?: (SaleProduct & { saree: SareeWithDetails })[];
+  products?: (SaleProduct & { product: ProductWithDetails })[];
   productCount?: number;
 };
 

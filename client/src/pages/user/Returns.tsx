@@ -148,13 +148,13 @@ export default function Returns() {
                     <div key={item.id} className="flex gap-4 items-center">
                       <div className="w-12 h-16 rounded-md overflow-hidden bg-muted flex-shrink-0">
                         <img
-                          src={item.orderItem.saree.imageUrl || "https://images.unsplash.com/photo-1610030469983-98e550d6193c?w=100&h=150&fit=crop"}
-                          alt={item.orderItem.saree.name}
+                          src={item.orderItem.product.imageUrl || "https://images.unsplash.com/photo-1610030469983-98e550d6193c?w=100&h=150&fit=crop"}
+                          alt={item.orderItem.product.name}
                           className="w-full h-full object-cover"
                         />
                       </div>
                       <div className="flex-1 min-w-0">
-                        <h4 className="font-medium text-sm line-clamp-1">{item.orderItem.saree.name}</h4>
+                        <h4 className="font-medium text-sm line-clamp-1">{item.orderItem.product.name}</h4>
                         <p className="text-sm text-muted-foreground">Qty: {item.quantity}</p>
                       </div>
                     </div>

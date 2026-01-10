@@ -78,7 +78,7 @@ export const onlineExchangeRoutes = (app: Express) => {
         items: z.array(z.object({
           orderItemId: z.string().min(1, "Order item ID is required"),
           quantity: z.number().min(1, "Quantity must be at least 1"),
-          exchangeSareeId: z.string().optional(),
+          exchangeproductId: z.string().optional(),
           condition: z.string().optional(),
           isRestockable: z.boolean().default(true),
         })).min(1, "At least one item is required"),
@@ -106,7 +106,7 @@ export const onlineExchangeRoutes = (app: Express) => {
       const exchangeItems: Omit<InsertOnlineExchangeItem, 'exchangeId'>[] = validatedData.items.map((item: any) => ({
         orderItemId: item.orderItemId,
         quantity: item.quantity,
-        exchangeSareeId: item.exchangeSareeId,
+        exchangeproductId: item.exchangeproductId,
         condition: item.condition,
         isRestockable: item.isRestockable,
       }));

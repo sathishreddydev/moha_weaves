@@ -13,7 +13,7 @@ import { apiRequest, queryClient } from "@/lib/queryClient";
 import { ProductReview } from "@shared/schema";
 
 interface ReviewsProps {
-  sareeId: string;
+  productId: string;
 }
 
 export function Reviews({ reviewsData, reviewLoading }: any) {

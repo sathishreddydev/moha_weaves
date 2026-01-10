@@ -132,7 +132,7 @@ export const orderRoutes = (app: Express) => {
         const price = Number(item.price ?? 0);
         const total = qty * price;
         doc.fillColor("#000");
-        doc.text(item.saree?.name || "Item", colNameX, y, { width: 260 });
+        doc.text(item.product?.name || "Item", colNameX, y, { width: 260 });
         doc.text(String(qty), colQtyX, y, { width: 50, align: "right" });
         doc.text(asMoney(price).replace("INR ", ""), colPriceX, y, {
           width: 70,
@@ -269,10 +269,10 @@ export const orderRoutes = (app: Express) => {
 
       const totalAmount = cartItems.cart.reduce((sum, item) => {
         const originalPrice =
-          typeof item.saree.price === "string"
-            ? parseFloat(item.saree.price)
-            : item.saree.price;
-        const price = (item.saree as any).discountedPrice ?? originalPrice;
+          typeof item.product.price === "string"
+            ? parseFloat(item.product.price)
+            : item.product.price;
+        const price = (item.product as any).discountedPrice ?? originalPrice;
         return sum + price * item.quantity;
       }, 0);
 
@@ -313,13 +313,13 @@ export const orderRoutes = (app: Express) => {
         },
         cartItems.cart.map((item) => {
           const originalPrice =
-            typeof item.saree.price === "string"
-              ? parseFloat(item.saree.price)
-              : item.saree.price;
+            typeof item.product.price === "string"
+              ? parseFloat(item.product.price)
+              : item.product.price;
           const effectivePrice =
-            (item.saree as any).discountedPrice ?? originalPrice;
+            (item.product as any).discountedPrice ?? originalPrice;
           return {
-            sareeId: item.sareeId,
+            productId: item.productId,
             quantity: item.quantity,
             price: effectivePrice.toString(),
           };
@@ -356,7 +356,7 @@ export const orderRoutes = (app: Express) => {
       }
       // 1️⃣ Calculate total
       const totalAmount = cartItems.cart.reduce((sum, item) => {
-        const price = (item.saree as any).discountedPrice ?? item.saree.price;
+        const price = (item.product as any).discountedPrice ?? item.product.price;
         return sum + price * item.quantity;
       }, 0);
 
@@ -427,7 +427,7 @@ receipt: `r${Date.now()}`,
 
       // 2️⃣ Calculate totals
       const totalAmount = cartItems.cart.reduce((sum, item) => {
-        const price = (item.saree as any).discountedPrice ?? item.saree.price;
+        const price = (item.product as any).discountedPrice ?? item.product.price;
         return sum + price * item.quantity;
       }, 0);
 
@@ -469,10 +469,10 @@ receipt: `r${Date.now()}`,
           razorpayPaymentId, 
         },
         cartItems.cart.map((item) => ({
-          sareeId: item.sareeId,
+          productId: item.productId,
           quantity: item.quantity,
           price: (
-            (item.saree as any).discountedPrice ?? item.saree.price
+            (item.product as any).discountedPrice ?? item.product.price
           ).toString(),
         }))
       );

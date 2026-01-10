@@ -36,7 +36,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/lib/auth";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
-import type { OrderWithItems, ItemStatusHistory, ReturnRequestWithDetails, Refund, SareeWithDetails, OnlineExchangeWithDetails } from "@shared/schema";
+import type { OrderWithItems, ItemStatusHistory, ReturnRequestWithDetails, Refund, ProductWithDetails, OnlineExchangeWithDetails } from "@shared/schema";
 import { itemStatusConfig, isItemDelivered, returnReasons, getItemStatusConfig } from "@/constants/itemStatusConfig";
 
 
@@ -64,16 +64,16 @@ export default function OrderDetail() {
     enabled: !!user && !!id,
   });
 
-  // Fetch stock for sarees in this order to enable/disable exchange
-  const { data: sareesWithStock } = useQuery<
+  // Fetch stock for products in this order to enable/disable exchange
+  const { data: productWithStock } = useQuery<
     Array<{ id: string; stock: number }>
   >({
-    queryKey: ["order-sarees-stock", order?.items?.map((it) => it.saree.id)],
+    queryKey: ["order-products-stock", order?.items?.map((it) => it.product.id)],
     queryFn: async () => {
       if (!order?.items) return [];
-      const idsSet = new Set(order.items.map((it) => it.saree.id));
+      const idsSet = new Set(order.items.map((it) => it.product.id));
       const ids = Array.from(idsSet);
-      const res = await fetch("/api/getSarees", {
+      const res = await fetch("/api/getProducts", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ ids }),
@@ -84,7 +84,7 @@ export default function OrderDetail() {
     },
     enabled: !!order?.items,
   });
-  const stockBySareeId = new Map(sareesWithStock?.map((s) => [s.id, s.stock]) || []);
+  const stockByproductId = new Map(productWithStock?.map((s) => [s.id, s.stock]) || []);
 
   const { data: eligibility } = useQuery<
     {
@@ -198,9 +198,9 @@ export default function OrderDetail() {
         orderItemId,
         quantity: v.quantity,
         reason: returnReason,
-        exchangeSareeId:
+        exchangeproductId:
           resolutionType === "exchange"
-            ? orderItemById.get(orderItemId)?.saree?.id || null
+            ? orderItemById.get(orderItemId)?.product?.id || null
             : null,
       }));
 
@@ -214,7 +214,7 @@ export default function OrderDetail() {
 
     if (resolutionType === "exchange") {
       const outOfStockItems = items.filter(
-        (i) => (stockBySareeId.get(i.exchangeSareeId!) ?? 0) <= 0
+        (i) => (stockByproductId.get(i.exchangeproductId!) ?? 0) <= 0
       );
       if (outOfStockItems.length > 0) {
         toast({
@@ -543,20 +543,20 @@ export default function OrderDetail() {
                       key={item.id}
                       className="flex flex-col sm:flex-row gap-4 p-3 rounded-lg border bg-card hover:bg-muted/30 transition-colors"
                     >
-                      <Link to={`/sarees/${item.saree.id}`} className="flex-shrink-0">
+                      <Link to={`/products/${item.product.id}`} className="flex-shrink-0">
                         <div className="w-20 h-24 rounded-md overflow-hidden bg-muted">
                           <img
-                            src={item.saree.imageUrl || ""}
-                            alt={item.saree.name}
+                            src={item.product.imageUrl || ""}
+                            alt={item.product.name}
                             className="w-full h-full object-cover"
                           />
                         </div>
                       </Link>
 
                       <div className="flex-1 min-w-0">
-                        <Link to={`/sarees/${item.saree.id}`}>
+                        <Link to={`/products/${item.product.id}`}>
                           <h4 className="font-medium hover:text-primary line-clamp-1">
-                            {item.saree.name}
+                            {item.product.name}
                           </h4>
                         </Link>
 
@@ -729,16 +729,16 @@ export default function OrderDetail() {
                       <div className="w-10 h-12 rounded overflow-hidden bg-muted flex-shrink-0">
                         <img
                           src={
-                            item.saree.imageUrl ||
+                            item.product.imageUrl ||
                             "https://images.unsplash.com/photo-1610030469983-98e550d6193c?w=50&h=60&fit=crop"
                           }
-                          alt={item.saree.name}
+                          alt={item.product.name}
                           className="w-full h-full object-cover"
                         />
                       </div>
                       <div className="flex-1 min-w-0">
                         <p className="text-sm font-medium line-clamp-1">
-                          {item.saree.name}
+                          {item.product.name}
                         </p>
 
                         {resolutionType === "exchange" && selectedItems[item.id]?.selected ? (

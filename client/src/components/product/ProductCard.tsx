@@ -3,16 +3,16 @@ import { Heart, ShoppingBag, Eye, Minus, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import type { SareeWithDetails } from "@shared/schema";
+import type { ProductWithDetails } from "@shared/schema";
 import { useAuth } from "@/lib/auth";
 import { useCartStore } from "../Store/useCartStore";
 import { useWishlistStore } from "../Store/useWishlistStore";
 
 interface ProductCardProps {
-  saree: SareeWithDetails;
+  product: ProductWithDetails;
 }
 
-export function ProductCard({ saree }: ProductCardProps) {
+export function ProductCard({ product }: ProductCardProps) {
   const { user } = useAuth();
   const guestUser = ["admin", "inventory", "store"]?.includes(user?.role ?? "");
   const navigate = useNavigate();
@@ -34,20 +34,20 @@ export function ProductCard({ saree }: ProductCardProps) {
     isAddingItem: isAddingWishlistItem,
   } = useWishlistStore();
 
-  const cartItem = cartItems?.find((item) => item.saree.id === saree.id);
+  const cartItem = cartItems?.find((item) => item.product.id === product.id);
   const isInCart = !!cartItem;
 
-  const isInWishlist = wishlist?.some((item) => item.sareeId === saree.id);
+  const isInWishlist = wishlist?.some((item) => item.productId === product.id);
 
   const isOnlineAvailable =
-    saree.distributionChannel === "online" ||
-    saree.distributionChannel === "both";
+    product.distributionChannel === "online" ||
+    product.distributionChannel === "both";
 
-  const hasStock = saree.onlineStock > 0;
+  const hasStock = product.onlineStock > 0;
   const disabledButton =
-    isAddingItem[saree.id] ||
-    isUpdatingItem[saree.id] ||
-    isRemovingItem[saree.id] ||
+    isAddingItem[product.id] ||
+    isUpdatingItem[product.id] ||
+    isRemovingItem[product.id] ||
     isLoadingCart;
   const formatPrice = (price: number | string) =>
     new Intl.NumberFormat("en-IN", {
@@ -64,7 +64,7 @@ export function ProductCard({ saree }: ProductCardProps) {
       return;
     }
 
-    if (newQuantity > cartItem.saree.onlineStock) return;
+    if (newQuantity > cartItem.product.onlineStock) return;
 
     updateQuantity(cartItem.id, newQuantity);
   };
@@ -72,22 +72,22 @@ export function ProductCard({ saree }: ProductCardProps) {
   return (
     <Card className="group border-0 shadow-none bg-transparent">
       <div className="relative aspect-[3/4] overflow-hidden rounded-md bg-muted">
-        <Link to={`/sarees/${saree.id}`}>
+        <Link to={`/products/${product.id}`}>
           <img
-            src={saree.imageUrl ?? "/placeholder.png"}
-            alt={saree.name}
+            src={product.imageUrl ?? "/placeholder.png"}
+            alt={product.name}
             loading="lazy"
             className="w-full h-full object-cover transition-transform duration-500 md:group-hover:scale-105"
           />
         </Link>
 
         <div className="absolute top-2 left-2 flex flex-col gap-1">
-          {saree.activeSale && (
+          {product.activeSale && (
             <Badge className="bg-red-500 text-white">
-              {Math.round(Number(saree.activeSale.discountValue))}% OFF
+              {Math.round(Number(product.activeSale.discountValue))}% OFF
             </Badge>
           )}
-          {saree.isFeatured && (
+          {product.isFeatured && (
             <Badge className="bg-primary text-primary-foreground">
               Featured
             </Badge>
@@ -106,8 +106,8 @@ export function ProductCard({ saree }: ProductCardProps) {
                   return;
                 }
                 isInWishlist
-                  ? removeWishlistItem(saree.id)
-                  : addWishlistItem(saree.id);
+                  ? removeWishlistItem(product.id)
+                  : addWishlistItem(product.id);
               }}
               disabled={isAddingWishlistItem}
               aria-label="Wishlist"
@@ -126,7 +126,7 @@ export function ProductCard({ saree }: ProductCardProps) {
             size="icon"
             className="h-7 w-7 rounded-full bg-background/90"
           >
-            <Link to={`/sarees/${saree.id}`} aria-label="View product">
+            <Link to={`/products/${product.id}`} aria-label="View product">
               <Eye className="h-3 w-3" />
             </Link>
           </Button>
@@ -160,7 +160,7 @@ export function ProductCard({ saree }: ProductCardProps) {
                   onClick={() => handleUpdateQuantity(cartItem.quantity + 1)}
                   disabled={
                     disabledButton ||
-                    cartItem.quantity >= cartItem.saree.onlineStock
+                    cartItem.quantity >= cartItem.product.onlineStock
                   }
                   aria-label="Increase quantity"
                 >
@@ -179,7 +179,7 @@ export function ProductCard({ saree }: ProductCardProps) {
                     return;
                   }
                   if (!hasStock) return;
-                  !disabledButton && addItem(saree.id, 1);
+                  !disabledButton && addItem(product.id, 1);
                 }}
                 disabled={disabledButton}
               >
@@ -199,9 +199,9 @@ export function ProductCard({ saree }: ProductCardProps) {
 
       <div className="pt-4 space-y-1">
         <div className="flex items-start justify-between gap-2">
-          <Link to={`/sarees/${saree.id}`} className="flex-1">
+          <Link to={`/products/${product.id}`} className="flex-1">
             <h3 className="font-medium text-sm line-clamp-2 hover:text-primary">
-              {saree.name}
+              {product.name}
             </h3>
           </Link>
 
@@ -216,8 +216,8 @@ export function ProductCard({ saree }: ProductCardProps) {
                   return;
                 }
                 isInWishlist
-                  ? removeWishlistItem(saree.id)
-                  : addWishlistItem(saree.id);
+                  ? removeWishlistItem(product.id)
+                  : addWishlistItem(product.id);
               }}
               disabled={isAddingWishlistItem}
               aria-label="Wishlist"
@@ -232,18 +232,18 @@ export function ProductCard({ saree }: ProductCardProps) {
         </div>
 
         <div className="flex items-center gap-2">
-          {saree.activeSale && saree.discountedPrice ? (
+          {product.activeSale && product.discountedPrice ? (
             <>
               <p className="font-semibold text-primary">
-                {formatPrice(saree.discountedPrice)}
+                {formatPrice(product.discountedPrice)}
               </p>
               <p className="text-sm text-muted-foreground line-through">
-                {formatPrice(saree.price)}
+                {formatPrice(product.price)}
               </p>
             </>
           ) : (
             <p className="font-semibold text-primary">
-              {formatPrice(saree.price)}
+              {formatPrice(product.price)}
             </p>
           )}
         </div>

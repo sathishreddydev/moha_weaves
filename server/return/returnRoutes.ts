@@ -176,7 +176,7 @@ export const returnRoutes = (app: Express) => {
       const returnItemsData: Omit<InsertReturnItem, 'returnRequestId'>[] = items.map((item: any) => ({
         orderItemId: item.orderItemId,
         quantity: item.quantity,
-        exchangeSareeId: item.exchangeSareeId,
+        exchangeproductId: item.exchangeproductId,
         condition: item.condition,
         isRestockable: item.isRestockable,
       }));

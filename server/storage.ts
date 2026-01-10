@@ -4,7 +4,7 @@ import {
   colors,
   fabrics,
   stores,
-  sarees,
+  products,
   storeInventory,
   orders,
   orderItems,
@@ -37,7 +37,7 @@ import {
   type ItemStatusHistory,
   type InsertItemStatusHistory,
   type StockMovement,
-  type SareeWithDetails,
+  type ProductWithDetails,
   type OrderWithItems,
   type StockRequestWithDetails,
   type StoreSaleWithItems,
@@ -61,7 +61,7 @@ import {
 import { userService } from "./auth/authStorage";
 import { orderService } from "./order/orderStorage";
 import { storeService } from "./store/storeStorage";
-import { sareeService } from "./saree/sareeStorage";
+import { productService } from "./product/productStorage";
 export type ReviewWithUser = Omit<
   typeof productReviews.$inferSelect,
   "userId"
@@ -105,7 +105,7 @@ export interface IStorage {
     pageSize: number;
     totalPages: number;
   }>;
-  getSareesPaginated(params: {
+  getProductsPaginated(params: {
     page: number;
     pageSize: number;
     search?: string;
@@ -114,7 +114,7 @@ export interface IStorage {
     dateFrom?: string;
     dateTo?: string;
   }): Promise<{
-    data: SareeWithDetails[];
+    data: ProductWithDetails[];
     total: number;
     page: number;
     pageSize: number;
@@ -130,7 +130,7 @@ export interface IStorage {
   // Stock Distribution (centralized view)
   getStockDistribution(): Promise<
     {
-      saree: SareeWithDetails;
+      product: ProductWithDetails;
       totalStock: number;
       onlineStock: number;
       storeAllocations: { store: Store; quantity: number }[];
@@ -205,15 +205,15 @@ export interface IStorage {
     totalOnlineCleared: number;
     totalStoreCleared: number;
     onlineMovements: {
-      sareeId: string;
-      sareeName: string;
+      productId: string;
+      productName: string;
       quantity: number;
       orderRefId: string;
       createdAt: Date;
     }[];
     storeMovements: {
-      sareeId: string;
-      sareeName: string;
+      productId: string;
+      productName: string;
       quantity: number;
       orderRefId: string;
       storeId: string | null;
@@ -239,14 +239,14 @@ export interface IStorage {
 
   // Stock restoration from returns
   restoreStockFromReturn(
-    sareeId: string,
+    productId: string,
     quantity: number,
     orderRefId: string,
   ): Promise<void>;
 
   getStockMovements(filters?: {
     source?: string;
-    sareeId?: string;
+    productId?: string;
     limit?: number;
   }): Promise<StockMovement[]>;
 
@@ -282,18 +282,18 @@ export class DatabaseStorage implements IStorage {
       const items = await db
         .select()
         .from(orderItems)
-        .innerJoin(sarees, eq(orderItems.sareeId, sarees.id))
-        .leftJoin(categories, eq(sarees.categoryId, categories.id))
-        .leftJoin(colors, eq(sarees.colorId, colors.id))
-        .leftJoin(fabrics, eq(sarees.fabricId, fabrics.id))
+        .innerJoin(products, eq(orderItems.productId, products.id))
+        .leftJoin(categories, eq(products.categoryId, categories.id))
+        .leftJoin(colors, eq(products.colorId, colors.id))
+        .leftJoin(fabrics, eq(products.fabricId, fabrics.id))
         .where(eq(orderItems.orderId, order.id));
 
       result.push({
         ...order,
         items: items.map((row) => ({
           ...row.order_items,
-          saree: {
-            ...row.sarees,
+          product: {
+            ...row.products,
             category: row.categories,
             color: row.colors,
             fabric: row.fabrics,
@@ -366,10 +366,10 @@ export class DatabaseStorage implements IStorage {
       const items = await db
         .select()
         .from(orderItems)
-        .innerJoin(sarees, eq(orderItems.sareeId, sarees.id))
-        .leftJoin(categories, eq(sarees.categoryId, categories.id))
-        .leftJoin(colors, eq(sarees.colorId, colors.id))
-        .leftJoin(fabrics, eq(sarees.fabricId, fabrics.id))
+        .innerJoin(products, eq(orderItems.productId, products.id))
+        .leftJoin(categories, eq(products.categoryId, categories.id))
+        .leftJoin(colors, eq(products.colorId, colors.id))
+        .leftJoin(fabrics, eq(products.fabricId, fabrics.id))
         .where(eq(orderItems.orderId, order.orders.id));
 
       result.push({
@@ -378,8 +378,8 @@ export class DatabaseStorage implements IStorage {
 
         items: items.map((row) => ({
           ...row.order_items,
-          saree: {
-            ...row.sarees,
+          product: {
+            ...row.products,
             category: row.categories,
             color: row.colors,
             fabric: row.fabrics,
@@ -466,7 +466,7 @@ export class DatabaseStorage implements IStorage {
     };
   }
 
-  async getSareesPaginated(params: {
+  async getProductsPaginated(params: {
     page: number;
     pageSize: number;
     search?: string;
@@ -477,7 +477,7 @@ export class DatabaseStorage implements IStorage {
     dateFrom?: string;
     dateTo?: string;
   }): Promise<{
-    data: SareeWithDetails[];
+    data: ProductWithDetails[];
     total: number;
     page: number;
     pageSize: number;
@@ -496,40 +496,40 @@ export class DatabaseStorage implements IStorage {
     } = params;
     const offset = (page - 1) * pageSize;
 
-    const conditions: any[] = [eq(sarees.isActive, true)];
+    const conditions: any[] = [eq(products.isActive, true)];
 
     if (category) {
-      conditions.push(eq(sarees.categoryId, category));
+      conditions.push(eq(products.categoryId, category));
     }
 
     if (color) {
-      conditions.push(eq(sarees.colorId, color));
+      conditions.push(eq(products.colorId, color));
     }
 
     if (fabric) {
-      conditions.push(eq(sarees.fabricId, fabric));
+      conditions.push(eq(products.fabricId, fabric));
     }
 
     if (status === "active") {
-      conditions.push(eq(sarees.isActive, true));
+      conditions.push(eq(products.isActive, true));
     } else if (status === "inactive") {
-      conditions.push(eq(sarees.isActive, false));
+      conditions.push(eq(products.isActive, false));
     }
 
     if (dateFrom) {
-      conditions.push(gte(sarees.createdAt, new Date(dateFrom)));
+      conditions.push(gte(products.createdAt, new Date(dateFrom)));
     }
 
     if (dateTo) {
-      conditions.push(lte(sarees.createdAt, new Date(dateTo)));
+      conditions.push(lte(products.createdAt, new Date(dateTo)));
     }
 
     if (search) {
       conditions.push(
         or(
-          ilike(sarees.name, `%${search}%`),
-          ilike(sarees.sku, `%${search}%`),
-          ilike(sarees.description, `%${search}%`),
+          ilike(products.name, `%${search}%`),
+          ilike(products.sku, `%${search}%`),
+          ilike(products.description, `%${search}%`),
         ),
       );
     }
@@ -538,32 +538,32 @@ export class DatabaseStorage implements IStorage {
 
     const [countResult] = await db
       .select({ count: sql<number>`count(*)` })
-      .from(sarees)
+      .from(products)
       .where(whereClause);
 
     const total = Number(countResult?.count || 0);
 
     const result = await db
       .select()
-      .from(sarees)
-      .leftJoin(categories, eq(sarees.categoryId, categories.id))
-      .leftJoin(colors, eq(sarees.colorId, colors.id))
-      .leftJoin(fabrics, eq(sarees.fabricId, fabrics.id))
+      .from(products)
+      .leftJoin(categories, eq(products.categoryId, categories.id))
+      .leftJoin(colors, eq(products.colorId, colors.id))
+      .leftJoin(fabrics, eq(products.fabricId, fabrics.id))
       .where(whereClause)
-      .orderBy(desc(sarees.createdAt))
+      .orderBy(desc(products.createdAt))
       .limit(pageSize)
       .offset(offset);
 
-    const sareeList = await Promise.all(
+    const productList = await Promise.all(
       result.map(async (row) => {
-        // Get store allocations for this saree
+        // Get store allocations for this product
         const allocations = await db
           .select({
             storeId: storeInventory.storeId,
             quantity: storeInventory.quantity,
           })
           .from(storeInventory)
-          .where(eq(storeInventory.sareeId, row.sarees.id));
+          .where(eq(storeInventory.productId, row.products.id));
 
         // Get store details for each allocation
         const storeAllocations = await Promise.all(
@@ -587,11 +587,11 @@ export class DatabaseStorage implements IStorage {
         );
         const unallocated = Math.max(
           0,
-          row.sarees.totalStock - row.sarees.onlineStock - totalStoreStock,
+          row.products.totalStock - row.products.onlineStock - totalStoreStock,
         );
 
         return {
-          ...row.sarees,
+          ...row.products,
           category: row.categories,
           color: row.colors,
           fabric: row.fabrics,
@@ -602,7 +602,7 @@ export class DatabaseStorage implements IStorage {
     );
 
     return {
-      data: sareeList,
+      data: productList,
       total,
       page,
       pageSize,
@@ -610,19 +610,19 @@ export class DatabaseStorage implements IStorage {
     };
   }
 
-  async checkAndCreateStockAlert(sareeId: string): Promise<void> {
-    const [saree] = await db
+  async checkAndCreateStockAlert(productId: string): Promise<void> {
+    const [product] = await db
       .select()
-      .from(sarees)
-      .where(eq(sarees.id, sareeId));
-    if (!saree) return;
+      .from(products)
+      .where(eq(products.id, productId));
+    if (!product) return;
 
     // Get threshold from settings, default to 10
     const thresholdSetting = await this.getSetting("low_stock_threshold");
     const threshold = thresholdSetting ? parseInt(thresholdSetting) : 10;
 
     // Alert if total stock is at or below threshold
-    if (saree.totalStock <= threshold) {
+    if (product.totalStock <= threshold) {
       // Get all inventory role users to notify
       const inventoryUsers = await db
         .select()
@@ -639,7 +639,7 @@ export class DatabaseStorage implements IStorage {
             and(
               eq(notifications.userId, user.id),
               eq(notifications.type, "system"),
-              eq(notifications.relatedId, sareeId),
+              eq(notifications.relatedId, productId),
               gte(notifications.createdAt, dayAgo),
             ),
           );
@@ -649,9 +649,9 @@ export class DatabaseStorage implements IStorage {
             userId: user.id,
             type: "system",
             title: "Low Stock Alert",
-            message: `${saree.name} is running low on stock (${saree.totalStock} remaining). Please restock soon.`,
-            relatedId: sareeId,
-            relatedType: "saree",
+            message: `${product.name} is running low on stock (${product.totalStock} remaining). Please restock soon.`,
+            relatedId: productId,
+            relatedType: "product",
           });
         }
       }
@@ -716,10 +716,10 @@ export class DatabaseStorage implements IStorage {
       const items = await db
         .select()
         .from(storeSaleItems)
-        .innerJoin(sarees, eq(storeSaleItems.sareeId, sarees.id))
-        .leftJoin(categories, eq(sarees.categoryId, categories.id))
-        .leftJoin(colors, eq(sarees.colorId, colors.id))
-        .leftJoin(fabrics, eq(sarees.fabricId, fabrics.id))
+        .innerJoin(products, eq(storeSaleItems.productId, products.id))
+        .leftJoin(categories, eq(products.categoryId, categories.id))
+        .leftJoin(colors, eq(products.colorId, colors.id))
+        .leftJoin(fabrics, eq(products.fabricId, fabrics.id))
         .where(eq(storeSaleItems.saleId, row.store_sales.id));
 
       result.push({
@@ -727,8 +727,8 @@ export class DatabaseStorage implements IStorage {
         store: row.stores,
         items: items.map((itemRow) => ({
           ...itemRow.store_sale_items,
-          saree: {
-            ...itemRow.sarees,
+          product: {
+            ...itemRow.products,
             category: itemRow.categories,
             color: itemRow.colors,
             fabric: itemRow.fabrics,
@@ -792,57 +792,57 @@ export class DatabaseStorage implements IStorage {
     return result || undefined;
   }
 
-  async deductOnlineStock(sareeId: string, quantity: number): Promise<void> {
-    const [saree] = await db
+  async deductOnlineStock(productId: string, quantity: number): Promise<void> {
+    const [product] = await db
       .select()
-      .from(sarees)
-      .where(eq(sarees.id, sareeId));
-    if (!saree) throw new Error("Saree not found");
+      .from(products)
+      .where(eq(products.id, productId));
+    if (!product) throw new Error("product not found");
 
-    const newOnlineStock = saree.onlineStock - quantity;
-    const newTotalStock = saree.totalStock - quantity;
+    const newOnlineStock = product.onlineStock - quantity;
+    const newTotalStock = product.totalStock - quantity;
 
     if (newOnlineStock < 0) {
       throw new Error("Insufficient online stock");
     }
 
     await db
-      .update(sarees)
+      .update(products)
       .set({
         onlineStock: newOnlineStock,
         totalStock: newTotalStock,
       })
-      .where(eq(sarees.id, sareeId));
+      .where(eq(products.id, productId));
 
     // Record stock movement
     await db.insert(stockMovements).values({
-      sareeId,
+      productId,
       quantity: -quantity,
       movementType: "sale",
       source: "online",
-      orderRefId: sareeId, // Use sareeId as reference when no specific order
+      orderRefId: productId, // Use productId as reference when no specific order
       notes: "Online order stock deduction",
     });
   }
 
   async getStockDistribution(): Promise<
     {
-      saree: SareeWithDetails;
+      product: ProductWithDetails;
       totalStock: number;
       onlineStock: number;
       storeAllocations: { store: Store; quantity: number }[];
       unallocated: number;
     }[]
   > {
-    const allSarees = await sareeService.getSarees({ limit: 1000 });
+    const allProducts = await productService.getProducts({ limit: 1000 });
     const result = [];
 
-    for (const saree of allSarees) {
+    for (const product of allProducts) {
       const allocations = await db
         .select()
         .from(storeInventory)
         .innerJoin(stores, eq(storeInventory.storeId, stores.id))
-        .where(eq(storeInventory.sareeId, saree.id));
+        .where(eq(storeInventory.productId, product.id));
 
       const storeAllocations = allocations.map((alloc) => ({
         store: alloc.stores,
@@ -855,13 +855,13 @@ export class DatabaseStorage implements IStorage {
       );
       const unallocated = Math.max(
         0,
-        saree.totalStock - saree.onlineStock - totalStoreStock,
+        product.totalStock - product.onlineStock - totalStoreStock,
       );
 
       result.push({
-        saree,
-        totalStock: saree.totalStock,
-        onlineStock: saree.onlineStock,
+        product,
+        totalStock: product.totalStock,
+        onlineStock: product.onlineStock,
         storeAllocations,
         unallocated,
       });
@@ -888,18 +888,18 @@ export class DatabaseStorage implements IStorage {
       .select()
       .from(stockRequests)
       .innerJoin(stores, eq(stockRequests.storeId, stores.id))
-      .innerJoin(sarees, eq(stockRequests.sareeId, sarees.id))
-      .leftJoin(categories, eq(sarees.categoryId, categories.id))
-      .leftJoin(colors, eq(sarees.colorId, colors.id))
-      .leftJoin(fabrics, eq(sarees.fabricId, fabrics.id))
+      .innerJoin(products, eq(stockRequests.productId, products.id))
+      .leftJoin(categories, eq(products.categoryId, categories.id))
+      .leftJoin(colors, eq(products.colorId, colors.id))
+      .leftJoin(fabrics, eq(products.fabricId, fabrics.id))
       .where(conditions.length > 0 ? and(...conditions) : undefined)
       .orderBy(desc(stockRequests.createdAt));
 
     return result.map((row) => ({
       ...row.stock_requests,
       store: row.stores,
-      saree: {
-        ...row.sarees,
+      product: {
+        ...row.products,
         category: row.categories,
         color: row.colors,
         fabric: row.fabrics,
@@ -927,8 +927,8 @@ export class DatabaseStorage implements IStorage {
     if (options.search) {
       conditions.push(
         or(
-          ilike(sarees.name, `%${options.search}%`),
-          ilike(sarees.sku, `%${options.search}%`),
+          ilike(products.name, `%${options.search}%`),
+          ilike(products.sku, `%${options.search}%`),
           ilike(stockRequests.notes, `%${options.search}%`),
         )!,
       );
@@ -945,7 +945,7 @@ export class DatabaseStorage implements IStorage {
     const countResult = await db
       .select({ count: count() })
       .from(stockRequests)
-      .innerJoin(sarees, eq(stockRequests.sareeId, sarees.id))
+      .innerJoin(products, eq(stockRequests.productId, products.id))
       .where(and(...conditions));
 
     const total = Number(countResult[0]?.count || 0);
@@ -955,10 +955,10 @@ export class DatabaseStorage implements IStorage {
       .select()
       .from(stockRequests)
       .innerJoin(stores, eq(stockRequests.storeId, stores.id))
-      .innerJoin(sarees, eq(stockRequests.sareeId, sarees.id))
-      .leftJoin(categories, eq(sarees.categoryId, categories.id))
-      .leftJoin(colors, eq(sarees.colorId, colors.id))
-      .leftJoin(fabrics, eq(sarees.fabricId, fabrics.id))
+      .innerJoin(products, eq(stockRequests.productId, products.id))
+      .leftJoin(categories, eq(products.categoryId, categories.id))
+      .leftJoin(colors, eq(products.colorId, colors.id))
+      .leftJoin(fabrics, eq(products.fabricId, fabrics.id))
       .where(and(...conditions))
       .orderBy(desc(stockRequests.createdAt))
       .limit(options.limit)
@@ -967,8 +967,8 @@ export class DatabaseStorage implements IStorage {
     const results = result.map((row) => ({
       ...row.stock_requests,
       store: row.stores,
-      saree: {
-        ...row.sarees,
+      product: {
+        ...row.products,
         category: row.categories,
         color: row.colors,
         fabric: row.fabrics,
@@ -988,10 +988,10 @@ export class DatabaseStorage implements IStorage {
       .select()
       .from(stockRequests)
       .innerJoin(stores, eq(stockRequests.storeId, stores.id))
-      .innerJoin(sarees, eq(stockRequests.sareeId, sarees.id))
-      .leftJoin(categories, eq(sarees.categoryId, categories.id))
-      .leftJoin(colors, eq(sarees.colorId, colors.id))
-      .leftJoin(fabrics, eq(sarees.fabricId, fabrics.id))
+      .innerJoin(products, eq(stockRequests.productId, products.id))
+      .leftJoin(categories, eq(products.categoryId, categories.id))
+      .leftJoin(colors, eq(products.colorId, colors.id))
+      .leftJoin(fabrics, eq(products.fabricId, fabrics.id))
       .where(eq(stockRequests.id, id))
       .limit(1);
 
@@ -1001,8 +1001,8 @@ export class DatabaseStorage implements IStorage {
     return {
       ...row.stock_requests,
       store: row.stores,
-      saree: {
-        ...row.sarees,
+      product: {
+        ...row.products,
         category: row.categories,
         color: row.colors,
         fabric: row.fabrics,
@@ -1248,15 +1248,15 @@ export class DatabaseStorage implements IStorage {
     totalOnlineCleared: number;
     totalStoreCleared: number;
     onlineMovements: {
-      sareeId: string;
-      sareeName: string;
+      productId: string;
+      productName: string;
       quantity: number;
       orderRefId: string;
       createdAt: Date;
     }[];
     storeMovements: {
-      sareeId: string;
-      sareeName: string;
+      productId: string;
+      productName: string;
       quantity: number;
       orderRefId: string;
       storeId: string | null;
@@ -1284,14 +1284,14 @@ export class DatabaseStorage implements IStorage {
     // Get detailed online movements (sales only, convert negative to positive for display)
     const onlineMovements = await db
       .select({
-        sareeId: stockMovements.sareeId,
-        sareeName: sarees.name,
+        productId: stockMovements.productId,
+        productName: products.name,
         quantity: sql<number>`ABS(${stockMovements.quantity})::int`,
         orderRefId: stockMovements.orderRefId,
         createdAt: stockMovements.createdAt,
       })
       .from(stockMovements)
-      .innerJoin(sarees, eq(stockMovements.sareeId, sarees.id))
+      .innerJoin(products, eq(stockMovements.productId, products.id))
       .where(
         and(
           eq(stockMovements.source, "online"),
@@ -1303,8 +1303,8 @@ export class DatabaseStorage implements IStorage {
     // Get detailed store movements (sales only, convert negative to positive for display)
     const storeMovements = await db
       .select({
-        sareeId: stockMovements.sareeId,
-        sareeName: sarees.name,
+        productId: stockMovements.productId,
+        productName: products.name,
         quantity: sql<number>`ABS(${stockMovements.quantity})::int`,
         orderRefId: stockMovements.orderRefId,
         storeId: stockMovements.storeId,
@@ -1312,7 +1312,7 @@ export class DatabaseStorage implements IStorage {
         createdAt: stockMovements.createdAt,
       })
       .from(stockMovements)
-      .innerJoin(sarees, eq(stockMovements.sareeId, sarees.id))
+      .innerJoin(products, eq(stockMovements.productId, products.id))
       .leftJoin(stores, eq(stockMovements.storeId, stores.id))
       .where(
         and(
@@ -1350,8 +1350,8 @@ export class DatabaseStorage implements IStorage {
         totalStock: sql<number>`COALESCE(SUM(total_stock), 0)::int`,
         onlineStock: sql<number>`COALESCE(SUM(online_stock), 0)::int`,
       })
-      .from(sarees)
-      .where(eq(sarees.isActive, true));
+      .from(products)
+      .where(eq(products.isActive, true));
 
     // Get store inventory total
     const [storeStockTotal] = await db
@@ -1374,19 +1374,19 @@ export class DatabaseStorage implements IStorage {
       .where(eq(stockMovements.source, "store"));
 
     // Get per-product stock breakdown
-    const products = await db
+    const productsData = await db
       .select({
-        id: sarees.id,
-        name: sarees.name,
-        totalStock: sarees.totalStock,
-        onlineStock: sarees.onlineStock,
+        id: products.id,
+        name: products.name,
+        totalStock: products.totalStock,
+        onlineStock: products.onlineStock,
         storeStock: sql<number>`COALESCE((
-          SELECT SUM(quantity) FROM store_inventory WHERE saree_id = ${sarees.id}
+          SELECT SUM(quantity) FROM store_inventory WHERE product_id = ${products.id}
         ), 0)::int`,
       })
-      .from(sarees)
-      .where(eq(sarees.isActive, true))
-      .orderBy(sarees.name);
+      .from(products)
+      .where(eq(products.isActive, true))
+      .orderBy(products.name);
 
     return {
       totalStock: stockTotals?.totalStock || 0,
@@ -1394,13 +1394,13 @@ export class DatabaseStorage implements IStorage {
       storeStock: storeStockTotal?.sum || 0,
       totalOnlineCleared: onlineCleared?.sum || 0,
       totalStoreCleared: storeCleared?.sum || 0,
-      products,
+      products: productsData,
     };
   }
 
   async getStockMovements(filters?: {
     source?: string;
-    sareeId?: string;
+    productId?: string;
     limit?: number;
   }): Promise<StockMovement[]> {
     const conditions = [];
@@ -1410,8 +1410,8 @@ export class DatabaseStorage implements IStorage {
         eq(stockMovements.source, filters.source as "online" | "store"),
       );
     }
-    if (filters?.sareeId) {
-      conditions.push(eq(stockMovements.sareeId, filters.sareeId));
+    if (filters?.productId) {
+      conditions.push(eq(stockMovements.productId, filters.productId));
     }
 
     let query = db
@@ -1428,22 +1428,22 @@ export class DatabaseStorage implements IStorage {
   }
 
   async restoreStockFromReturn(
-    sareeId: string,
+    productId: string,
     quantity: number,
     orderRefId: string,
   ): Promise<void> {
     // Add stock back to total stock and online stock (assuming returns are processed centrally)
     await db
-      .update(sarees)
+      .update(products)
       .set({
-        totalStock: sql`${sarees.totalStock} + ${quantity}`,
-        onlineStock: sql`${sarees.onlineStock} + ${quantity}`,
+        totalStock: sql`${products.totalStock} + ${quantity}`,
+        onlineStock: sql`${products.onlineStock} + ${quantity}`,
       })
-      .where(eq(sarees.id, sareeId));
+      .where(eq(products.id, productId));
 
     // Record stock movement (positive quantity for stock addition)
     await db.insert(stockMovements).values({
-      sareeId,
+      productId,
       quantity, // Positive value to show stock increase
       movementType: "return",
       source: "online", // Assuming central processing
@@ -1473,10 +1473,10 @@ export class DatabaseStorage implements IStorage {
       const returnItemsList = await db
         .select()
         .from(storeExchangeReturnItems)
-        .leftJoin(sarees, eq(storeExchangeReturnItems.sareeId, sarees.id))
-        .leftJoin(categories, eq(sarees.categoryId, categories.id))
-        .leftJoin(colors, eq(sarees.colorId, colors.id))
-        .leftJoin(fabrics, eq(sarees.fabricId, fabrics.id))
+        .leftJoin(products, eq(storeExchangeReturnItems.productId, products.id))
+        .leftJoin(categories, eq(products.categoryId, categories.id))
+        .leftJoin(colors, eq(products.colorId, colors.id))
+        .leftJoin(fabrics, eq(products.fabricId, fabrics.id))
         .where(
           eq(storeExchangeReturnItems.exchangeId, exchange.store_exchanges.id),
         );
@@ -1484,10 +1484,10 @@ export class DatabaseStorage implements IStorage {
       const newItemsList = await db
         .select()
         .from(storeExchangeNewItems)
-        .leftJoin(sarees, eq(storeExchangeNewItems.sareeId, sarees.id))
-        .leftJoin(categories, eq(sarees.categoryId, categories.id))
-        .leftJoin(colors, eq(sarees.colorId, colors.id))
-        .leftJoin(fabrics, eq(sarees.fabricId, fabrics.id))
+        .leftJoin(products, eq(storeExchangeNewItems.productId, products.id))
+        .leftJoin(categories, eq(products.categoryId, categories.id))
+        .leftJoin(colors, eq(products.colorId, colors.id))
+        .leftJoin(fabrics, eq(products.fabricId, fabrics.id))
         .where(
           eq(storeExchangeNewItems.exchangeId, exchange.store_exchanges.id),
         );
@@ -1499,8 +1499,8 @@ export class DatabaseStorage implements IStorage {
         processor: exchange.users!,
         returnItems: returnItemsList.map((item) => ({
           ...item.store_exchange_return_items,
-          saree: {
-            ...item.sarees!,
+          product: {
+            ...item.products!,
             category: item.categories,
             color: item.colors,
             fabric: item.fabrics,
@@ -1508,8 +1508,8 @@ export class DatabaseStorage implements IStorage {
         })),
         newItems: newItemsList.map((item) => ({
           ...item.store_exchange_new_items,
-          saree: {
-            ...item.sarees!,
+          product: {
+            ...item.products!,
             category: item.categories,
             color: item.colors,
             fabric: item.fabrics,

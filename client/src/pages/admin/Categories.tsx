@@ -64,7 +64,7 @@ import type { Category } from "@shared/schema";
 
 const navItems = [
   { icon: LayoutDashboard, label: "Dashboard", href: "/admin/dashboard" },
-  { icon: Package, label: "Sarees", href: "/admin/sarees" },
+  { icon: Package, label: "products", href: "/admin/products" },
   { icon: Tags, label: "Categories", href: "/admin/categories" },
   { icon: Palette, label: "Colors", href: "/admin/colors" },
   { icon: Shirt, label: "Fabrics", href: "/admin/fabrics" },

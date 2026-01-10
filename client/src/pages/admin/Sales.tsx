@@ -37,7 +37,7 @@ import { useAuth } from "@/lib/auth";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
-import type { SaleWithDetails, Category, SareeWithDetails } from "@shared/schema";
+import type { SaleWithDetails, Category, ProductWithDetails } from "@shared/schema";
 
 interface SaleFormData {
   name: string;
@@ -89,8 +89,8 @@ export default function AdminSales() {
     queryKey: ["/api/categories"],
   });
 
-  const { data: sarees } = useQuery<SareeWithDetails[]>({
-    queryKey: ["/api/admin/sarees"],
+  const { data: products } = useQuery<ProductWithDetails[]>({
+    queryKey: ["/api/admin/products"],
     enabled: formData.offerType === "product",
   });
 
@@ -191,7 +191,7 @@ export default function AdminSales() {
       isActive: sale.isActive,
       isFeatured: sale.isFeatured,
       bannerImage: sale.bannerImage || "",
-      productIds: sale.products?.map(p => p.sareeId) || [],
+      productIds: sale.products?.map(p => p.productId) || [],
     });
     setDialogOpen(true);
   };
@@ -473,27 +473,27 @@ export default function AdminSales() {
               <div>
                 <Label>Select Products *</Label>
                 <div className="border rounded-md p-4 max-h-48 overflow-y-auto space-y-2">
-                  {sarees?.map((saree) => (
-                    <label key={saree.id} className="flex items-center gap-2 cursor-pointer">
+                  {products?.map((product) => (
+                    <label key={product.id} className="flex items-center gap-2 cursor-pointer">
                       <input
                         type="checkbox"
-                        checked={formData.productIds.includes(saree.id)}
+                        checked={formData.productIds.includes(product.id)}
                         onChange={(e) => {
                           if (e.target.checked) {
                             setFormData({
                               ...formData,
-                              productIds: [...formData.productIds, saree.id],
+                              productIds: [...formData.productIds, product.id],
                             });
                           } else {
                             setFormData({
                               ...formData,
-                              productIds: formData.productIds.filter((id) => id !== saree.id),
+                              productIds: formData.productIds.filter((id) => id !== product.id),
                             });
                           }
                         }}
                         className="rounded"
                       />
-                      <span className="text-sm">{saree.name}</span>
+                      <span className="text-sm">{product.name}</span>
                     </label>
                   ))}
                 </div>

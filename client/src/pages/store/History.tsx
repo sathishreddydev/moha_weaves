@@ -92,7 +92,7 @@ export default function StoreHistory() {
       const items = sale.items
         .map(
           (item: any) =>
-            `${item.saree.name} (${item.quantity} x ${formatPrice(item.price)})`,
+            `${item.product.name} (${item.quantity} x ${formatPrice(item.price)})`,
         )
         .join("; ");
 
@@ -184,7 +184,7 @@ export default function StoreHistory() {
               >
                 <img
                   src={
-                    item.saree.imageUrl ||
+                    item.product.imageUrl ||
                     "https://images.unsplash.com/photo-1610030469983-98e550d6193c?w=50"
                   }
                   alt=""
@@ -415,7 +415,7 @@ export default function StoreHistory() {
                     >
                       <img
                         src={
-                          item.saree.imageUrl ||
+                          item.product.imageUrl ||
                           "https://images.unsplash.com/photo-1610030469983-98e550d6193c?w=60"
                         }
                         alt=""
@@ -423,15 +423,15 @@ export default function StoreHistory() {
                       />
                       <div className="flex-1">
                         <p className="font-medium text-sm line-clamp-1">
-                          {item.saree.name}
+                          {item.product.name}
                         </p>
                         <p className="text-xs text-muted-foreground">
                           Qty: {item.quantity} x{" "}
-                          {item.saree.activeSale &&
-                          item.saree.discountedPrice ? (
+                          {item.product.activeSale &&
+                          item.product.discountedPrice ? (
                             <span className="flex items-center gap-1">
                               <span>
-                                {formatPrice(item.saree.discountedPrice)}
+                                {formatPrice(item.product.discountedPrice)}
                               </span>
                               <span className="text-xs line-through text-muted-foreground">
                                 {formatPrice(item.price)}
@@ -451,11 +451,11 @@ export default function StoreHistory() {
                         )}
                       </div>
                       <span className="font-medium">
-                        {item.saree.activeSale && item.saree.discountedPrice ? (
+                        {item.product.activeSale && item.product.discountedPrice ? (
                           <div className="flex items-center gap-2">
                             <span>
                               {formatPrice(
-                                item.saree.discountedPrice * item.quantity,
+                                item.product.discountedPrice * item.quantity,
                               )}
                             </span>
                             <span className="text-xs line-through text-muted-foreground">
