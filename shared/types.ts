@@ -10,6 +10,12 @@ export type RefreshToken = typeof tables.refreshTokens.$inferSelect;
 export type InsertRefreshToken = z.infer<typeof schemas.insertRefreshTokenSchema>;
 export type Category = typeof tables.categories.$inferSelect;
 export type InsertCategory = z.infer<typeof schemas.insertCategorySchema>;
+export type Subcategory = typeof tables.subcategories.$inferSelect;
+export type InsertSubcategory = z.infer<typeof schemas.insertSubcategorySchema>;
+
+export type CategoryWithSubcategories = Category & {
+  subcategories?: Subcategory[];
+};
 export type Color = typeof tables.colors.$inferSelect;
 export type InsertColor = z.infer<typeof schemas.insertColorSchema>;
 export type Fabric = typeof tables.fabrics.$inferSelect;

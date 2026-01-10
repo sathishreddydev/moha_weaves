@@ -23,6 +23,14 @@ export const userAddressesRelations = relations(tables.userAddresses, ({ one }) 
 // Category, Color, Fabric relations
 export const categoriesRelations = relations(tables.categories, ({ many }) => ({
   products: many(tables.products),
+  subcategories: many(tables.subcategories),
+}));
+
+export const subcategoriesRelations = relations(tables.subcategories, ({ one }) => ({
+  category: one(tables.categories, {
+    fields: [tables.subcategories.categoryId],
+    references: [tables.categories.id],
+  }),
 }));
 
 export const colorsRelations = relations(tables.colors, ({ many }) => ({

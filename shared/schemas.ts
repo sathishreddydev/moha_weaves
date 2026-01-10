@@ -18,6 +18,10 @@ export const insertCategorySchema = createInsertSchema(tables.categories).omit({
   id: true,
 });
 
+export const insertSubcategorySchema = createInsertSchema(tables.subcategories).omit({
+  id: true,
+});
+
 export const insertColorSchema = createInsertSchema(tables.colors).omit({ id: true });
 
 export const insertFabricSchema = createInsertSchema(tables.fabrics).omit({

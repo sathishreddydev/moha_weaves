@@ -1,11 +1,14 @@
 import {
   Category,
   InsertCategory,
+  Subcategory,
+  InsertSubcategory,
   Color,
   InsertColor,
   Fabric,
   InsertFabric,
   categories,
+  subcategories,
   colors,
   fabrics,
 } from "@shared/schema";
@@ -15,12 +18,23 @@ import { db } from "server/db";
 export interface PublicStorage {
   // Categories
   getCategories(): Promise<Category[]>;
+  getCategoriesWithSubcategories(): Promise<(Category & { subcategories: Subcategory[] })[]>;
   createCategory(category: InsertCategory): Promise<Category>;
   updateCategory(
     id: string,
     data: Partial<InsertCategory>
   ): Promise<Category | undefined>;
   deleteCategory(id: string): Promise<boolean>;
+
+  // Subcategories
+  getSubcategories(): Promise<Subcategory[]>;
+  getSubcategoriesByCategory(categoryId: string): Promise<Subcategory[]>;
+  createSubcategory(subcategory: InsertSubcategory): Promise<Subcategory>;
+  updateSubcategory(
+    id: string,
+    data: Partial<InsertSubcategory>
+  ): Promise<Subcategory | undefined>;
+  deleteSubcategory(id: string): Promise<boolean>;
 
   // Colors
   getColors(): Promise<Color[]>;
@@ -50,7 +64,15 @@ export class PublicRepository implements PublicStorage {
     return db.select().from(categories).where(eq(categories.isActive, true));
   }
 
-
+  async getCategoriesWithSubcategories(): Promise<(Category & { subcategories: Subcategory[] })[]> {
+    const allCategories = await db.select().from(categories).where(eq(categories.isActive, true));
+    const allSubcategories = await db.select().from(subcategories).where(eq(subcategories.isActive, true));
+    
+    return allCategories.map(category => ({
+      ...category,
+      subcategories: allSubcategories.filter(sub => sub.categoryId === category.id)
+    }));
+  }
 
   async createCategory(category: InsertCategory): Promise<Category> {
     const [result] = await db.insert(categories).values(category).returning();
@@ -74,6 +96,43 @@ export class PublicRepository implements PublicStorage {
       .update(categories)
       .set({ isActive: false })
       .where(eq(categories.id, id))
+      .returning();
+    return !!result;
+  }
+
+  // Subcategories
+  async getSubcategories(): Promise<Subcategory[]> {
+    return db.select().from(subcategories).where(eq(subcategories.isActive, true));
+  }
+
+  async getSubcategoriesByCategory(categoryId: string): Promise<Subcategory[]> {
+    return db.select().from(subcategories).where(
+      eq(subcategories.categoryId, categoryId)
+    );
+  }
+
+  async createSubcategory(subcategory: InsertSubcategory): Promise<Subcategory> {
+    const [result] = await db.insert(subcategories).values(subcategory).returning();
+    return result;
+  }
+
+  async updateSubcategory(
+    id: string,
+    data: Partial<InsertSubcategory>
+  ): Promise<Subcategory | undefined> {
+    const [result] = await db
+      .update(subcategories)
+      .set(data)
+      .where(eq(subcategories.id, id))
+      .returning();
+    return result || undefined;
+  }
+
+  async deleteSubcategory(id: string): Promise<boolean> {
+    const [result] = await db
+      .update(subcategories)
+      .set({ isActive: false })
+      .where(eq(subcategories.id, id))
       .returning();
     return !!result;
   }

@@ -8,6 +8,13 @@
       "when": 1768034593453,
       "tag": "0000_marvelous_golden_guardian",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1768046813882,
+      "tag": "0001_unknown_giant_girl",
+      "breakpoints": true
     }
   ]
 }

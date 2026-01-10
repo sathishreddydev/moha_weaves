@@ -50,6 +50,20 @@ export const categories = pgTable("categories", {
   isActive: boolean("is_active").notNull().default(true),
 });
 
+// Subcategories for products
+export const subcategories = pgTable("subcategories", {
+  id: varchar("id")
+    .primaryKey()
+    .default(sql`gen_random_uuid()`),
+  name: text("name").notNull(),
+  description: text("description"),
+  imageUrl: text("image_url"),
+  isActive: boolean("is_active").notNull().default(true),
+  categoryId: varchar("category_id")
+    .references(() => categories.id)
+    .notNull(),
+});
+
 // Colors
 export const colors = pgTable("colors", {
   id: varchar("id")

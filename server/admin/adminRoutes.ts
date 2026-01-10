@@ -205,10 +205,49 @@ export const adminRoutes = (app: Express) => {
   });
 
   // Admin category management
+  app.get("/api/admin/categories", authAdmin, async (req, res) => {
+    try {
+      const { includeSubcategories } = req.query;
+      
+      if (includeSubcategories === 'true') {
+        const categoriesWithSubs = await publicStorage.getCategoriesWithSubcategories();
+        res.json(categoriesWithSubs);
+      } else {
+        const categories = await publicStorage.getCategories();
+        res.json(categories);
+      }
+    } catch (error) {
+      console.error("Error fetching categories:", error);
+      res.status(500).json({ message: "Failed to fetch categories" });
+    }
+  });
+
   app.post("/api/admin/categories", authAdmin, async (req, res) => {
     try {
-      const category = await publicStorage.createCategory(req.body);
-      res.json(category);
+      const { subcategories, ...categoryData } = req.body;
+      
+      // Create the category first
+      const category = await publicStorage.createCategory(categoryData);
+      
+      // If subcategories are provided, create them
+      if (subcategories && Array.isArray(subcategories) && subcategories.length > 0) {
+        const createdSubcategories = await Promise.all(
+          subcategories.map(sub => 
+            publicStorage.createSubcategory({
+              ...sub,
+              categoryId: category.id
+            })
+          )
+        );
+        
+        // Return category with subcategories
+        res.json({
+          ...category,
+          subcategories: createdSubcategories
+        });
+      } else {
+        res.json(category);
+      }
     } catch (error) {
       res.status(500).json({ message: "Failed to create category" });
     }
@@ -232,6 +271,55 @@ export const adminRoutes = (app: Express) => {
       res.json({ success: true });
     } catch (error) {
       res.status(500).json({ message: "Failed to delete category" });
+    }
+  });
+
+  // Admin subcategory management
+  app.get("/api/admin/subcategories", authAdmin, async (req, res) => {
+    try {
+      const { categoryId } = req.query;
+      let subcategories;
+      if (categoryId) {
+        subcategories = await publicStorage.getSubcategoriesByCategory(categoryId as string);
+      } else {
+        subcategories = await publicStorage.getSubcategories();
+      }
+      res.json(subcategories);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch subcategories" });
+    }
+  });
+
+  app.post("/api/admin/subcategories", authAdmin, async (req, res) => {
+    try {
+      const subcategory = await publicStorage.createSubcategory(req.body);
+      res.json(subcategory);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to create subcategory" });
+    }
+  });
+
+  app.patch("/api/admin/subcategories/:id", authAdmin, async (req, res) => {
+    try {
+      const subcategory = await publicStorage.updateSubcategory(
+        req.params.id,
+        req.body
+      );
+      if (!subcategory) {
+        return res.status(404).json({ message: "Subcategory not found" });
+      }
+      res.json(subcategory);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to update subcategory" });
+    }
+  });
+
+  app.delete("/api/admin/subcategories/:id", authAdmin, async (req, res) => {
+    try {
+      await publicStorage.deleteSubcategory(req.params.id);
+      res.json({ success: true });
+    } catch (error) {
+      res.status(500).json({ message: "Failed to delete subcategory" });
     }
   });
 
