@@ -34,8 +34,6 @@ export default function StoreExchangeHistory() {
     isLoading,
     isFetching,
     handlePaginationChange,
-    handleSearchChange,
-    handleDateFilterChange,
     refetch,
   } = useDataTable<StoreExchangeWithDetails>({
     queryKey: "/api/store/store-exchanges",
@@ -338,11 +336,8 @@ export default function StoreExchangeHistory() {
           pageIndex={pageIndex}
           pageSize={pageSize}
           onPaginationChange={handlePaginationChange}
-          onSearchChange={handleSearchChange}
-          onDateFilterChange={handleDateFilterChange}
           isLoading={isLoading}
           searchPlaceholder="Search by exchange ID..."
-          dateFilter={{ key: "date", label: "Filter by date" }}
           emptyMessage="No exchange history yet"
           accordion={true}
           accordionContent={renderAccordionContent}

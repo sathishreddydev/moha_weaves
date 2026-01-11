@@ -14,7 +14,7 @@ import { useAuth } from "@/lib/auth";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
-import { DataTable, FilterConfig } from "@/components/DataTable/DataTable";
+import { DataTable } from "@/components/DataTable/DataTable";
 import { useDataTable } from "@/hooks/use-data-table";
 import { ColumnDef } from "@tanstack/react-table";
 import type { OrderWithItems } from "@shared/schema";
@@ -99,9 +99,6 @@ export default function AdminOrders() {
     pageSize,
     isLoading,
     handlePaginationChange,
-    handleSearchChange,
-    handleFiltersChange,
-    handleDateFilterChange,
     refetch,
   } = useDataTable<OrderWithItems>({
     queryKey: "/api/admin/orders",
@@ -237,16 +234,6 @@ export default function AdminOrders() {
     [updateStatusMutation]
   );
 
-  const filters: FilterConfig[] = [
-    {
-      key: "status",
-      label: "Status",
-      options: orderStatuses.map((status) => ({
-        label: status.charAt(0).toUpperCase() + status.slice(1),
-        value: status,
-      })),
-    },
-  ];
 
   return (
     <div className="max-w-7xl mx-auto">
@@ -268,13 +255,8 @@ export default function AdminOrders() {
             pageIndex={pageIndex}
             pageSize={pageSize}
             onPaginationChange={handlePaginationChange}
-            onSearchChange={handleSearchChange}
-            onFiltersChange={handleFiltersChange}
-            onDateFilterChange={handleDateFilterChange}
             isLoading={isLoading}
             searchPlaceholder="Search orders..."
-            filters={filters}
-            dateFilter={{ key: "date", label: "Filter by date" }}
             emptyMessage="No orders found"
           />
         </CardContent>

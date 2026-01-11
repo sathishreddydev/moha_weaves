@@ -11,7 +11,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { useQuery } from "@tanstack/react-query";
-import { DataTable, FilterConfig } from "@/components/DataTable/DataTable";
+import { DataTable } from "@/components/DataTable/DataTable";
 import { useDataTable } from "@/hooks/use-data-table";
 import { ColumnDef } from "@tanstack/react-table";
 import type { ProductWithDetails, Category } from "@shared/schema";
@@ -42,9 +42,6 @@ export default function AdminProducts() {
     pageSize,
     isLoading,
     handlePaginationChange,
-    handleSearchChange,
-    handleFiltersChange,
-    handleDateFilterChange,
   } = useDataTable<ProductWithDetails>({
     queryKey: "/api/admin/products",
     initialPageSize: 10,
@@ -159,27 +156,6 @@ export default function AdminProducts() {
     []
   );
 
-  const filters: FilterConfig[] = useMemo(
-    () => [
-      {
-        key: "category",
-        label: "Category",
-        options: (categories || []).map((cat) => ({
-          label: cat.name,
-          value: cat.id,
-        })),
-      },
-      {
-        key: "status",
-        label: "Status",
-        options: [
-          { label: "Active", value: "active" },
-          { label: "Inactive", value: "inactive" },
-        ],
-      },
-    ],
-    [categories]
-  );
 
   return (
     <div>
@@ -207,13 +183,8 @@ export default function AdminProducts() {
               pageIndex={pageIndex}
               pageSize={pageSize}
               onPaginationChange={handlePaginationChange}
-              onSearchChange={handleSearchChange}
-              onFiltersChange={handleFiltersChange}
-              onDateFilterChange={handleDateFilterChange}
               isLoading={isLoading}
               searchPlaceholder="Search products..."
-              filters={filters}
-              dateFilter={{ key: "date", label: "Filter by date" }}
               emptyMessage="No products found"
             />
           </CardContent>

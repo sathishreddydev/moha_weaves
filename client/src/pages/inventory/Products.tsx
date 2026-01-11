@@ -41,7 +41,7 @@ import { useAuth } from "@/lib/auth";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
-import { DataTable, FilterConfig } from "@/components/DataTable/DataTable";
+import { DataTable } from "@/components/DataTable/DataTable";
 import { useDataTable } from "@/hooks/use-data-table";
 import { ColumnDef } from "@tanstack/react-table";
 import { CloudinaryUploader } from "@/components/CloudinaryUploader";
@@ -148,9 +148,6 @@ export default function InventoryProducts() {
     pageSize,
     isLoading,
     handlePaginationChange,
-    handleSearchChange,
-    handleFiltersChange,
-    handleDateFilterChange,
     refetch,
   } = useDataTable<ProductWithDetails>({
     queryKey: "/api/inventory/products",
@@ -755,44 +752,6 @@ export default function InventoryProducts() {
     [selectedRows, products]
   );
 
-  const filters: FilterConfig[] = useMemo(
-    () => [
-      {
-        key: "category",
-        label: "Category",
-        options: (categories || []).map((cat: Category & { subcategories: Subcategory[] }) => ({
-          label: cat.name,
-          value: cat.id,
-        })),
-      },
-      {
-        key: "color",
-        label: "Color",
-        options: (colors || []).map((col: Color) => ({
-          label: col.name,
-          value: col.id,
-        })),
-      },
-      {
-        key: "fabric",
-        label: "Fabric",
-        options: (fabrics || []).map((fab: Fabric) => ({
-          label: fab.name,
-          value: fab.id,
-        })),
-      },
-      // {
-      //   key: "status",
-      //   label: "Status",
-      //   options: [
-      //     { label: "Active", value: "active" },
-      //     { label: "Inactive", value: "inactive" },
-      //   ],
-      // },
-    ],
-    [categories, colors, fabrics]
-  );
-
   return (
     <div>
       <div className="max-w-7xl mx-auto">
@@ -853,13 +812,8 @@ export default function InventoryProducts() {
               pageIndex={pageIndex}
               pageSize={pageSize}
               onPaginationChange={handlePaginationChange}
-              onSearchChange={handleSearchChange}
-              onFiltersChange={handleFiltersChange}
-              onDateFilterChange={handleDateFilterChange}
               isLoading={isLoading}
               searchPlaceholder="Search products..."
-              filters={filters}
-              dateFilter={{ key: "date", label: "Filter by date" }}
               emptyMessage="No products found"
             />
           </CardContent>

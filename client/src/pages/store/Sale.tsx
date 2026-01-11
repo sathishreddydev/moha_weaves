@@ -98,8 +98,6 @@ export default function StoreSale() {
     isLoading: tableLoading,
     isFetching,
     handlePaginationChange,
-    handleSearchChange,
-    handleFiltersChange,
     refetch,
   } = useDataTable<ShopProduct>({
     queryKey: "/api/store/products/paginated",
@@ -347,36 +345,6 @@ export default function StoreSale() {
     },
   ];
 
-  // Prepare filter configurations
-  const filterConfigs = [
-    {
-      key: "categoryId",
-      label: "Category",
-      options:
-        filterOptions?.categories?.map((cat) => ({
-          label: cat.name,
-          value: cat.id,
-        })) || [],
-    },
-    {
-      key: "colorId",
-      label: "Color",
-      options:
-        filterOptions?.colors?.map((color) => ({
-          label: color.name,
-          value: color.id,
-        })) || [],
-    },
-    {
-      key: "fabricId",
-      label: "Fabric",
-      options:
-        filterOptions?.fabrics?.map((fabric) => ({
-          label: fabric.name,
-          value: fabric.id,
-        })) || [],
-    },
-  ];
 
   return (
     <div className="max-w-7xl mx-auto">
@@ -431,11 +399,8 @@ export default function StoreSale() {
           pageSize={pageSize}
           pageIndex={pageIndex}
           onPaginationChange={handlePaginationChange}
-          onSearchChange={handleSearchChange}
-          onFiltersChange={handleFiltersChange}
           isLoading={displayLoading}
           searchPlaceholder="Search products..."
-          filters={filterConfigs}
           emptyMessage="No products in stock"
         />
       </div>

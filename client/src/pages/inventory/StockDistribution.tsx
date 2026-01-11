@@ -10,7 +10,7 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useAuth } from "@/lib/auth";
 import { useQuery } from "@tanstack/react-query";
-import { DataTable, FilterConfig } from "@/components/DataTable/DataTable";
+import { DataTable } from "@/components/DataTable/DataTable";
 import { useDataTable } from "@/hooks/use-data-table";
 import { ColumnDef } from "@tanstack/react-table";
 import type { ProductWithDetails, Store as StoreType, Category } from "@shared/schema";
@@ -50,9 +50,6 @@ export default function StockDistribution() {
     pageSize,
     isLoading,
     handlePaginationChange,
-    handleSearchChange,
-    handleFiltersChange,
-    handleDateFilterChange,
     refetch,
   } = useDataTable<ProductWithDetails>({
     queryKey: "/api/inventory/products",
@@ -220,27 +217,6 @@ export default function StockDistribution() {
   const totalUnallocated =
     distributionData?.reduce((sum, item) => sum + item.unallocated, 0) || 0;
 
-  const filters: FilterConfig[] = useMemo(
-    () => [
-      {
-        key: "category",
-        label: "Category",
-        options: (categories || []).map((cat) => ({
-          label: cat.name,
-          value: cat.id,
-        })),
-      },
-      {
-        key: "status",
-        label: "Status",
-        options: [
-          { label: "Active", value: "active" },
-          { label: "Inactive", value: "inactive" },
-        ],
-      },
-    ],
-    [categories]
-  );
 
   return (
     <div className="max-w-full mx-auto">
@@ -352,12 +328,8 @@ export default function StockDistribution() {
             pageIndex={pageIndex}
             pageSize={pageSize}
             onPaginationChange={handlePaginationChange}
-            onSearchChange={handleSearchChange}
-            onFiltersChange={handleFiltersChange}
-            onDateFilterChange={handleDateFilterChange}
             isLoading={isLoading || isLoadingAllocations}
             searchPlaceholder="Search by name or SKU..."
-            filters={filters}
             emptyMessage="No products found"
           />
         </CardContent>

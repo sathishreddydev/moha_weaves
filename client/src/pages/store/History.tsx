@@ -55,8 +55,6 @@ export default function StoreHistory() {
     isLoading,
     isFetching,
     handlePaginationChange,
-    handleSearchChange,
-    handleDateFilterChange,
     refetch,
   } = useDataTable<StoreSaleWithItems>({
     queryKey: "/api/store/sales/paginated",
@@ -365,11 +363,8 @@ export default function StoreHistory() {
           pageIndex={pageIndex}
           pageSize={pageSize}
           onPaginationChange={handlePaginationChange}
-          onSearchChange={handleSearchChange}
-          onDateFilterChange={handleDateFilterChange}
           isLoading={isLoading}
           searchPlaceholder="Search by sale ID..."
-          dateFilter={{ key: "date", label: "Filter by date" }}
           emptyMessage="No sales history yet"
         />
       </div>

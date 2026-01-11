@@ -1,11 +1,11 @@
 import { useMemo } from "react";
 import { useNavigate } from "react-router-dom";
-import { Package, Store as StoreIcon, ShoppingBag } from "lucide-react";
+import { Store as StoreIcon } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/lib/auth";
 import { useQuery } from "@tanstack/react-query";
-import { DataTable, FilterConfig } from "@/components/DataTable/DataTable";
+import { DataTable } from "@/components/DataTable/DataTable";
 import { useDataTable } from "@/hooks/use-data-table";
 import { ColumnDef } from "@tanstack/react-table";
 import type { StoreSaleWithItems, Store } from "@shared/schema";
@@ -44,27 +44,10 @@ export default function InventoryStoreOrders() {
     pageSize,
     isLoading,
     handlePaginationChange,
-    handleSearchChange,
-    handleFiltersChange,
-    handleDateFilterChange,
   } = useDataTable<StoreSaleWithItems>({
     queryKey: "/api/inventory/store-sales",
     initialPageSize: 10,
   });
-
-  const filters: FilterConfig[] = useMemo(
-    () => [
-      {
-        key: "storeId",
-        label: "Store",
-        options: (stores || []).map((store) => ({
-          label: store.name,
-          value: store.id,
-        })),
-      },
-    ],
-    [stores]
-  );
 
   const columns: ColumnDef<StoreSaleWithItems>[] = useMemo(
     () => [
@@ -169,13 +152,8 @@ export default function InventoryStoreOrders() {
               pageIndex={pageIndex}
               pageSize={pageSize}
               onPaginationChange={handlePaginationChange}
-              onSearchChange={handleSearchChange}
-              onFiltersChange={handleFiltersChange}
-              onDateFilterChange={handleDateFilterChange}
               isLoading={isLoading}
               searchPlaceholder="Search by sale ID..."
-              filters={filters}
-              dateFilter={{ key: "date", label: "Filter by date" }}
               emptyMessage="No store sales found"
             />
           </CardContent>

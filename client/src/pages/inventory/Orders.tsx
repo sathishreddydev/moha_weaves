@@ -12,7 +12,7 @@ import { useAuth } from "@/lib/auth";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
-import { DataTable, FilterConfig } from "@/components/DataTable/DataTable";
+import { DataTable } from "@/components/DataTable/DataTable";
 import { useDataTable } from "@/hooks/use-data-table";
 import type { OrderWithItems } from "@shared/schema";
 import { itemStatusConfig } from "@/constants/itemStatusConfig";
@@ -87,9 +87,6 @@ export default function InventoryOrders() {
     pageSize,
     isLoading,
     handlePaginationChange,
-    handleSearchChange,
-    handleFiltersChange,
-    handleDateFilterChange,
     refetch,
   } = useDataTable<OrderWithItems>({
     queryKey: "/api/inventory/orders",
@@ -309,17 +306,6 @@ export default function InventoryOrders() {
     </div>
   );
 
-  const filters: FilterConfig[] = [
-    {
-      key: "status",
-      label: "Item Status",
-      options: itemStatuses.map(status => ({
-        value: status,
-        label: itemStatusConfig[status]?.label || status,
-      })),
-    },
-  ];
-
   return (
     <div className="min-h-screen bg-slate-50 p-4 md:p-8 font-sans text-slate-900">
       <div className="max-w-6xl mx-auto">
@@ -330,12 +316,8 @@ export default function InventoryOrders() {
           pageSize={pageSize}
           pageIndex={pageIndex}
           onPaginationChange={handlePaginationChange}
-          onSearchChange={handleSearchChange}
-          onFiltersChange={handleFiltersChange}
-          onDateFilterChange={handleDateFilterChange}
           isLoading={isLoading}
           searchPlaceholder="Search by Order ID or Customer..."
-          filters={filters}
           emptyMessage="No orders found"
           accordion={true}
           accordionContent={accordionContent}

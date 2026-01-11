@@ -14,7 +14,7 @@ import { useAuth } from "@/lib/auth";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
-import { DataTable, FilterConfig } from "@/components/DataTable/DataTable";
+import { DataTable } from "@/components/DataTable/DataTable";
 import { useDataTable } from "@/hooks/use-data-table";
 import type { ReturnRequestWithDetails } from "@shared/schema";
 import { itemStatusConfig } from "@/constants/itemStatusConfig";
@@ -116,9 +116,6 @@ export default function InventoryReturns() {
     pageSize,
     isLoading,
     handlePaginationChange,
-    handleSearchChange,
-    handleFiltersChange,
-    handleDateFilterChange,
     refetch,
   } = useDataTable<ReturnRequestWithDetails>({
     queryKey: "/api/inventory/returns",
@@ -389,24 +386,6 @@ export default function InventoryReturns() {
     </div>
   );
 
-  const filters: FilterConfig[] = [
-    {
-      key: "status",
-      label: "Return Status",
-      options: returnStatuses.map(status => ({
-        value: status,
-        label: itemStatusConfig[status]?.label || status,
-      })),
-    },
-    {
-      key: "resolution",
-      label: "Resolution Type",
-      options: [
-        { value: "refund", label: "Refund" },
-        { value: "exchange", label: "Exchange" },
-      ],
-    },
-  ];
 
   return (
     <div className="min-h-screen bg-slate-50 p-4 md:p-8 font-sans text-slate-900">
@@ -431,12 +410,8 @@ export default function InventoryReturns() {
           pageSize={pageSize}
           pageIndex={pageIndex}
           onPaginationChange={handlePaginationChange}
-          onSearchChange={handleSearchChange}
-          onFiltersChange={handleFiltersChange}
-          onDateFilterChange={handleDateFilterChange}
           isLoading={isLoading}
           searchPlaceholder="Search by Return ID, Customer, or Order..."
-          filters={filters}
           emptyMessage="No return requests found"
           accordion={true}
           accordionContent={accordionContent}

@@ -15,7 +15,7 @@ import { useAuth } from "@/lib/auth";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
-import { DataTable, FilterConfig } from "@/components/DataTable/DataTable";
+import { DataTable } from "@/components/DataTable/DataTable";
 import { useDataTable } from "@/hooks/use-data-table";
 import type { OnlineExchangeWithDetails } from "@shared/schema";
 import { itemStatusConfig } from "@/constants/itemStatusConfig";
@@ -125,9 +125,6 @@ export default function InventoryExchanges() {
     pageSize,
     isLoading,
     handlePaginationChange,
-    handleSearchChange,
-    handleFiltersChange,
-    handleDateFilterChange,
     refetch,
   } = useDataTable<OnlineExchangeWithDetails>({
     queryKey: "/api/inventory/online-exchanges",
@@ -406,31 +403,6 @@ export default function InventoryExchanges() {
     </div>
   );
 
-  const filters: FilterConfig[] = [
-    {
-      key: "status",
-      label: "Exchange Status",
-      options: exchangeStatuses.map(status => ({
-        value: status,
-        label: itemStatusConfig[status]?.label || status,
-      })),
-    },
-    {
-      key: "reason",
-      label: "Exchange Reason",
-      options: [
-        { value: "defective", label: "Defective" },
-        { value: "wrong_item", label: "Wrong Item" },
-        { value: "not_as_described", label: "Not as Described" },
-        { value: "size_issue", label: "Size Issue" },
-        { value: "color_mismatch", label: "Color Mismatch" },
-        { value: "damaged_in_shipping", label: "Damaged in Shipping" },
-        { value: "changed_mind", label: "Changed Mind" },
-        { value: "quality_issue", label: "Quality Issue" },
-        { value: "other", label: "Other" },
-      ],
-    },
-  ];
   return (
     <div className="min-h-screen bg-slate-50 p-4 md:p-8 font-sans text-slate-900">
       <div className="max-w-6xl mx-auto">
@@ -454,12 +426,8 @@ export default function InventoryExchanges() {
           pageSize={pageSize}
           pageIndex={pageIndex}
           onPaginationChange={handlePaginationChange}
-          onSearchChange={handleSearchChange}
-          onFiltersChange={handleFiltersChange}
-          onDateFilterChange={handleDateFilterChange}
           isLoading={isLoading}
           searchPlaceholder="Search by Exchange ID, Customer, or Order..."
-          filters={filters}
           emptyMessage="No exchange requests found"
           accordion={true}
           accordionContent={accordionContent}

@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { DataTable, FilterConfig } from "@/components/DataTable/DataTable";
+import { DataTable } from "@/components/DataTable/DataTable";
 import { useDataTable } from "@/hooks/use-data-table";
 import { ColumnDef } from "@tanstack/react-table";
 import { useAuth } from "@/lib/auth";
@@ -59,9 +59,6 @@ export default function StoreRequests() {
     isLoading,
     isFetching,
     handlePaginationChange,
-    handleSearchChange,
-    handleFiltersChange,
-    handleDateFilterChange,
     refetch,
   } = useDataTable<StockRequestWithDetails>({
     queryKey: "/api/store/requests",
@@ -196,19 +193,6 @@ export default function StoreRequests() {
     },
   ];
 
-  const filters: FilterConfig[] = [
-    {
-      key: "status",
-      label: "Status",
-      options: [
-        { value: "pending", label: "Pending" },
-        { value: "approved", label: "Approved" },
-        { value: "rejected", label: "Rejected" },
-        { value: "dispatched", label: "Dispatched" },
-        { value: "received", label: "Received" },
-      ],
-    },
-  ];
 
   return (
     <div>
@@ -237,11 +221,7 @@ export default function StoreRequests() {
               pageSize={pageSize}
               isLoading={isLoading}
               onPaginationChange={handlePaginationChange}
-              onSearchChange={handleSearchChange}
-              onFiltersChange={handleFiltersChange}
-              onDateFilterChange={handleDateFilterChange}
               searchPlaceholder="Search requests..."
-              filters={filters}
               emptyMessage="No stock requests found"
             />
           </CardContent>
