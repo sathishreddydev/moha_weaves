@@ -53,16 +53,6 @@ export default function InventoryDashboard() {
     enabled: isInventoryUser,
   });
 
-  const updateDistributionMutation = useMutation({
-    mutationFn: ({ productId, channel }: { productId: string; channel: string }) =>
-      apiRequest("PATCH", `/api/inventory/products/${productId}/distribution`, {
-        channel,
-      }),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/inventory"] });
-      toast({ title: "Updated", description: "Distribution channel updated." });
-    },
-  });
 
   return (
     <div className="max-w-7xl mx-auto">

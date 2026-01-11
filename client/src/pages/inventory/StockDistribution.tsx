@@ -52,7 +52,7 @@ export default function StockDistribution() {
     handlePaginationChange,
     refetch,
   } = useDataTable<ProductWithDetails>({
-    queryKey: "/api/inventory/products",
+    queryKey: "/api/inventory/getProducts",
     initialPageSize: 10,
   });
 

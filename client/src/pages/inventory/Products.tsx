@@ -150,7 +150,7 @@ export default function InventoryProducts() {
     handlePaginationChange,
     refetch,
   } = useDataTable<ProductWithDetails>({
-    queryKey: "/api/inventory/products",
+    queryKey: "/api/inventory/getProducts",
     initialPageSize: 10,
   });
 

@@ -220,6 +220,19 @@ export const inventoryRoutes = (app: Express) => {
     },
   );
 
+  app.get("/api/inventory/orders", authInventory, async (req, res) => {
+    try {
+      const { status, limit } = req.query;
+      const orders = await storage.getAllOrders({ 
+        status: status as string,
+        limit: limit ? parseInt(limit as string) : undefined
+      });
+      res.json(orders);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch orders" });
+    }
+  });
+
   app.post("/api/inventory/orders", authInventory, async (req, res) => {
     try {
       const { page, pageSize } = req.query;
@@ -321,7 +334,7 @@ export const inventoryRoutes = (app: Express) => {
   );
 
   // Inventory product management (moved from admin)
-  app.post("/api/inventory/products", authInventory, async (req, res) => {
+  app.post("/api/inventory/getProducts", authInventory, async (req, res) => {
     try {
       const { page, pageSize } = req.query;
       const {
