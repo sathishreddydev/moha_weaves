@@ -114,43 +114,50 @@ export const storeRoutes = (app: Express) => {
     }
   });
 
-  app.get("/api/store/products/paginated", authStore, async (req, res) => {
+  app.post("/api/store/products/paginated", authStore, async (req, res) => {
     try {
       const user = (req as any).user;
       if (!user.storeId) {
         return res.status(400).json({ message: "No store assigned" });
       }
 
-      const params = parsePaginationParams(req.query);
-      const offset = getOffset(params.page, params.pageSize);
+      const { page = "1", pageSize = "10" } = req.query;
+      const limit = Number(pageSize);
+      const offset = (Number(page) - 1) * limit;
 
+      const {
+        search,
+        categoryIds,
+        colorIds,
+        fabricIds,
+        dateFrom,
+        dateTo,
+      } = req.body;
+  console.log(req.body)
       const result = await storeProductsStorage.getShopProductsPaginated(
         user.storeId,
         {
-          limit: params.pageSize,
+          limit,
           offset,
-          search: params.search,
-          categoryId: req.query.categoryId as string,
-          subcategoryId: req.query.subcategoryId as string,
-          colorId: req.query.colorId as string,
-          fabricId: req.query.fabricId as string,
-          dateFrom: params.dateFrom,
-          dateTo: params.dateTo,
+          search,
+          categoryIds,
+          colorIds,
+          fabricIds,
+          dateFrom,
+          dateTo,
         },
       );
 
-      const response = {
+      res.json({
         totalProducts: result.totalProducts,
         inStockProducts: result.inStockProducts,
         outOfStockProducts: result.outOfStockProducts,
         data: result.data,
         total: result.total,
-        page: params.page,
-        pageSize: params.pageSize,
-        totalPages: Math.ceil(result.total / params.pageSize),
-      };
-
-      res.json(response);
+        page: Number(page),
+        pageSize: limit,
+        totalPages: Math.ceil(result.total / limit),
+      });
     } catch (error) {
       console.error("Error fetching paginated products:", error);
       res.status(500).json({

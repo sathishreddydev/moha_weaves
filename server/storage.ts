@@ -110,10 +110,9 @@ export interface IStorage {
     page: number;
     pageSize: number;
     search?: string;
-    category?: string;
-    subcategory?: string;
-    color?: string;
-    fabric?: string;
+    categoriesFilters?: { id: string; subcategories?: { id: string }[] }[];
+    colorsFilters?: { id: string }[];
+    fabricsFilters?: { id: string }[];
     status?: string;
     dateFrom?: string;
     dateTo?: string;
@@ -474,10 +473,9 @@ export class DatabaseStorage implements IStorage {
     page: number;
     pageSize: number;
     search?: string;
-    category?: string;
-    subcategory?: string;
-    color?: string;
-    fabric?: string;
+    categoriesFilters?: { id: string; subcategories?: { id: string }[] }[];
+    colorsFilters?: { id: string }[];
+    fabricsFilters?: { id: string }[];
     status?: string;
     dateFrom?: string;
     dateTo?: string;
@@ -492,10 +490,9 @@ export class DatabaseStorage implements IStorage {
       page,
       pageSize,
       search,
-      category,
-      subcategory,
-      color,
-      fabric,
+      categoriesFilters,
+      colorsFilters,
+      fabricsFilters,
       status,
       dateFrom,
       dateTo,
@@ -504,25 +501,36 @@ export class DatabaseStorage implements IStorage {
 
     const conditions: any[] = [];
 
-    // Don't filter by isActive by default to allow both active/inactive filtering
     if (status !== "inactive") {
       conditions.push(eq(products.isActive, true));
     }
 
-    if (category) {
-      conditions.push(eq(products.categoryId, category));
+    if (categoriesFilters && categoriesFilters.length > 0) {
+      const categoryConditions: any[] = [];
+      for (const category of categoriesFilters) {
+        if (category.subcategories && category.subcategories.length > 0) {
+          const subcategoryIds = category.subcategories.map(sub => sub.id);
+          categoryConditions.push(
+            or(
+              eq(products.categoryId, category.id),
+              inArray(products.subcategoryId, subcategoryIds)
+            )
+          );
+        } else {
+          categoryConditions.push(eq(products.categoryId, category.id));
+        }
+      }
+      conditions.push(or(...categoryConditions));
     }
 
-    if (subcategory) {
-      conditions.push(eq(products.subcategoryId, subcategory));
+    if (colorsFilters && colorsFilters.length > 0) {
+      const colorIds = colorsFilters.map((color: any) => color.id);
+      conditions.push(inArray(products.colorId, colorIds));
     }
 
-    if (color) {
-      conditions.push(eq(products.colorId, color));
-    }
-
-    if (fabric) {
-      conditions.push(eq(products.fabricId, fabric));
+    if (fabricsFilters && fabricsFilters.length > 0) {
+      const fabricIds = fabricsFilters.map((fabric: any) => fabric.id);
+      conditions.push(inArray(products.fabricId, fabricIds));
     }
 
     if (status === "active") {
@@ -572,7 +580,6 @@ export class DatabaseStorage implements IStorage {
 
     const productList = await Promise.all(
       result.map(async (row) => {
-        // Get store allocations for this product
         const allocations = await db
           .select({
             storeId: storeInventory.storeId,
@@ -581,7 +588,6 @@ export class DatabaseStorage implements IStorage {
           .from(storeInventory)
           .where(eq(storeInventory.productId, row.products.id));
 
-        // Get store details for each allocation
         const storeAllocations = await Promise.all(
           allocations.map(async (alloc) => {
             const [store] = await db
@@ -596,7 +602,6 @@ export class DatabaseStorage implements IStorage {
           }),
         );
 
-        // Calculate unallocated stock
         const totalStoreStock = storeAllocations.reduce(
           (sum, alloc) => sum + alloc.quantity,
           0,

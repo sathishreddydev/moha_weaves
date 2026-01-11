@@ -323,32 +323,30 @@ export const inventoryRoutes = (app: Express) => {
   // Inventory product management (moved from admin)
   app.get("/api/inventory/products", authInventory, async (req, res) => {
     try {
+      const { page, pageSize } = req.query;
       const {
-        page,
-        pageSize,
         search,
-        category,
-        subcategory,
-        color,
-        fabric,
         status,
         dateFrom,
         dateTo,
-      } = req.query;
+        categoriesFilters,
+        colorsFilters,
+        fabricsFilters,
+      } = req.body;
 
       if (page && pageSize) {
         const params = parsePaginationParams(req.query);
+        
         const result = await storage.getProductsPaginated({
           page: params.page,
           pageSize: params.pageSize,
-          search: search as string,
-          category: category as string,
-          subcategory: subcategory as string,
-          color: color as string,
-          fabric: fabric as string,
-          status: status as string,
-          dateFrom: dateFrom as string,
-          dateTo: dateTo as string,
+          search,
+          categoriesFilters,
+          colorsFilters,
+          fabricsFilters,
+          status,
+          dateFrom,
+          dateTo,
         });
         return res.json(result);
       }

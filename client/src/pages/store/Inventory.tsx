@@ -4,12 +4,20 @@ import { Package, Globe, Store, ArrowLeftRight, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { DataTable, FilterConfig } from "@/components/ui/data-table";
+import { DataTable } from "@/components/ui/data-table";
 import { useDataTable } from "@/hooks/use-data-table";
 import { ColumnDef } from "@tanstack/react-table";
-import type { ProductWithDetails, StockRequestWithDetails } from "@shared/schema";
+import type {
+  ProductWithDetails,
+  StockRequestWithDetails,
+} from "@shared/schema";
 import { RequestDialog } from "./Utils/RequestDialog";
 import { useFilterStore } from "@/components/Store/useFilterStore";
+import {
+  NestedMultiSelectTree,
+} from "@/components/ui/NestedMultiSelect";
+import { TreeNode } from "@/lib/type";
+import { selectedTree } from "@/lib/utils";
 
 type ShopProduct = {
   product: ProductWithDetails & {
@@ -30,25 +38,25 @@ export default function StoreInventoryPage() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [productData, setProductData] = useState<ProductWithDetails>();
   const { categories, colors, fabrics, fetchFilters } = useFilterStore();
-  
-  const allSubcategories = categories.flatMap((cat) => cat.subcategories || []);
-  
-  // State to track current filters for dynamic subcategory options
-  const [currentFilters, setCurrentFilters] = useState<Record<string, string>>({});
 
-  // Get subcategories for selected categories
-  const selectedSubcategories = useMemo(() => {
-    if (!currentFilters.categoryId) return [];
-    const selectedCategoryIds = [currentFilters.categoryId];
-    return allSubcategories.filter(sub => selectedCategoryIds.includes(sub.categoryId));
-  }, [allSubcategories, currentFilters.categoryId]);
+  const colorTree = colors.map((color) => ({
+    id: color.id,
+    label: color.name,
+    data: color,
+  }));
 
-  // Handle filter changes to update subcategory options
-  const handleFiltersChangeWithSubcategory = useCallback((filters: Record<string, string>) => {
-    setCurrentFilters(filters);
-    handleFiltersChange(filters);
-  }, []);
-  
+  const categoryTree: TreeNode[] = categories.map((cat) => ({
+    id: cat.id,
+    label: cat.name,
+    children:
+      cat?.subcategories?.map((sub) => ({
+        id: sub.id,
+        label: sub.name,
+      })) || [],
+  }));
+
+
+
   useEffect(() => {
     if (!categories.length || !colors.length || !fabrics.length) {
       fetchFilters();
@@ -66,14 +74,10 @@ export default function StoreInventoryPage() {
     inStockProducts,
     outOfStockProducts,
     handlePaginationChange,
-    handleSearchChange,
-    handleFiltersChange,
-    handleDateFilterChange,
     refetch,
   } = useDataTable<any>({
     queryKey: "/api/store/products/paginated",
     initialPageSize: 10,
-    handleFiltersChange: handleFiltersChangeWithSubcategory,
   });
 
   const formatPrice = (price: number | string) => {
@@ -208,7 +212,9 @@ export default function StoreInventoryPage() {
     {
       accessorKey: "product.fabric.name",
       header: "Fabric",
-      cell: ({ row }) => <span>{row.original.product.fabric?.name || "-"}</span>,
+      cell: ({ row }) => (
+        <span>{row.original.product.fabric?.name || "-"}</span>
+      ),
     },
     {
       accessorKey: "product.price",
@@ -325,47 +331,6 @@ export default function StoreInventoryPage() {
     },
   ];
 
-  const filters: FilterConfig[] = useMemo(
-    () => [
-      {
-        key: "categoryId",
-        label: "Category",
-        options:
-          categories?.map((cat) => ({
-            label: cat.name,
-            value: cat.id,
-          })) || [],
-      },
-      {
-        key: "subcategoryId",
-        label: "Subcategory",
-        options:
-          selectedSubcategories?.map((sub) => ({
-            label: sub.name,
-            value: sub.id,
-          })) || [],
-      },
-      {
-        key: "colorId",
-        label: "Color",
-        options:
-          colors?.map((color) => ({
-            label: color.name,
-            value: color.id,
-          })) || [],
-      },
-      {
-        key: "fabricId",
-        label: "Fabric",
-        options:
-          fabrics?.map((fabric) => ({
-            label: fabric.name,
-            value: fabric.id,
-          })) || [],
-      },
-    ],
-    [categories, selectedSubcategories, colors, fabrics],
-  );
 
   return (
     <div className="max-w-6xl mx-auto">
@@ -440,14 +405,11 @@ export default function StoreInventoryPage() {
         pageIndex={pageIndex}
         pageSize={pageSize}
         onPaginationChange={handlePaginationChange}
-        onSearchChange={handleSearchChange}
-        onFiltersChange={handleFiltersChange}
-        onDateFilterChange={handleDateFilterChange}
         isLoading={isLoading}
         searchPlaceholder="Search by name or SKU..."
-        filters={filters}
-        dateFilter={{ key: "date", label: "Filter by date added" }}
         emptyMessage="No products available for shop"
+        categoryTree={categoryTree}
+        colorTree={colorTree}
       />
       {dialogOpen && (
         <RequestDialog

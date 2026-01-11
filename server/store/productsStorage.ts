@@ -38,10 +38,9 @@ interface IStoreProductsStorage {
       limit: number;
       offset: number;
       search?: string;
-      categoryId?: string;
-      subcategoryId?: string;
-      colorId?: string;
-      fabricId?: string;
+      categoryId?: string[];
+      colorId?: string[];
+      fabricId?: string[];
       dateFrom?: string;
       dateTo?: string;
     },
@@ -66,10 +65,9 @@ export class StoreProductsStorage implements IStoreProductsStorage {
       limit: number;
       offset: number;
       search?: string;
-      categoryId?: string;
-      subcategoryId?: string;
-      colorId?: string;
-      fabricId?: string;
+      categoryIds?: string[];
+      colorIds?: string[];
+      fabricIds?: string[];
       dateFrom?: string;
       dateTo?: string;
     },
@@ -95,25 +93,44 @@ export class StoreProductsStorage implements IStoreProductsStorage {
         )!,
       );
     }
+    const incomingIds: string[] = options.categoryIds ?? [];
 
-    // Filter by category ID
-    if (options.categoryId) {
-      conditions.push(eq(products.categoryId, options.categoryId));
+    const categoriesResult = await db
+      .select({ id: categories.id })
+      .from(categories)
+      .where(inArray(categories.id, incomingIds));
+
+    const categoryIds = categoriesResult.map((c) => c.id);
+
+    const subcategoriesResult = await db
+      .select({ id: subcategories.id })
+      .from(subcategories)
+      .where(inArray(subcategories.id, incomingIds));
+
+    const directSubcategoryIds = subcategoriesResult.map((s) => s.id);
+
+    const expandedSubcategories = categoryIds.length
+      ? await db
+          .select({ id: subcategories.id })
+          .from(subcategories)
+          .where(inArray(subcategories.categoryId, categoryIds))
+      : [];
+
+    const expandedSubcategoryIds = expandedSubcategories.map((s) => s.id);
+
+    const finalSubcategoryIds = Array.from(
+      new Set([...directSubcategoryIds, ...expandedSubcategoryIds]),
+    );
+    if (finalSubcategoryIds.length) {
+      conditions.push(inArray(products.subcategoryId, finalSubcategoryIds));
     }
 
-    // Filter by subcategory ID
-    if (options.subcategoryId) {
-      conditions.push(eq(products.subcategoryId, options.subcategoryId));
+    if (options.colorIds?.length) {
+      conditions.push(inArray(products.colorId, options.colorIds));
     }
 
-    // Filter by color ID
-    if (options.colorId) {
-      conditions.push(eq(products.colorId, options.colorId));
-    }
-
-    // Filter by fabric ID
-    if (options.fabricId) {
-      conditions.push(eq(products.fabricId, options.fabricId));
+    if (options.fabricIds?.length) {
+      conditions.push(inArray(products.fabricId, options.fabricIds));
     }
 
     // Date filters (based on product creation date)
