@@ -1,7 +1,7 @@
 import { useState, useMemo } from "react";
 import { Check, Minus, ChevronDown, ChevronRight } from "lucide-react";
-import { Checkbox } from "./checkbox";
-import { Input } from "./input";
+import { Checkbox } from "../ui/checkbox";
+import { Input } from "../ui/input";
 
 type TreeNode<T = unknown> = {
   id: string;

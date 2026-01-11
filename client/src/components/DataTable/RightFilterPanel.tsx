@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { useDataTableFilterStore } from "@/components/Store/useDataTableFilter";
 import { TreeNode } from "@/lib/type";
-import { NestedMultiSelectTree } from "./NestedMultiSelect";
+import { NestedMultiSelectTree } from "./NestedMultiSelectTree";
 
 type Props = {
   open: boolean;

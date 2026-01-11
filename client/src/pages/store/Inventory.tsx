@@ -4,7 +4,7 @@ import { Package, Globe, Store, ArrowLeftRight, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { DataTable } from "@/components/ui/data-table";
+import { DataTable } from "@/components/DataTable/DataTable";
 import { useDataTable } from "@/hooks/use-data-table";
 import { ColumnDef } from "@tanstack/react-table";
 import type {
@@ -13,11 +13,7 @@ import type {
 } from "@shared/schema";
 import { RequestDialog } from "./Utils/RequestDialog";
 import { useFilterStore } from "@/components/Store/useFilterStore";
-import {
-  NestedMultiSelectTree,
-} from "@/components/ui/NestedMultiSelect";
 import { TreeNode } from "@/lib/type";
-import { selectedTree } from "@/lib/utils";
 
 type ShopProduct = {
   product: ProductWithDetails & {
