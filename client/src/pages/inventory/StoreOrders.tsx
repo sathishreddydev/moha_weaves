@@ -30,12 +30,7 @@ const formatDate = (date: string | Date) => {
 };
 
 export default function InventoryStoreOrders() {
-  const navigate = useNavigate();
-  const { user } = useAuth();
 
-  const { data: stores } = useQuery<Store[]>({
-    queryKey: ["/api/inventory/stores"],
-  });
 
   const {
     data: storeSales,
@@ -126,7 +121,7 @@ export default function InventoryStoreOrders() {
         ),
       },
     ],
-    []
+    [],
   );
 
   return (
@@ -134,7 +129,10 @@ export default function InventoryStoreOrders() {
       <div className="max-w-7xl mx-auto">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
           <div>
-            <h1 className="text-2xl font-semibold" data-testid="text-page-title">
+            <h1
+              className="text-2xl font-semibold"
+              data-testid="text-page-title"
+            >
               Store Sales
             </h1>
             <p className="text-muted-foreground">

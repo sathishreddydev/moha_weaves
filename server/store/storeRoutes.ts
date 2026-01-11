@@ -9,6 +9,7 @@ import {
 import { storeService } from "./storeStorage";
 import { customerRoutes } from "./customerRoutes";
 import { storeProductsStorage } from "./productsStorage";
+import { productService } from "server/product/productStorage";
 
 export const storeRoutes = (app: Express) => {
   const authStore = createAuthMiddleware(["store"]);
@@ -133,8 +134,7 @@ export const storeRoutes = (app: Express) => {
         dateFrom,
         dateTo,
       } = req.body;
-  console.log(req.body)
-      const result = await storeProductsStorage.getShopProductsPaginated(
+      const result = await productService.getShopProductsPaginated(
         user.storeId,
         {
           limit,
@@ -167,7 +167,7 @@ export const storeRoutes = (app: Express) => {
     }
   });
 
-  app.get("/api/store/requests", authStore, async (req, res) => {
+  app.post("/api/store/requests", authStore, async (req, res) => {
     try {
       const user = (req as any).user;
       if (!user.storeId) {
@@ -176,14 +176,14 @@ export const storeRoutes = (app: Express) => {
 
       const params = parsePaginationParams(req.query);
       const offset = getOffset(params.page, params.pageSize);
-
+      const { search, status, dateFrom, dateTo } = req.body;
       const result = await storage.getStockRequestsPaginated(user.storeId, {
         limit: params.pageSize,
         offset,
-        search: params.search,
-        status: req.query.status as string,
-        dateFrom: params.dateFrom,
-        dateTo: params.dateTo,
+        search: search,
+        status: status as string,
+        dateFrom: dateFrom,
+        dateTo: dateTo,
       });
 
       const response = createPaginatedResponse(

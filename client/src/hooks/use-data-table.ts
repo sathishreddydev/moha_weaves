@@ -31,12 +31,14 @@ export interface UseDataTableOptions<T> {
   queryKey: string;
   initialPageSize?: number;
   buildUrl?: (params: TableParams) => string;
+  method?: "GET" | "POST";
 }
 
 export function useDataTable<T>({
   queryKey,
   initialPageSize = 10,
   buildUrl,
+  method = "POST",
 }: UseDataTableOptions<T>) {
   const queryClient = useQueryClient();
 
@@ -96,9 +98,7 @@ export function useDataTable<T>({
     return `${queryKey}?${params.toString()}`;
   }, [queryKey, queryParams]);
   const queryFn = useCallback(async (): Promise<PaginatedResponse<T>> => {
-    console.log(requestBody);
-
-    const res = await apiRequest("POST", url, requestBody);
+    const res = await apiRequest(method, url, requestBody);
     if (!res.ok) throw new Error("Failed to fetch data");
     return res.json();
   }, [url, requestBody]);
@@ -125,7 +125,6 @@ export function useDataTable<T>({
   const invalidate = useCallback(() => {
     queryClient.invalidateQueries({ queryKey: [queryKey] });
   }, [queryClient, queryKey]);
-
   return {
     data: data?.data ?? [],
     totalCount: data?.total ?? 0,

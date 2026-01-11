@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from "react"
+import React, { useState, useEffect, useCallback } from "react";
 import {
   ColumnDef,
   flexRender,
@@ -7,7 +7,7 @@ import {
   SortingState,
   ColumnFiltersState,
   VisibilityState,
-} from "@tanstack/react-table"
+} from "@tanstack/react-table";
 import {
   Table,
   TableBody,
@@ -15,24 +15,24 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from "@/components/ui/table"
-import { Button } from "@/components/ui/button"
-import { Input } from "@/components/ui/input"
+} from "@/components/ui/table";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select"
-import { Calendar } from "@/components/ui/calendar"
+} from "@/components/ui/select";
+import { Calendar } from "@/components/ui/calendar";
 import {
   Popover,
   PopoverContent,
   PopoverTrigger,
-} from "@/components/ui/popover"
-import { Badge } from "@/components/ui/badge"
-import { Skeleton } from "@/components/ui/skeleton"
+} from "@/components/ui/popover";
+import { Badge } from "@/components/ui/badge";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   ChevronLeft,
   ChevronRight,
@@ -44,38 +44,37 @@ import {
   Calendar as CalendarIcon,
   X,
   Filter,
-} from "lucide-react"
-import { format } from "date-fns"
-import { cn } from "@/lib/utils"
-import { DateRange } from "react-day-picker"
+} from "lucide-react";
+import { format } from "date-fns";
+import { cn } from "@/lib/utils";
+import { DateRange } from "react-day-picker";
 
-import { RightFilterPanel } from "./RightFilterPanel"
-import { TreeNode } from "@/lib/type"
-import { useDataTableFilterStore } from "../Store/useDataTableFilter"
-
-/* ------------------------------------------------------------------ */
+import { RightFilterPanel } from "./RightFilterPanel";
+import { TreeNode } from "@/lib/type";
+import { useDataTableFilterStore } from "../Store/useDataTableFilter";
+import { FilterItem } from "../Type/type";
 
 export interface DataTableProps<TData, TValue> {
-  columns: ColumnDef<TData, TValue>[]
-  data: TData[]
-  totalCount: number
-  pageSize: number
-  pageIndex: number
-  onPaginationChange: (pageIndex: number, pageSize: number) => void
-  onSearchChange?: (search: string) => void
-  onDateFilterChange?: (dateRange: { from?: Date; to?: Date } | null) => void
-  isLoading?: boolean
-  searchPlaceholder?: string
-  emptyMessage?: string
+  columns: ColumnDef<TData, TValue>[];
+  data: TData[];
+  totalCount: number;
+  pageSize: number;
+  pageIndex: number;
+  onPaginationChange: (pageIndex: number, pageSize: number) => void;
+  onSearchChange?: (search: string) => void;
+  onDateFilterChange?: (dateRange: { from?: Date; to?: Date } | null) => void;
+  isLoading?: boolean;
+  searchPlaceholder?: string;
+  emptyMessage?: string;
 
-  accordion?: boolean
-  accordionContent?: (row: TData) => React.ReactNode
-  accordionPosition?: "below" | "inline"
-  defaultExpandedRows?: string[]
-  onRowExpand?: (rowId: string, isExpanded: boolean) => void
+  accordion?: boolean;
+  accordionContent?: (row: TData) => React.ReactNode;
+  accordionPosition?: "below" | "inline";
+  defaultExpandedRows?: string[];
+  onRowExpand?: (rowId: string, isExpanded: boolean) => void;
 
-  categoryTree?: TreeNode[]
-  colorTree?: TreeNode[]
+  categoryTree?: TreeNode[];
+  filters?: FilterItem[];
 }
 
 export function DataTable<TData, TValue>({
@@ -93,10 +92,8 @@ export function DataTable<TData, TValue>({
   accordionPosition = "below",
   defaultExpandedRows = [],
   onRowExpand,
-  categoryTree,
-  colorTree,
+  filters,
 }: DataTableProps<TData, TValue>) {
-
   const {
     search,
     setSearch,
@@ -104,19 +101,17 @@ export function DataTable<TData, TValue>({
     setDateRange,
     resetFilters,
     hasActiveFilters,
-  } = useDataTableFilterStore()
+  } = useDataTableFilterStore();
 
-
-  const [isFilterOpen, setIsFilterOpen] = useState(false)
-  const [sorting, setSorting] = useState<SortingState>([])
-  const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([])
-  const [columnVisibility, setColumnVisibility] = useState<VisibilityState>({})
+  const [isFilterOpen, setIsFilterOpen] = useState(false);
+  const [sorting, setSorting] = useState<SortingState>([]);
+  const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
+  const [columnVisibility, setColumnVisibility] = useState<VisibilityState>({});
   const [expandedRows, setExpandedRows] = useState<Set<string>>(
-    new Set(defaultExpandedRows)
-  )
+    new Set(defaultExpandedRows),
+  );
 
-  const pageCount = Math.ceil(totalCount / pageSize)
-
+  const pageCount = Math.ceil(totalCount / pageSize);
 
   const table = useReactTable({
     data,
@@ -137,29 +132,27 @@ export function DataTable<TData, TValue>({
     getCoreRowModel: getCoreRowModel(),
     manualPagination: true,
     manualFiltering: true,
-  })
-
+  });
 
   const handleSearchChange = useCallback(
     (value: string) => {
-      setSearch(value)
+      setSearch(value);
     },
-    [setSearch]
-  )
+    [setSearch],
+  );
 
   const toggleRowExpansion = useCallback(
     (rowId: string) => {
-      const newExpanded = new Set(expandedRows)
+      const newExpanded = new Set(expandedRows);
       newExpanded.has(rowId)
         ? newExpanded.delete(rowId)
-        : newExpanded.add(rowId)
+        : newExpanded.add(rowId);
 
-      setExpandedRows(newExpanded)
-      onRowExpand?.(rowId, newExpanded.has(rowId))
+      setExpandedRows(newExpanded);
+      onRowExpand?.(rowId, newExpanded.has(rowId));
     },
-    [expandedRows, onRowExpand]
-  )
-
+    [expandedRows, onRowExpand],
+  );
 
   return (
     <div className="space-y-4">
@@ -180,7 +173,7 @@ export function DataTable<TData, TValue>({
               variant="outline"
               className={cn(
                 "justify-start text-left font-normal w-[240px]",
-                !dateRange && "text-muted-foreground"
+                !dateRange && "text-muted-foreground",
               )}
             >
               <CalendarIcon className="mr-2 h-4 w-4" />
@@ -207,9 +200,9 @@ export function DataTable<TData, TValue>({
                 const value =
                   range?.from || range?.to
                     ? { from: range?.from, to: range?.to }
-                    : null
+                    : null;
 
-                setDateRange(value)
+                setDateRange(value);
               }}
               numberOfMonths={2}
             />
@@ -220,7 +213,7 @@ export function DataTable<TData, TValue>({
                   variant="ghost"
                   size="sm"
                   onClick={() => {
-                    setDateRange(null)
+                    setDateRange(null);
                   }}
                   className="w-full"
                 >
@@ -232,13 +225,15 @@ export function DataTable<TData, TValue>({
           </PopoverContent>
         </Popover>
 
-        <Button
-          variant="outline"
-          size="icon"
-          onClick={() => setIsFilterOpen(true)}
-        >
-          <Filter className="h-4 w-4" />
-        </Button>
+        {filters?.length && (
+          <Button
+            variant="outline"
+            size="icon"
+            onClick={() => setIsFilterOpen(true)}
+          >
+            <Filter className="h-4 w-4" />
+          </Button>
+        )}
       </div>
 
       {hasActiveFilters() && (
@@ -265,7 +260,7 @@ export function DataTable<TData, TValue>({
               <X
                 className="h-3 w-3 cursor-pointer"
                 onClick={() => {
-                  setDateRange(null)
+                  setDateRange(null);
                 }}
               />
             </Badge>
@@ -275,7 +270,7 @@ export function DataTable<TData, TValue>({
             variant="ghost"
             size="sm"
             onClick={() => {
-              resetFilters()
+              resetFilters();
             }}
             className="h-6 px-2 text-xs"
           >
@@ -295,7 +290,7 @@ export function DataTable<TData, TValue>({
                       ? null
                       : flexRender(
                           header.column.columnDef.header,
-                          header.getContext()
+                          header.getContext(),
                         )}
                   </TableHead>
                 ))}
@@ -316,8 +311,8 @@ export function DataTable<TData, TValue>({
               ))
             ) : table.getRowModel().rows.length ? (
               table.getRowModel().rows.map((row) => {
-                const rowId = String(row.id)
-                const isExpanded = expandedRows.has(rowId)
+                const rowId = String(row.id);
+                const isExpanded = expandedRows.has(rowId);
 
                 return (
                   <React.Fragment key={row.id}>
@@ -337,7 +332,7 @@ export function DataTable<TData, TValue>({
                         <TableCell key={cell.id}>
                           {flexRender(
                             cell.column.columnDef.cell,
-                            cell.getContext()
+                            cell.getContext(),
                           )}
                         </TableCell>
                       ))}
@@ -347,8 +342,8 @@ export function DataTable<TData, TValue>({
                             variant="ghost"
                             size="sm"
                             onClick={(e) => {
-                              e.stopPropagation()
-                              toggleRowExpansion(rowId)
+                              e.stopPropagation();
+                              toggleRowExpansion(rowId);
                             }}
                           >
                             {isExpanded ? (
@@ -371,11 +366,14 @@ export function DataTable<TData, TValue>({
                       </TableRow>
                     )}
                   </React.Fragment>
-                )
+                );
               })
             ) : (
               <TableRow>
-                <TableCell colSpan={columns.length} className="h-24 text-center">
+                <TableCell
+                  colSpan={columns.length}
+                  className="h-24 text-center"
+                >
                   {emptyMessage}
                 </TableCell>
               </TableRow>
@@ -393,9 +391,7 @@ export function DataTable<TData, TValue>({
         <div className="flex items-center gap-2">
           <Select
             value={String(pageSize)}
-            onValueChange={(value) =>
-              onPaginationChange(0, Number(value))
-            }
+            onValueChange={(value) => onPaginationChange(0, Number(value))}
           >
             <SelectTrigger className="h-8 w-[70px]">
               <SelectValue />
@@ -447,9 +443,8 @@ export function DataTable<TData, TValue>({
       <RightFilterPanel
         open={isFilterOpen}
         onOpenChange={setIsFilterOpen}
-        categoryTree={categoryTree}
-        colorTree={colorTree}
+        filters={filters}
       />
     </div>
-  )
+  );
 }

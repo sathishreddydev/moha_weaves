@@ -25,28 +25,9 @@ export default function AdminUsers() {
     pageSize,
     isLoading,
     handlePaginationChange,
-    handleSearchChange,
-    handleDateFilterChange,
   } = useDataTable<SafeUser>({
-    queryKey: "/api/admin/users",
+    queryKey: "/api/admin/getUsers",
     initialPageSize: 10,
-    buildUrl: (params) => {
-      const searchParams = new URLSearchParams();
-      searchParams.set("page", String(params.page));
-      searchParams.set("pageSize", String(params.pageSize));
-      searchParams.set("role", "user");
-      
-      if (params.search) {
-        searchParams.set("search", params.search);
-      }
-      if (params.dateFrom) {
-        searchParams.set("dateFrom", params.dateFrom);
-      }
-      if (params.dateTo) {
-        searchParams.set("dateTo", params.dateTo);
-      }
-      return `/api/admin/users?${searchParams.toString()}`;
-    },
   });
 
   const columns: ColumnDef<SafeUser>[] = useMemo(
@@ -123,11 +104,8 @@ export default function AdminUsers() {
             pageIndex={pageIndex}
             pageSize={pageSize}
             onPaginationChange={handlePaginationChange}
-            onSearchChange={handleSearchChange}
-            onDateFilterChange={handleDateFilterChange}
             isLoading={isLoading}
             searchPlaceholder="Search users..."
-            dateFilter={{ key: "date", label: "Filter by join date" }}
             emptyMessage="No users found"
           />
         </CardContent>

@@ -293,15 +293,6 @@ export default function AdminCategories() {
     ]);
   };
 
-  const updateSubcategory = (index: number, field: keyof Subcategory, value: any) => {
-    const updated = [...subcategories];
-    updated[index] = { ...updated[index], [field]: value };
-    setSubcategories(updated);
-  };
-
-  const removeSubcategory = (index: number) => {
-    setSubcategories(subcategories.filter((_, i) => i !== index));
-  };
 
   const handleRowExpand = (rowId: string, isExpanded: boolean) => {
     const newExpandedRows = new Set(expandedRows);
@@ -406,28 +397,6 @@ export default function AdminCategories() {
     setDeleteDialogOpen(true);
   };
 
-  const handleConfirmDeleteSubcategory = () => {
-    if (subcategoryToDelete) {
-      deleteSubcategoryMutation.mutate(subcategoryToDelete.id);
-    }
-  };
-
-  const handleOpenDeleteCategory = (category: Category) => {
-    setCategoryToDelete(category);
-    setDeleteDialogOpen(true);
-  };
-
-  const handleConfirmDeleteCategory = () => {
-    if (categoryToDelete) {
-      deleteMutation.mutate(categoryToDelete.id);
-    }
-  };
-
-  const handleSubcategoryImageUpload = (index: number, urls: string[]) => {
-    if (urls.length > 0) {
-      updateSubcategory(index, "imageUrl", urls[0]);
-    }
-  };
 
   // DataTable columns
   const columns: ColumnDef<Category & { subcategories?: Subcategory[] }>[] = [

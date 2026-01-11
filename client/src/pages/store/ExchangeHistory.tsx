@@ -214,8 +214,8 @@ export default function StoreExchangeHistory() {
                   <div className="flex-1">
                     <p className="font-medium text-sm">{item.product.name}</p>
                     <p className="text-xs text-muted-foreground">
-                      {item.product.category?.name} • {item.product.color?.name} •{" "}
-                      {item.product.fabric?.name}
+                      {item.product.category?.name} • {item.product.color?.name}{" "}
+                      • {item.product.fabric?.name}
                     </p>
                     <p className="text-xs text-muted-foreground">
                       Qty: {item.quantity} × {formatPrice(item.unitPrice)} ={" "}
@@ -247,8 +247,8 @@ export default function StoreExchangeHistory() {
                   <div className="flex-1">
                     <p className="font-medium text-sm">{item.product.name}</p>
                     <p className="text-xs text-muted-foreground">
-                      {item.product.category?.name} • {item.product.color?.name} •{" "}
-                      {item.product.fabric?.name}
+                      {item.product.category?.name} • {item.product.color?.name}{" "}
+                      • {item.product.fabric?.name}
                     </p>
                     <p className="text-xs text-muted-foreground">
                       Qty: {item.quantity} × {formatPrice(item.unitPrice)} ={" "}

@@ -61,10 +61,10 @@ export const adminRoutes = (app: Express) => {
     }
   });
 
-  app.get("/api/admin/users", authAdmin, async (req, res) => {
+  app.post("/api/admin/getUsers", authAdmin, async (req, res) => {
     try {
-      const { role, page, pageSize, search, dateFrom, dateTo } = req.query;
-
+      const { page, pageSize } = req.query;
+      const { role, search, dateFrom, dateTo } = req.body;
       if (page && pageSize) {
         const params = parsePaginationParams(req.query);
         const result = await storage.getUsersPaginated({
@@ -122,7 +122,7 @@ export const adminRoutes = (app: Express) => {
       }
 
       Object.keys(updateData).forEach(
-        (key) => updateData[key] === undefined && delete updateData[key]
+        (key) => updateData[key] === undefined && delete updateData[key],
       );
 
       const user = await userService.updateUser(req.params.id, updateData);
@@ -151,10 +151,11 @@ export const adminRoutes = (app: Express) => {
   });
 
   // Admin product management
-  app.get("/api/admin/products", authAdmin, async (req, res) => {
+  app.post("/api/admin/getProducts", authAdmin, async (req, res) => {
     try {
-      const { page, pageSize, search, category, subcategory, status, dateFrom, dateTo } =
-        req.query;
+      const { page, pageSize } = req.query;
+      const { search, category, subcategory, status, dateFrom, dateTo } =
+        req.body;
 
       if (page && pageSize) {
         const params = parsePaginationParams(req.query);
@@ -164,11 +165,14 @@ export const adminRoutes = (app: Express) => {
           subcategory: subcategory as string,
           limit: params.pageSize,
         });
-        
+
         // Manual pagination for now
         const startIndex = (params.page - 1) * params.pageSize;
-        const paginatedResults = result.slice(startIndex, startIndex + params.pageSize);
-        
+        const paginatedResults = result.slice(
+          startIndex,
+          startIndex + params.pageSize,
+        );
+
         return res.json({
           data: paginatedResults,
           totalCount: result.length,
@@ -195,7 +199,10 @@ export const adminRoutes = (app: Express) => {
 
   app.patch("/api/admin/products/:id", authAdmin, async (req, res) => {
     try {
-      const product = await productService.updateProduct(req.params.id, req.body);
+      const product = await productService.updateProduct(
+        req.params.id,
+        req.body,
+      );
       res.json(product);
     } catch (error) {
       res.status(500).json({ message: "Failed to update product" });
@@ -215,9 +222,10 @@ export const adminRoutes = (app: Express) => {
   app.get("/api/admin/categories", authAdmin, async (req, res) => {
     try {
       const { includeSubcategories } = req.query;
-      
-      if (includeSubcategories === 'true') {
-        const categoriesWithSubs = await publicStorage.getCategoriesWithSubcategories();
+
+      if (includeSubcategories === "true") {
+        const categoriesWithSubs =
+          await publicStorage.getCategoriesWithSubcategories();
         res.json(categoriesWithSubs);
       } else {
         const categories = await publicStorage.getCategories();
@@ -242,7 +250,7 @@ export const adminRoutes = (app: Express) => {
     try {
       const category = await publicStorage.updateCategory(
         req.params.id,
-        req.body
+        req.body,
       );
       res.json(category);
     } catch (error) {
@@ -513,7 +521,7 @@ export const adminRoutes = (app: Express) => {
 
       const coupon = await couponsService.updateCoupon(
         req.params.id,
-        updateData
+        updateData,
       );
       if (!coupon) {
         return res.status(404).json({ message: "Coupon not found" });

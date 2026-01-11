@@ -57,8 +57,13 @@ export default function AdminFabrics() {
     isActive: true,
   });
 
-  const { data: fabrics, isLoading } = useQuery<Fabric[]>({
-    queryKey: ["/api/fabrics"],
+  const { data: fabrics, isLoading } = useQuery<{
+    categories: any[];
+    colors: any[];
+    fabrics: any[];
+  }, any, any[]>({
+    queryKey: ["/api/filters"],
+    select: (data) => data.fabrics,
   });
 
   const createMutation = useMutation({
@@ -67,7 +72,7 @@ export default function AdminFabrics() {
       return response.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/fabrics"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/filters"] });
       toast({ title: "Success", description: "Fabric created successfully" });
       handleCloseDialog();
     },
@@ -86,7 +91,7 @@ export default function AdminFabrics() {
       return response.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/fabrics"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/filters"] });
       toast({ title: "Success", description: "Fabric updated successfully" });
       handleCloseDialog();
     },
@@ -105,7 +110,7 @@ export default function AdminFabrics() {
       return response.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/fabrics"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/filters"] });
       toast({ title: "Success", description: "Fabric deleted successfully" });
       setDeleteDialogOpen(false);
       setFabricToDelete(null);

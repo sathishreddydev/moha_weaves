@@ -90,7 +90,7 @@ export default function AdminSales() {
   });
 
   const { data: products } = useQuery<ProductWithDetails[]>({
-    queryKey: ["/api/admin/products"],
+    queryKey: ["/api/admin/getProducts"],
     enabled: formData.offerType === "product",
   });
 

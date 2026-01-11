@@ -26,14 +26,10 @@ const formatPrice = (price: string | number) => {
 };
 
 export default function AdminProducts() {
-  const navigate = useNavigate();
   const [viewingProduct, setViewingProduct] = useState<ProductWithDetails | null>(
     null
   );
 
-  const { data: categories } = useQuery<Category[]>({
-    queryKey: ["/api/categories"],
-  });
 
   const {
     data: products,
@@ -43,7 +39,7 @@ export default function AdminProducts() {
     isLoading,
     handlePaginationChange,
   } = useDataTable<ProductWithDetails>({
-    queryKey: "/api/admin/products",
+    queryKey: "/api/admin/getProducts",
     initialPageSize: 10,
   });
 

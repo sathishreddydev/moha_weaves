@@ -119,7 +119,7 @@ export default function InventoryReturns() {
     refetch,
   } = useDataTable<ReturnRequestWithDetails>({
     queryKey: "/api/inventory/returns",
-    initialPageSize: 10,
+    initialPageSize: 10,method: "GET",
   });
   const updateStatusMutation = useMutation({
     mutationFn: async ({ id, status, notes }: { id: string; status: string; notes?: string }) => {

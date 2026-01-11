@@ -186,10 +186,10 @@ export const onlineExchangeRoutes = (app: Express) => {
     }
   });
 
-  app.get("/api/inventory/online-exchanges", authInventory, async (req: Request, res: Response) => {
+  app.post("/api/inventory/online-exchanges", authInventory, async (req: Request, res: Response) => {
     try {
-      const { status, userId, page, pageSize, search, dateFrom, dateTo } = req.query;
-
+      const {  page, pageSize } = req.query;
+      const { userId,status, search, dateFrom, dateTo } = req.body;
       const filters: any = {};
       if (typeof status === "string" && status.length > 0) filters.status = status;
       if (typeof userId === "string" && userId.length > 0) filters.userId = userId;

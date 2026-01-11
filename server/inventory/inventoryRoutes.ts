@@ -220,10 +220,10 @@ export const inventoryRoutes = (app: Express) => {
     },
   );
 
-  app.get("/api/inventory/orders", authInventory, async (req, res) => {
+  app.post("/api/inventory/orders", authInventory, async (req, res) => {
     try {
-      const { status, page, pageSize, search, dateFrom, dateTo } = req.query;
-
+      const { page, pageSize } = req.query;
+      const { status, search, dateFrom, dateTo } = req.body;
       if (page && pageSize) {
         const params = parsePaginationParams(req.query);
         const result = await storage.getOrdersPaginated({
@@ -307,7 +307,7 @@ export const inventoryRoutes = (app: Express) => {
     },
   );
 
-  app.get(
+  app.post(
     "/api/inventory/stock-distribution",
     authInventory,
     async (req, res) => {
@@ -321,7 +321,7 @@ export const inventoryRoutes = (app: Express) => {
   );
 
   // Inventory product management (moved from admin)
-  app.get("/api/inventory/products", authInventory, async (req, res) => {
+  app.post("/api/inventory/products", authInventory, async (req, res) => {
     try {
       const { page, pageSize } = req.query;
       const {
@@ -329,21 +329,21 @@ export const inventoryRoutes = (app: Express) => {
         status,
         dateFrom,
         dateTo,
-        categoriesFilters,
-        colorsFilters,
-        fabricsFilters,
+        categoryIds,
+        colorIds,
+        fabricIds,
       } = req.body;
 
       if (page && pageSize) {
         const params = parsePaginationParams(req.query);
-        
-        const result = await storage.getProductsPaginated({
+
+        const result = await productService.getProductsPaginated({
           page: params.page,
           pageSize: params.pageSize,
           search,
-          categoriesFilters,
-          colorsFilters,
-          fabricsFilters,
+          categoryIds,
+          colorIds,
+          fabricIds,
           status,
           dateFrom,
           dateTo,
@@ -693,11 +693,9 @@ export const inventoryRoutes = (app: Express) => {
         console.error("Error updating order item status:", error);
         const message = error instanceof Error ? error.message : String(error);
         if (message.startsWith("INVALID_STATUS_TRANSITION:")) {
-          return res
-            .status(400)
-            .json({
-              message: message.replace("INVALID_STATUS_TRANSITION:", "").trim(),
-            });
+          return res.status(400).json({
+            message: message.replace("INVALID_STATUS_TRANSITION:", "").trim(),
+          });
         }
 
         res.status(500).json({ message: "Failed to update order item status" });
@@ -764,11 +762,9 @@ export const inventoryRoutes = (app: Express) => {
         console.error("Error updating individual item status:", error);
         const message = error instanceof Error ? error.message : String(error);
         if (message.startsWith("INVALID_STATUS_TRANSITION:")) {
-          return res
-            .status(400)
-            .json({
-              message: message.replace("INVALID_STATUS_TRANSITION:", "").trim(),
-            });
+          return res.status(400).json({
+            message: message.replace("INVALID_STATUS_TRANSITION:", "").trim(),
+          });
         }
 
         res.status(500).json({ message: "Failed to update item status" });
@@ -812,10 +808,10 @@ export const inventoryRoutes = (app: Express) => {
     }
   });
 
-  app.get("/api/inventory/store-sales", authInventory, async (req, res) => {
+  app.post("/api/inventory/store-sales", authInventory, async (req, res) => {
     try {
-      const { page, pageSize, search, dateFrom, dateTo, storeId } = req.query;
-
+      const { page, pageSize } = req.query;
+      const { search, dateFrom, dateTo,storeId } = req.body;
       if (page && pageSize) {
         const params = parsePaginationParams(req.query);
         const result = await storage.getStoreSalesPaginatedInventory({

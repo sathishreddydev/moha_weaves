@@ -14,6 +14,7 @@ import type {
 import { RequestDialog } from "./Utils/RequestDialog";
 import { useFilterStore } from "@/components/Store/useFilterStore";
 import { TreeNode } from "@/lib/type";
+import { FilterItem } from "@/components/Type/type";
 
 type ShopProduct = {
   product: ProductWithDetails & {
@@ -50,8 +51,6 @@ export default function StoreInventoryPage() {
         label: sub.name,
       })) || [],
   }));
-
-
 
   useEffect(() => {
     if (!categories.length || !colors.length || !fabrics.length) {
@@ -327,7 +326,20 @@ export default function StoreInventoryPage() {
     },
   ];
 
-
+  const filters: FilterItem[] = [
+    {
+      key: "categoryIds",
+      label: "Categories",
+      tree: categoryTree,
+      placeholder: "Search categories...",
+    },
+    {
+      key: "colorIds",
+      label: "Colors",
+      tree: colorTree,
+      placeholder: "Search colors...",
+    },
+  ];
   return (
     <div className="max-w-6xl mx-auto">
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-8">
@@ -404,8 +416,7 @@ export default function StoreInventoryPage() {
         isLoading={isLoading}
         searchPlaceholder="Search by name or SKU..."
         emptyMessage="No products available for shop"
-        categoryTree={categoryTree}
-        colorTree={colorTree}
+        filters={filters}
       />
       {dialogOpen && (
         <RequestDialog

@@ -95,7 +95,7 @@ export default function AdminStaff() {
       return response.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/admin/users"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/getUsers"] });
       toast({
         title: "Success",
         description: "Staff member created successfully",
@@ -131,7 +131,7 @@ export default function AdminStaff() {
       return response.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/admin/users"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/getUsers"] });
       toast({
         title: "Success",
         description: "Staff member updated successfully",
@@ -153,7 +153,7 @@ export default function AdminStaff() {
       return response.json();
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/admin/users"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/getUsers"] });
       toast({
         title: "Success",
         description: "Staff member deleted successfully",

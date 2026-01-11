@@ -5,48 +5,55 @@ import { Button } from "@/components/ui/button";
 import { useDataTableFilterStore } from "@/components/Store/useDataTableFilter";
 import { TreeNode } from "@/lib/type";
 import { NestedMultiSelectTree } from "./NestedMultiSelectTree";
+import { FilterItem } from "../Type/type";
+
 
 type Props = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  categoryTree?: TreeNode[];
-  colorTree?: TreeNode[];
+  filters?: FilterItem[];
 };
 
-export function RightFilterPanel({
-  open,
-  onOpenChange,
-  categoryTree,
-  colorTree,
-}: Props) {
-  const {
-    categoryIds,
-    setCategoryIds,
-    colorIds,
-    setColorIds,
-    resetFilters,
-  } = useDataTableFilterStore();
+type TempFilters = Record<string, string[]>;
 
-  const [tempCategoryIds, setTempCategoryIds] = useState<string[]>([]);
-  const [tempColorIds, setTempColorIds] = useState<string[]>([]);
+export function RightFilterPanel({ open, onOpenChange, filters }: Props) {
+  const store = useDataTableFilterStore();
+
+  const [tempFilters, setTempFilters] = useState<TempFilters>({});
 
   useEffect(() => {
-    if (open) {
-      setTempCategoryIds(categoryIds);
-      setTempColorIds(colorIds);
-    }
-  }, [open, categoryIds, colorIds]);
+    if (!open || !filters) return;
+
+    const initial: TempFilters = {};
+    filters.forEach(({ key }) => {
+      initial[key] = store[key as keyof typeof store] as string[];
+    });
+
+    setTempFilters(initial);
+  }, [open]);
 
   const handleApply = () => {
-    setCategoryIds(tempCategoryIds);
-    setColorIds(tempColorIds);
+    if (!filters) return;
+    
+    filters.forEach(({ key }) => {
+      switch (key) {
+        case "categoryIds":
+          store.setCategoryIds(tempFilters[key]);
+          break;
+        case "colorIds":
+          store.setColorIds(tempFilters[key]);
+          break;
+        default:
+          break;
+      }
+    });
+
     onOpenChange(false);
   };
 
   const handleReset = () => {
-    setTempCategoryIds([]);
-    setTempColorIds([]);
-    resetFilters();
+    setTempFilters({});
+    store.resetFilters();
   };
 
   return (
@@ -54,13 +61,8 @@ export function RightFilterPanel({
       <Dialog.Portal>
         <Dialog.Overlay className="fixed inset-0 bg-black/30" />
 
-        <Dialog.Content
-          className="
-            fixed right-0 top-0 h-full w-[380px]
-            bg-background border-l shadow-lg
-            flex flex-col
-          "
-        >
+        <Dialog.Content className="fixed right-0 top-0 h-full w-[380px] bg-background border-l shadow-lg flex flex-col">
+          {/* Header */}
           <div className="flex items-center justify-between p-4 border-b">
             <Dialog.Title className="text-lg font-semibold">
               Filters
@@ -77,29 +79,25 @@ export function RightFilterPanel({
 
           {/* Body */}
           <div className="flex-1 overflow-y-auto p-4 space-y-6">
-            <div>
-              <label className="text-sm font-medium">Categories</label>
-              <div className="mt-2">
-                <NestedMultiSelectTree
-                  data={categoryTree || []}
-                  value={tempCategoryIds}
-                  onChange={setTempCategoryIds}
-                  placeholder="Search categories..."
-                />
-              </div>
-            </div>
+            {filters?.map(({ key, label, tree, placeholder }) => (
+              <div key={key as string}>
+                <label className="text-sm font-medium">{label}</label>
 
-            <div>
-              <label className="text-sm font-medium">Colors</label>
-              <div className="mt-2">
-                <NestedMultiSelectTree
-                  data={colorTree || []}
-                  value={tempColorIds}
-                  onChange={setTempColorIds}
-                  placeholder="Search colors..."
-                />
+                <div className="mt-2">
+                  <NestedMultiSelectTree
+                    data={tree || []}
+                    value={tempFilters[key as string] || []}
+                    onChange={(value) =>
+                      setTempFilters((prev) => ({
+                        ...prev,
+                        [key]: value,
+                      }))
+                    }
+                    placeholder={placeholder}
+                  />
+                </div>
               </div>
-            </div>
+            ))}
           </div>
 
           {/* Footer */}
@@ -108,9 +106,7 @@ export function RightFilterPanel({
               Reset
             </Button>
 
-            <Button onClick={handleApply}>
-              Apply Filters
-            </Button>
+            <Button onClick={handleApply}>Apply Filters</Button>
           </div>
         </Dialog.Content>
       </Dialog.Portal>

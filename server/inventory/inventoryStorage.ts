@@ -1,4 +1,4 @@
-import { InsertProduct, product, storeInventory, stores } from "@shared/schema";
+import { InsertProduct, Product, storeInventory, stores } from "@shared/schema";
 import { and, eq } from "drizzle-orm";
 import { db } from "server/db";
 import { productService } from "server/product/productStorage";
@@ -8,12 +8,12 @@ interface IStorage {
   createProductWithAllocations(
     product: InsertProduct,
     storeAllocations: { storeId: string; quantity: number }[]
-  ): Promise<product>;
+  ): Promise<Product>;
   updateProductWithAllocations(
     id: string,
     data: Partial<InsertProduct>,
     storeAllocations: { storeId: string; quantity: number }[]
-  ): Promise<product | undefined>;
+  ): Promise<Product | undefined>;
   getProductAllocations(
     productId: string
   ): Promise<{ storeId: string; storeName: string; quantity: number }[]>;
@@ -23,7 +23,7 @@ export class InventoryRepository implements IStorage {
   async createProductWithAllocations(
     product: InsertProduct,
     storeAllocations: { storeId: string; quantity: number }[]
-  ): Promise<product> {
+  ): Promise<Product> {
     return await db.transaction(async (tx) => {
       const createdProduct = await productService.createProduct(product);
 
@@ -44,7 +44,7 @@ export class InventoryRepository implements IStorage {
     id: string,
     data: Partial<InsertProduct>,
     storeAllocations: { storeId: string; quantity: number }[]
-  ): Promise<product | undefined> {
+  ): Promise<Product | undefined> {
     return await db.transaction(async (tx) => {
       const updatedProduct = await productService.updateProduct(id, data);
       if (!updatedProduct) return undefined;
