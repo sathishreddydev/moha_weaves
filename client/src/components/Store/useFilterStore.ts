@@ -4,7 +4,6 @@ import { Category, Color, Fabric, Subcategory, CategoryWithSubcategories } from 
 
 type FilterState = {
   categories: CategoryWithSubcategories[];
-  subcategories: Subcategory[];
   colors: Color[];
   fabrics: Fabric[];
   loading: boolean;
@@ -15,7 +14,6 @@ type FilterState = {
 
 export const useFilterStore = create<FilterState>((set) => ({
   categories: [],
-  subcategories: [],
   colors: [],
   fabrics: [],
   loading: false,
@@ -35,13 +33,9 @@ export const useFilterStore = create<FilterState>((set) => ({
 
       const data = await res.json();
 
-      // Extract subcategories from categories
-      const allSubcategories = data.categories.flatMap((cat: CategoryWithSubcategories) => cat.subcategories || []);
-
       set(
         produce((state: FilterState) => {
           state.categories = data.categories;
-          state.subcategories = allSubcategories;
           state.colors = data.colors;
           state.fabrics = data.fabrics;
         })

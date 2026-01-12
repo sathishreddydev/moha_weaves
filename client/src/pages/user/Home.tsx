@@ -152,29 +152,34 @@ export default function Home() {
             </div>
           ) : (
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-              {categories?.slice(0, 8).map((category) => (
-                <Link key={category.id} to={`/products?category=${category.id}`}>
-                  <Card
-                    className="group relative aspect-square overflow-hidden hover-elevate cursor-pointer"
-                    data-testid={`card-category-${category.id}`}
-                  >
-                    <img
-                      src={
-                        category.imageUrl ||
-                        "https://images.unsplash.com/photo-1610030469983-98e550d6193c?w=400&h=400&fit=crop"
-                      }
-                      alt={category.name}
-                      className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
-                    />
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent" />
-                    <div className="absolute bottom-0 left-0 right-0 p-4">
-                      <h3 className="font-serif text-lg font-medium text-white">
-                        {category.name}
-                      </h3>
-                    </div>
-                  </Card>
-                </Link>
-              ))}
+              {categories?.slice(0, 8).map((category) => {
+                const subcategoryNames = category.subcategories?.map(sub => sub.name).join(',') || '';
+                const categoryUrl = `/products?category=${category.name}${subcategoryNames ? `&subcategory=${subcategoryNames}` : ''}`;
+                
+                return (
+                  <Link key={category.id} to={categoryUrl}>
+                    <Card
+                      className="group relative aspect-square overflow-hidden hover-elevate cursor-pointer"
+                      data-testid={`card-category-${category.id}`}
+                    >
+                      <img
+                        src={
+                          category.imageUrl ||
+                          "https://images.unsplash.com/photo-1610030469983-98e550d6193c?w=400&h=400&fit=crop"
+                        }
+                        alt={category.name}
+                        className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+                      />
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent" />
+                      <div className="absolute bottom-0 left-0 right-0 p-4">
+                        <h3 className="font-serif text-lg font-medium text-white">
+                          {category.name}
+                        </h3>
+                      </div>
+                    </Card>
+                  </Link>
+                );
+              })}
             </div>
           )}
         </div>

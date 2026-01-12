@@ -38,53 +38,58 @@ export default function Categories() {
         </div>
       ) : categories && categories.length > 0 ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {categories.map((category) => (
-            <Link key={category.id} to={`/products?category=${category.id}`}>
-              <Card
-                className="group relative aspect-[4/3] overflow-hidden hover-elevate cursor-pointer"
-                data-testid={`card-category-${category.id}`}
-              >
-                <img
-                  src={
-                    category.imageUrl ||
-                    "https://images.unsplash.com/photo-1610030469983-98e550d6193c?w=600&h=400&fit=crop"
-                  }
-                  alt={category.name}
-                  className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
-                />
-                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent" />
-                <div className="absolute bottom-0 left-0 right-0 p-6">
-                  <h2
-                    className="font-serif text-2xl font-semibold text-white mb-2"
-                    data-testid={`text-category-name-${category.id}`}
-                  >
-                    {category.name}
-                  </h2>
-                  {category.description && (
-                    <p className="text-sm text-white/80 line-clamp-2">
-                      {category.description}
-                    </p>
-                  )}
-                  <span className="inline-flex items-center text-sm text-white/90 mt-3 group-hover:text-white transition-colors">
-                    Explore Collection
-                    <svg
-                      className="w-4 h-4 ml-2 transition-transform group-hover:translate-x-1"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
+          {categories.map((category) => {
+            const subcategoryNames = category.subcategories?.map(sub => sub.name).join(',') || '';
+            const categoryUrl = `/products?category=${category.name}${subcategoryNames ? `&subcategory=${subcategoryNames}` : ''}`;
+            
+            return (
+              <Link key={category.id} to={categoryUrl}>
+                <Card
+                  className="group relative aspect-[4/3] overflow-hidden hover-elevate cursor-pointer"
+                  data-testid={`card-category-${category.id}`}
+                >
+                  <img
+                    src={
+                      category.imageUrl ||
+                      "https://images.unsplash.com/photo-1610030469983-98e550d6193c?w=600&h=400&fit=crop"
+                    }
+                    alt={category.name}
+                    className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent" />
+                  <div className="absolute bottom-0 left-0 right-0 p-6">
+                    <h2
+                      className="font-serif text-2xl font-semibold text-white mb-2"
+                      data-testid={`text-category-name-${category.id}`}
                     >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M9 5l7 7-7 7"
-                      />
-                    </svg>
-                  </span>
-                </div>
-              </Card>
-            </Link>
-          ))}
+                      {category.name}
+                    </h2>
+                    {category.description && (
+                      <p className="text-sm text-white/80 line-clamp-2">
+                        {category.description}
+                      </p>
+                    )}
+                    <span className="inline-flex items-center text-sm text-white/90 mt-3 group-hover:text-white transition-colors">
+                      Explore Collection
+                      <svg
+                        className="w-4 h-4 ml-2 transition-transform group-hover:translate-x-1"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M9 5l7 7-7 7"
+                        />
+                      </svg>
+                    </span>
+                  </div>
+                </Card>
+              </Link>
+            );
+          })}
         </div>
       ) : (
         <div className="text-center py-16">

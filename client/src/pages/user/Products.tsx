@@ -1,17 +1,10 @@
-import { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { Filter, SlidersHorizontal } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Checkbox } from "@/components/ui/checkbox";
-import {
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-  SheetTrigger,
-} from "@/components/ui/sheet";
 import {
   Select,
   SelectContent,
@@ -26,6 +19,7 @@ import { useFilterStore } from "@/components/Store/useFilterStore";
 import { CheckedState } from "@radix-ui/react-checkbox";
 import PriceRangeSlider from "@/components/product/PriceRangeSlider";
 import { ReusableDrawer } from "@/components/common/ReusableDrawer";
+import NestedCheckbox, { NestedCheckboxOption, getSelectedTree } from "./common/NestedCheckbox";
 
 type FilterItemProps = {
   id: string;
@@ -134,14 +128,34 @@ export default function products() {
   };
 
   const clearFilters = () => {
+    // Reset local filters state
+    setFilters({
+      search: "",
+      category: [],
+      subcategory: [],
+      color: [],
+      fabric: [],
+      featured: false,
+      onSale: false,
+      priceRange: { min: 0, max: 100000 },
+      sort: "newest",
+    });
+    
+    // Reset nested checkbox state
+    setSelectedCategoryValues(new Set());
+    
+    // Update URL to remove filter parameters
     const params = new URLSearchParams(location.search);
-
     params.delete("category");
     params.delete("subcategory");
     params.delete("color");
     params.delete("fabric");
     params.delete("minPrice");
     params.delete("maxPrice");
+    params.delete("featured");
+    params.delete("onSale");
+    params.delete("search");
+    params.delete("sort");
 
     navigate(
       {
@@ -176,22 +190,67 @@ export default function products() {
   });
 
   const categories = useFilterStore((state) => state.categories);
-  const subcategories = useFilterStore((state) => state.subcategories);
   const colors = useFilterStore((state) => state.colors);
   const fabrics = useFilterStore((state) => state.fabrics);
   const fetchFilters = useFilterStore((state) => state.fetchFilters);
 
-  // Get subcategories for selected categories
-  const selectedSubcategories = useMemo(() => {
-    if (filters.category.length === 0) return [];
-    const selectedCategoryIds = categories
-      .filter(cat => filters.category.includes(cat.name))
-      .map(cat => cat.id);
+  // Transform categories to nested checkbox structure
+  const categoryOptions: NestedCheckboxOption[] = useMemo(() => {
+    return categories.map(cat => ({
+      id: cat.name,
+      label: cat.name,
+      children: cat.subcategories?.map(sub => ({
+        id: sub.name,
+        label: sub.name
+      })) || []
+    }));
+  }, [categories]);
+
+  // Convert filters to Set for nested checkbox
+  const [selectedCategoryValues, setSelectedCategoryValues] = useState<Set<string>>(new Set());
+
+  // Sync filters with nested checkbox state
+  useEffect(() => {
+    const allSelected = new Set([...filters.category, ...filters.subcategory]);
+    setSelectedCategoryValues(allSelected);
+  }, [filters.category, filters.subcategory]);
+
+  // Handle nested checkbox changes
+  const handleCategoryChange = useCallback((selectedValues: Set<string>) => {
+    setSelectedCategoryValues(selectedValues);
     
-    return subcategories.filter(sub => 
-      selectedCategoryIds.includes(sub.categoryId)
-    );
-  }, [filters.category, categories, subcategories]);
+    // Get the selected tree to separate categories and subcategories
+    const selectedTree = getSelectedTree(categoryOptions, selectedValues);
+    
+    const categories: string[] = [];
+    const subcategories: string[] = [];
+    
+    const extractNames = (nodes: NestedCheckboxOption[], isSubcategory = false) => {
+      nodes.forEach(node => {
+        if (node.children && node.children.length > 0) {
+          // This is a parent category
+          categories.push(node.id);
+          extractNames(node.children, true);
+        } else {
+          // This is a leaf node (subcategory)
+          if (isSubcategory) {
+            subcategories.push(node.id);
+          } else {
+            categories.push(node.id);
+          }
+        }
+      });
+    };
+    
+    extractNames(selectedTree);
+    
+    // Update filters directly with arrays
+    setFilters(prev => ({
+      ...prev,
+      category: categories,
+      subcategory: subcategories
+    }));
+  }, [categoryOptions, updateFilter]);
 
   useEffect(() => {
     if (!categories.length || !colors.length || !fabrics.length) {
@@ -240,42 +299,13 @@ export default function products() {
 
       <div className="space-y-6">
         <FilterSection title="Categories">
-          {categories?.map((cat) => (
-            <FilterItem
-              key={cat.id}
-              id={`cat-${cat.id}`}
-              checked={filters.category.includes(cat.name)}
-              onChange={(checked) =>
-                updateFilter("category", cat.name, checked === true)
-              }
-              label={cat.name}
-            />
-          ))}
+          <NestedCheckbox
+            options={categoryOptions}
+            selectedValues={selectedCategoryValues}
+            onChange={handleCategoryChange}
+          />
         </FilterSection>
-
-        <FilterSection title="Subcategories">
-          {filters.category.length === 0 ? (
-            <div className="px-2 py-1.5 text-xs text-muted-foreground">
-              Select a category first to see subcategories
-            </div>
-          ) : selectedSubcategories.length === 0 ? (
-            <div className="px-2 py-1.5 text-xs text-muted-foreground">
-              No subcategories available for selected categories
-            </div>
-          ) : (
-            selectedSubcategories.map((sub) => (
-              <FilterItem
-                key={sub.id}
-                id={`sub-${sub.id}`}
-                checked={filters.subcategory.includes(sub.name)}
-                onChange={(checked) =>
-                  updateFilter("subcategory", sub.name, checked === true)
-                }
-                label={sub.name}
-              />
-            ))
-          )}
-        </FilterSection>
+     
 
         <FilterSection title="Colors">
           {colors?.map((color) => (
