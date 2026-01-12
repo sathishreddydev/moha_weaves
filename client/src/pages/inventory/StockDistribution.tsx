@@ -1,46 +1,25 @@
-import { useState, useMemo } from "react";
-import { useNavigate } from "react-router-dom";
-
-import {
-  Package,
-  Globe,
-  Store,
-  Warehouse,
-} from "lucide-react";
+import { useMemo } from "react";
+import { Globe, Package, Store, Warehouse } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useAuth } from "@/lib/auth";
 import { useQuery } from "@tanstack/react-query";
 import { DataTable } from "@/components/DataTable/DataTable";
 import { useDataTable } from "@/hooks/use-data-table";
 import { ColumnDef } from "@tanstack/react-table";
-import type { ProductWithDetails, Store as StoreType, Category } from "@shared/schema";
-
-interface StoreAllocation {
-  storeId: string;
-  storeName: string;
-  quantity: number;
-}
-
-interface StockDistributionRow extends ProductWithDetails {
-  unallocated: number;
-  storeAllocations: StoreAllocation[];
-}
+import type { ProductWithDetails, Store as StoreType } from "@shared/schema";
 
 export default function StockDistribution() {
-  const navigate = useNavigate();
-  const { user, logout } = useAuth();
+  const { user } = useAuth();
 
-  const isInventoryUser = !!user && (user.role === "inventory" || user.role === "admin");
-
-  // Fetch stores to build dynamic columns
+  const isInventoryUser =
+    !!user && (user.role === "inventory" || user.role === "admin");
   const { data: stores } = useQuery<StoreType[]>({
     queryKey: ["/api/inventory/stores"],
     enabled: isInventoryUser,
   });
-
-  // Fetch categories for filtering
-  const { data: categories } = useQuery<Category[]>({
-    queryKey: ["/api/categories"],
+  const { data: distributionData } = useQuery<any>({
+    queryKey: ["/api/inventory/stock-distribution"],
+    enabled: isInventoryUser,
   });
 
   const {
@@ -56,56 +35,6 @@ export default function StockDistribution() {
     initialPageSize: 10,
   });
 
-  const productIdsKey = useMemo(() => {
-    if (!products || products.length === 0) return "";
-    return products.map((s) => s.id).join(",");
-  }, [products]);
-
-  // Fetch allocations for each product and calculate unallocated stock
-  const { data: distributionData, isLoading: isLoadingAllocations } = useQuery({
-    queryKey: ["/api/inventory/stock-distribution", productIdsKey],
-    queryFn: async () => {
-      if (!products || products.length === 0) return [];
-
-      const results = await Promise.all(
-        products.map(async (product) => {
-          try {
-            const response = await fetch(
-              `/api/inventory/products/${product.id}/allocations`,
-              { credentials: "include" }
-            );
-            if (!response.ok) {
-              throw new Error(`${response.status}: ${await response.text()}`);
-            }
-            const allocations: StoreAllocation[] = await response.json();
-
-            const totalStoreStock = allocations.reduce(
-              (sum, a) => sum + a.quantity,
-              0
-            );
-            const unallocated =
-              product.totalStock - product.onlineStock - totalStoreStock;
-
-            return {
-              ...product,
-              unallocated: Math.max(0, unallocated),
-              storeAllocations: allocations,
-            };
-          } catch (error) {
-            return {
-              ...product,
-              unallocated: 0,
-              storeAllocations: [],
-            };
-          }
-        })
-      );
-
-      return results;
-    },
-    enabled: !!products && products.length > 0 && !!productIdsKey,
-  });
-
   const formatPrice = (price: string | number) => {
     const numPrice = typeof price === "string" ? parseFloat(price) : price;
     return new Intl.NumberFormat("en-IN", {
@@ -115,16 +44,13 @@ export default function StockDistribution() {
     }).format(numPrice);
   };
 
-  // Build dynamic columns including store columns
-  const columns: ColumnDef<StockDistributionRow>[] = useMemo(() => {
-    const baseColumns: ColumnDef<StockDistributionRow>[] = [
+  const columns: ColumnDef<ProductWithDetails>[] = useMemo(() => {
+    const baseColumns: ColumnDef<ProductWithDetails>[] = [
       {
         accessorKey: "sku",
         header: "SKU",
         cell: ({ row }) => (
-          <span className="font-mono text-sm">
-            {row.original.sku || "-"}
-          </span>
+          <span className="font-mono text-sm">{row.original.sku || "-"}</span>
         ),
       },
       {
@@ -132,7 +58,9 @@ export default function StockDistribution() {
         header: "product Name",
         cell: ({ row }) => (
           <div className="max-w-[200px]">
-            <span className="font-medium line-clamp-1">{row.original.name}</span>
+            <span className="font-medium line-clamp-1">
+              {row.original.name}
+            </span>
           </div>
         ),
       },
@@ -159,7 +87,13 @@ export default function StockDistribution() {
         cell: ({ row }) => (
           <div className="flex items-center gap-1">
             <Warehouse className="h-4 w-4 text-orange-500" />
-            <span className={row.original.unallocated > 0 ? "text-orange-600" : ""}>
+            <span
+              className={
+                row?.original?.unallocated && row.original.unallocated > 0
+                  ? "text-orange-600"
+                  : ""
+              }
+            >
               {row.original.unallocated}
             </span>
           </div>
@@ -178,45 +112,39 @@ export default function StockDistribution() {
     ];
 
     // Add dynamic store columns
-    const storeColumns: ColumnDef<StockDistributionRow>[] = (stores || []).map(
+    const storeColumns: ColumnDef<ProductWithDetails>[] = (stores || []).map(
       (store) => ({
         id: `store-${store.id}`,
         header: store.name,
+        accessorFn: (row: any) => {
+          const allocation = row.storeAllocations?.find(
+            (a: any) => a.storeId === store.id,
+          );
+          return allocation?.quantity || 0;
+        },
         cell: ({ row }) => {
           const allocation = row.original.storeAllocations?.find(
-            (a) => a.storeId === store.id
+            (a) => a.storeId === store.id,
           );
           const quantity = allocation?.quantity || 0;
           return (
             <div className="flex items-center gap-1">
               <Store className="h-4 w-4 text-green-500" />
-              <span className={quantity > 0 ? "text-green-600" : "text-muted-foreground"}>
+              <span
+                className={
+                  quantity > 0 ? "text-green-600" : "text-muted-foreground"
+                }
+              >
                 {quantity}
               </span>
             </div>
           );
         },
-      })
+      }),
     );
 
     return [...baseColumns, ...storeColumns];
   }, [stores]);
-
-  // Calculate summary statistics
-  const totalProducts = distributionData?.length || 0;
-  const totalStock =
-    distributionData?.reduce((sum, item) => sum + item.totalStock, 0) || 0;
-  const totalOnline =
-    distributionData?.reduce((sum, item) => sum + item.onlineStock, 0) || 0;
-  const totalStoreAllocated =
-    distributionData?.reduce(
-      (sum, item) =>
-        sum + item.storeAllocations.reduce((s, a) => s + a.quantity, 0),
-      0
-    ) || 0;
-  const totalUnallocated =
-    distributionData?.reduce((sum, item) => sum + item.unallocated, 0) || 0;
-
 
   return (
     <div className="max-w-full mx-auto">
@@ -240,10 +168,10 @@ export default function StockDistribution() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold" data-testid="text-total-stock">
-              {totalStock}
+              {distributionData?.summary?.totalStock || 0}
             </div>
             <p className="text-xs text-muted-foreground">
-              {totalProducts} products
+              {distributionData?.summary?.totalProducts || 0} products
             </p>
           </CardContent>
         </Card>
@@ -260,11 +188,15 @@ export default function StockDistribution() {
               className="text-2xl font-bold text-blue-600"
               data-testid="text-online-stock"
             >
-              {totalOnline}
+              {distributionData?.summary?.onlineStock || 0}
             </div>
             <p className="text-xs text-muted-foreground">
-              {totalStock > 0
-                ? ((totalOnline / totalStock) * 100).toFixed(1)
+              {(distributionData?.summary?.totalStock || 0) > 0
+                ? (
+                    ((distributionData?.summary?.onlineStock || 0) /
+                      (distributionData?.summary?.totalStock || 1)) *
+                    100
+                  ).toFixed(1)
                 : 0}
               % of total
             </p>
@@ -283,11 +215,15 @@ export default function StockDistribution() {
               className="text-2xl font-bold text-green-600"
               data-testid="text-store-stock"
             >
-              {totalStoreAllocated}
+              {distributionData?.summary?.storeAllocated || 0}
             </div>
             <p className="text-xs text-muted-foreground">
-              {totalStock > 0
-                ? ((totalStoreAllocated / totalStock) * 100).toFixed(1)
+              {(distributionData?.summary?.totalStock || 0) > 0
+                ? (
+                    ((distributionData?.summary?.storeAllocated || 0) /
+                      (distributionData?.summary?.totalStock || 1)) *
+                    100
+                  ).toFixed(1)
                 : 0}
               % of total
             </p>
@@ -306,11 +242,15 @@ export default function StockDistribution() {
               className="text-2xl font-bold text-orange-600"
               data-testid="text-unallocated-stock"
             >
-              {totalUnallocated}
+              {distributionData?.summary?.unallocated || 0}
             </div>
             <p className="text-xs text-muted-foreground">
-              {totalStock > 0
-                ? ((totalUnallocated / totalStock) * 100).toFixed(1)
+              {(distributionData?.summary?.totalStock || 0) > 0
+                ? (
+                    ((distributionData?.summary?.unallocated || 0) /
+                      (distributionData?.summary?.totalStock || 1)) *
+                    100
+                  ).toFixed(1)
                 : 0}
               % of total
             </p>
@@ -323,12 +263,12 @@ export default function StockDistribution() {
         <CardContent className="p-4">
           <DataTable
             columns={columns}
-            data={distributionData || []}
+            data={products}
             totalCount={totalCount}
             pageIndex={pageIndex}
             pageSize={pageSize}
             onPaginationChange={handlePaginationChange}
-            isLoading={isLoading || isLoadingAllocations}
+            isLoading={isLoading}
             searchPlaceholder="Search by name or SKU..."
             emptyMessage="No products found"
           />

@@ -320,7 +320,7 @@ export const inventoryRoutes = (app: Express) => {
     },
   );
 
-  app.post(
+  app.get(
     "/api/inventory/stock-distribution",
     authInventory,
     async (req, res) => {

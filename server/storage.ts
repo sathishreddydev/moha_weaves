@@ -106,7 +106,7 @@ export interface IStorage {
     pageSize: number;
     totalPages: number;
   }>;
-  
+
   updateOrderStatus(id: string, status: string): Promise<Order | undefined>;
 
   updateOrderTrackingNumber(
@@ -114,16 +114,15 @@ export interface IStorage {
     trackingNumber: string | null | undefined,
   ): Promise<Order | undefined>;
 
-  // Stock Distribution (centralized view)
-  getStockDistribution(): Promise<
-    {
-      product: ProductWithDetails;
+  getStockDistribution(): Promise<{
+    summary: {
+      totalProducts: number;
       totalStock: number;
       onlineStock: number;
       storeAllocations: { store: Store; quantity: number }[];
       unallocated: number;
-    }[]
-  >;
+    };
+  }>;
 
   getStockRequests(filters?: {
     storeId?: string;
@@ -453,8 +452,6 @@ export class DatabaseStorage implements IStorage {
     };
   }
 
-
-
   async checkAndCreateStockAlert(productId: string): Promise<void> {
     const [product] = await db
       .select()
@@ -670,49 +667,101 @@ export class DatabaseStorage implements IStorage {
     });
   }
 
-  async getStockDistribution(): Promise<
-    {
-      product: ProductWithDetails;
+  async getStockDistribution(): Promise<{
+    summary: {
+      totalProducts: number;
       totalStock: number;
       onlineStock: number;
+      storeAllocated: number;
       storeAllocations: { store: Store; quantity: number }[];
       unallocated: number;
-    }[]
-  > {
+    };
+    // products: {
+    //   product: ProductWithDetails;
+    //   totalStock: number;
+    //   onlineStock: number;
+    //   storeAllocations: { store: Store; quantity: number }[];
+    //   unallocated: number;
+    // }[];
+  }> {
     const allProducts = await productService.getProducts({ limit: 1000 });
-    const result = [];
+
+    const totalProducts = allProducts.length;
+
+    let totalStock = 0;
+    let onlineStock = 0;
+    let totalStoreStock = 0;
+
+    const summaryStoreMap = new Map<
+      string,
+      { store: Store; quantity: number }
+    >();
+
+    const productsDistribution = [];
 
     for (const product of allProducts) {
+      totalStock += product.totalStock;
+      onlineStock += product.onlineStock;
+
       const allocations = await db
         .select()
         .from(storeInventory)
         .innerJoin(stores, eq(storeInventory.storeId, stores.id))
         .where(eq(storeInventory.productId, product.id));
 
-      const storeAllocations = allocations.map((alloc) => ({
+      const productStoreAllocations = allocations.map((alloc) => ({
         store: alloc.stores,
         quantity: alloc.store_inventory.quantity,
       }));
 
-      const totalStoreStock = storeAllocations.reduce(
+      const productStoreStock = productStoreAllocations.reduce(
         (sum, alloc) => sum + alloc.quantity,
         0,
       );
-      const unallocated = Math.max(
+
+      const productUnallocated = Math.max(
         0,
-        product.totalStock - product.onlineStock - totalStoreStock,
+        product.totalStock - product.onlineStock - productStoreStock,
       );
 
-      result.push({
+      // accumulate summary store allocations
+      for (const alloc of productStoreAllocations) {
+        totalStoreStock += alloc.quantity;
+
+        if (summaryStoreMap.has(alloc.store.id)) {
+          summaryStoreMap.get(alloc.store.id)!.quantity += alloc.quantity;
+        } else {
+          summaryStoreMap.set(alloc.store.id, {
+            store: alloc.store,
+            quantity: alloc.quantity,
+          });
+        }
+      }
+
+      productsDistribution.push({
         product,
         totalStock: product.totalStock,
         onlineStock: product.onlineStock,
-        storeAllocations,
-        unallocated,
+        storeAllocations: productStoreAllocations,
+        unallocated: productUnallocated,
       });
     }
 
-    return result;
+    const summaryStoreAllocations = Array.from(summaryStoreMap.values());
+
+    const unallocated = Math.max(0, totalStock - onlineStock - totalStoreStock);
+
+    return {
+      summary: {
+        totalProducts,
+        totalStock,
+        onlineStock,
+        storeAllocated: totalStoreStock,
+        storeAllocations: summaryStoreAllocations,
+        unallocated,
+      },
+      // products: productsDistribution,
+    };
   }
 
   // Stock Requests
@@ -881,8 +930,6 @@ export class DatabaseStorage implements IStorage {
       .returning();
     return result || undefined;
   }
-
-
 
   // Serviceable Pincodes
   async checkPincodeAvailability(
@@ -1365,8 +1412,6 @@ export class DatabaseStorage implements IStorage {
 
     return result;
   }
-
-  
 
   async getItemStatusHistory(orderId: string): Promise<ItemStatusHistory[]> {
     return await db
