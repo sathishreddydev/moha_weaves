@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { Filter, SlidersHorizontal } from "lucide-react";
+import { Filter, SlidersHorizontal, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -175,6 +175,99 @@ export default function products() {
     filters.onSale ||
     filters.priceRange.min !== 0 ||
     filters.priceRange.max !== 100000;
+
+  // Helper functions to get display names
+  const getColorDisplayName = (colorName: string) => {
+    const color = colors.find(c => c.name === colorName);
+    return color ? color.name.charAt(0).toUpperCase() + color.name.slice(1) : colorName;
+  };
+
+  const getSelectedFilters = () => {
+    const selectedFilters = [];
+    
+    // Add categories
+    filters.category.forEach(cat => {
+      selectedFilters.push({
+        type: 'category',
+        value: cat,
+        display: cat
+      });
+    });
+    
+    // Add subcategories
+    filters.subcategory.forEach(subcat => {
+      selectedFilters.push({
+        type: 'subcategory',
+        value: subcat,
+        display: subcat
+      });
+    });
+    
+    // Add colors
+    filters.color.forEach(color => {
+      selectedFilters.push({
+        type: 'color',
+        value: color,
+        display: getColorDisplayName(color)
+      });
+    });
+    
+    // Add fabrics
+    filters.fabric.forEach(fabric => {
+      selectedFilters.push({
+        type: 'fabric',
+        value: fabric,
+        display: fabric
+      });
+    });
+    
+    // Add featured
+    if (filters.featured) {
+      selectedFilters.push({
+        type: 'featured',
+        value: 'featured',
+        display: 'Featured'
+      });
+    }
+    
+    // Add on sale
+    if (filters.onSale) {
+      selectedFilters.push({
+        type: 'onSale',
+        value: 'onSale',
+        display: 'On Sale'
+      });
+    }
+    
+    // Add price range if not default
+    if (filters.priceRange.min !== 0 || filters.priceRange.max !== 100000) {
+      selectedFilters.push({
+        type: 'priceRange',
+        value: filters.priceRange,
+        display: `₹${filters.priceRange.min} - ₹${filters.priceRange.max}`
+      });
+    }
+    
+    return selectedFilters;
+  };
+
+  const removeFilter = (filter: any) => {
+    if (filter.type === 'category') {
+      updateFilter('category', filter.value, false);
+    } else if (filter.type === 'subcategory') {
+      updateFilter('subcategory', filter.value, false);
+    } else if (filter.type === 'color') {
+      updateFilter('color', filter.value, false);
+    } else if (filter.type === 'fabric') {
+      updateFilter('fabric', filter.value, false);
+    } else if (filter.type === 'featured') {
+      setFilters(prev => ({ ...prev, featured: false }));
+    } else if (filter.type === 'onSale') {
+      setFilters(prev => ({ ...prev, onSale: false }));
+    } else if (filter.type === 'priceRange') {
+      updateFilter('priceRange', { min: 0, max: 100000 });
+    }
+  };
 
   const { data: products, isLoading } = useQuery<ProductWithDetails[]>({
     queryKey: ["products", filters],
@@ -416,6 +509,34 @@ export default function products() {
               </div>
             </div>
           </div>
+          {hasActiveFilters && (
+            <div className="px-6 py-3 border-b">
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="text-sm font-medium text-muted-foreground">Active filters:</span>
+                {getSelectedFilters().map((filter, index) => (
+                  <div
+                    key={`${filter.type}-${filter.value}-${index}`}
+                    className="inline-flex items-center gap-1 px-3 py-1 bg-gray-100 hover:bg-gray-200 rounded-full text-sm"
+                  >
+                    <span>{filter.display}</span>
+                    <button
+                      onClick={() => removeFilter(filter)}
+                      className="ml-1 text-gray-500 hover:text-gray-700"
+                      aria-label={`Remove ${filter.display} filter`}
+                    >
+                      <X className="h-3 w-3" />
+                    </button>
+                  </div>
+                ))}
+                <button
+                  onClick={clearFilters}
+                  className="text-sm text-primary hover:underline"
+                >
+                  Clear all
+                </button>
+              </div>
+            </div>
+          )}
           <ReusableDrawer
             open={mobileFiltersOpen}
             onOpenChange={setMobileFiltersOpen}

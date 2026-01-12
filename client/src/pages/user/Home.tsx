@@ -16,6 +16,7 @@ import { useQuery } from "@tanstack/react-query";
 import type { ProductWithDetails, Category } from "@shared/schema";
 import { useFilterStore } from "@/components/Store/useFilterStore";
 import { useEffect } from "react";
+import { VisualCategoryHero } from "./common/VisualCategoryHero";
 
 const features = [
   {
@@ -64,56 +65,7 @@ export default function Home() {
 
   return (
     <div className="min-h-screen">
-      <section className="relative flex items-center justify-center min-h-[40vh] sm:min-h-[55vh] lg:min-h-[75vh] px-4 sm:px-6 lg:px-12">
-        <div className="absolute inset-0 z-0">
-          <img
-            src="/banner1.png"
-            alt="Elegant product collection"
-            className="w-full h-full object-cover"
-          />
-          <div className="absolute inset-0 bg-gradient-to-r from-black/80 via-black/60 to-transparent" />
-        </div>
-
-        <div className="relative z-10 max-w-7xl w-full mx-auto py-12 sm:py-16 lg:py-24">
-          <div className="max-w-xl text-center sm:text-left">
-            <h1
-              className="font-serif text-xl font-semibold text-white"
-              data-testid="text-hero-title"
-            >
-              Celebrate Tradition with Elegance
-            </h1>
-
-            <p className="text-sm sm:text-base text-white/90 mb-6 leading-relaxed">
-              Discover our exquisite collection of handcrafted products, woven
-              with stories of heritage and artistry.
-            </p>
-
-            <div className="flex gap-4 sm:gap-6">
-              <Link to="/products" className="w-full sm:w-auto">
-                <Button
-                  size="lg"
-                  className="w-full sm:w-auto bg-white text-primary hover:bg-white/90"
-                  data-testid="button-shop-now"
-                >
-                  Shop Now
-                  <ArrowRight className="ml-2 h-4 w-4" />
-                </Button>
-              </Link>
-
-              <Link to="/categories" className="w-full sm:w-auto">
-                <Button
-                  size="lg"
-                  variant="ghost"
-                  className="w-full sm:w-auto text-white backdrop-blur-sm"
-                  data-testid="button-explore"
-                >
-                  Explore Collections
-                </Button>
-              </Link>
-            </div>
-          </div>
-        </div>
-      </section>
+      <VisualCategoryHero categoriesData={categories} />
 
       <TrendingSalesBanner />
 

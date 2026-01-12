@@ -44,6 +44,7 @@ const navLinks = [
 export function Header() {
   const navigate = useNavigate();
   const { user, logout } = useAuth();
+  const [scrolled, setScrolled] = useState(false);
 
   const getCart = useCartStore((s) => s.getCart);
   const cartCount = useCartStore((s) => s.count);
@@ -56,6 +57,12 @@ export function Header() {
       getWishlist();
     }
   }, [user]);
+
+  useEffect(() => {
+    const handleScroll = () => setScrolled(window.scrollY > 50);
+    window.addEventListener("scroll", handleScroll);
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
 
 
   const handleLogout = async () => {
@@ -78,13 +85,15 @@ export function Header() {
   };
 
   return (
-    <header className="sticky top-0 z-50 bg-background border-b">
-      <div className="max-w-7xl mx-auto px-4">
-        <div className="flex items-center h-16">
+    <header
+      className={`fixed top-0 w-full z-[100] transition-all duration-700 ${scrolled ? "bg-white backdrop-blur-xl py-3 shadow-sm" : "bg-transparent py-3"}`}
+    >
+      <div className="max-w-[1800px] mx-auto px-8 flex justify-between items-center">
+        <div className="flex items-center gap-12">
           <div className="flex items-center gap-2">
             <Sheet>
               <SheetTrigger asChild className="lg:hidden">
-                <Button variant="ghost" size="icon">
+                <Button variant="ghost" size="icon" className={`${scrolled ? "text-black" : "text-white"}`}>
                   <Menu className="h-5 w-5" />
                 </Button>
               </SheetTrigger>
@@ -112,141 +121,138 @@ export function Header() {
               </SheetContent>
             </Sheet>
 
-            <Link
-              to="/"
-              className="font-serif text-xl font-semibold text-primary"
+            <h1
+              className={`text-2xl font-serif tracking-tighter transition-colors duration-500 ${scrolled ? "text-primary" : "text-white"}`}
             >
-              Moha
-            </Link>
+              <Link to="/">Moha</Link>
+            </h1>
           </div>
 
-          <nav className="hidden lg:flex flex-1 justify-center gap-8">
+          <nav className="hidden mt-3 lg:flex gap-8 text-[10px] font-bold uppercase tracking-[0.2em] transition-colors duration-500">
             {navLinks.map((link) => (
               <Link
                 key={link.href}
                 to={link.href}
-                className="text-sm font-medium hover:text-primary transition-colors"
+                className={`${scrolled ? "text-zinc-600" : "text-zinc-300"} hover:text-primary transition-colors`}
               >
                 {link.label}
               </Link>
             ))}
           </nav>
-
-          <div className="flex items-center gap-2 ml-auto">
-            {user && user.role === "user" && (
-              <>
-                <Link to="/user/wishlist">
-                  <Button variant="ghost" size="icon" className="relative">
-                    <Heart className="h-5 w-5" />
-                    {wishlistCount > 0 && (
-                      <span className="absolute -top-1 -right-1 h-4 w-4 rounded-full bg-primary text-primary-foreground text-xs flex items-center justify-center">
-                        {wishlistCount}
-                      </span>
-                    )}
-                  </Button>
-                </Link>
-
-                <Link to="/user/cart">
-                  <Button variant="ghost" size="icon" className="relative">
-                    <ShoppingBag className="h-5 w-5" />
-                    {cartCount > 0 && (
-                      <span className="absolute -top-1 -right-1 h-4 w-4 rounded-full bg-primary text-primary-foreground text-xs flex items-center justify-center">
-                        {cartCount}
-                      </span>
-                    )}
-                  </Button>
-                </Link>
-              </>
-            )}
-
-            {user ? (
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" size="icon">
-                    <User className="h-5 w-5" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-48">
-                  <div className="px-2 py-1.5">
-                    <p className="text-sm font-medium">{user.name}</p>
-                    <p className="text-xs text-muted-foreground">
-                      {user.email}
-                    </p>
-                  </div>
-                  <DropdownMenuSeparator />
-                  {user.role !== "user" && getDashboardLink() && (
-                    <DropdownMenuItem asChild>
-                      <Link to={getDashboardLink()!}>
-                        <LayoutDashboard className="mr-2 h-4 w-4" />
-                        Dashboard
-                      </Link>
-                    </DropdownMenuItem>
-                  )}
-                  {user.role === "user" && (
-                    <>
-                      <DropdownMenuItem asChild>
-                        <Link
-                          to="/user/orders"
-                          className="cursor-pointer"
-                          data-testid="link-orders"
-                        >
-                          <Package className="mr-2 h-4 w-4" />
-                          My Orders
-                        </Link>
-                      </DropdownMenuItem>
-                      <DropdownMenuItem asChild>
-                        <Link
-                          to="/user/wishlist"
-                          className="cursor-pointer"
-                          data-testid="link-wishlist-menu"
-                        >
-                          <Heart className="mr-2 h-4 w-4" />
-                          Wishlist
-                        </Link>
-                      </DropdownMenuItem>
-                      <DropdownMenuItem asChild>
-                        <Link
-                          to="/user/addresses"
-                          className="cursor-pointer"
-                          data-testid="link-addresses"
-                        >
-                          <MapPin className="mr-2 h-4 w-4" />
-                          My Addresses
-                        </Link>
-                      </DropdownMenuItem>
-                      <DropdownMenuItem asChild>
-                        <Link
-                          to="/user/returns"
-                          className="cursor-pointer"
-                          data-testid="link-returns"
-                        >
-                          <RotateCcw className="mr-2 h-4 w-4" />
-                          Returns
-                        </Link>
-                      </DropdownMenuItem>
-                      <DropdownMenuSeparator />
-                    </>
-                  )}
-                  <DropdownMenuItem
-                    onClick={handleLogout}
-                    className="text-destructive"
-                  >
-                    <LogOut className="mr-2 h-4 w-4" />
-                    Logout
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            ) : (
-              <Link to="/user/login">
-                <Button variant="ghost" size="icon">
-                  <User className="h-5 w-5" />
-                </Button>
-              </Link>
-            )}
-          </div>
         </div>
 
-       
+          <div className={`flex items-center gap-6 transition-colors duration-500 ${scrolled ? "text-black" : "text-white"}`}>
+          {user && user.role === "user" && (
+            <>
+              <Link to="/user/wishlist">
+                <Button variant="ghost" size="icon" className="relative hover:scale-110 transition-transform">
+                  <Heart className="h-5 w-5" />
+                  {wishlistCount > 0 && (
+                    <span className="absolute -top-2 -right-2 bg-amber-600 text-white text-[9px] w-4 h-4 rounded-full flex items-center justify-center font-bold">
+                      {wishlistCount}
+                    </span>
+                  )}
+                </Button>
+              </Link>
+
+              <Link to="/user/cart">
+                <Button variant="ghost" size="icon" className="relative hover:scale-110 transition-transform">
+                  <ShoppingBag className="h-5 w-5" />
+                  {cartCount > 0 && (
+                    <span className="absolute -top-2 -right-2 bg-amber-600 text-white text-[9px] w-4 h-4 rounded-full flex items-center justify-center font-bold">
+                      {cartCount}
+                    </span>
+                  )}
+                </Button>
+              </Link>
+            </>
+          )}
+
+          {user ? (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="icon" className="hover:scale-110 transition-transform">
+                  <User className="h-5 w-5" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-48">
+                <div className="px-2 py-1.5">
+                  <p className="text-sm font-medium">{user.name}</p>
+                  <p className="text-xs text-muted-foreground">
+                    {user.email}
+                  </p>
+                </div>
+                <DropdownMenuSeparator />
+                {user.role !== "user" && getDashboardLink() && (
+                  <DropdownMenuItem asChild>
+                    <Link to={getDashboardLink()!}>
+                      <LayoutDashboard className="mr-2 h-4 w-4" />
+                      Dashboard
+                    </Link>
+                  </DropdownMenuItem>
+                )}
+                {user.role === "user" && (
+                  <>
+                    <DropdownMenuItem asChild>
+                      <Link
+                        to="/user/orders"
+                        className="cursor-pointer"
+                        data-testid="link-orders"
+                      >
+                        <Package className="mr-2 h-4 w-4" />
+                        My Orders
+                      </Link>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem asChild>
+                      <Link
+                        to="/user/wishlist"
+                        className="cursor-pointer"
+                        data-testid="link-wishlist-menu"
+                      >
+                        <Heart className="mr-2 h-4 w-4" />
+                        Wishlist
+                      </Link>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem asChild>
+                      <Link
+                        to="/user/addresses"
+                        className="cursor-pointer"
+                        data-testid="link-addresses"
+                      >
+                        <MapPin className="mr-2 h-4 w-4" />
+                        My Addresses
+                      </Link>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem asChild>
+                      <Link
+                        to="/user/returns"
+                        className="cursor-pointer"
+                        data-testid="link-returns"
+                      >
+                        <RotateCcw className="mr-2 h-4 w-4" />
+                        Returns
+                      </Link>
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                  </>
+                )}
+                <DropdownMenuItem
+                  onClick={handleLogout}
+                  className="text-destructive"
+                >
+                  <LogOut className="mr-2 h-4 w-4" />
+                  Logout
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          ) : (
+            <Link to="/user/login">
+              <Button variant="ghost" size="icon" className="hover:scale-110 transition-transform">
+                <User className="h-5 w-5" />
+              </Button>
+            </Link>
+          )}
+        </div>
       </div>
     </header>
   );
