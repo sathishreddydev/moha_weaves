@@ -139,8 +139,9 @@ export function ProductCard({ product }: ProductCardProps) {
               transition-opacity"
           >
             {isInCart && cartItem ? (
-              <div className="flex items-center bg-primary rounded-md shadow">
+              <div className="flex items-center text-white bg-primary rounded-md shadow">
                 <Button
+                  variant="ghost"
                   size="icon"
                   className="h-8 w-8"
                   onClick={() => handleUpdateQuantity(cartItem.quantity - 1)}
@@ -150,11 +151,12 @@ export function ProductCard({ product }: ProductCardProps) {
                   <Minus className="h-3 w-3" />
                 </Button>
 
-                <span className="w-8 text-center text-white text-sm">
+                <span className="w-8 text-center text-sm">
                   {cartItem.quantity}
                 </span>
 
                 <Button
+                  variant="ghost"
                   size="icon"
                   className="h-8 w-8"
                   onClick={() => handleUpdateQuantity(cartItem.quantity + 1)}

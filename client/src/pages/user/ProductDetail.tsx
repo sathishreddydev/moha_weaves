@@ -276,7 +276,7 @@ export default function ProductDetail() {
 
           {/* Action Buttons */}
           {user?.role === "user" && isOnlineAvailable && hasStock && (
-            <div className="space-y-4 mb-4">
+            <div className="space-y-4 mb-4 hidden lg:block">
               <div className="flex flex-col sm:flex-row gap-3">
                 {isInCart ? (
                   <div className="flex-1">
@@ -334,14 +334,14 @@ export default function ProductDetail() {
               </div>
 
               {/* Success Message for Cart */}
-              {isInCart && (
+              {/* {isInCart && (
                 <div className="flex items-center gap-2 p-3 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg">
                   <Check className="h-5 w-5 text-green-600 dark:text-green-400" />
                   <span className="text-sm font-medium text-green-700 dark:text-green-300">
                     Item added to your cart successfully!
                   </span>
                 </div>
-              )}
+              )} */}
             </div>
           )}
 
@@ -380,7 +380,7 @@ export default function ProductDetail() {
           <div className="w-px h-8 bg-zinc-200" />
           <div className="flex flex-col items-center gap-2 text-center">
             <Truck size={20} className="text-amber-600" />
-            <span className="text-[9px] font-bold uppercase tracking-tighter">Free Priority Ship</span>
+            <span className="text-[9px] font-bold uppercase tracking-tighter">Free Shiping</span>
           </div>
           <div className="w-px h-8 bg-zinc-200" />
           <div className="flex flex-col items-center gap-2 text-center">
@@ -584,7 +584,7 @@ export default function ProductDetail() {
                   />
                 ) : (
                   <Button
-                    className="h-12 px-6 font-semibold"
+                    className="h-12 px-6 font-semibold rounded-full"
                     onClick={() => addCartItem(product.id, 1)}
                     disabled={isButtonDisabled(product.id)}
                   >
@@ -600,7 +600,7 @@ export default function ProductDetail() {
 
       {/* Add bottom padding to account for sticky bar on mobile */}
       {user?.role === "user" && isOnlineAvailable && hasStock && (
-        <div className="h-20 lg:hidden" />
+        <div className="lg:hidden" />
       )}
     </div>
   );

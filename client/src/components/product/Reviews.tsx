@@ -111,7 +111,7 @@ export function Reviews({ reviewsData, reviewLoading }: ReviewsProps) {
                             {review?.user?.name || "Anonymous"}
                           </p>
                           <div className="flex items-center gap-3 mt-1">
-                            {renderStars(review.rating)}
+                            {/* {renderStars(review.rating)} */}
                             <span className="text-xs text-muted-foreground">
                               {formatDate(review.createdAt)}
                             </span>

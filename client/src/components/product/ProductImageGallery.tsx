@@ -52,7 +52,108 @@ export function ProductImageGallery({
 
   return (
     <>
-      <div className="flex gap-3">
+      {/* Mobile Layout - Thumbnails at Bottom */}
+      <div className="lg:hidden flex flex-col gap-4">
+        {/* Main Image Container */}
+        <div className="relative group">
+          <div className="relative aspect-[3/4] overflow-hidden rounded-3xl bg-zinc-100 group">
+            <img
+              src={images[selectedImage]}
+              alt={product.name}
+              className="w-full h-full object-cover transition-transform duration-1000 group-hover:scale-110"
+              onClick={handleZoomOpen}
+              data-testid="img-product-main"
+            />
+
+            {/* Zoom Button */}
+            <button
+              onClick={handleZoomOpen}
+              className="absolute top-4 right-4 p-3 bg-white/90 backdrop-blur-sm rounded-full shadow-lg opacity-0 group-hover:opacity-100 transition-all duration-300 hover:bg-white hover:scale-110"
+            >
+              <ZoomIn className="h-5 w-5 text-gray-700" />
+            </button>
+
+            {/* Featured Badge */}
+            {product.isFeatured && (
+              <div className="absolute top-4 left-4">
+                <Badge className="bg-gradient-to-r from-amber-500 to-amber-600 text-white border-0 shadow-lg">
+                  <Sparkles className="h-3 w-3 mr-1" />
+                  Featured
+                </Badge>
+              </div>
+            )}
+
+            {/* Image Counter */}
+            {images.length > 1 && (
+              <div className="absolute bottom-4 left-4">
+                <div className="bg-black/50 backdrop-blur-sm text-white px-3 py-1 rounded-full text-xs flex items-center gap-1">
+                  <Camera className="h-3 w-3" />
+                  <span>
+                    {selectedImage + 1}/{images.length}
+                  </span>
+                </div>
+              </div>
+            )}
+
+            {/* Color Display */}
+            {product.color && (
+              <div className="absolute bottom-4 right-4">
+                <div className="bg-white/90 backdrop-blur-sm p-2 rounded-full shadow-lg">
+                  <div className="flex items-center gap-2">
+                    <Palette className="h-3 w-3 text-gray-600" />
+                    <div
+                      className="w-4 h-4 rounded-full border border-gray-300"
+                      style={{ backgroundColor: product.color.hexCode }}
+                    />
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Navigation Arrows */}
+            {images.length > 1 && (
+              <>
+                <button
+                  onClick={handlePreviousImage}
+                  className="absolute left-4 top-1/2 -translate-y-1/2 p-2 bg-white/90 backdrop-blur-sm rounded-full shadow-lg opacity-0 group-hover:opacity-100 transition-all duration-300 hover:bg-white hover:scale-110"
+                >
+                  <ChevronLeft className="h-5 w-5 text-gray-700" />
+                </button>
+                <button
+                  onClick={handleNextImage}
+                  className="absolute right-4 top-1/2 -translate-y-1/2 p-2 bg-white/90 backdrop-blur-sm rounded-full shadow-lg opacity-0 group-hover:opacity-100 transition-all duration-300 hover:bg-white hover:scale-110"
+                >
+                  <ChevronRight className="h-5 w-5 text-gray-700" />
+                </button>
+              </>
+            )}
+          </div>
+        </div>
+
+        {/* Thumbnail Gallery - Bottom for Mobile */}
+        {images.length > 1 && (
+          <div className="flex gap-2 overflow-x-auto scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100 pb-2">
+            {images.map((img, i) => (
+              <button
+                key={i}
+                onClick={() => onImageSelect(i)}
+                className={cn(
+                  "w-20 h-24 rounded-md overflow-hidden flex-shrink-0 border-2 transition-all duration-300 hover:scale-105 hover:shadow-lg",
+                  selectedImage === i
+                    ? "border-primary ring-2 ring-primary/20 shadow-lg"
+                    : "border-transparent hover:border-gray-300",
+                )}
+                data-testid={`button-thumbnail-${i}`}
+              >
+                <img src={img} alt="" className="w-full h-full object-cover" />
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Desktop Layout - Thumbnails on Left */}
+      <div className="hidden lg:flex gap-3">
         {/* Thumbnail Gallery - Left Side */}
         {images.length > 1 && (
           <div className="flex flex-col gap-3 overflow-y-auto scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100">

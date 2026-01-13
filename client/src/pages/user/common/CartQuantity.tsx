@@ -18,16 +18,15 @@ export const CartQuantity = ({
   if (!item) return null;
 
   return (
-    <div className="flex items-center border rounded-md">
+    <div className="h-12 w-32 flex items-center justify-between bg-primary text-white rounded-full shadow">
       <Button
         variant="ghost"
         size="icon"
-        className="h-8 w-8"
         onClick={() => updateQuantity(item.id, item.quantity - 1)}
         disabled={isButtonDisabled(item.id)}
         data-testid={`button-quantity-minus-${item.id}`}
       >
-        <Minus className="h-3 w-3" />
+        <Minus className="h-4 w-4 transition-transform hover:scale-110" />
       </Button>
 
       <span
@@ -40,12 +39,11 @@ export const CartQuantity = ({
       <Button
         variant="ghost"
         size="icon"
-        className="h-8 w-8"
         onClick={() => updateQuantity(item.id, item.quantity + 1)}
         disabled={item.quantity >= item.product.onlineStock || isButtonDisabled(item.id)}
         data-testid={`button-quantity-plus-${item.id}`}
       >
-        <Plus className="h-3 w-3" />
+        <Plus className="h-4 w-4 transition-transform hover:scale-110" />
       </Button>
     </div>
   );
