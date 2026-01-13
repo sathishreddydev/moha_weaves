@@ -1,4 +1,4 @@
-import { useParams, Link } from "react-router-dom";
+import { useParams, Link, useNavigate } from "react-router-dom";
 import { useState } from "react";
 import {
   Heart,
@@ -19,6 +19,8 @@ import {
   Eye,
   Camera,
   Palette,
+  ShieldCheck,
+  RotateCcw,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -46,9 +48,8 @@ import { cn } from "@/lib/utils";
 export default function ProductDetail() {
   const { id } = useParams();
   const { user } = useAuth();
+  const navigate=useNavigate()
   const [selectedImage, setSelectedImage] = useState(0);
-  const [rating, setRating] = useState(5);
-  const [hoverRating, setHoverRating] = useState(0);
   const { data: product, isLoading } = useQuery<ProductWithDetails>({
     queryKey: ["/api/products", id],
   });
@@ -99,25 +100,20 @@ export default function ProductDetail() {
       maximumFractionDigits: 0,
     }).format(numPrice);
   };
-  const reviews = reviewsData?.reviews;
   const reviewStats = reviewsData?.stats;
-  const renderStars = (value: number, interactive = false) => {
+  const renderStars = (value: number) => {
     return (
       <div className="flex gap-0.5">
         {[1, 2, 3, 4, 5].map((star) => (
           <button
             key={star}
             type="button"
-            disabled={!interactive}
-            onClick={() => interactive && setRating(star)}
-            onMouseEnter={() => interactive && setHoverRating(star)}
-            onMouseLeave={() => interactive && setHoverRating(0)}
-            className={`${interactive ? "cursor-pointer" : "cursor-default"}`}
-            data-testid={interactive ? `star-rating-${star}` : undefined}
+            disabled={true}
+            className={`cursor-default`}
           >
             <Star
               className={`h-5 w-5 ${
-                star <= (interactive ? hoverRating || rating : value)
+                star <= value
                   ? "fill-yellow-400 text-yellow-400"
                   : "text-muted-foreground"
               }`}
@@ -176,21 +172,21 @@ export default function ProductDetail() {
   return (
     <div className="max-w-7xl mx-auto px-4 py-8">
       {/* Breadcrumb */}
-      <nav className="flex items-center gap-2 text-sm text-muted-foreground mb-6">
+      <nav className="flex items-center gap-3 text-[10px] font-bold uppercase tracking-widest text-zinc-400 mb-12 overflow-x-auto whitespace-nowrap scrollbar-hide">
         <Link to="/" className="hover:text-primary transition-colors">
           Home
         </Link>
-        <span>/</span>
+        <ChevronRight size={12} />
         <Link to="/products" className="hover:text-primary transition-colors">
-          products
+          Products
         </Link>
-        <span>/</span>
-        <span className="text-foreground font-medium">{product.name}</span>
+        <ChevronRight size={12} />
+        <span className="text-zinc-900">{product.name}</span>
       </nav>
 
-      <div className="grid lg:grid-cols-5 gap-4 lg:gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-16 xl:gap-24">
         {/* Image Section - 60% width */}
-        <div className="lg:col-span-3">
+        <div className="lg:col-span-7">
           <ProductImageGallery
             product={product}
             images={images}
@@ -199,19 +195,17 @@ export default function ProductDetail() {
           />
         </div>
 
-        <div className="lg:col-span-2 space-y-6">
+        <div className="lg:col-span-5 lg:sticky lg:top-32 h-fit ">
           {/* Product Title and Price Section */}
-          <div className="space-y-3">
-            <h1
-              className="text-xl font-bold"
-              data-testid="text-product-name"
-            >
+          <div className="mb-4">
+            <h1 className="text-5xl font-serif tracking-tighter mb-4 leading-none first-letter:uppercase">
               {product.name}
             </h1>
+
             <div className="flex items-baseline gap-2">
               {!product.activeSale || !product.discountedPrice ? (
                 <p
-                  className="text-2xl font-bold text-primary"
+                  className="text-3xl font-light text-primary"
                   data-testid="text-product-price"
                 >
                   {formatPrice(product.price)}
@@ -219,7 +213,7 @@ export default function ProductDetail() {
               ) : (
                 <>
                   <p
-                    className="text-2xl font-bold text-primary"
+                    className="text-3xl font-light text-primary"
                     data-testid="text-product-price"
                   >
                     {formatPrice(product.discountedPrice)}
@@ -242,7 +236,7 @@ export default function ProductDetail() {
           </div>
 
           {/* Stock Status */}
-          <div className="flex items-center">
+          <div className="flex items-center mb-4">
             {isOnlineAvailable ? (
               hasStock ? (
                 <div className="flex items-center gap-2 px-3 py-2 bg-green-50 dark:bg-green-900/20 rounded-lg border border-green-200 dark:border-green-800">
@@ -270,18 +264,19 @@ export default function ProductDetail() {
           </div>
 
           {/* Product Description */}
-          <div className="p-4 bg-muted/30 rounded-lg border border-border/50">
-            <div className="prose max-w-none dark:prose-invert">
-              <p className="text-gray-700 dark:text-gray-300 leading-relaxed text-sm">
-                {product.description ||
-                  "This exquisite product showcases finest craftsmanship, blending traditional artistry with contemporary elegance."}
-              </p>
-            </div>
+          <div className="mb-4">
+            <p className="text-[10px] font-bold uppercase tracking-widest text-zinc-400 mb-2">
+              The Story
+            </p>
+            <p className="text-zinc-600 leading-relaxed text-sm font-serif">
+              {product.description ||
+                "This exquisite product showcases finest craftsmanship, blending traditional artistry with contemporary elegance."}
+            </p>
           </div>
 
           {/* Action Buttons */}
           {user?.role === "user" && isOnlineAvailable && hasStock && (
-            <div className="space-y-4">
+            <div className="space-y-4 mb-4">
               <div className="flex flex-col sm:flex-row gap-3">
                 {isInCart ? (
                   <div className="flex-1">
@@ -294,13 +289,12 @@ export default function ProductDetail() {
                   </div>
                 ) : (
                   <Button
-                    className="flex-1 h-12 text-sm font-semibold bg-gradient-to-r from-primary to-primary/90 hover:from-primary/90 hover:to-primary shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-[1.02]"
+                    className="flex-1 h-12 text-sm font-semibold rounded-full bg-gradient-to-r from-primary to-primary/90 hover:from-primary/90 hover:to-primary shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-[1.02]"
                     onClick={() => addCartItem(product.id, 1)}
                     disabled={isButtonDisabled(product.id)}
                     data-testid="button-add-to-cart"
                   >
-                    <ShoppingBag className="h-4 w-4 mr-2" />
-                    Add to Cart
+                    Add to Cart <ShoppingBag className="h-4 w-4 ml-2" />
                   </Button>
                 )}
 
@@ -308,7 +302,7 @@ export default function ProductDetail() {
                   <Button
                     variant="secondary"
                     size="icon"
-                    className="h-12 w-12 rounded-full bg-background/90 backdrop-blur-sm border-2 hover:bg-background hover:scale-110 transition-all duration-300 shadow-md hover:shadow-lg"
+                    className="h-12 w-12 rounded-full bg-background/90 backdrop-blur-sm hover:bg-background hover:scale-110 transition-all duration-300 shadow-md hover:shadow-lg"
                     onClick={() =>
                       isInWishlist
                         ? removeWishlistItem(product.id)
@@ -330,12 +324,12 @@ export default function ProductDetail() {
                       )}
                     />
                   </Button>
-                  <div className="h-12 w-12 rounded-full bg-background/90 backdrop-blur-sm border-2 shadow-md hover:shadow-lg transition-all duration-300 hover:scale-110 flex items-center justify-center">
-                    <ProductSharePopover
+                  <ProductSharePopover
                       name={product.name}
-                      price={formatPrice(product.discountedPrice || product.price)}
+                      price={formatPrice(
+                        product.discountedPrice || product.price,
+                      )}
                     />
-                  </div>
                 </div>
               </div>
 
@@ -353,7 +347,7 @@ export default function ProductDetail() {
 
           {/* Login Prompt */}
           {!user && (
-            <div className="p-6 bg-gradient-to-r from-primary/5 to-primary/10 border border-primary/20 rounded-2xl">
+            <div className="p-6 bg-gradient-to-r from-primary/5 to-primary/10 border border-primary/20 rounded-2xl mb-4">
               <div className="text-center">
                 <div className="w-12 h-12 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-4">
                   <ShoppingBag className="h-6 w-6 text-primary" />
@@ -378,26 +372,22 @@ export default function ProductDetail() {
           )}
 
           {/* Trust Badges */}
-          <div className="grid grid-cols-3 gap-4 py-6 border-y border-border/50">
-            <div className="flex items-center gap-2 text-center">
-              <div className="w-8 h-8 bg-blue-100 dark:bg-blue-900/20 rounded-full flex items-center justify-center flex-shrink-0">
-                <Truck className="h-4 w-4 text-blue-600 dark:text-blue-400" />
-              </div>
-              <span className="text-xs font-medium text-foreground">Free Shipping</span>
-            </div>
-            <div className="flex items-center gap-2 text-center">
-              <div className="w-8 h-8 bg-green-100 dark:bg-green-900/20 rounded-full flex items-center justify-center flex-shrink-0">
-                <RefreshCw className="h-4 w-4 text-green-600 dark:text-green-400" />
-              </div>
-              <span className="text-xs font-medium text-foreground">7-Day Returns</span>
-            </div>
-            <div className="flex items-center gap-2 text-center">
-              <div className="w-8 h-8 bg-purple-100 dark:bg-purple-900/20 rounded-full flex items-center justify-center flex-shrink-0">
-                <Shield className="h-4 w-4 text-purple-600 dark:text-purple-400" />
-              </div>
-              <span className="text-xs font-medium text-foreground">Secure Payment</span>
-            </div>
+           <div className="flex justify-between items-center py-6 bg-zinc-50 rounded-2xl px-6">
+          <div className="flex flex-col items-center gap-2 text-center">
+            <ShieldCheck size={20} className="text-amber-600" />
+            <span className="text-[9px] font-bold uppercase tracking-tighter">Authentic Certified</span>
           </div>
+          <div className="w-px h-8 bg-zinc-200" />
+          <div className="flex flex-col items-center gap-2 text-center">
+            <Truck size={20} className="text-amber-600" />
+            <span className="text-[9px] font-bold uppercase tracking-tighter">Free Priority Ship</span>
+          </div>
+          <div className="w-px h-8 bg-zinc-200" />
+          <div className="flex flex-col items-center gap-2 text-center">
+            <RotateCcw size={20} className="text-amber-600" />
+            <span className="text-[9px] font-bold uppercase tracking-tighter">7 Day Returns</span>
+          </div>
+        </div>
 
           <Accordion type="single" collapsible className="w-full">
             <AccordionItem value="details">
@@ -499,7 +489,9 @@ export default function ProductDetail() {
             <AccordionItem value="reviews">
               <AccordionTrigger className="text-left hover:no-underline">
                 <div className="flex items-center justify-between w-full pr-4">
-                  <span className="font-semibold text-sm">Customer Reviews</span>
+                  <span className="font-semibold text-sm">
+                    Customer Reviews
+                  </span>
                   <div className="flex items-center gap-2">
                     {renderStars(reviewStats?.averageRating || 0)}
                     <span className="text-xs text-muted-foreground whitespace-nowrap">
@@ -525,8 +517,12 @@ export default function ProductDetail() {
 
       {/* Enhanced Related Products */}
       {relatedProducts && relatedProducts.length > 0 && (
-        <section className="mt-20">
-          <div className="text-center mb-5">
+        <section className="mt-38 pt-24 border-t border-zinc-100">
+           <div className="flex justify-between items-end mb-16">
+            <h2 className="text-5xl font-serif tracking-tighter italic font-light">Complete the <br/> <span className="not-italic font-bold">Ensemble</span></h2>
+            <button onClick={()=>{navigate('/products')}} className="text-[10px] font-bold uppercase tracking-[0.4em] border-b border-black pb-2 hover:text-amber-600 hover:border-amber-600 transition-all">View All</button>
+          </div>
+          {/* <div className="text-center mb-5">
             <h2 className="font-serif text-xl font-bold text-gray-900 dark:text-white">
               You May Also Like
             </h2>
@@ -534,7 +530,7 @@ export default function ProductDetail() {
               Discover more exquisite products that complement your style and
               preferences
             </p>
-          </div>
+          </div> */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
             {relatedProducts.map((s) => (
               <div key={s.id} className="group">

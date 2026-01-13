@@ -26,10 +26,8 @@ export function ProductSharePopover({
 
   const shareOnWhatsApp = () => {
     window.open(
-      `https://wa.me/?text=${encodeURIComponent(
-        `${shareText}\n${shareUrl}`
-      )}`,
-      "_blank"
+      `https://wa.me/?text=${encodeURIComponent(`${shareText}\n${shareUrl}`)}`,
+      "_blank",
     );
   };
 
@@ -53,10 +51,9 @@ export function ProductSharePopover({
         <Button
           variant="secondary"
           size="icon"
-          className="h-9 w-9 rounded-full bg-background/90 backdrop-blur-sm"
-          title="Share"
+          className="h-12 w-12 rounded-full bg-background/90 shadow-md hover:shadow-lg transition-all duration-300 hover:scale-110 flex items-center justify-center"
         >
-          <Share2 className="h-4 w-4" />
+          <Share2 size={20} strokeWidth={1.5} />
         </Button>
       </PopoverTrigger>
 

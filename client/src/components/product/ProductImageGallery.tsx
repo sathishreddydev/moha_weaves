@@ -61,18 +61,14 @@ export function ProductImageGallery({
                 key={i}
                 onClick={() => onImageSelect(i)}
                 className={cn(
-                  "w-28 h-28 rounded-md overflow-hidden flex-shrink-0 border-2 transition-all duration-300 hover:scale-105 hover:shadow-lg",
+                  "w-24 h-28 rounded-md overflow-hidden flex-shrink-0 border-2 transition-all duration-300 hover:scale-105 hover:shadow-lg",
                   selectedImage === i
                     ? "border-primary ring-2 ring-primary/20 shadow-lg"
                     : "border-transparent hover:border-gray-300",
                 )}
                 data-testid={`button-thumbnail-${i}`}
               >
-                <img
-                  src={img}
-                  alt=""
-                  className="w-full h-full object-cover"
-                />
+                <img src={img} alt="" className="w-full h-full object-cover" />
               </button>
             ))}
           </div>
@@ -81,15 +77,15 @@ export function ProductImageGallery({
         {/* Main Image Container */}
         <div className="flex-1">
           <div className="relative group">
-            <div className="aspect-square w-full overflow-hidden rounded-lg bg-gradient-to-br from-muted/50 to-muted shadow-lg">
+            <div className="order-1 lg:order-2 flex-1 relative aspect-[3/4] overflow-hidden rounded-3xl bg-zinc-100 group">
               <img
                 src={images[selectedImage]}
                 alt={product.name}
-                className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105 cursor-zoom-in"
+                className="w-full h-full object-cover transition-transform duration-1000 group-hover:scale-110"
                 onClick={handleZoomOpen}
                 data-testid="img-product-main"
               />
-              
+
               {/* Zoom Button */}
               <button
                 onClick={handleZoomOpen}

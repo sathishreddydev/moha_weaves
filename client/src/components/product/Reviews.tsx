@@ -13,13 +13,18 @@ import { apiRequest, queryClient } from "@/lib/queryClient";
 import { ProductReview } from "@shared/schema";
 
 interface ReviewsProps {
-  productId: string;
+  reviewsData: {
+    reviews: any[];
+    stats: {
+      averageRating: number;
+      totalReviews: number;
+      ratingDistribution: Record<number, number>;
+    };
+  } | null | undefined;
+  reviewLoading: boolean;
 }
 
-export function Reviews({ reviewsData, reviewLoading }: any) {
-  const [rating, setRating] = useState(5);
-  const [hoverRating, setHoverRating] = useState(0);
-
+export function Reviews({ reviewsData, reviewLoading }: ReviewsProps) {
   const reviews = reviewsData?.reviews;
   const reviewStats = reviewsData?.stats;
 
@@ -38,16 +43,13 @@ export function Reviews({ reviewsData, reviewLoading }: any) {
           <button
             key={star}
             type="button"
-            disabled={!interactive}
-            onClick={() => interactive && setRating(star)}
-            onMouseEnter={() => interactive && setHoverRating(star)}
-            onMouseLeave={() => interactive && setHoverRating(0)}
-            className={`${interactive ? "cursor-pointer" : "cursor-default"}`}
+            disabled={true}
+            className="cursor-default"
             data-testid={interactive ? `star-rating-${star}` : undefined}
           >
             <Star
               className={`h-5 w-5 ${
-                star <= (interactive ? hoverRating || rating : value)
+                star <= (value)
                   ? "fill-yellow-400 text-yellow-400"
                   : "text-muted-foreground"
               }`}

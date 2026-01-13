@@ -242,7 +242,7 @@ export function ProductCard({ product }: ProductCardProps) {
               </p>
             </>
           ) : (
-            <p className="font-semibold text-primary">
+            <p className="font-semibold text-primary text-sm">
               {formatPrice(product.price)}
             </p>
           )}
