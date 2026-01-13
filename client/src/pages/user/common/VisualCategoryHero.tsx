@@ -30,7 +30,7 @@ export const VisualCategoryHero = ({categoriesData}: {categoriesData: any[]}) =>
 
   return (
     <section 
-      className="relative h-screen w-full bg-zinc-950 overflow-hidden"
+      className="relative h-[70vh] w-full bg-zinc-950 overflow-hidden"
       onMouseEnter={() => setIsPaused(true)}
       onMouseLeave={() => setIsPaused(false)}
     >
@@ -51,25 +51,25 @@ export const VisualCategoryHero = ({categoriesData}: {categoriesData: any[]}) =>
           <p className="text-amber-500 font-bold tracking-[0.5em] uppercase text-xs mb-6 overflow-hidden">
             <span className="inline-block animate-in slide-in-from-bottom-full duration-700">Premium Collection</span>
           </p>
-          <h2 className="text-white text-7xl md:text-[120px] font-serif leading-[0.85] mb-8 tracking-tighter">
+          <h2 className="text-white text-4xl md:text-6xl lg:text-7xl xl:text-[120px] font-serif leading-[0.85] mb-6 md:mb-8 tracking-tighter">
             {categoriesData[activeIndex]?.name}
-            <span className="block italic font-light text-4xl md:text-6xl mt-4 opacity-80">{categoriesData[activeIndex]?.tagline}</span>
+            <span className="block italic font-light text-2xl md:text-3xl lg:text-4xl xl:text-6xl mt-2 md:mt-4 opacity-80">{categoriesData[activeIndex]?.tagline}</span>
           </h2>
           
-          <div className="flex flex-wrap gap-4 mt-12">
+          <div className="flex flex-wrap gap-3 md:gap-4 mt-8 md:mt-12">
             {categoriesData[activeIndex]?.subcategories.map((sub: any, sIdx: any) => (
               <button 
                 key={sub.id} 
                 onClick={() => handleSubcategoryClick(categoriesData[activeIndex], sub)}
                 style={{ animationDelay: `${sIdx * 100}ms` }}
-                className="group bg-white/10 backdrop-blur-md border border-white/20 px-6 py-4 rounded-full flex items-center gap-4 hover:bg-white hover:text-black transition-all duration-500 animate-in fade-in slide-in-from-bottom-4"
+                className="group bg-white/10 backdrop-blur-md border border-white/20 px-4 md:px-6 py-3 md:py-4 rounded-full flex items-center gap-3 md:gap-4 hover:bg-white hover:text-black transition-all duration-500 animate-in fade-in slide-in-from-bottom-4"
               >
                 <div className="text-left">
-                  <p className="text-[10px] uppercase tracking-widest opacity-60 group-hover:opacity-100">Explore</p>
-                  <p className="font-medium text-sm">{sub.name}</p>
+                  <p className="text-[8px] md:text-[10px] uppercase tracking-widest opacity-60 group-hover:opacity-100">Explore</p>
+                  <p className="font-medium text-xs md:text-sm">{sub.name}</p>
                 </div>
-                <div className="w-8 h-8 rounded-full border border-white/20 flex items-center justify-center group-hover:border-black/20 group-hover:rotate-45 transition-all">
-                  <ArrowUpRight size={14} />
+                <div className="w-6 h-6 md:w-8 md:h-8 rounded-full border border-white/20 flex items-center justify-center group-hover:border-black/20 group-hover:rotate-45 transition-all">
+                  <ArrowUpRight size={10} className="md:size-14" />
                 </div>
               </button>
             ))}

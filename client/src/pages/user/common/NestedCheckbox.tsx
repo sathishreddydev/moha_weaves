@@ -2,7 +2,6 @@ import React, { useState, useCallback } from "react";
 import { ChevronDown, ChevronRight } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { cn } from "@/lib/utils";
-import { Button } from "@/components/ui/button";
 
 export interface NestedCheckboxOption {
   id: string;
@@ -24,7 +23,7 @@ const NestedCheckboxItem: React.FC<{
   onChange: (selectedValues: Set<string>) => void;
   level?: number;
 }> = ({ option, selectedValues, onChange, level = 0 }) => {
-  const [isExpanded, setIsExpanded] = useState(true);
+  const [isExpanded, setIsExpanded] = useState(false);
   const hasChildren = option.children && option.children.length > 0;
 
   const getAllDescendantIds = useCallback(

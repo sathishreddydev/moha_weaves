@@ -73,17 +73,17 @@ export default function Home() {
         <div className="max-w-7xl mx-auto px-4">
           <div className="flex items-center justify-between mb-4">
             <div>
-              <p
-                className="font-serif font-semibold
-               text-xl"
+              <h1
+                className="font-serif tracking-tighter transition-colors
+               text-2xl"
                 data-testid="text-categories-title"
               >
                 Shop by Category
-              </p>
+              </h1>
 
               <p
                 className="text-muted-foreground
-               text-sm sm:text-base"
+               text-xs"
               >
                 Explore our curated collections
               </p>
@@ -105,9 +105,11 @@ export default function Home() {
           ) : (
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
               {categories?.slice(0, 8).map((category) => {
-                const subcategoryNames = category.subcategories?.map(sub => sub.name).join(',') || '';
-                const categoryUrl = `/products?category=${category.name}${subcategoryNames ? `&subcategory=${subcategoryNames}` : ''}`;
-                
+                const subcategoryNames =
+                  category.subcategories?.map((sub) => sub.name).join(",") ||
+                  "";
+                const categoryUrl = `/products?category=${category.name}${subcategoryNames ? `&subcategory=${subcategoryNames}` : ""}`;
+
                 return (
                   <Link key={category.id} to={categoryUrl}>
                     <Card
@@ -142,16 +144,16 @@ export default function Home() {
           <div className="max-w-7xl mx-auto px-4">
             <div className="flex items-center justify-between mb-4">
               <div>
-                <p
-                  className="font-serif font-semibold
-               text-xl"
+                <h1
+                  className="font-serif tracking-tighter transition-colors
+               text-2xl"
                   data-testid="text-featured-title"
                 >
                   Featured Collection
-                </p>
+                </h1>
                 <p
                   className="text-muted-foreground
-               text-sm sm:text-base"
+               text-xs"
                 >
                   Handpicked favorites from our collection
                 </p>
@@ -188,16 +190,16 @@ export default function Home() {
         <div className="max-w-7xl mx-auto px-4">
           <div className="flex items-center justify-between mb-4">
             <div>
-              <p
-                className="font-serif font-semibold
-               text-xl"
+             <h1
+                className="font-serif tracking-tighter transition-colors
+               text-2xl"
                 data-testid="text-new-arrivals-title"
               >
                 New Arrivals
-              </p>
+              </h1>
               <p
                 className="text-muted-foreground
-               text-sm sm:text-base"
+               text-xs"
               >
                 Fresh additions to our collection
               </p>

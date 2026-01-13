@@ -19,7 +19,10 @@ import { useFilterStore } from "@/components/Store/useFilterStore";
 import { CheckedState } from "@radix-ui/react-checkbox";
 import PriceRangeSlider from "@/components/product/PriceRangeSlider";
 import { ReusableDrawer } from "@/components/common/ReusableDrawer";
-import NestedCheckbox, { NestedCheckboxOption, getSelectedTree } from "./common/NestedCheckbox";
+import NestedCheckbox, {
+  NestedCheckboxOption,
+  getSelectedTree,
+} from "./common/NestedCheckbox";
 
 type FilterItemProps = {
   id: string;
@@ -74,7 +77,7 @@ export default function products() {
 
   const initialFilters = useMemo(
     () => parseFiltersFromURL(location.search),
-    [location.search]
+    [location.search],
   );
 
   const [filters, setFilters] = useState(initialFilters);
@@ -87,7 +90,7 @@ export default function products() {
         pathname: location.pathname,
         search: query,
       },
-      { replace: true }
+      { replace: true },
     );
   }, [filters, navigate, location.pathname]);
   // const [filters, setFilters] = useState({
@@ -106,7 +109,7 @@ export default function products() {
   const updateFilter = (
     key: string,
     value: string | { min: number; max: number },
-    checked?: boolean
+    checked?: boolean,
   ) => {
     if (key === "priceRange" && typeof value !== "string") {
       setFilters((prev) => ({ ...prev, priceRange: value }));
@@ -140,10 +143,10 @@ export default function products() {
       priceRange: { min: 0, max: 100000 },
       sort: "newest",
     });
-    
+
     // Reset nested checkbox state
     setSelectedCategoryValues(new Set());
-    
+
     // Update URL to remove filter parameters
     const params = new URLSearchParams(location.search);
     params.delete("category");
@@ -162,7 +165,7 @@ export default function products() {
         pathname: location.pathname,
         search: params.toString(),
       },
-      { replace: true }
+      { replace: true },
     );
   };
 
@@ -178,94 +181,96 @@ export default function products() {
 
   // Helper functions to get display names
   const getColorDisplayName = (colorName: string) => {
-    const color = colors.find(c => c.name === colorName);
-    return color ? color.name.charAt(0).toUpperCase() + color.name.slice(1) : colorName;
+    const color = colors.find((c) => c.name === colorName);
+    return color
+      ? color.name.charAt(0).toUpperCase() + color.name.slice(1)
+      : colorName;
   };
 
   const getSelectedFilters = () => {
     const selectedFilters = [];
-    
+
     // Add categories
-    filters.category.forEach(cat => {
+    filters.category.forEach((cat) => {
       selectedFilters.push({
-        type: 'category',
+        type: "category",
         value: cat,
-        display: cat
+        display: cat,
       });
     });
-    
+
     // Add subcategories
-    filters.subcategory.forEach(subcat => {
+    filters.subcategory.forEach((subcat) => {
       selectedFilters.push({
-        type: 'subcategory',
+        type: "subcategory",
         value: subcat,
-        display: subcat
+        display: subcat,
       });
     });
-    
+
     // Add colors
-    filters.color.forEach(color => {
+    filters.color.forEach((color) => {
       selectedFilters.push({
-        type: 'color',
+        type: "color",
         value: color,
-        display: getColorDisplayName(color)
+        display: getColorDisplayName(color),
       });
     });
-    
+
     // Add fabrics
-    filters.fabric.forEach(fabric => {
+    filters.fabric.forEach((fabric) => {
       selectedFilters.push({
-        type: 'fabric',
+        type: "fabric",
         value: fabric,
-        display: fabric
+        display: fabric,
       });
     });
-    
+
     // Add featured
     if (filters.featured) {
       selectedFilters.push({
-        type: 'featured',
-        value: 'featured',
-        display: 'Featured'
+        type: "featured",
+        value: "featured",
+        display: "Featured",
       });
     }
-    
+
     // Add on sale
     if (filters.onSale) {
       selectedFilters.push({
-        type: 'onSale',
-        value: 'onSale',
-        display: 'On Sale'
+        type: "onSale",
+        value: "onSale",
+        display: "On Sale",
       });
     }
-    
+
     // Add price range if not default
     if (filters.priceRange.min !== 0 || filters.priceRange.max !== 100000) {
       selectedFilters.push({
-        type: 'priceRange',
+        type: "priceRange",
         value: filters.priceRange,
-        display: `₹${filters.priceRange.min} - ₹${filters.priceRange.max}`
+        display: `₹${filters.priceRange.min} - ₹${filters.priceRange.max}`,
       });
     }
-    
+
     return selectedFilters;
   };
 
   const removeFilter = (filter: any) => {
-    if (filter.type === 'category') {
-      updateFilter('category', filter.value, false);
-    } else if (filter.type === 'subcategory') {
-      updateFilter('subcategory', filter.value, false);
-    } else if (filter.type === 'color') {
-      updateFilter('color', filter.value, false);
-    } else if (filter.type === 'fabric') {
-      updateFilter('fabric', filter.value, false);
-    } else if (filter.type === 'featured') {
-      setFilters(prev => ({ ...prev, featured: false }));
-    } else if (filter.type === 'onSale') {
-      setFilters(prev => ({ ...prev, onSale: false }));
-    } else if (filter.type === 'priceRange') {
-      updateFilter('priceRange', { min: 0, max: 100000 });
+    if (filter.type === "category") {
+      updateFilter("category", filter.value, false);
+    } else if (filter.type === "subcategory") {
+      updateFilter("subcategory", filter.value, false);
+    } else if (filter.type === "color") {
+      updateFilter("color", filter.value, false);
+    } else if (filter.type === "fabric") {
+      updateFilter("fabric", filter.value, false);
+    } else if (filter.type === "featured") {
+      setFilters((prev) => ({ ...prev, featured: false }));
+    } else if (filter.type === "onSale") {
+      setFilters((prev) => ({ ...prev, onSale: false }));
+    } else if (filter.type === "priceRange") {
+      updateFilter("priceRange", { min: 0, max: 100000 });
     }
   };
 
@@ -289,18 +294,21 @@ export default function products() {
 
   // Transform categories to nested checkbox structure
   const categoryOptions: NestedCheckboxOption[] = useMemo(() => {
-    return categories.map(cat => ({
+    return categories.map((cat) => ({
       id: cat.name,
       label: cat.name,
-      children: cat.subcategories?.map(sub => ({
-        id: sub.name,
-        label: sub.name
-      })) || []
+      children:
+        cat.subcategories?.map((sub) => ({
+          id: sub.name,
+          label: sub.name,
+        })) || [],
     }));
   }, [categories]);
 
   // Convert filters to Set for nested checkbox
-  const [selectedCategoryValues, setSelectedCategoryValues] = useState<Set<string>>(new Set());
+  const [selectedCategoryValues, setSelectedCategoryValues] = useState<
+    Set<string>
+  >(new Set());
 
   // Sync filters with nested checkbox state
   useEffect(() => {
@@ -309,41 +317,47 @@ export default function products() {
   }, [filters.category, filters.subcategory]);
 
   // Handle nested checkbox changes
-  const handleCategoryChange = useCallback((selectedValues: Set<string>) => {
-    setSelectedCategoryValues(selectedValues);
-    
-    // Get the selected tree to separate categories and subcategories
-    const selectedTree = getSelectedTree(categoryOptions, selectedValues);
-    
-    const categories: string[] = [];
-    const subcategories: string[] = [];
-    
-    const extractNames = (nodes: NestedCheckboxOption[], isSubcategory = false) => {
-      nodes.forEach(node => {
-        if (node.children && node.children.length > 0) {
-          // This is a parent category
-          categories.push(node.id);
-          extractNames(node.children, true);
-        } else {
-          // This is a leaf node (subcategory)
-          if (isSubcategory) {
-            subcategories.push(node.id);
-          } else {
+  const handleCategoryChange = useCallback(
+    (selectedValues: Set<string>) => {
+      setSelectedCategoryValues(selectedValues);
+
+      // Get the selected tree to separate categories and subcategories
+      const selectedTree = getSelectedTree(categoryOptions, selectedValues);
+
+      const categories: string[] = [];
+      const subcategories: string[] = [];
+
+      const extractNames = (
+        nodes: NestedCheckboxOption[],
+        isSubcategory = false,
+      ) => {
+        nodes.forEach((node) => {
+          if (node.children && node.children.length > 0) {
+            // This is a parent category
             categories.push(node.id);
+            extractNames(node.children, true);
+          } else {
+            // This is a leaf node (subcategory)
+            if (isSubcategory) {
+              subcategories.push(node.id);
+            } else {
+              categories.push(node.id);
+            }
           }
-        }
-      });
-    };
-    
-    extractNames(selectedTree);
-    
-    // Update filters directly with arrays
-    setFilters(prev => ({
-      ...prev,
-      category: categories,
-      subcategory: subcategories
-    }));
-  }, [categoryOptions, updateFilter]);
+        });
+      };
+
+      extractNames(selectedTree);
+
+      // Update filters directly with arrays
+      setFilters((prev) => ({
+        ...prev,
+        category: categories,
+        subcategory: subcategories,
+      }));
+    },
+    [categoryOptions, updateFilter],
+  );
 
   useEffect(() => {
     if (!categories.length || !colors.length || !fabrics.length) {
@@ -398,7 +412,6 @@ export default function products() {
             onChange={handleCategoryChange}
           />
         </FilterSection>
-     
 
         <FilterSection title="Colors">
           {colors?.map((color) => (
@@ -461,7 +474,7 @@ export default function products() {
         </aside>
 
         <main className="flex-1 pb-8">
-          <div className="flex flex-col sticky top-16 z-20 bg-white gap-4 py-4">
+          <div className="flex flex-col sticky top-12 z-20 bg-white gap-4 py-4">
             <div className="px-6 lg:hidden">
               <Input
                 type="search"
@@ -510,30 +523,30 @@ export default function products() {
             </div>
           </div>
           {hasActiveFilters && (
-            <div className="px-6 py-3 border-b">
+            <div className="px-6 py-2 mb-2 border-b">
               <div className="flex flex-wrap items-center gap-2">
-                <span className="text-sm font-medium text-muted-foreground">Active filters:</span>
+                <span className="text-xs font-medium text-muted-foreground">
+                  Active filters:
+                </span>
                 {getSelectedFilters().map((filter, index) => (
                   <div
+                    onClick={() => removeFilter(filter)}
                     key={`${filter.type}-${filter.value}-${index}`}
-                    className="inline-flex items-center gap-1 px-3 py-1 bg-gray-100 hover:bg-gray-200 rounded-full text-sm"
+                    className="inline-flex items-center gap-1 px-3 py-1 bg-gray-100 hover:line-through cursor-pointer hover:bg-gray-200 rounded-full text-xs"
                   >
                     <span>{filter.display}</span>
-                    <button
-                      onClick={() => removeFilter(filter)}
-                      className="ml-1 text-gray-500 hover:text-gray-700"
+                    <X
+                      className="h-3 w-3 ml-1 text-gray-500 hover:text-gray-700"
                       aria-label={`Remove ${filter.display} filter`}
-                    >
-                      <X className="h-3 w-3" />
-                    </button>
+                    />
                   </div>
                 ))}
-                <button
+                <div
                   onClick={clearFilters}
-                  className="text-sm text-primary hover:underline"
+                  className="text-xs text-primary hover:underline cursor-pointer"
                 >
                   Clear all
-                </button>
+                </div>
               </div>
             </div>
           )}

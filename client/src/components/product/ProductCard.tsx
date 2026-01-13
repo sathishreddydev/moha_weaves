@@ -71,7 +71,7 @@ export function ProductCard({ product }: ProductCardProps) {
 
   return (
     <Card className="group border-0 shadow-none bg-transparent">
-      <div className="relative aspect-[3/4] overflow-hidden rounded-md bg-muted">
+      <div className="relative aspect-square overflow-hidden rounded-xl bg-muted">
         <Link to={`/products/${product.id}`}>
           <img
             src={product.imageUrl ?? "/placeholder.png"}
@@ -200,7 +200,7 @@ export function ProductCard({ product }: ProductCardProps) {
       <div className="pt-4 space-y-1">
         <div className="flex items-start justify-between gap-2">
           <Link to={`/products/${product.id}`} className="flex-1">
-            <h3 className="font-medium text-sm line-clamp-2 hover:text-primary">
+            <h3 className="text-xs font-medium uppercase tracking-[0.1em]">
               {product.name}
             </h3>
           </Link>

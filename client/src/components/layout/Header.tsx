@@ -86,14 +86,14 @@ export function Header() {
 
   return (
     <header
-      className={`fixed top-0 w-full z-[100] transition-all duration-700 ${scrolled ? "bg-white backdrop-blur-xl py-3 shadow-sm" : "bg-transparent py-3"}`}
+      className={`sticky top-0 w-full z-[100] transition-all duration-700 ${scrolled ? "bg-white/95 backdrop-blur-xl py-3 shadow-sm" : "bg-white/95 backdrop-blur-md py-3"}`}
     >
       <div className="max-w-[1800px] mx-auto px-8 flex justify-between items-center">
         <div className="flex items-center gap-12">
           <div className="flex items-center gap-2">
             <Sheet>
               <SheetTrigger asChild className="lg:hidden">
-                <Button variant="ghost" size="icon" className={`${scrolled ? "text-black" : "text-white"}`}>
+                <Button variant="ghost" size="icon" className="text-primary hover:scale-110 transition-transform">
                   <Menu className="h-5 w-5" />
                 </Button>
               </SheetTrigger>
@@ -122,7 +122,7 @@ export function Header() {
             </Sheet>
 
             <h1
-              className={`text-2xl font-serif tracking-tighter transition-colors duration-500 ${scrolled ? "text-primary" : "text-white"}`}
+              className="text-2xl font-serif tracking-tighter transition-colors duration-500 text-primary"
             >
               <Link to="/">Moha</Link>
             </h1>
@@ -133,7 +133,7 @@ export function Header() {
               <Link
                 key={link.href}
                 to={link.href}
-                className={`${scrolled ? "text-zinc-600" : "text-zinc-300"} hover:text-primary transition-colors`}
+                className="text-primary hover:text-amber-500 transition-colors"
               >
                 {link.label}
               </Link>
@@ -141,7 +141,7 @@ export function Header() {
           </nav>
         </div>
 
-          <div className={`flex items-center gap-6 transition-colors duration-500 ${scrolled ? "text-black" : "text-white"}`}>
+          <div className={`flex items-center gap-6 transition-colors duration-500 text-primary`}>
           {user && user.role === "user" && (
             <>
               <Link to="/user/wishlist">
