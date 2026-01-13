@@ -1,6 +1,6 @@
 export function Footer() {
   return (
-    <footer className="bg-primary border-t rounded-b-lg">
+    <footer className="sticky bg-primary border-t rounded-b-lg">
       <div className="max-w-7xl mx-auto px-5">
         <div className="py-4 grid gap-6 md:grid-cols-2 items-start">
           <div className="max-w-md text-center md:text-left">

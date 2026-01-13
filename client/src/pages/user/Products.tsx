@@ -392,8 +392,7 @@ export default function products() {
   const FilterContent = () => (
     <div className="space-y-6 pb-8 pt-4">
       <div className="flex items-center justify-between">
-        <span className="flex items-center gap-1 text-sm font-semibold">
-          <Filter className="h-4 w-4" />
+        <span className="flex items-center gap-1 text-base font-semibold">
           Filters
         </span>
 
