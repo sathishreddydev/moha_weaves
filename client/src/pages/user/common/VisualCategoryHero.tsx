@@ -1,5 +1,5 @@
 import { ArrowUpRight, ArrowDown } from "lucide-react";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 
 export const VisualCategoryHero = ({categoriesData}: {categoriesData: any[]}) => {
@@ -7,6 +7,8 @@ export const VisualCategoryHero = ({categoriesData}: {categoriesData: any[]}) =>
   const [isPaused, setIsPaused] = useState(false);
   const slideDuration = 10000;
   const navigate = useNavigate();
+  const touchStartX = useRef(0);
+  const touchEndX = useRef(0);
 
   useEffect(() => {
     if (isPaused) return;
@@ -28,11 +30,36 @@ export const VisualCategoryHero = ({categoriesData}: {categoriesData: any[]}) =>
     navigate(categoryUrl);
   };
 
+  const handleTouchStart = (e: React.TouchEvent) => {
+    touchStartX.current = e.targetTouches[0].clientX;
+  };
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    touchEndX.current = e.targetTouches[0].clientX;
+  };
+
+  const handleTouchEnd = () => {
+    if (!touchStartX.current || !touchEndX.current) return;
+    
+    const distance = touchStartX.current - touchEndX.current;
+    const isLeftSwipe = distance > 50;
+    const isRightSwipe = distance < -50;
+
+    if (isLeftSwipe) {
+      setActiveIndex((prev) => (prev + 1) % categoriesData.length);
+    } else if (isRightSwipe) {
+      setActiveIndex((prev) => (prev - 1 + categoriesData.length) % categoriesData.length);
+    }
+  };
+
   return (
     <section 
       className="relative h-[70vh] w-full bg-zinc-950 overflow-hidden"
       onMouseEnter={() => setIsPaused(true)}
       onMouseLeave={() => setIsPaused(false)}
+      onTouchStart={handleTouchStart}
+      onTouchMove={handleTouchMove}
+      onTouchEnd={handleTouchEnd}
     >
       {/* Background Layers */}
       {categoriesData.map((cat, idx) => (
@@ -79,23 +106,33 @@ export const VisualCategoryHero = ({categoriesData}: {categoriesData: any[]}) =>
 
       {/* Navigation Controls */}
       <div className="absolute bottom-12 left-8 right-8 z-20 flex justify-between items-end">
-        <div className="flex gap-4">
+        <div className="flex gap-2 md:gap-4">
           {categoriesData.map((_, idx) => (
             <button 
               key={idx}
               onClick={() => setActiveIndex(idx)}
-              className="relative h-1 w-24 bg-white/20 overflow-hidden group transition-all"
+              className="relative group transition-all"
             >
-              <div 
-                className={`absolute inset-0 bg-amber-500 transition-all ${activeIndex === idx && !isPaused ? 'translate-x-0' : '-translate-x-full'}`}
-                style={{
-                    transitionDuration: (activeIndex === idx && !isPaused) ? `${slideDuration}ms` : '0ms',
-                    transitionTimingFunction: 'linear'
-                }}
-              />
-              <span className={`absolute -top-6 left-0 text-[10px] font-bold tracking-widest transition-opacity duration-500 ${activeIndex === idx ? 'opacity-100' : 'opacity-40 hover:opacity-100'}`}>
-                0{idx + 1}
-              </span>
+              {/* Mobile: Dots */}
+              <div className="md:hidden w-2 h-2 rounded-full bg-white/20 group-hover:bg-white/40 transition-all">
+                <div 
+                  className={`w-2 h-2 rounded-full bg-amber-500 transition-all ${activeIndex === idx ? 'opacity-100 scale-125' : 'opacity-0'}`}
+                />
+              </div>
+              
+              {/* Desktop: Bars */}
+              <div className="hidden md:block relative h-1 w-24 bg-white/20 overflow-hidden group transition-all">
+                <div 
+                  className={`absolute inset-0 bg-amber-500 transition-all ${activeIndex === idx && !isPaused ? 'translate-x-0' : '-translate-x-full'}`}
+                  style={{
+                      transitionDuration: (activeIndex === idx && !isPaused) ? `${slideDuration}ms` : '0ms',
+                      transitionTimingFunction: 'linear'
+                  }}
+                />
+                <span className={`absolute -top-6 left-0 text-[10px] font-bold tracking-widest transition-opacity duration-500 ${activeIndex === idx ? 'opacity-100' : 'opacity-40 hover:opacity-100'}`}>
+                  0{idx + 1}
+                </span>
+              </div>
             </button>
           ))}
         </div>

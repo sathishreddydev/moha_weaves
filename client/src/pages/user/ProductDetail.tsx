@@ -414,7 +414,7 @@ export default function ProductDetail() {
             </div>
           </div>
 
-          <Accordion type="single" collapsible className="w-full">
+          <Accordion type="single" collapsible className="w-full" defaultValue="details">
             <AccordionItem value="details">
               <AccordionTrigger className="text-left">
                 <span className="font-semibold text-xs uppercase tracking-[0.1em]">
@@ -422,38 +422,38 @@ export default function ProductDetail() {
                 </span>
               </AccordionTrigger>
               <AccordionContent>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs pt-2">
-                  <div className="flex justify-between py-1 border-b border-border/50">
-                    <span className="text-muted-foreground font-medium">
+                <div className="grid grid-cols-2 gap-y-2 gap-x-10">
+                  <div>
+                    <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-400 mb-1">
                       SKU
-                    </span>
-                    <span className="text-foreground">
+                    </p>
+                    <p className="text-xs font-medium text-zinc-900">
                       {product.sku || "N/A"}
-                    </span>
+                    </p>
                   </div>
-                  <div className="flex justify-between py-1 border-b border-border/50">
-                    <span className="text-muted-foreground font-medium">
+                  <div>
+                    <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-400 mb-1">
                       Type
-                    </span>
-                    <span className="text-foreground">
+                    </p>
+                    <p className="text-xs font-medium text-zinc-900">
                       {product.subcategory?.name || "N/A"}
-                    </span>
+                    </p>
                   </div>
-                  <div className="flex justify-between py-1 border-b border-border/50">
-                    <span className="text-muted-foreground font-medium">
+                  <div>
+                    <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-400 mb-1">
                       Fabric
-                    </span>
-                    <span className="text-foreground">
+                    </p>
+                    <p className="text-xs font-medium text-zinc-900">
                       {product.fabric?.name || "N/A"}
-                    </span>
+                    </p>
                   </div>
-                  <div className="flex justify-between py-1 border-b border-border/50">
-                    <span className="text-muted-foreground font-medium">
+                  <div>
+                    <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-400 mb-1">
                       Color
-                    </span>
-                    <span className="text-foreground">
+                    </p>
+                    <p className="text-xs font-medium text-zinc-900">
                       {product.color?.name || "N/A"}
-                    </span>
+                    </p>
                   </div>
                 </div>
               </AccordionContent>
@@ -466,7 +466,7 @@ export default function ProductDetail() {
                 </span>
               </AccordionTrigger>
               <AccordionContent>
-                <div className="prose max-w-none dark:prose-invert text-xs pt-2">
+                <div className="prose max-w-none dark:prose-invert text-xs">
                   <ul className="space-y-1">
                     <li className="flex items-start gap-2">
                       <div className="w-1 h-1 bg-primary rounded-full mt-1 flex-shrink-0" />
