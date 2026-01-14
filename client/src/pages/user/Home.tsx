@@ -88,11 +88,12 @@ export default function Home() {
                 Explore our curated collections
               </p>
             </div>
-
-            <Link to="/categories">
-              <Button variant="ghost" data-testid="button-view-all-categories">
-                View All <ArrowRight className="ml-2 h-4 w-4" />
-              </Button>
+            <Link
+              to="/categories"
+              className="inline-flex items-center text-[10px] font-bold uppercase tracking-[0.2em] border-b border-black pb-2 transition-all"
+            >
+              <span>View All</span>
+              <ArrowRight className="ml-2 h-4 w-4" />
             </Link>
           </div>
 
@@ -158,10 +159,13 @@ export default function Home() {
                   Handpicked favorites from our collection
                 </p>
               </div>
-              <Link to="/products?sort=featured">
-                <Button variant="ghost" data-testid="button-view-all-featured">
-                  View All <ArrowRight className="ml-2 h-4 w-4" />
-                </Button>
+
+              <Link
+                to="/products?sort=featured"
+                className="inline-flex items-center text-[10px] font-bold uppercase tracking-[0.2em] border-b border-black pb-2 transition-all"
+              >
+                <span>View All</span>
+                <ArrowRight className="ml-2 h-4 w-4" />
               </Link>
             </div>
 
@@ -190,7 +194,7 @@ export default function Home() {
         <div className="max-w-7xl mx-auto px-4">
           <div className="flex items-center justify-between mb-4">
             <div>
-             <h1
+              <h1
                 className="font-serif tracking-tighter transition-colors
                text-2xl"
                 data-testid="text-new-arrivals-title"
@@ -204,10 +208,13 @@ export default function Home() {
                 Fresh additions to our collection
               </p>
             </div>
-            <Link to="/products?sort=newest">
-              <Button variant="ghost" data-testid="button-view-all-new">
-                View All <ArrowRight className="ml-2 h-4 w-4" />
-              </Button>
+
+            <Link
+              to="/products?sort=newest"
+              className="inline-flex items-center text-[10px] font-bold uppercase tracking-[0.2em] border-b border-black pb-2 transition-all"
+            >
+              <span>View All</span>
+              <ArrowRight className="ml-2 h-4 w-4" />
             </Link>
           </div>
 

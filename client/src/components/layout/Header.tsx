@@ -36,7 +36,7 @@ import { TextField } from "../ui/TextField";
 
 const navLinks = [
   { href: "/", label: "Home" },
-  { href: "/products", label: "Shop All" },
+  { href: "/products", label: "Collections" },
   { href: "/sales", label: "Sales & Offers" },
   { href: "/categories", label: "Categories" },
 ];
@@ -133,7 +133,7 @@ export function Header() {
               <Link
                 key={link.href}
                 to={link.href}
-                className="text-primary hover:text-amber-500 transition-colors"
+                className="text-primary transition-colors"
               >
                 {link.label}
               </Link>

@@ -48,7 +48,7 @@ import { cn } from "@/lib/utils";
 export default function ProductDetail() {
   const { id } = useParams();
   const { user } = useAuth();
-  const navigate=useNavigate()
+  const navigate = useNavigate();
   const [selectedImage, setSelectedImage] = useState(0);
   const { data: product, isLoading } = useQuery<ProductWithDetails>({
     queryKey: ["/api/products", id],
@@ -112,7 +112,7 @@ export default function ProductDetail() {
             className={`cursor-default`}
           >
             <Star
-              className={`h-5 w-5 ${
+              className={`h-4 w-4 ${
                 star <= value
                   ? "fill-yellow-400 text-yellow-400"
                   : "text-muted-foreground"
@@ -169,22 +169,59 @@ export default function ProductDetail() {
       isAddingItem[id] || isUpdatingItem[id] || isRemovingItem[id],
     );
   };
-  return (
-    <div className="max-w-7xl mx-auto px-4 py-8">
-      {/* Breadcrumb */}
-      <nav className="flex items-center gap-3 text-[10px] font-bold uppercase tracking-widest text-zinc-400 mb-12 overflow-x-auto whitespace-nowrap scrollbar-hide">
+  const Breadcrumb = (hideDeck?: boolean) => {
+    return (
+      <nav className="flex items-center gap-3 text-[10px] font-bold uppercase tracking-widest text-zinc-400 overflow-x-auto whitespace-nowrap scrollbar-hide">
         <Link to="/" className="hover:text-primary transition-colors">
           Home
         </Link>
+
         <ChevronRight size={12} />
+
         <Link to="/products" className="hover:text-primary transition-colors">
           Products
         </Link>
-        <ChevronRight size={12} />
-        <span className="text-zinc-900">{product.name}</span>
-      </nav>
 
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-16 xl:gap-24">
+        {!hideDeck && (
+          <>
+            <ChevronRight size={12} />
+            <span className="text-zinc-900">{product.name}</span>
+          </>
+        )}
+      </nav>
+    );
+  };
+  const ActionButtons = () => {
+    return (
+      <>
+        {isInCart ? (
+          <div className="flex-1">
+            <CartQuantity
+              product={product}
+              cartItems={cartItems}
+              updateQuantity={updateQuantity}
+              isButtonDisabled={isButtonDisabled}
+            />
+          </div>
+        ) : (
+          <Button
+            className="flex-1 h-12 text-sm font-semibold rounded-full bg-gradient-to-r from-primary to-primary/90 hover:from-primary/90 hover:to-primary shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-[1.02]"
+            onClick={() => addCartItem(product.id, 1)}
+            disabled={isButtonDisabled(product.id)}
+            data-testid="button-add-to-cart"
+          >
+            Add to Cart <ShoppingBag className="h-4 w-4 ml-2" />
+          </Button>
+        )}
+      </>
+    );
+  };
+  return (
+    <div className="max-w-7xl mx-auto px-4 py-8">
+      {/* Breadcrumb */}
+      <div className="lg:hidden mb-12">{Breadcrumb()}</div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-16 xl:gap-24">
         {/* Image Section - 60% width */}
         <div className="lg:col-span-7">
           <ProductImageGallery
@@ -196,6 +233,7 @@ export default function ProductDetail() {
         </div>
 
         <div className="lg:col-span-5 lg:sticky lg:top-32 h-fit ">
+          <div className="hidden lg:block mb-4">{Breadcrumb(true)}</div>
           {/* Product Title and Price Section */}
           <div className="mb-4">
             <h1 className="text-5xl font-serif tracking-tighter mb-4 leading-none first-letter:uppercase">
@@ -205,7 +243,7 @@ export default function ProductDetail() {
             <div className="flex items-baseline gap-2">
               {!product.activeSale || !product.discountedPrice ? (
                 <p
-                  className="text-3xl font-light text-primary"
+                  className="text-3xl text-primary"
                   data-testid="text-product-price"
                 >
                   {formatPrice(product.price)}
@@ -213,7 +251,7 @@ export default function ProductDetail() {
               ) : (
                 <>
                   <p
-                    className="text-3xl font-light text-primary"
+                    className="text-3xl text-primary"
                     data-testid="text-product-price"
                   >
                     {formatPrice(product.discountedPrice)}
@@ -278,26 +316,7 @@ export default function ProductDetail() {
           {user?.role === "user" && isOnlineAvailable && hasStock && (
             <div className="space-y-4 mb-4 hidden lg:block">
               <div className="flex flex-col sm:flex-row gap-3">
-                {isInCart ? (
-                  <div className="flex-1">
-                    <CartQuantity
-                      product={product}
-                      cartItems={cartItems}
-                      updateQuantity={updateQuantity}
-                      isButtonDisabled={isButtonDisabled}
-                    />
-                  </div>
-                ) : (
-                  <Button
-                    className="flex-1 h-12 text-sm font-semibold rounded-full bg-gradient-to-r from-primary to-primary/90 hover:from-primary/90 hover:to-primary shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-[1.02]"
-                    onClick={() => addCartItem(product.id, 1)}
-                    disabled={isButtonDisabled(product.id)}
-                    data-testid="button-add-to-cart"
-                  >
-                    Add to Cart <ShoppingBag className="h-4 w-4 ml-2" />
-                  </Button>
-                )}
-
+                <ActionButtons />
                 <div className="flex gap-2">
                   <Button
                     variant="secondary"
@@ -325,11 +344,11 @@ export default function ProductDetail() {
                     />
                   </Button>
                   <ProductSharePopover
-                      name={product.name}
-                      price={formatPrice(
-                        product.discountedPrice || product.price,
-                      )}
-                    />
+                    name={product.name}
+                    price={formatPrice(
+                      product.discountedPrice || product.price,
+                    )}
+                  />
                 </div>
               </div>
 
@@ -372,27 +391,35 @@ export default function ProductDetail() {
           )}
 
           {/* Trust Badges */}
-           <div className="flex justify-between items-center py-6 bg-zinc-50 rounded-2xl px-6">
-          <div className="flex flex-col items-center gap-2 text-center">
-            <ShieldCheck size={20} className="text-amber-600" />
-            <span className="text-[9px] font-bold uppercase tracking-tighter">Authentic Certified</span>
+          <div className="flex justify-between items-center py-6 bg-zinc-50 rounded-2xl px-6">
+            <div className="flex flex-col items-center gap-2 text-center">
+              <ShieldCheck size={20} className="text-amber-600" />
+              <span className="text-[9px] font-bold uppercase tracking-tighter">
+                Authentic Certified
+              </span>
+            </div>
+            <div className="w-px h-8 bg-zinc-200" />
+            <div className="flex flex-col items-center gap-2 text-center">
+              <Truck size={20} className="text-amber-600" />
+              <span className="text-[9px] font-bold uppercase tracking-tighter">
+                Free Shiping
+              </span>
+            </div>
+            <div className="w-px h-8 bg-zinc-200" />
+            <div className="flex flex-col items-center gap-2 text-center">
+              <RotateCcw size={20} className="text-amber-600" />
+              <span className="text-[9px] font-bold uppercase tracking-tighter">
+                7 Day Returns
+              </span>
+            </div>
           </div>
-          <div className="w-px h-8 bg-zinc-200" />
-          <div className="flex flex-col items-center gap-2 text-center">
-            <Truck size={20} className="text-amber-600" />
-            <span className="text-[9px] font-bold uppercase tracking-tighter">Free Shiping</span>
-          </div>
-          <div className="w-px h-8 bg-zinc-200" />
-          <div className="flex flex-col items-center gap-2 text-center">
-            <RotateCcw size={20} className="text-amber-600" />
-            <span className="text-[9px] font-bold uppercase tracking-tighter">7 Day Returns</span>
-          </div>
-        </div>
 
           <Accordion type="single" collapsible className="w-full">
             <AccordionItem value="details">
               <AccordionTrigger className="text-left">
-                <span className="font-semibold text-sm">Product Details</span>
+                <span className="font-semibold text-xs uppercase tracking-[0.1em]">
+                  Product Details
+                </span>
               </AccordionTrigger>
               <AccordionContent>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs pt-2">
@@ -406,10 +433,10 @@ export default function ProductDetail() {
                   </div>
                   <div className="flex justify-between py-1 border-b border-border/50">
                     <span className="text-muted-foreground font-medium">
-                      Category
+                      Type
                     </span>
                     <span className="text-foreground">
-                      {product.category?.name || "N/A"}
+                      {product.subcategory?.name || "N/A"}
                     </span>
                   </div>
                   <div className="flex justify-between py-1 border-b border-border/50">
@@ -428,29 +455,13 @@ export default function ProductDetail() {
                       {product.color?.name || "N/A"}
                     </span>
                   </div>
-                  <div className="flex justify-between py-1 border-b border-border/50">
-                    <span className="text-muted-foreground font-medium">
-                      Stock
-                    </span>
-                    <span className="text-foreground">
-                      {product.onlineStock} units
-                    </span>
-                  </div>
-                  <div className="flex justify-between py-1 border-b border-border/50">
-                    <span className="text-muted-foreground font-medium">
-                      Availability
-                    </span>
-                    <span className="text-foreground">
-                      {product.distributionChannel}
-                    </span>
-                  </div>
                 </div>
               </AccordionContent>
             </AccordionItem>
 
             <AccordionItem value="shipping">
               <AccordionTrigger className="text-left">
-                <span className="font-semibold text-sm">
+                <span className="font-semibold text-xs uppercase tracking-[0.1em]">
                   Shipping & Returns
                 </span>
               </AccordionTrigger>
@@ -489,12 +500,12 @@ export default function ProductDetail() {
             <AccordionItem value="reviews">
               <AccordionTrigger className="text-left hover:no-underline">
                 <div className="flex items-center justify-between w-full pr-4">
-                  <span className="font-semibold text-sm">
+                  <span className="font-semibold text-xs uppercase tracking-[0.1em]">
                     Customer Reviews
                   </span>
                   <div className="flex items-center gap-2">
                     {renderStars(reviewStats?.averageRating || 0)}
-                    <span className="text-xs text-muted-foreground whitespace-nowrap">
+                    <span className="text-[10px] text-muted-foreground whitespace-nowrap">
                       ({reviewStats?.totalReviews || 0})
                     </span>
                   </div>
@@ -517,20 +528,22 @@ export default function ProductDetail() {
 
       {/* Enhanced Related Products */}
       {relatedProducts && relatedProducts.length > 0 && (
-        <section className="mt-38 pt-24 border-t border-zinc-100">
-           <div className="flex justify-between items-end mb-16">
-            <h2 className="text-5xl font-serif tracking-tighter italic font-light">Complete the <br/> <span className="not-italic font-bold">Ensemble</span></h2>
-            <button onClick={()=>{navigate('/products')}} className="text-[10px] font-bold uppercase tracking-[0.4em] border-b border-black pb-2 hover:text-amber-600 hover:border-amber-600 transition-all">View All</button>
-          </div>
-          {/* <div className="text-center mb-5">
-            <h2 className="font-serif text-xl font-bold text-gray-900 dark:text-white">
-              You May Also Like
+        <section className="mt-38 pt-24 border-zinc-100">
+          <div className="flex justify-between items-end mb-16">
+            <h2 className="text-5xl font-serif tracking-tighter italic font-light">
+              Complete the <br />{" "}
+              <span className="not-italic font-bold">Ensemble</span>
             </h2>
-            <p className="text-sm text-muted-foreground max-w-2xl mx-auto">
-              Discover more exquisite products that complement your style and
-              preferences
-            </p>
-          </div> */}
+            <button
+              onClick={() => {
+                navigate("/products");
+              }}
+              className="text-[10px] font-bold uppercase tracking-[0.2em] border-b border-black pb-2 transition-all"
+            >
+              View All
+            </button>
+          </div>
+
           <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
             {relatedProducts.map((s) => (
               <div key={s.id} className="group">
@@ -575,23 +588,7 @@ export default function ProductDetail() {
                     )}
                   />
                 </Button>
-                {isInCart ? (
-                  <CartQuantity
-                    product={product}
-                    cartItems={cartItems}
-                    updateQuantity={updateQuantity}
-                    isButtonDisabled={isButtonDisabled}
-                  />
-                ) : (
-                  <Button
-                    className="h-12 px-6 font-semibold rounded-full"
-                    onClick={() => addCartItem(product.id, 1)}
-                    disabled={isButtonDisabled(product.id)}
-                  >
-                    <ShoppingBag className="h-5 w-5 mr-2" />
-                    Add to Cart
-                  </Button>
-                )}
+                <ActionButtons />
               </div>
             </div>
           </div>

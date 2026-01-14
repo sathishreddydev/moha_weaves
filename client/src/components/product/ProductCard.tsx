@@ -139,7 +139,7 @@ export function ProductCard({ product }: ProductCardProps) {
               transition-opacity"
           >
             {isInCart && cartItem ? (
-              <div className="flex items-center text-white bg-primary rounded-md shadow">
+              <div className="flex items-center text-white bg-primary rounded-full shadow">
                 <Button
                   variant="ghost"
                   size="icon"
@@ -172,7 +172,7 @@ export function ProductCard({ product }: ProductCardProps) {
             ) : (
               <Button
                 size="sm"
-                className={`px-4 h-9 shadow ${
+                className={`rounded-full px-4 h-9 shadow ${
                   !hasStock ? "cursor-default" : ""
                 }`}
                 onClick={() => {
@@ -236,7 +236,7 @@ export function ProductCard({ product }: ProductCardProps) {
         <div className="flex items-center gap-2">
           {product.activeSale && product.discountedPrice ? (
             <>
-              <p className="font-semibold text-primary">
+              <p className="text-primary">
                 {formatPrice(product.discountedPrice)}
               </p>
               <p className="text-sm text-muted-foreground line-through">
@@ -244,7 +244,7 @@ export function ProductCard({ product }: ProductCardProps) {
               </p>
             </>
           ) : (
-            <p className="font-semibold text-primary text-sm">
+            <p className="text-primary text-sm">
               {formatPrice(product.price)}
             </p>
           )}
