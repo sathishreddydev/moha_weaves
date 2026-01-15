@@ -74,10 +74,10 @@ export default function Sales() {
           <Tag className="h-4 w-4" />
           <span className="text-sm font-medium">Special Offers</span>
         </div>
-        <h1 className="font-serif text-xl font-semibold mb-4" data-testid="text-page-title">
+        <h1 className="font-serif text-xl font-medium" data-testid="text-page-title">
           Sales & Offers
         </h1>
-        <p className="text-muted-foreground max-w-2xl mx-auto mb-6">
+        <p className="text-sm text-muted-foreground max-w-2xl mx-auto mb-6">
           Discover amazing deals on our exquisite collection of products. Limited time offers you don't want to miss!
         </p>
         <Link to="/products?sort=onSale">
@@ -133,7 +133,7 @@ export default function Sales() {
 
       {/* All Active Sales */}
       <section>
-        <h2 className="font-serif text-2xl font-semibold mb-6">All Active Offers</h2>
+        <h2 className="font-serif text-2xl font-medium">All Active Offers</h2>
         {isLoading ? (
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
             {[...Array(6)].map((_, i) => (
@@ -175,9 +175,9 @@ export default function Sales() {
           </div>
         ) : (
           <div className="text-center py-16">
-            <Tag className="h-16 w-16 mx-auto text-muted-foreground mb-4" />
-            <h3 className="text-xl font-semibold mb-2">No active offers</h3>
-            <p className="text-muted-foreground mb-6">Check back soon for amazing deals!</p>
+            <Tag className="h-12 w-12 mx-auto text-muted-foreground" />
+            <h3 className="text-xl font-medium">No active offers</h3>
+            <p className="text-sm text-muted-foreground mb-6">Check back soon for amazing deals!</p>
             <Link to="/products">
               <Button>Browse All products</Button>
             </Link>

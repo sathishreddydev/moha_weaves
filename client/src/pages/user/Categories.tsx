@@ -19,12 +19,12 @@ export default function Categories() {
     <div className="max-w-7xl mx-auto px-4 py-12">
       <div className="text-center mb-12">
         <h1
-          className="font-serif text-xl font-semibold mb-4"
+          className="font-serif text-xl font-medium"
           data-testid="text-page-title"
         >
           Shop by Category
         </h1>
-        <p className="text-muted-foreground max-w-2xl mx-auto">
+        <p className="text-sm text-muted-foreground max-w-2xl mx-auto">
           Explore our curated collections of handcrafted products, each category
           representing a unique tradition and artistry.
         </p>
