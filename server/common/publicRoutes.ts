@@ -30,7 +30,7 @@ export const publicRoutes = (app: Express) => {
     }
   });
 
-    app.post("/api/getProducts", async (req, res) => {
+  app.post("/api/getProducts", async (req, res) => {
     try {
       const {
         search,

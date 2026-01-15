@@ -17,6 +17,7 @@ import type { ProductWithDetails, Category } from "@shared/schema";
 import { useFilterStore } from "@/components/Store/useFilterStore";
 import { useEffect } from "react";
 import { VisualCategoryHero } from "./common/VisualCategoryHero";
+import { apiRequest } from "@/lib/queryClient";
 
 const features = [
   {
@@ -45,13 +46,27 @@ export default function Home() {
   const { data: featuredProducts, isLoading: loadingFeatured } = useQuery<
     ProductWithDetails[]
   >({
-    queryKey: ["/api/products?sort=featured&limit=8"],
+    queryKey: ["featured-products"],
+    queryFn: async () => {
+      const response = await apiRequest("POST", "/api/getProducts", {
+        sort: "featured",
+        limit: 8,
+      });
+      return response.json();
+    },
   });
 
   const { data: newArrivals, isLoading: loadingNew } = useQuery<
     ProductWithDetails[]
   >({
-    queryKey: ["/api/products?sort=newest&limit=4"],
+    queryKey: ["new-arrivals"],
+    queryFn: async () => {
+      const response = await apiRequest("POST", "/api/getProducts", {
+        sort: "newest",
+        limit: 4,
+      });
+      return response.json();
+    },
   });
 
   const categories = useFilterStore((state) => state.categories);
