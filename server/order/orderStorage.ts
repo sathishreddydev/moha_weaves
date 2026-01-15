@@ -19,6 +19,7 @@ import {
 } from "@shared/schema";
 import { IdGenerator } from "server/utils/idGenerator";
 import { returnStorage } from "server/return/returnStorage";
+import { paymentInfo } from "./createOrderService";
 
 export interface OrderStorage {
   createOrder(
@@ -226,8 +227,10 @@ export class OrderRepository implements OrderStorage {
         };
       })
     );
+   const paymentData = order.razorpayPaymentId ? await paymentInfo({razorpayPaymentId: order.razorpayPaymentId}) : null; 
     return {
       ...order,
+      paymentDetails: paymentData || undefined,
       items: itemsRows.map((row) => {
         const statusObj = itemStatuses.find((s) => s.orderItemId === row.order_items.id);
         const eligibility = eligibilityMap.find(e => e.itemId === row.order_items.id);

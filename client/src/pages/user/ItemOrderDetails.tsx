@@ -1,9 +1,6 @@
 import { useState } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
-import {
-  ArrowLeft,
-  Package,
-} from "lucide-react";
+import { ArrowLeft, Package } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -23,8 +20,20 @@ import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/lib/auth";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
-import type { OrderWithItems, ItemStatusHistory, ReturnRequestWithDetails, Refund, ProductWithDetails, OnlineExchangeWithDetails } from "@shared/schema";
-import { itemStatusConfig, isItemDelivered, returnReasons, getItemStatusConfig } from "@/constants/itemStatusConfig";
+import type {
+  OrderWithItems,
+  ItemStatusHistory,
+  ReturnRequestWithDetails,
+  Refund,
+  ProductWithDetails,
+  OnlineExchangeWithDetails,
+} from "@shared/schema";
+import {
+  itemStatusConfig,
+  isItemDelivered,
+  returnReasons,
+  getItemStatusConfig,
+} from "@/constants/itemStatusConfig";
 import { WriteReview } from "@/components/product/WriteReview";
 
 export default function ItemOrderDetails() {
@@ -36,35 +45,32 @@ export default function ItemOrderDetails() {
   const [showReturnDialog, setShowReturnDialog] = useState(false);
   const [returnReason, setReturnReason] = useState("");
   const [returnDescription, setReturnDescription] = useState("");
-  const [resolutionType, setResolutionType] = useState<"refund" | "exchange">("refund");
+  const [resolutionType, setResolutionType] = useState<"refund" | "exchange">(
+    "refund",
+  );
 
   const { data: order, isLoading } = useQuery<OrderWithItems>({
     queryKey: ["/api/user/orders", orderId],
     enabled: !!user && !!orderId,
   });
 
-  const item = order?.items?.find(item => item.id === itemId);
+  const item = order?.items?.find((item) => item.id === itemId);
 
   const { data: userReturns } = useQuery<ReturnRequestWithDetails[]>({
     queryKey: ["/api/user/returns"],
     enabled: !!user,
   });
 
-  const { data: razorpayPaymentDetails } = useQuery<{
-    available: boolean;
-    method?: string;
-    display?: string;
-    subtype?: string;
-    razorpayPaymentId?: string;
-  }>({
-    queryKey: ["/api/user/orders", orderId, "payment-details"],
-    enabled: !!user && !!orderId,
-  });
+  const razorpayPaymentDetails = order?.paymentDetails;
 
   const createReturnMutation = useMutation({
     mutationFn: async (data: any) => {
       if (data.resolution === "exchange") {
-        const response = await apiRequest("POST", "/api/user/online-exchanges", data);
+        const response = await apiRequest(
+          "POST",
+          "/api/user/online-exchanges",
+          data,
+        );
         return response.json();
       } else {
         const response = await apiRequest("POST", "/api/user/returns", data);
@@ -72,14 +78,22 @@ export default function ItemOrderDetails() {
       }
     },
     onSuccess: (data, variables) => {
-      toast({ title: `${variables.resolution === "exchange" ? "Exchange" : "Return"} request submitted successfully` });
+      toast({
+        title: `${variables.resolution === "exchange" ? "Exchange" : "Return"} request submitted successfully`,
+      });
       if (variables.resolution === "exchange") {
-        queryClient.invalidateQueries({ queryKey: ["/api/user/online-exchanges"] });
+        queryClient.invalidateQueries({
+          queryKey: ["/api/user/online-exchanges"],
+        });
       } else {
         queryClient.invalidateQueries({ queryKey: ["/api/user/returns"] });
       }
       setShowReturnDialog(false);
-      navigate(variables.resolution === "exchange" ? "/user/exchanges" : "/user/returns");
+      navigate(
+        variables.resolution === "exchange"
+          ? "/user/exchanges"
+          : "/user/returns",
+      );
     },
     onError: (error: any, variables) => {
       toast({
@@ -157,18 +171,20 @@ export default function ItemOrderDetails() {
       reason: returnReason,
       reasonDetails: returnDescription,
       resolution: resolutionType,
-      items: [{
-        orderItemId: item.id,
-        quantity: item.quantity,
-        reason: returnReason,
-        exchangeproductId: resolutionType === "exchange" ? item.product.id : null,
-      }],
+      items: [
+        {
+          orderItemId: item.id,
+          quantity: item.quantity,
+          reason: returnReason,
+          exchangeproductId:
+            resolutionType === "exchange" ? item.product.id : null,
+        },
+      ],
     });
   };
 
-
   const isItemEligibleForReturn = (itemId: string): boolean => {
-    const item = order?.items?.find(item => item.id === itemId);
+    const item = order?.items?.find((item) => item.id === itemId);
     return item?.returnEligibility?.eligible ?? false;
   };
   if (!user) {
@@ -208,16 +224,22 @@ export default function ItemOrderDetails() {
   }
 
   const itemStatus = getItemStatusConfig(item.status);
-  const fallback = { label: "No status", color: "bg-gray-100 text-gray-800", updatedAt: order.updatedAt };
+  const fallback = {
+    label: "No status",
+    color: "bg-gray-100 text-gray-800",
+    updatedAt: order.updatedAt,
+  };
   const displayStatus = itemStatus || fallback;
 
   // Check if this item has a completed return with refund
   const itemReturn = userReturns?.find(
-    (returnRequest) => 
-      returnRequest.orderId === orderId && 
-      returnRequest.items.some((returnItem) => returnItem.orderItemId === item.id) &&
+    (returnRequest) =>
+      returnRequest.orderId === orderId &&
+      returnRequest.items.some(
+        (returnItem) => returnItem.orderItemId === item.id,
+      ) &&
       returnRequest.status === "return_completed" &&
-      returnRequest.resolution === "refund"
+      returnRequest.resolution === "refund",
   );
 
   return (
@@ -235,7 +257,10 @@ export default function ItemOrderDetails() {
           <div className="flex gap-6 mb-6">
             <div className="flex-shrink-0 w-40 aspect-[4/5] overflow-hidden rounded-lg bg-muted">
               <img
-                src={item.product.imageUrl || "https://images.unsplash.com/photo-1610030469983-98e550d6193c?w=400&h=500&fit=crop"}
+                src={
+                  item.product.imageUrl ||
+                  "https://images.unsplash.com/photo-1610030469983-98e550d6193c?w=400&h=500&fit=crop"
+                }
                 alt={item.product.name}
                 className="w-full h-full object-cover"
               />
@@ -273,28 +298,29 @@ export default function ItemOrderDetails() {
           </div>
 
           <div className="flex flex-col space-y-3">
-            {item.status === "delivered" && isItemEligibleForReturn(item.id) && (
-              <div className="flex gap-2">
-                <Button
-                  variant="outline"
-                  onClick={() => {
-                    setResolutionType("refund");
-                    setShowReturnDialog(true);
-                  }}
-                >
-                  Return Item
-                </Button>
-                <Button
-                  variant="outline"
-                  onClick={() => {
-                    setResolutionType("exchange");
-                    setShowReturnDialog(true);
-                  }}
-                >
-                  Exchange Item
-                </Button>
-              </div>
-            )}
+            {item.status === "delivered" &&
+              isItemEligibleForReturn(item.id) && (
+                <div className="flex gap-2">
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      setResolutionType("refund");
+                      setShowReturnDialog(true);
+                    }}
+                  >
+                    Return Item
+                  </Button>
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      setResolutionType("exchange");
+                      setShowReturnDialog(true);
+                    }}
+                  >
+                    Exchange Item
+                  </Button>
+                </div>
+              )}
 
             {order.paymentStatus === "paid" && (
               <Button
@@ -322,17 +348,23 @@ export default function ItemOrderDetails() {
               </div>
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Item Status:</span>
-                <Badge className={displayStatus.color}>{displayStatus.label}</Badge>
+                <Badge className={displayStatus.color}>
+                  {displayStatus.label}
+                </Badge>
               </div>
               {order.trackingNumber && (
                 <div className="flex justify-between">
-                  <span className="text-muted-foreground">Tracking Number:</span>
+                  <span className="text-muted-foreground">
+                    Tracking Number:
+                  </span>
                   <span className="font-medium">{order.trackingNumber}</span>
                 </div>
               )}
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Shipping Address:</span>
-                <span className="text-right max-w-[60%]">{order.shippingAddress}</span>
+                <span className="text-right max-w-[60%]">
+                  {order.shippingAddress}
+                </span>
               </div>
             </div>
           </Card>
@@ -347,7 +379,9 @@ export default function ItemOrderDetails() {
               <p>
                 <span className="text-muted-foreground">Status:</span>{" "}
                 <Badge
-                  variant={order.paymentStatus === "paid" ? "default" : "secondary"}
+                  variant={
+                    order.paymentStatus === "paid" ? "default" : "secondary"
+                  }
                 >
                   {order.paymentStatus}
                 </Badge>
@@ -356,15 +390,19 @@ export default function ItemOrderDetails() {
                 <span className="text-muted-foreground">Item Price:</span>{" "}
                 {formatPrice(item.price)}
               </p>
-              {razorpayPaymentDetails?.available && razorpayPaymentDetails.display && (
-                <p>
-                  <span className="text-muted-foreground">Paid via:</span>{" "}
-                  {razorpayPaymentDetails.display}
-                  {razorpayPaymentDetails.subtype ? (
-                    <span className="text-muted-foreground"> ({razorpayPaymentDetails.subtype})</span>
-                  ) : null}
-                </p>
-              )}
+              {razorpayPaymentDetails?.available &&
+                razorpayPaymentDetails.display && (
+                  <p>
+                    <span className="text-muted-foreground">Paid via:</span>{" "}
+                    {razorpayPaymentDetails.display}
+                    {razorpayPaymentDetails.subtype ? (
+                      <span className="text-muted-foreground">
+                        {" "}
+                        ({razorpayPaymentDetails.subtype})
+                      </span>
+                    ) : null}
+                  </p>
+                )}
             </div>
           </Card>
 
@@ -372,23 +410,31 @@ export default function ItemOrderDetails() {
             <Card className="p-4 border-green-200 bg-green-50">
               <div className="flex items-center gap-2 mb-2">
                 <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                <h3 className="font-semibold text-green-800">Refund Information</h3>
+                <h3 className="font-semibold text-green-800">
+                  Refund Information
+                </h3>
               </div>
               <div className="text-sm space-y-2">
                 <p className="text-green-700">
-                  <span className="font-medium">Refund Amount:</span> {formatPrice(itemReturn.refundAmount || "0")}
+                  <span className="font-medium">Refund Amount:</span>{" "}
+                  {formatPrice(itemReturn.refundAmount || "0")}
                 </p>
                 <p className="text-green-600">
-                  Your refund has been processed and will be credited to your original payment method within 5-7 working days.
+                  Your refund has been processed and will be credited to your
+                  original payment method within 5-7 working days.
                 </p>
                 {itemReturn.refund && (
                   <div className="mt-2 pt-2 border-t border-green-200">
                     <p className="text-xs text-green-600">
-                      Refund Status: <Badge variant="secondary" className="text-xs">{itemReturn.refund.status.replace(/_/g, " ")}</Badge>
+                      Refund Status:{" "}
+                      <Badge variant="secondary" className="text-xs">
+                        {itemReturn.refund.status.replace(/_/g, " ")}
+                      </Badge>
                     </p>
                     {itemReturn.refund.razorpayRefundId && (
                       <p className="text-xs text-muted-foreground mt-1">
-                        Refund ID: {itemReturn.refund.razorpayRefundId.slice(0, 12)}...
+                        Refund ID:{" "}
+                        {itemReturn.refund.razorpayRefundId.slice(0, 12)}...
                       </p>
                     )}
                   </div>
@@ -413,14 +459,16 @@ export default function ItemOrderDetails() {
                 } else {
                   return (
                     <p className="text-sm text-muted-foreground">
-                      {item.returnEligibility?.reason || "Return window has expired for this item."}
+                      {item.returnEligibility?.reason ||
+                        "Return window has expired for this item."}
                     </p>
                   );
                 }
               })()
             ) : (
               <p className="text-sm text-muted-foreground">
-                Returns and exchanges are available after your order is delivered.
+                Returns and exchanges are available after your order is
+                delivered.
               </p>
             )}
           </Card>
@@ -432,10 +480,12 @@ export default function ItemOrderDetails() {
                 For any help, share this Order ID and Item ID with support.
               </p>
               <p>
-                <span className="text-muted-foreground">Order ID:</span> {order.id}
+                <span className="text-muted-foreground">Order ID:</span>{" "}
+                {order.id}
               </p>
               <p>
-                <span className="text-muted-foreground">Item ID:</span> {item.id}
+                <span className="text-muted-foreground">Item ID:</span>{" "}
+                {item.id}
               </p>
               <a className="text-primary underline block" href="/contact">
                 Contact Us
@@ -451,25 +501,35 @@ export default function ItemOrderDetails() {
               <h3 className="font-semibold mb-4">Other Items in This Order</h3>
               <div className="space-y-3">
                 {order.items
-                  .filter(orderItem => orderItem.id !== item.id)
+                  .filter((orderItem) => orderItem.id !== item.id)
                   .map((orderItem) => {
-                    const orderItemStatus = getItemStatusConfig(orderItem.status);
+                    const orderItemStatus = getItemStatusConfig(
+                      orderItem.status,
+                    );
                     const orderItemFallback = {
                       label: "No status",
                       color: "bg-gray-100 text-gray-800",
-                      updatedAt: order.updatedAt
+                      updatedAt: order.updatedAt,
                     };
-                    const orderItemDisplayStatus = orderItemStatus || orderItemFallback;
+                    const orderItemDisplayStatus =
+                      orderItemStatus || orderItemFallback;
 
                     return (
                       <div
                         key={orderItem.id}
                         className="flex items-center gap-3 p-3 rounded-lg border bg-card hover:bg-muted/30 transition-colors cursor-pointer"
-                        onClick={() => navigate(`/user/orders/${orderId}/items/${orderItem.id}`)}
+                        onClick={() =>
+                          navigate(
+                            `/user/orders/${orderId}/items/${orderItem.id}`,
+                          )
+                        }
                       >
                         <div className="w-12 h-16 rounded-md overflow-hidden bg-muted flex-shrink-0">
                           <img
-                            src={orderItem.product.imageUrl || "https://images.unsplash.com/photo-1610030469983-98e550d6193c?w=50&h=70&fit=crop"}
+                            src={
+                              orderItem.product.imageUrl ||
+                              "https://images.unsplash.com/photo-1610030469983-98e550d6193c?w=50&h=70&fit=crop"
+                            }
                             alt={orderItem.product.name}
                             className="w-full h-full object-cover"
                           />
@@ -479,10 +539,13 @@ export default function ItemOrderDetails() {
                             {orderItem.product.name}
                           </h4>
                           <p className="text-xs text-muted-foreground mt-1">
-                            Qty: {orderItem.quantity} • {formatPrice(orderItem.price)}
+                            Qty: {orderItem.quantity} •{" "}
+                            {formatPrice(orderItem.price)}
                           </p>
                         </div>
-                        <Badge className={`${orderItemDisplayStatus.color} text-xs`}>
+                        <Badge
+                          className={`${orderItemDisplayStatus.color} text-xs`}
+                        >
                           {orderItemDisplayStatus.label}
                         </Badge>
                       </div>
@@ -498,18 +561,25 @@ export default function ItemOrderDetails() {
       <ReusableDialog
         open={showReturnDialog}
         onOpenChange={setShowReturnDialog}
-        title={resolutionType === "exchange" ? "Exchange Request" : "Return Request"}
+        title={
+          resolutionType === "exchange" ? "Exchange Request" : "Return Request"
+        }
         description={`${resolutionType === "exchange" ? "Exchange this item for the same product." : "Return this item."}`}
         footer={
           <>
-            <Button variant="outline" onClick={() => setShowReturnDialog(false)}>
+            <Button
+              variant="outline"
+              onClick={() => setShowReturnDialog(false)}
+            >
               Cancel
             </Button>
             <Button
               onClick={handleReturnSubmit}
               disabled={!returnReason || createReturnMutation.isPending}
             >
-              {createReturnMutation.isPending ? "Submitting..." : "Submit Request"}
+              {createReturnMutation.isPending
+                ? "Submitting..."
+                : "Submit Request"}
             </Button>
           </>
         }
@@ -542,9 +612,7 @@ export default function ItemOrderDetails() {
 
           <div className="p-3 bg-muted rounded-md">
             <p className="text-sm font-medium mb-1">Item Details:</p>
-            <p className="text-sm text-muted-foreground">
-              ID: {item.id}
-            </p>
+            <p className="text-sm text-muted-foreground">ID: {item.id}</p>
             <p className="text-sm text-muted-foreground">
               Name: {item.product.name}
             </p>

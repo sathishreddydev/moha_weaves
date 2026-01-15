@@ -6,7 +6,7 @@ import { orderService } from "./orderStorage";
 import { couponsService } from "server/coupons/couponsStorage";
 import { razorpay } from "server/razorpayClient";
 import { fetchPaymentDetails } from "../razorpayClient";
-import { createOrderTransaction } from "./createOrderService";
+import { createOrderTransaction, paymentInfo } from "./createOrderService";
 import crypto from "crypto";
 
 export const orderRoutes = (app: Express) => {
@@ -47,7 +47,7 @@ export const orderRoutes = (app: Express) => {
       res.setHeader("Content-Type", "application/pdf");
       res.setHeader(
         "Content-Disposition",
-        `attachment; filename="invoice-${safeId}.pdf"`
+        `attachment; filename="invoice-${safeId}.pdf"`,
       );
 
       const doc = new PDFDocument({ size: "A4", margin: 50 });
@@ -90,11 +90,7 @@ export const orderRoutes = (app: Express) => {
         });
 
       doc.moveDown(1);
-      doc
-        .moveTo(50, doc.y)
-        .lineTo(545, doc.y)
-        .strokeColor("#e5e7eb")
-        .stroke();
+      doc.moveTo(50, doc.y).lineTo(545, doc.y).strokeColor("#e5e7eb").stroke();
       doc.moveDown(1);
 
       // Bill to
@@ -182,7 +178,9 @@ export const orderRoutes = (app: Express) => {
         .moveDown(0.25)
         .fontSize(10)
         .fillColor("#000")
-        .text(`Method: ${(order.paymentMethod || "").toString().toUpperCase() || "—"}`)
+        .text(
+          `Method: ${(order.paymentMethod || "").toString().toUpperCase() || "—"}`,
+        )
         .text(`Status: ${(order.paymentStatus || "").toString() || "—"}`)
         .text(`Razorpay Payment: ${maskId((order as any).razorpayPaymentId)}`)
         .text(`Payment Reference: ${maskId((order as any).paymentId)}`);
@@ -199,63 +197,28 @@ export const orderRoutes = (app: Express) => {
     }
   });
 
-  app.get("/api/user/orders/:id/payment-details", authUser, async (req, res) => {
-    try {
-      const order = await orderService.getOrder(req.params.id);
-      if (!order || order.userId !== (req as any).user.id) {
-        return res.status(404).json({ message: "Order not found" });
+  app.get(
+    "/api/user/orders/:id/payment-details",
+    authUser,
+    async (req, res) => {
+      try {
+        const order = await orderService.getOrder(req.params.id);
+        if (!order || order.userId !== (req as any).user.id) {
+          return res.status(404).json({ message: "Order not found" });
+        }
+
+        if (!order.razorpayPaymentId) {
+          return res.json({ available: false });
+        }
+
+        const payment = paymentInfo({ razorpayPaymentId: order.razorpayPaymentId });
+
+        return res.json(payment);
+      } catch (error) {
+        res.status(500).json({ message: "Failed to fetch payment details" });
       }
-
-      if (!order.razorpayPaymentId) {
-        return res.json({ available: false });
-      }
-
-      const payment = await fetchPaymentDetails(order.razorpayPaymentId);
-
-      const mask = (value?: string | null) => {
-        if (!value) return "—";
-        const trimmed = value.trim();
-        if (trimmed.length <= 8) return trimmed;
-        return `${trimmed.slice(0, 4)}••••${trimmed.slice(-4)}`;
-      };
-
-      const method = (payment as any).method as string | undefined;
-      const card = (payment as any).card;
-      const bank = (payment as any).bank;
-      const wallet = (payment as any).wallet;
-      const vpa = (payment as any).vpa;
-
-      let display = method ? method.toUpperCase() : "—";
-      let subtype: string | undefined;
-
-      if (method === "card") {
-        const last4 = card?.last4 ? String(card.last4) : "—";
-        const network = card?.network ? String(card.network).toUpperCase() : "CARD";
-        subtype = card?.type ? String(card.type).toUpperCase() : undefined;
-        display = `${network} •••• ${last4}`;
-      } else if (method === "upi") {
-        display = vpa ? `UPI ${mask(String(vpa))}` : "UPI";
-      } else if (method === "netbanking") {
-        display = bank ? `NETBANKING ${String(bank).toUpperCase()}` : "NETBANKING";
-      } else if (method === "wallet") {
-        display = wallet ? `WALLET ${String(wallet).toUpperCase()}` : "WALLET";
-      } else if (method === "emi") {
-        display = "EMI";
-      } else if (method === "paylater") {
-        display = "PAY LATER";
-      }
-
-      return res.json({
-        available: true,
-        method,
-        display,
-        subtype,
-        razorpayPaymentId: mask(order.razorpayPaymentId),
-      });
-    } catch (error) {
-      res.status(500).json({ message: "Failed to fetch payment details" });
-    }
-  });
+    },
+  );
 
   app.post("/api/user/orders", authUser, async (req, res) => {
     try {
@@ -288,7 +251,7 @@ export const orderRoutes = (app: Express) => {
             if (coupon.maxDiscount) {
               discountAmount = Math.min(
                 discountAmount,
-                parseFloat(coupon.maxDiscount)
+                parseFloat(coupon.maxDiscount),
               );
             }
           } else {
@@ -323,7 +286,7 @@ export const orderRoutes = (app: Express) => {
             quantity: item.quantity,
             price: effectivePrice.toString(),
           };
-        })
+        }),
       );
 
       // Record coupon usage after order is created
@@ -332,7 +295,7 @@ export const orderRoutes = (app: Express) => {
           validCoupon.id,
           userId,
           order.id,
-          discountAmount.toString()
+          discountAmount.toString(),
         );
       }
 
@@ -356,7 +319,8 @@ export const orderRoutes = (app: Express) => {
       }
       // 1️⃣ Calculate total
       const totalAmount = cartItems.cart.reduce((sum, item) => {
-        const price = (item.product as any).discountedPrice ?? item.product.price;
+        const price =
+          (item.product as any).discountedPrice ?? item.product.price;
         return sum + price * item.quantity;
       }, 0);
 
@@ -370,7 +334,7 @@ export const orderRoutes = (app: Express) => {
             if (coupon.maxDiscount)
               discountAmount = Math.min(
                 discountAmount,
-                parseFloat(coupon.maxDiscount)
+                parseFloat(coupon.maxDiscount),
               );
           } else {
             discountAmount = parseFloat(coupon.value);
@@ -384,7 +348,7 @@ export const orderRoutes = (app: Express) => {
       const razorpayOrder = await razorpay.orders.create({
         amount: Math.round(finalAmount * 100), // paise
         currency: "INR",
-receipt: `r${Date.now()}`,
+        receipt: `r${Date.now()}`,
         payment_capture: true, // ✅ boolean
       });
 
@@ -412,7 +376,7 @@ receipt: `r${Date.now()}`,
 
       const userId = (req as any).user.id;
       const cartItems = await cartServices.getCartItems(userId);
-      if (  cartItems.cart.length === 0) {
+      if (cartItems.cart.length === 0) {
         return res.status(400).json({ message: "Cart is empty" });
       }
       // 1️⃣ Verify Razorpay signature
@@ -427,7 +391,8 @@ receipt: `r${Date.now()}`,
 
       // 2️⃣ Calculate totals
       const totalAmount = cartItems.cart.reduce((sum, item) => {
-        const price = (item.product as any).discountedPrice ?? item.product.price;
+        const price =
+          (item.product as any).discountedPrice ?? item.product.price;
         return sum + price * item.quantity;
       }, 0);
 
@@ -442,7 +407,7 @@ receipt: `r${Date.now()}`,
             if (coupon.maxDiscount)
               discountAmount = Math.min(
                 discountAmount,
-                parseFloat(coupon.maxDiscount)
+                parseFloat(coupon.maxDiscount),
               );
           } else {
             discountAmount = parseFloat(coupon.value);
@@ -466,7 +431,7 @@ receipt: `r${Date.now()}`,
           status: "created",
           paymentStatus: "paid",
           paymentMethod: "razorpay",
-          razorpayPaymentId, 
+          razorpayPaymentId,
         },
         cartItems.cart.map((item) => ({
           productId: item.productId,
@@ -474,7 +439,7 @@ receipt: `r${Date.now()}`,
           price: (
             (item.product as any).discountedPrice ?? item.product.price
           ).toString(),
-        }))
+        })),
       );
 
       if (validCoupon && discountAmount > 0) {
@@ -482,7 +447,7 @@ receipt: `r${Date.now()}`,
           validCoupon.id,
           userId,
           order.id,
-          discountAmount.toString()
+          discountAmount.toString(),
         );
       }
 

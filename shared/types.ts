@@ -140,6 +140,13 @@ export type WishlistItemWithProduct = WishlistItem & {
 
 export type OrderWithItems = Order & {
   customerName?: string;
+  paymentDetails?: {
+    available: boolean;
+    method?: string;
+    display: string;
+    subtype?: string;
+    razorpayPaymentId?: string;
+  };
   items: (OrderItem & { 
     product: ProductWithDetails;
     returnEligibility?: { itemId: string; eligible: boolean; reason?: string; remainingDays?: number };
