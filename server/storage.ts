@@ -684,7 +684,7 @@ export class DatabaseStorage implements IStorage {
     //   unallocated: number;
     // }[];
   }> {
-    const allProducts = await productService.getProducts({ limit: 1000 });
+    const allProducts = await productService.getNewProducts({ limit: 1000 });
 
     const totalProducts = allProducts.length;
 

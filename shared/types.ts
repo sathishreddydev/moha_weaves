@@ -140,7 +140,10 @@ export type WishlistItemWithProduct = WishlistItem & {
 
 export type OrderWithItems = Order & {
   customerName?: string;
-  items: (OrderItem & { product: ProductWithDetails })[];
+  items: (OrderItem & { 
+    product: ProductWithDetails;
+    returnEligibility?: { itemId: string; eligible: boolean; reason?: string; remainingDays?: number };
+  })[];
 };
 
 export type StockRequestWithDetails = StockRequest & {

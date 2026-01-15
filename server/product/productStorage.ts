@@ -28,19 +28,20 @@ import {
 import { db } from "server/db";
 
 export interface IproductRepository {
-  getProducts(filters?: {
+  getNewProducts(filters?: {
     search?: string;
-    category?: string;
-    subcategory?: string;
-    color?: string;
-    fabric?: string;
+    category?: string[];
+    subcategory?: string[];
+    color?: string[];
+    fabric?: string[];
     featured?: boolean;
     minPrice?: number;
     maxPrice?: number;
-    distributionChannel?: string;
+    distributionChannel?: "shop" | "online" | "both";
     sort?: string;
     limit?: number;
     onSale?: boolean;
+    ids?: string[];
   }): Promise<ProductWithDetails[]>;
   getProduct(id: string): Promise<ProductWithDetails | undefined>;
   createProduct(product: InsertProduct): Promise<Product>;
@@ -88,200 +89,7 @@ export interface IproductRepository {
   }>;
 }
 export class productRepository {
-  async getProducts(filters?: {
-    search?: string;
-    category?: string;
-    subcategory?: string;
-    color?: string;
-    fabric?: string;
-    featured?: boolean;
-    minPrice?: number;
-    maxPrice?: number;
-    distributionChannel?: string;
-    sort?: string;
-    limit?: number;
-    onSale?: boolean;
-  }): Promise<ProductWithDetails[]> {
-    const conditions = [eq(products.isActive, true)];
-
-    if (filters?.search) {
-      conditions.push(
-        or(
-          ilike(products.name, `%${filters.search}%`),
-          ilike(products.description, `%${filters.search}%`),
-        ) as any,
-      );
-    }
-    if (filters?.category) {
-      conditions.push(eq(products.categoryId, filters.category));
-    }
-    if (filters?.subcategory) {
-      conditions.push(eq(products.subcategoryId, filters.subcategory));
-    }
-    if (filters?.color) {
-      conditions.push(eq(products.colorId, filters.color));
-    }
-    if (filters?.fabric) {
-      conditions.push(eq(products.fabricId, filters.fabric));
-    }
-    if (filters?.sort === "featured") {
-      conditions.push(eq(products.isFeatured, true));
-    }
-    if (filters?.minPrice) {
-      conditions.push(gte(products.price, filters.minPrice.toString()));
-    }
-    if (filters?.maxPrice) {
-      conditions.push(lte(products.price, filters.maxPrice.toString()));
-    }
-    if (filters?.distributionChannel) {
-      if (filters.distributionChannel === "online") {
-        conditions.push(
-          or(
-            eq(products.distributionChannel, "online"),
-            eq(products.distributionChannel, "both"),
-          ) as any,
-        );
-      } else if (filters.distributionChannel === "shop") {
-        conditions.push(
-          or(
-            eq(products.distributionChannel, "shop"),
-            eq(products.distributionChannel, "both"),
-          ) as any,
-        );
-      }
-    }
-
-    let orderBy: any = desc(products.createdAt);
-    if (filters?.sort === "price-low") {
-      orderBy = asc(products.price);
-    } else if (filters?.sort === "price-high") {
-      orderBy = desc(products.price);
-    } else if (filters?.sort === "name") {
-      orderBy = asc(products.name);
-    }
-
-    const result = await db
-      .select()
-      .from(products)
-      .leftJoin(categories, eq(products.categoryId, categories.id))
-      .leftJoin(subcategories, eq(products.subcategoryId, subcategories.id))
-      .leftJoin(colors, eq(products.colorId, colors.id))
-      .leftJoin(fabrics, eq(products.fabricId, fabrics.id))
-      .where(and(...conditions))
-      .orderBy(orderBy)
-      .limit(filters?.limit || 100);
-
-    const productResults = result.map((row) => ({
-      ...row.products,
-      category: row.categories,
-      subcategory: row.subcategories,
-      color: row.colors,
-      fabric: row.fabrics,
-    }));
-
-    // Get active sales
-    const now = new Date();
-    const activeSales = await db
-      .select()
-      .from(sales)
-      .where(
-        and(
-          eq(sales.isActive, true),
-          lte(sales.validFrom, now),
-          gte(sales.validUntil, now),
-        ),
-      );
-
-    // Get sale products mapping
-    const saleProductMappings = await db
-      .select()
-      .from(saleProducts)
-      .where(
-        inArray(
-          saleProducts.saleId,
-          activeSales.map((s) => s.id),
-        ),
-      );
-
-    // Build the results with relationships and sales
-    const results: ProductWithDetails[] = productResults.map((product) => {
-      // Find applicable sale (product-specific first, then category-wide)
-      let applicableSale = null;
-
-      // Check for product-specific sale (sale has this product in saleProducts table)
-      const productSaleMapping = saleProductMappings.find(
-        (sp) => sp.productId === product.id,
-      );
-      if (productSaleMapping) {
-        applicableSale = activeSales.find(
-          (s) => s.id === productSaleMapping.saleId,
-        );
-      }
-
-      // Check for category-wide sale if no product-specific sale
-      // Only exclude category pricing when THIS product is explicitly mapped to a different sale
-      if (!applicableSale && product.categoryId) {
-        applicableSale = activeSales.find(
-          (s) =>
-            s.categoryId === product.categoryId &&
-            !saleProductMappings.some(
-              (sp) => sp.saleId === s.id && sp.productId === product.id,
-            ),
-        );
-      }
-
-      // Calculate discounted price using consistent logic across all flows
-      let discountedPrice = parseFloat(product.price);
-      if (applicableSale) {
-        const originalPrice = discountedPrice;
-        if (
-          applicableSale.offerType === "percentage" ||
-          applicableSale.offerType === "category" ||
-          applicableSale.offerType === "flash_sale"
-        ) {
-          const discount =
-            originalPrice * (parseFloat(applicableSale.discountValue) / 100);
-          const maxDiscount = applicableSale.maxDiscount
-            ? parseFloat(applicableSale.maxDiscount)
-            : originalPrice; // Cap at price if no maxDiscount
-          discountedPrice =
-            originalPrice - Math.min(discount, maxDiscount, originalPrice);
-        } else if (
-          applicableSale.offerType === "flat" ||
-          applicableSale.offerType === "product"
-        ) {
-          const flatDiscount = Math.min(
-            parseFloat(applicableSale.discountValue),
-            originalPrice,
-          );
-          discountedPrice = originalPrice - flatDiscount;
-        }
-        discountedPrice = Math.max(0, discountedPrice);
-      }
-
-      return {
-        ...product,
-        activeSale: applicableSale
-          ? {
-              id: applicableSale.id,
-              name: applicableSale.name,
-              offerType: applicableSale.offerType,
-              discountValue: applicableSale.discountValue,
-              maxDiscount: applicableSale.maxDiscount || undefined,
-            }
-          : null,
-        discountedPrice: applicableSale ? discountedPrice : undefined,
-      };
-    });
-
-    // Apply onSale filter if requested
-    const filteredResults = filters?.onSale
-      ? results.filter((r) => r.activeSale !== null)
-      : results;
-
-    return filteredResults;
-  }
-  async getNewProducts(filters?: {
+    async getNewProducts(filters?: {
     search?: string;
     category?: string[];
     subcategory?: string[];
@@ -290,12 +98,18 @@ export class productRepository {
     featured?: boolean;
     minPrice?: number;
     maxPrice?: number;
-    distributionChannel?: string;
+    distributionChannel?: "shop" | "online" | "both";
     sort?: string;
     limit?: number;
     onSale?: boolean;
+    ids?: string[];
   }): Promise<ProductWithDetails[]> {
     const conditions = [eq(products.isActive, true)];
+
+    // Handle specific product IDs lookup
+    if (filters?.ids && filters.ids.length > 0) {
+      conditions.push(inArray(products.id, filters.ids));
+    }
 
     if (filters?.search) {
       conditions.push(
@@ -500,7 +314,7 @@ export class productRepository {
 
     // Apply onSale filter
     const filteredResults =
-      filters?.sort === "onSale"
+      filters?.onSale || filters?.sort === "onSale"
         ? results.filter((r) => r.activeSale !== null)
         : results;
 

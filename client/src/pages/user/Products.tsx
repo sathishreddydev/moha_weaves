@@ -277,10 +277,18 @@ export default function products() {
   const { data: products, isLoading } = useQuery<ProductWithDetails[]>({
     queryKey: ["products", filters],
     queryFn: async () => {
+      // Transform filters to match backend expectations
+      const apiFilters = {
+        ...filters,
+        sort: filters.onSale ? "onSale" : filters.sort,
+        minPrice: filters.priceRange.min,
+        maxPrice: filters.priceRange.max,
+      };
+      
       const res = await fetch("/api/getProducts", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(filters),
+        body: JSON.stringify(apiFilters),
       });
       return res.json();
     },

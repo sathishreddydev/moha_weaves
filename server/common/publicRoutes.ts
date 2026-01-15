@@ -30,43 +30,7 @@ export const publicRoutes = (app: Express) => {
     }
   });
 
-  // products
-  app.get("/api/products", async (req, res) => {
-    try {
-      const {
-        search,
-        category,
-        subcategory,
-        color,
-        fabric,
-        featured,
-        minPrice,
-        maxPrice,
-        sort,
-        limit,
-      } = req.query;
-
-      const products = await productService.getProducts({
-        search: search as string,
-        category: category as string,
-        subcategory: subcategory as string,
-        color: color as string,
-        fabric: fabric as string,
-        featured: featured === "true",
-        minPrice: minPrice ? parseFloat(minPrice as string) : undefined,
-        maxPrice: maxPrice ? parseFloat(maxPrice as string) : undefined,
-        sort: sort as string,
-        limit: limit ? parseInt(limit as string) : undefined,
-        distributionChannel: "online",
-      });
-
-      res.json(products);
-    } catch (error) {
-      console.error("products fetch error:", error);
-      res.status(500).json({ message: "Failed to fetch products" });
-    }
-  });
-  app.post("/api/getProducts", async (req, res) => {
+    app.post("/api/getProducts", async (req, res) => {
     try {
       const {
         search,
@@ -80,6 +44,7 @@ export const publicRoutes = (app: Express) => {
         sort,
         limit,
         onSale,
+        ids,
       } = req.body;
 
       const products = await productService.getNewProducts({
@@ -94,6 +59,7 @@ export const publicRoutes = (app: Express) => {
         sort,
         limit,
         onSale: onSale === true,
+        ids,
         distributionChannel: "online",
       });
 

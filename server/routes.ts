@@ -288,15 +288,15 @@ export async function registerRoutes(
 
     if (sale.offerType === "category" && sale.categoryId) {
       // Get all products in this category
-      products = await productService.getProducts({ 
-        category: sale.categoryId,
-        onSale: true 
+      products = await productService.getNewProducts({ 
+        category: [sale.categoryId],
+        sort: "onSale"
       });
     } else if (sale.offerType === "product") {
       // Get specific products in the sale
       const productIds = sale.products.map(p => p.productId).filter(Boolean);
       if (productIds.length > 0) {
-        const allProducts = await productService.getProducts({ onSale: true });
+        const allProducts = await productService.getNewProducts({ sort: "onSale" });
         products = allProducts.filter(s => productIds.includes(s.id));
       }
     }

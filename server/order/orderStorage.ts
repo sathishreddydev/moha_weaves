@@ -18,6 +18,7 @@ import {
   users,
 } from "@shared/schema";
 import { IdGenerator } from "server/utils/idGenerator";
+import { returnStorage } from "server/return/returnStorage";
 
 export interface OrderStorage {
   createOrder(
@@ -26,6 +27,7 @@ export interface OrderStorage {
   ): Promise<Order>;
   getOrders(userId: string): Promise<OrderWithItems[]>;
   getOrder(id: string): Promise<OrderWithItems | undefined>;
+  getBasicOrder(id: string): Promise<OrderWithItems | undefined>;
   updateItemStatus(
     orderItemId: string,
     status: string,
@@ -121,25 +123,32 @@ export class OrderRepository implements OrderStorage {
         .leftJoin(fabrics, eq(products.fabricId, fabrics.id))
         .where(eq(orderItems.orderId, order.orders.id));
 
+      // Get return eligibility for all items in this order
+      const eligibilityMap = await returnStorage.checkOrderReturnEligibility(order.orders.id);
+
       result.push({
         ...order.orders,
         customerName,
-        items: items.map((row) => ({
-          ...row.order_items,
-          product: {
-            ...row.products,
-            category: row.categories,
-            color: row.colors,
-            fabric: row.fabrics,
-          },
-        })),
+        items: items.map((row) => {
+          const eligibility = eligibilityMap.find(e => e.itemId === row.order_items.id);
+          return {
+            ...row.order_items,
+            returnEligibility: eligibility || { itemId: row.order_items.id, eligible: false },
+            product: {
+              ...row.products,
+              category: row.categories,
+              color: row.colors,
+              fabric: row.fabrics,
+            },
+          };
+        }),
       });
     }
 
     return result;
   }
 
-  async getOrder(id: string): Promise<OrderWithItems | undefined> {
+  async getBasicOrder(id: string): Promise<OrderWithItems | undefined> {
     const [order] = await db.select().from(orders).where(eq(orders.id, id));
     if (!order) return undefined;
 
@@ -151,6 +160,7 @@ export class OrderRepository implements OrderStorage {
       .leftJoin(colors, eq(products.colorId, colors.id))
       .leftJoin(fabrics, eq(products.fabricId, fabrics.id))
       .where(eq(orderItems.orderId, order.id));
+    
     const itemStatuses = await Promise.all(
       itemsRows.map(async (itemRow) => {
         const [latestStatus] = await db
@@ -174,6 +184,58 @@ export class OrderRepository implements OrderStorage {
           ...row.order_items,
           status: row.order_items.status,
           currentStatus: statusObj?.currentStatus || row.order_items.status,
+          product: {
+            ...row.products,
+            category: row.categories,
+            color: row.colors,
+            fabric: row.fabrics,
+          },
+        };
+      }),
+    };
+  }
+
+  async getOrder(id: string): Promise<OrderWithItems | undefined> {
+    const [order] = await db.select().from(orders).where(eq(orders.id, id));
+    if (!order) return undefined;
+
+    const itemsRows = await db
+      .select()
+      .from(orderItems)
+      .innerJoin(products, eq(orderItems.productId, products.id))
+      .leftJoin(categories, eq(products.categoryId, categories.id))
+      .leftJoin(colors, eq(products.colorId, colors.id))
+      .leftJoin(fabrics, eq(products.fabricId, fabrics.id))
+      .where(eq(orderItems.orderId, order.id));
+    
+    // Get return eligibility for all items in this order
+    const eligibilityMap = await returnStorage.checkOrderReturnEligibility(order.id);
+    
+    const itemStatuses = await Promise.all(
+      itemsRows.map(async (itemRow) => {
+        const [latestStatus] = await db
+          .select({ newStatus: itemStatusHistory.newStatus })
+          .from(itemStatusHistory)
+          .where(eq(itemStatusHistory.orderItemId, itemRow.order_items.id))
+          .orderBy(desc(itemStatusHistory.createdAt))
+          .limit(1);
+
+        return {
+          orderItemId: itemRow.order_items.id,
+          currentStatus: latestStatus?.newStatus ?? itemRow.order_items.status,
+        };
+      })
+    );
+    return {
+      ...order,
+      items: itemsRows.map((row) => {
+        const statusObj = itemStatuses.find((s) => s.orderItemId === row.order_items.id);
+        const eligibility = eligibilityMap.find(e => e.itemId === row.order_items.id);
+        return {
+          ...row.order_items,
+          status: row.order_items.status,
+          currentStatus: statusObj?.currentStatus || row.order_items.status,
+          returnEligibility: eligibility || { itemId: row.order_items.id, eligible: false },
           product: {
             ...row.products,
             category: row.categories,

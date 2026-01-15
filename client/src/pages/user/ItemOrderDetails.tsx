@@ -45,29 +45,6 @@ export default function ItemOrderDetails() {
 
   const item = order?.items?.find(item => item.id === itemId);
 
-  const { data: productWithStock } = useQuery<Array<{ id: string; stock: number }>>({
-    queryKey: ["product-stock", item?.product?.id],
-    queryFn: async () => {
-      if (!item?.product?.id) return [];
-      const res = await fetch("/api/getProducts", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ids: [item.product.id] }),
-      });
-      if (!res.ok) throw new Error("Failed to fetch stock");
-      const data = await res.json();
-      return data.map((s: any) => ({ id: s.id, stock: Number(s.onlineStock) || 0 }));
-    },
-    enabled: !!item?.product?.id,
-  });
-
-  const stockByproductId = new Map(productWithStock?.map((s) => [s.id, s.stock]) || []);
-
-  const { data: eligibility } = useQuery<{ itemId: string; eligible: boolean; reason?: string; remainingDays?: number }[]>({
-    queryKey: ["/api/user/orders", orderId, "return-eligibility"],
-    enabled: !!user && !!orderId && !!item && isItemDelivered(item.status as any),
-  });
-
   const { data: userReturns } = useQuery<ReturnRequestWithDetails[]>({
     queryKey: ["/api/user/returns"],
     enabled: !!user,
@@ -165,8 +142,7 @@ export default function ItemOrderDetails() {
     if (!item) return;
 
     if (resolutionType === "exchange") {
-      const stock = stockByproductId.get(item.product.id) ?? 0;
-      if (stock <= 0) {
+      if (item.product.onlineStock <= 0) {
         toast({
           title: "Item is out of stock and cannot be exchanged",
           description: "You can return it instead.",
@@ -192,13 +168,8 @@ export default function ItemOrderDetails() {
 
 
   const isItemEligibleForReturn = (itemId: string): boolean => {
-    if (!eligibility) return false;
-
-    const itemEligibility = eligibility.find(
-      (item) => item.itemId === itemId
-    );
-
-    return itemEligibility?.eligible ?? false;
+    const item = order?.items?.find(item => item.id === itemId);
+    return item?.returnEligibility?.eligible ?? false;
   };
   if (!user) {
     return (
@@ -431,19 +402,18 @@ export default function ItemOrderDetails() {
             {item.status === "delivered" ? (
               (() => {
                 const eligible = isItemEligibleForReturn(item.id);
-                if (eligible && eligibility && eligibility.length > 0) {
-                  const itemEligibility = eligibility.find(e => e.itemId === item.id);
+                if (eligible && item.returnEligibility) {
                   return (
                     <p className="text-sm text-muted-foreground mb-4">
-                      {itemEligibility?.remainingDays !== undefined
-                        ? `You can return or exchange this item within ${itemEligibility.remainingDays} day${itemEligibility.remainingDays !== 1 ? "s" : ""}.`
+                      {item.returnEligibility?.remainingDays !== undefined
+                        ? `You can return or exchange this item within ${item.returnEligibility.remainingDays} day${item.returnEligibility.remainingDays !== 1 ? "s" : ""}.`
                         : "You can return or exchange this item within the return window."}
                     </p>
                   );
                 } else {
                   return (
                     <p className="text-sm text-muted-foreground">
-                      {eligibility?.find(e => e.itemId === item.id)?.reason || "Return window has expired for this item."}
+                      {item.returnEligibility?.reason || "Return window has expired for this item."}
                     </p>
                   );
                 }

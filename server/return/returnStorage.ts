@@ -450,7 +450,7 @@ export class ReturnStorage implements IReturnStorage {
   ): Promise<
     { itemId: string; eligible: boolean; reason?: string; remainingDays?: number }[]
   > {
-    const order = await orderService.getOrder(orderId);
+    const order = await orderService.getBasicOrder(orderId);
 
     if (!order) {
       return [
