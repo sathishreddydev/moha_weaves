@@ -42,7 +42,7 @@ import type { SaleWithDetails, Category, ProductWithDetails } from "@shared/sche
 interface SaleFormData {
   name: string;
   description: string;
-  offerType: "percentage" | "flat" | "category" | "product" | "flash_sale";
+  offerType: "percentage" | "flat" | "product" | "flash_sale";
   discountValue: string;
   categoryId: string;
   minOrderAmount: string;
@@ -211,14 +211,6 @@ export default function AdminSales() {
       return;
     }
 
-    if (formData.offerType === "category" && !formData.categoryId) {
-      toast({
-        title: "Error",
-        description: "Please select a category for category-level offer",
-        variant: "destructive",
-      });
-      return;
-    }
 
     if (formData.offerType === "product" && formData.productIds.length === 0) {
       toast({
@@ -435,7 +427,7 @@ export default function AdminSales() {
 
               <div>
                 <Label htmlFor="discountValue">
-                  Discount Value * {formData.offerType === "percentage" || formData.offerType === "category" ? "(%)" : "(₹)"}
+                  Discount Value * {formData.offerType === "percentage" ? "(%)" : "(₹)"}
                 </Label>
                 <Input
                   id="discountValue"
@@ -448,26 +440,6 @@ export default function AdminSales() {
               </div>
             </div>
 
-            {formData.offerType === "category" && (
-              <div>
-                <Label htmlFor="categoryId">Category *</Label>
-                <Select
-                  value={formData.categoryId}
-                  onValueChange={(value) => setFormData({ ...formData, categoryId: value })}
-                >
-                  <SelectTrigger data-testid="select-category">
-                    <SelectValue placeholder="Select category" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {categories?.map((cat) => (
-                      <SelectItem key={cat.id} value={cat.id}>
-                        {cat.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            )}
 
             {formData.offerType === "product" && (
               <div>

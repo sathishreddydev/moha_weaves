@@ -17,7 +17,7 @@ import {
 
 export const AdminNavItems = [
   { icon: LayoutDashboard, label: "Dashboard", href: "/admin/dashboard" },
-  { icon: Package, label: "products", href: "/admin/products" },
+  { icon: Package, label: "Products", href: "/admin/products" },
   { icon: Tags, label: "Categories", href: "/admin/categories" },
   { icon: Palette, label: "Colors", href: "/admin/colors" },
   { icon: Shirt, label: "Fabrics", href: "/admin/fabrics" },

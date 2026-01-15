@@ -154,35 +154,30 @@ export const adminRoutes = (app: Express) => {
   app.post("/api/admin/getProducts", authAdmin, async (req, res) => {
     try {
       const { page, pageSize } = req.query;
-      const { search, category, subcategory, status, dateFrom, dateTo } =
-        req.body;
+      const {
+        search,
+        status,
+        dateFrom,
+        dateTo,
+        categoryIds,
+        colorIds,
+        fabricIds,
+      } = req.body;
 
-      if (page && pageSize) {
-        const params = parsePaginationParams(req.query);
-        const result = await productService.getProducts({
-          search: search as string,
-          category: category as string,
-          subcategory: subcategory as string,
-          limit: params.pageSize,
-        });
+      const params = parsePaginationParams(req.query);
 
-        // Manual pagination for now
-        const startIndex = (params.page - 1) * params.pageSize;
-        const paginatedResults = result.slice(
-          startIndex,
-          startIndex + params.pageSize,
-        );
-
-        return res.json({
-          data: paginatedResults,
-          totalCount: result.length,
-          page: params.page,
-          pageSize: params.pageSize,
-        });
-      }
-
-      const products = await productService.getProducts({});
-      res.json(products);
+      const result = await productService.getProductsPaginated({
+        page: params.page,
+        pageSize: params.pageSize,
+        search,
+        categoryIds,
+        colorIds,
+        fabricIds,
+        status,
+        dateFrom,
+        dateTo,
+      });
+      return res.json(result);
     } catch (error) {
       res.status(500).json({ message: "Failed to fetch products" });
     }

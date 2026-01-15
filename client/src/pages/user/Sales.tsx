@@ -80,7 +80,7 @@ export default function Sales() {
         <p className="text-muted-foreground max-w-2xl mx-auto mb-6">
           Discover amazing deals on our exquisite collection of products. Limited time offers you don't want to miss!
         </p>
-        <Link to="/products?onSale=true">
+        <Link to="/products?sort=onSale">
           <Button size="lg" data-testid="button-shop-all-sale">
             <Tag className="h-4 w-4 mr-2" />
             Shop All Sale Products

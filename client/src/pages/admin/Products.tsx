@@ -45,22 +45,7 @@ export default function AdminProducts() {
 
   const columns: ColumnDef<ProductWithDetails>[] = useMemo(
     () => [
-      {
-        accessorKey: "imageUrl",
-        header: "Image",
-        cell: ({ row }) => (
-          <div className="w-12 h-16 rounded overflow-hidden bg-muted">
-            <img
-              src={
-                row.original.imageUrl ||
-                "https://images.unsplash.com/photo-1610030469983-98e550d6193c?w=100"
-              }
-              alt={row.original.name}
-              className="w-full h-full object-cover"
-            />
-          </div>
-        ),
-      },
+ 
       {
         accessorKey: "name",
         header: "Name",
@@ -104,15 +89,6 @@ export default function AdminProducts() {
             }
           >
             {row.original.totalStock}
-          </span>
-        ),
-      },
-      {
-        accessorKey: "onlineStock",
-        header: "Online Stock",
-        cell: ({ row }) => (
-          <span className="text-muted-foreground">
-            {row.original.onlineStock}
           </span>
         ),
       },

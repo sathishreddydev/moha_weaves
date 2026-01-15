@@ -57,24 +57,29 @@ export function TrendingSalesBanner() {
       <div className="max-w-7xl mx-auto px-4">
         <div className="flex items-center justify-between mb-4">
           <div>
-            <p
-              className="font-serif font-semibold
-               text-xl flex items-center gap-1"
+            <h1
+              className="font-serif tracking-tighter transition-colors
+               text-2xl flex items-center gap-1"
+              data-testid="text-categories-title"
             >
-              <Tag className="h-6 w-6 text-primary" />
-              Trending Sales & Offers
-            </p>
+              {/* <Tag className="h-6 w-6 text-primary" /> */}
+              Trending Sales & Offers{" "}
+            </h1>
+
             <p
               className="text-muted-foreground
-               text-base"
+               text-xs"
             >
               Don't miss out on our exclusive deals
             </p>
           </div>
-          <Link to="/sales">
-            <Button variant="ghost">
-              View All <ArrowRight className="ml-2 h-4 w-4" />
-            </Button>
+
+          <Link
+            to="/sales"
+            className="inline-flex items-center text-[10px] font-bold uppercase tracking-[0.2em] border-b border-black pb-2 transition-all"
+          >
+            <span>View All</span>
+            <ArrowRight className="ml-2 h-4 w-4" />
           </Link>
         </div>
 
@@ -110,7 +115,7 @@ export function TrendingSalesBanner() {
                     </div>
                   </div>
                   <div className="p-5">
-                    <h3 className="font-semibold text-lg mb-2 group-hover:text-primary transition-colors">
+                    <h3 className="font-medium uppercase text-sm tracking-wider mb-2 group-hover:text-primary transition-colors">
                       {sale.name}
                     </h3>
                     {/* <p className="text-sm text-muted-foreground line-clamp-2 mb-4">
@@ -126,7 +131,7 @@ export function TrendingSalesBanner() {
                           : `₹${sale.discountValue} OFF`}
                       </Badge>
                       <span className="text-sm text-muted-foreground">
-                        {sale.products.length} products
+                        {sale.products.length} Products
                       </span>
                     </div>
                   </div>

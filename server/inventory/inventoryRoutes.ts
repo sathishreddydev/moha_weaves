@@ -223,9 +223,9 @@ export const inventoryRoutes = (app: Express) => {
   app.get("/api/inventory/orders", authInventory, async (req, res) => {
     try {
       const { status, limit } = req.query;
-      const orders = await storage.getAllOrders({ 
+      const orders = await storage.getAllOrders({
         status: status as string,
-        limit: limit ? parseInt(limit as string) : undefined
+        limit: limit ? parseInt(limit as string) : undefined,
       });
       res.json(orders);
     } catch (error) {
@@ -347,25 +347,20 @@ export const inventoryRoutes = (app: Express) => {
         fabricIds,
       } = req.body;
 
-      if (page && pageSize) {
-        const params = parsePaginationParams(req.query);
+      const params = parsePaginationParams(req.query);
 
-        const result = await productService.getProductsPaginated({
-          page: params.page,
-          pageSize: params.pageSize,
-          search,
-          categoryIds,
-          colorIds,
-          fabricIds,
-          status,
-          dateFrom,
-          dateTo,
-        });
-        return res.json(result);
-      }
-
-      const products = await productService.getProducts({});
-      res.json(products);
+      const result = await productService.getProductsPaginated({
+        page: params.page,
+        pageSize: params.pageSize,
+        search,
+        categoryIds,
+        colorIds,
+        fabricIds,
+        status,
+        dateFrom,
+        dateTo,
+      });
+      return res.json(result);
     } catch (error) {
       res.status(500).json({ message: "Failed to fetch products" });
     }
@@ -824,7 +819,7 @@ export const inventoryRoutes = (app: Express) => {
   app.post("/api/inventory/store-sales", authInventory, async (req, res) => {
     try {
       const { page, pageSize } = req.query;
-      const { search, dateFrom, dateTo,storeId } = req.body;
+      const { search, dateFrom, dateTo, storeId } = req.body;
       if (page && pageSize) {
         const params = parsePaginationParams(req.query);
         const result = await storage.getStoreSalesPaginatedInventory({
