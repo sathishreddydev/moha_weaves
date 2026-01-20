@@ -43,6 +43,7 @@ const SaleDetail = lazy(() => import("@/pages/user/SaleDetail"));
 const AdminLogin = lazy(() => import("@/pages/admin/Login"));
 const AdminDashboard = lazy(() => import("@/pages/admin/Dashboard"));
 const AdminProducts = lazy(() => import("@/pages/admin/Products"));
+const AdminProductDetail = lazy(() => import("@/pages/admin/ProductDetail"));
 const AdminCategories = lazy(() => import("@/pages/admin/Categories"));
 const AdminColors = lazy(() => import("@/pages/admin/Colors"));
 const AdminFabrics = lazy(() => import("@/pages/admin/Fabrics"));
@@ -153,6 +154,7 @@ function Router() {
                 <Route index element={<Navigate to="dashboard" replace />} />
                 <Route path="dashboard" element={<AdminDashboard />} />
                 <Route path="products" element={<AdminProducts />} />
+                <Route path="products/:id" element={<AdminProductDetail />} />
                 <Route path="categories" element={<AdminCategories />} />
                 <Route path="colors" element={<AdminColors />} />
                 <Route path="fabrics" element={<AdminFabrics />} />

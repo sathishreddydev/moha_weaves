@@ -44,6 +44,7 @@ import { useWishlistStore } from "@/components/Store/useWishlistStore";
 import { CartQuantity } from "./common/CartQuantity";
 import { ProductSharePopover } from "@/components/common/ProductSharePopover";
 import { cn } from "@/lib/utils";
+import { apiRequest } from "@/lib/queryClient";
 
 export default function ProductDetail() {
   const { id } = useParams();
@@ -54,13 +55,15 @@ export default function ProductDetail() {
     queryKey: ["/api/products", id],
   });
 
-  const relatedQueryString = product?.categoryId
-    ? `/api/products?category=${product.categoryId}&limit=4`
-    : null;
-
   const { data: relatedProducts } = useQuery<ProductWithDetails[]>({
-    queryKey: [relatedQueryString],
-    enabled: !!relatedQueryString,
+    queryKey: ["products"],
+    queryFn: async () => {
+      const response = await apiRequest("POST", "/api/getProducts", {
+        category: [product?.categoryId],
+        limit: 4,
+      });
+      return response.json();
+    },
   });
   const cartItems = useCartStore((state) => state.cart);
   const updateQuantity = useCartStore((state) => state.updateQuantity);
@@ -221,7 +224,7 @@ export default function ProductDetail() {
       {/* Breadcrumb */}
       <div className="lg:hidden mb-12">{Breadcrumb()}</div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-16 xl:gap-24">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 xl:gap-16">
         {/* Image Section - 60% width */}
         <div className="lg:col-span-7">
           <ProductImageGallery
@@ -414,7 +417,12 @@ export default function ProductDetail() {
             </div>
           </div>
 
-          <Accordion type="single" collapsible className="w-full" defaultValue="details">
+          <Accordion
+            type="single"
+            collapsible
+            className="w-full"
+            defaultValue="details"
+          >
             <AccordionItem value="details">
               <AccordionTrigger className="text-left">
                 <span className="font-semibold text-xs uppercase tracking-[0.1em]">

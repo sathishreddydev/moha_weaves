@@ -37,14 +37,13 @@ import { useAuth } from "@/lib/auth";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
-import type { SaleWithDetails, Category, ProductWithDetails } from "@shared/schema";
+import type { SaleWithDetails } from "@shared/schema";
 
 interface SaleFormData {
   name: string;
   description: string;
-  offerType: "percentage" | "flat" | "product" | "flash_sale";
+  offerType: "percentage" | "flat" | "flash_sale";
   discountValue: string;
-  categoryId: string;
   minOrderAmount: string;
   maxDiscount: string;
   startDate: string;
@@ -69,7 +68,6 @@ export default function AdminSales() {
     description: "",
     offerType: "percentage",
     discountValue: "",
-    categoryId: "",
     minOrderAmount: "",
     maxDiscount: "",
     startDate: "",
@@ -85,14 +83,6 @@ export default function AdminSales() {
     enabled: !!user && user.role === "admin",
   });
 
-  const { data: categories } = useQuery<Category[]>({
-    queryKey: ["/api/categories"],
-  });
-
-  const { data: products } = useQuery<ProductWithDetails[]>({
-    queryKey: ["/api/admin/getProducts"],
-    enabled: formData.offerType === "product",
-  });
 
   const createMutation = useMutation({
     mutationFn: async (data: SaleFormData) => {
@@ -163,7 +153,6 @@ export default function AdminSales() {
       description: "",
       offerType: "percentage",
       discountValue: "",
-      categoryId: "",
       minOrderAmount: "",
       maxDiscount: "",
       startDate: tomorrow.toISOString().split("T")[0],
@@ -183,7 +172,6 @@ export default function AdminSales() {
       description: sale.description || "",
       offerType: sale.offerType as any,
       discountValue: sale.discountValue,
-      categoryId: sale.categoryId || "",
       minOrderAmount: sale.minOrderAmount || "",
       maxDiscount: sale.maxDiscount || "",
       startDate: new Date(sale.validFrom).toISOString().split("T")[0],
@@ -211,15 +199,6 @@ export default function AdminSales() {
       return;
     }
 
-
-    if (formData.offerType === "product" && formData.productIds.length === 0) {
-      toast({
-        title: "Error",
-        description: "Please select at least one product",
-        variant: "destructive",
-      });
-      return;
-    }
 
     if (editingSale) {
       updateMutation.mutate({ id: editingSale.id, data: formData });
@@ -314,7 +293,7 @@ export default function AdminSales() {
                         </Badge>
                       </TableCell>
                       <TableCell className="font-medium">
-                        {sale.offerType === "percentage" || sale.offerType === "category"
+                        {sale.offerType === "percentage"
                           ? `${sale.discountValue}%`
                           : `₹${sale.discountValue}`}
                       </TableCell>
@@ -327,9 +306,7 @@ export default function AdminSales() {
                         </div>
                       </TableCell>
                       <TableCell>
-                        {sale.offerType === "category" ? (
-                          <span className="text-sm">{sale.category?.name || "-"}</span>
-                        ) : sale.offerType === "product" ? (
+                        {sale.offerType === "product" ? (
                           <span className="text-sm">{sale.productCount} products</span>
                         ) : (
                           <span className="text-sm text-muted-foreground">All</span>
@@ -418,7 +395,6 @@ export default function AdminSales() {
                   <SelectContent>
                     <SelectItem value="percentage">Percentage Discount</SelectItem>
                     <SelectItem value="flat">Flat Discount</SelectItem>
-                    <SelectItem value="category">Category Offer</SelectItem>
                     <SelectItem value="product">Product Offer</SelectItem>
                     <SelectItem value="flash_sale">Flash Sale</SelectItem>
                   </SelectContent>
@@ -439,41 +415,6 @@ export default function AdminSales() {
                 />
               </div>
             </div>
-
-
-            {formData.offerType === "product" && (
-              <div>
-                <Label>Select Products *</Label>
-                <div className="border rounded-md p-4 max-h-48 overflow-y-auto space-y-2">
-                  {products?.map((product) => (
-                    <label key={product.id} className="flex items-center gap-2 cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={formData.productIds.includes(product.id)}
-                        onChange={(e) => {
-                          if (e.target.checked) {
-                            setFormData({
-                              ...formData,
-                              productIds: [...formData.productIds, product.id],
-                            });
-                          } else {
-                            setFormData({
-                              ...formData,
-                              productIds: formData.productIds.filter((id) => id !== product.id),
-                            });
-                          }
-                        }}
-                        className="rounded"
-                      />
-                      <span className="text-sm">{product.name}</span>
-                    </label>
-                  ))}
-                </div>
-                <p className="text-xs text-muted-foreground mt-1">
-                  {formData.productIds.length} product(s) selected
-                </p>
-              </div>
-            )}
 
             <div className="grid grid-cols-2 gap-4">
               <div>

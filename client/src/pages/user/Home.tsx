@@ -1,46 +1,15 @@
 import { Link } from "react-router-dom";
-import {
-  ArrowRight,
-  Sparkles,
-  Truck,
-  RefreshCw,
-  ShieldCheck,
-} from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { ArrowRight } from "lucide-react";
 import { Card } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ProductCard } from "@/components/product/ProductCard";
 import { TrendingSalesBanner } from "./TrendingSales";
 import { useQuery } from "@tanstack/react-query";
-import type { ProductWithDetails, Category } from "@shared/schema";
+import type { ProductWithDetails } from "@shared/schema";
 import { useFilterStore } from "@/components/Store/useFilterStore";
 import { useEffect } from "react";
 import { VisualCategoryHero } from "./common/VisualCategoryHero";
 import { apiRequest } from "@/lib/queryClient";
-
-const features = [
-  {
-    icon: Sparkles,
-    title: "Handcrafted",
-    description: "Each piece made with care",
-  },
-  {
-    icon: Truck,
-    title: "Free Shipping",
-    description: "On orders above ₹2,999",
-  },
-  {
-    icon: RefreshCw,
-    title: "Easy Returns",
-    description: "15-day hassle-free returns",
-  },
-  {
-    icon: ShieldCheck,
-    title: "Secure Payment",
-    description: "100% secure checkout",
-  },
-];
 
 export default function Home() {
   const { data: featuredProducts, isLoading: loadingFeatured } = useQuery<
