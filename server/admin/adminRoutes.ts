@@ -592,6 +592,7 @@ export const adminRoutes = (app: Express) => {
         offerType,
         discountValue,
         categoryId,
+        subcategoryId,
         minOrderAmount,
         maxDiscount,
         startDate,
@@ -612,6 +613,7 @@ export const adminRoutes = (app: Express) => {
         offerType,
         discountValue: String(discountValue),
         categoryId: categoryId || null,
+        subcategoryId: subcategoryId === "all" || !subcategoryId ? null : subcategoryId,
         minOrderAmount: minOrderAmount ? String(minOrderAmount) : null,
         maxDiscount: maxDiscount ? String(maxDiscount) : null,
         validFrom: new Date(startDate),
@@ -650,6 +652,7 @@ export const adminRoutes = (app: Express) => {
         offerType,
         discountValue,
         categoryId,
+        subcategoryId,
         minOrderAmount,
         maxDiscount,
         startDate,
@@ -667,6 +670,8 @@ export const adminRoutes = (app: Express) => {
       if (discountValue !== undefined)
         updateData.discountValue = String(discountValue);
       if (categoryId !== undefined) updateData.categoryId = categoryId || null;
+      if (subcategoryId !== undefined) 
+        updateData.subcategoryId = subcategoryId === "all" || !subcategoryId ? null : subcategoryId;
       if (minOrderAmount !== undefined)
         updateData.minOrderAmount = minOrderAmount
           ? String(minOrderAmount)

@@ -4,6 +4,8 @@ import {
   saleProducts,
   InsertSale,
   Sale,
+  categories,
+  subcategories,
 } from "@shared/schema";
 import { eq, lte, gte, and, desc, sql } from "drizzle-orm";
 import { db } from "server/db";
@@ -56,8 +58,29 @@ export class SalesRepository implements SalesStorage {
     }
 
     const salesResult = await db
-      .select()
+      .select({
+        id: sales.id,
+        name: sales.name,
+        description: sales.description,
+        offerType: sales.offerType,
+        discountValue: sales.discountValue,
+        categoryId: sales.categoryId,
+        subcategoryId: sales.subcategoryId,
+        minOrderAmount: sales.minOrderAmount,
+        maxDiscount: sales.maxDiscount,
+        validFrom: sales.validFrom,
+        validUntil: sales.validUntil,
+        isActive: sales.isActive,
+        isFeatured: sales.isFeatured,
+        bannerImage: sales.bannerImage,
+        createdAt: sales.createdAt,
+        updatedAt: sales.updatedAt,
+        category: categories,
+        subcategory: subcategories,
+      })
       .from(sales)
+      .leftJoin(categories, eq(sales.categoryId, categories.id))
+      .leftJoin(subcategories, eq(sales.subcategoryId, subcategories.id))
       .where(and(...conditions))
       .orderBy(desc(sales.createdAt));
 
@@ -82,7 +105,32 @@ export class SalesRepository implements SalesStorage {
   async getSale(
     id: string
   ): Promise<(SaleWithProducts & { productCount: number }) | null> {
-    const [sale] = await db.select().from(sales).where(eq(sales.id, id));
+    const [sale] = await db
+      .select({
+        id: sales.id,
+        name: sales.name,
+        description: sales.description,
+        offerType: sales.offerType,
+        discountValue: sales.discountValue,
+        categoryId: sales.categoryId,
+        subcategoryId: sales.subcategoryId,
+        minOrderAmount: sales.minOrderAmount,
+        maxDiscount: sales.maxDiscount,
+        validFrom: sales.validFrom,
+        validUntil: sales.validUntil,
+        isActive: sales.isActive,
+        isFeatured: sales.isFeatured,
+        bannerImage: sales.bannerImage,
+        createdAt: sales.createdAt,
+        updatedAt: sales.updatedAt,
+        category: categories,
+        subcategory: subcategories,
+      })
+      .from(sales)
+      .leftJoin(categories, eq(sales.categoryId, categories.id))
+      .leftJoin(subcategories, eq(sales.subcategoryId, subcategories.id))
+      .where(eq(sales.id, id));
+
     if (!sale) return null;
 
     const products = await db

@@ -250,6 +250,10 @@ export const salesRelations = relations(tables.sales, ({ one, many }) => ({
     fields: [tables.sales.categoryId],
     references: [tables.categories.id],
   }),
+  subcategory: one(tables.subcategories, {
+    fields: [tables.sales.subcategoryId],
+    references: [tables.subcategories.id],
+  }),
   products: many(tables.saleProducts),
 }));
 

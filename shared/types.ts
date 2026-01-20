@@ -221,6 +221,7 @@ export type StoreExchangeWithDetails = StoreExchange & {
 
 export type SaleWithDetails = Sale & {
   category?: Category | null;
+  subcategory?: Subcategory | null;
   products?: (SaleProduct & { product: ProductWithDetails })[];
   productCount?: number;
 };

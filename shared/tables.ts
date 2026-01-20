@@ -517,6 +517,7 @@ export const sales = pgTable("sales", {
     scale: 2,
   }).notNull(),
   categoryId: varchar("category_id").references(() => categories.id),
+  subcategoryId: varchar("subcategory_id").references(() => subcategories.id),
   minOrderAmount: decimal("min_order_amount", { precision: 10, scale: 2 }),
   maxDiscount: decimal("max_discount", { precision: 10, scale: 2 }),
   validFrom: timestamp("valid_from").notNull(),

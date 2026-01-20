@@ -37,13 +37,19 @@ import { useAuth } from "@/lib/auth";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+import { useFilterStore } from "@/components/Store/useFilterStore";
+import { useEffect } from "react";
 import type { SaleWithDetails } from "@shared/schema";
 
 interface SaleFormData {
   name: string;
   description: string;
-  offerType: "percentage" | "flat" | "flash_sale";
+  offerType: "percentage" | "flat" | "product" | "flash_sale";
   discountValue: string;
+  targetType: "all" | "category" | "products";
+  categoryId?: string;
+  subcategoryId?: string;
+  productIds: string[];
   minOrderAmount: string;
   maxDiscount: string;
   startDate: string;
@@ -51,7 +57,6 @@ interface SaleFormData {
   isActive: boolean;
   isFeatured: boolean;
   bannerImage: string;
-  productIds: string[];
 }
 
 export default function AdminSales() {
@@ -68,6 +73,10 @@ export default function AdminSales() {
     description: "",
     offerType: "percentage",
     discountValue: "",
+    targetType: "all",
+    categoryId: "",
+    subcategoryId: "all",
+    productIds: [],
     minOrderAmount: "",
     maxDiscount: "",
     startDate: "",
@@ -75,13 +84,33 @@ export default function AdminSales() {
     isActive: true,
     isFeatured: false,
     bannerImage: "",
-    productIds: [],
   });
 
   const { data: sales, isLoading } = useQuery<SaleWithDetails[]>({
     queryKey: ["/api/admin/sales"],
     enabled: !!user && user.role === "admin",
   });
+
+  const { data: productsData, refetch: refetchProducts } = useQuery({
+    queryKey: ["/api/admin/getProducts"],
+    queryFn: async () => {
+      const response = await apiRequest("POST", "/api/admin/getProducts", {});
+      const result = await response.json();
+      return result;
+    },
+    enabled: !!user && user.role === "admin",
+  });
+
+  const products = productsData?.products || [];
+
+  const categories = useFilterStore((state) => state.categories);
+  const fetchFilters = useFilterStore((state) => state.fetchFilters);
+
+  useEffect(() => {
+    if (categories.length === 0) {
+      fetchFilters();
+    }
+  }, [categories.length, fetchFilters]);
 
 
   const createMutation = useMutation({
@@ -153,6 +182,10 @@ export default function AdminSales() {
       description: "",
       offerType: "percentage",
       discountValue: "",
+      targetType: "all",
+      categoryId: "",
+      subcategoryId: "all",
+      productIds: [],
       minOrderAmount: "",
       maxDiscount: "",
       startDate: tomorrow.toISOString().split("T")[0],
@@ -160,7 +193,6 @@ export default function AdminSales() {
       isActive: true,
       isFeatured: false,
       bannerImage: "",
-      productIds: [],
     });
     setDialogOpen(true);
   };
@@ -172,6 +204,10 @@ export default function AdminSales() {
       description: sale.description || "",
       offerType: sale.offerType as any,
       discountValue: sale.discountValue,
+      targetType: sale.categoryId ? "category" : sale.products?.length ? "products" : "all",
+      categoryId: sale.categoryId || "",
+      subcategoryId: "all", // Will need to add this to backend schema
+      productIds: sale.products?.map(p => p.productId) || [],
       minOrderAmount: sale.minOrderAmount || "",
       maxDiscount: sale.maxDiscount || "",
       startDate: new Date(sale.validFrom).toISOString().split("T")[0],
@@ -179,7 +215,6 @@ export default function AdminSales() {
       isActive: sale.isActive,
       isFeatured: sale.isFeatured,
       bannerImage: sale.bannerImage || "",
-      productIds: sale.products?.map(p => p.productId) || [],
     });
     setDialogOpen(true);
   };
@@ -194,6 +229,25 @@ export default function AdminSales() {
       toast({
         title: "Error",
         description: "Please fill in all required fields",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Validate target selection
+    if (formData.targetType === "category" && !formData.categoryId) {
+      toast({
+        title: "Error",
+        description: "Please select a category",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (formData.targetType === "products" && formData.productIds.length === 0) {
+      toast({
+        title: "Error",
+        description: "Please select at least one product",
         variant: "destructive",
       });
       return;
@@ -306,7 +360,12 @@ export default function AdminSales() {
                         </div>
                       </TableCell>
                       <TableCell>
-                        {sale.offerType === "product" ? (
+                        {sale.categoryId ? (
+                          <span className="text-sm">
+                            {sale.category?.name}
+                            {sale.subcategoryId && ` (${sale.subcategory?.name})`}
+                          </span>
+                        ) : sale?.products && sale?.products?.length > 0 ? (
                           <span className="text-sm">{sale.productCount} products</span>
                         ) : (
                           <span className="text-sm text-muted-foreground">All</span>
@@ -415,6 +474,122 @@ export default function AdminSales() {
                 />
               </div>
             </div>
+
+            <div>
+              <Label htmlFor="targetType">Apply To *</Label>
+              <Select
+                value={formData.targetType}
+                onValueChange={(value: "all" | "category" | "products") => {
+                  setFormData({ 
+                    ...formData, 
+                    targetType: value, 
+                    categoryId: "",
+                    subcategoryId: "all",
+                    productIds: [] 
+                  });
+                }}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Products</SelectItem>
+                  <SelectItem value="category">Category</SelectItem>
+                  <SelectItem value="products">Specific Products</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Category and Subcategory Selection */}
+            {formData.targetType === "category" && (
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="category">Category *</Label>
+                  <Select
+                    value={formData.categoryId}
+                    onValueChange={(value) => {
+                      setFormData({ 
+                        ...formData, 
+                        categoryId: value, 
+                        subcategoryId: "all" // Reset subcategory when category changes
+                      });
+                    }}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select category" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {categories?.map((cat: any) => (
+                        <SelectItem key={cat.id} value={cat.id}>
+                          {cat.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {formData.categoryId && (
+                  <div>
+                    <Label htmlFor="subcategory">Subcategory</Label>
+                    <Select
+                      value={formData.subcategoryId}
+                      onValueChange={(value) => setFormData({ ...formData, subcategoryId: value })}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="All subcategories" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">All Subcategories</SelectItem>
+                        {categories
+                          ?.find((cat: any) => cat.id === formData.categoryId)
+                          ?.subcategories?.map((sub: any) => (
+                            <SelectItem key={sub.id} value={sub.id}>
+                              {sub.name}
+                            </SelectItem>
+                          ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Product Selection */}
+            {formData.targetType === "products" && (
+              <div>
+                <Label htmlFor="products">Products *</Label>
+                <div className="border rounded-md p-2 max-h-32 overflow-y-auto">
+                  {products?.map((product: any) => (
+                    <div key={product.id} className="flex items-center space-x-2 p-1">
+                      <input
+                        type="checkbox"
+                        id={product.id}
+                        checked={formData.productIds.includes(product.id)}
+                        onChange={(e) => {
+                          if (e.target.checked) {
+                            setFormData({ 
+                              ...formData, 
+                              productIds: [...formData.productIds, product.id] 
+                            });
+                          } else {
+                            setFormData({ 
+                              ...formData, 
+                              productIds: formData.productIds.filter(id => id !== product.id) 
+                            });
+                          }
+                        }}
+                      />
+                      <label htmlFor={product.id} className="text-sm">
+                        {product.name}
+                      </label>
+                    </div>
+                  ))}
+                </div>
+                <p className="text-xs text-muted-foreground mt-1">
+                  {formData.productIds.length} products selected
+                </p>
+              </div>
+            )}
 
             <div className="grid grid-cols-2 gap-4">
               <div>

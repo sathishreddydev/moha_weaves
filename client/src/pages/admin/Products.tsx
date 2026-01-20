@@ -36,7 +36,7 @@ export default function AdminProducts() {
         cell: ({ row }) => (
           <Link 
             to={`/admin/products/${row.original.id}`}
-            className="text-medium text-primary/60 hover:text-primary hover:underline cursor-pointer"
+            className="text-medium text-primary hover:underline cursor-pointer"
           >
             {row.original.sku || "-"}
           </Link>
