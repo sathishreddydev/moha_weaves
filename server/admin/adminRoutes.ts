@@ -583,6 +583,32 @@ export const adminRoutes = (app: Express) => {
     }
   });
 
+  // Admin: Check for sale conflicts
+  app.post("/api/admin/sales/check-conflicts", authAdmin, async (req, res) => {
+    try {
+      const { offerType, targetType, categoryId, productIds } = req.body;
+
+      if (!offerType || !targetType) {
+        return res.status(400).json({ message: "Missing required fields" });
+      }
+
+      const conflictCheck = await salesService.checkOfferTypeConflicts(
+        offerType,
+        targetType,
+        categoryId,
+        productIds
+      );
+
+      res.json(conflictCheck);
+    } catch (error) {
+      console.error("Error checking conflicts:", error);
+      res.status(500).json({
+        message: "Failed to check conflicts",
+        error: error instanceof Error ? error.message : String(error),
+      });
+    }
+  });
+
   // Admin: Create sale
   app.post("/api/admin/sales", authAdmin, async (req, res) => {
     try {
@@ -601,10 +627,31 @@ export const adminRoutes = (app: Express) => {
         isFeatured,
         bannerImage,
         productIds,
+        targetType,
       } = req.body;
 
-      if (!name || !offerType || !discountValue || !startDate || !endDate) {
+      if (!name || !offerType || !discountValue || !startDate || !endDate || !targetType) {
         return res.status(400).json({ message: "Missing required fields" });
+      }
+
+      // Check for offer type conflicts
+      const conflictCheck = await salesService.checkOfferTypeConflicts(
+        offerType,
+        targetType,
+        categoryId,
+        productIds
+      );
+
+      if (conflictCheck.hasConflict) {
+        const conflictDetails = conflictCheck.conflictingSales.map(sale => 
+          `- "${sale.name}" (${sale.offerType} on ${sale.targetType})`
+        ).join('\n');
+        
+        return res.status(400).json({ 
+          message: `Cannot create sale: Products already have active ${offerType} sales`,
+          conflicts: conflictCheck.conflictingSales,
+          conflictDetails: `Conflicting sales:\n${conflictDetails}`
+        });
       }
 
       const sale = await salesService.createSale({

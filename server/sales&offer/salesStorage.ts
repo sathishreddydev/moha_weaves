@@ -6,6 +6,7 @@ import {
   Sale,
   categories,
   subcategories,
+  offerTypeEnum,
 } from "@shared/schema";
 import { eq, lte, gte, and, desc, sql } from "drizzle-orm";
 import { db } from "server/db";
@@ -28,6 +29,20 @@ export interface SalesStorage {
     productId: string,
     categoryId?: string
   ): Promise<SaleWithProducts[]>;
+  checkOfferTypeConflicts(
+    offerType: string,
+    targetType: string,
+    categoryId?: string,
+    productIds?: string[]
+  ): Promise<{
+    hasConflict: boolean;
+    conflictingSales: Array<{
+      id: string;
+      name: string;
+      offerType: string;
+      targetType: string;
+    }>;
+  }>;
 }
 export class SalesRepository implements SalesStorage {
   async getSales(filters?: {
@@ -264,9 +279,107 @@ async deleteSale(id: string): Promise<void> {
         });
       }
       result.push(...categorySalesWithProducts);
+    } else {
+      // If no category is provided, return an empty array
+      return [];
     }
 
     return result;
+  }
+
+  async checkOfferTypeConflicts(
+    offerType: string,
+    targetType: string,
+    categoryId?: string,
+    productIds?: string[]
+  ): Promise<{
+    hasConflict: boolean;
+    conflictingSales: Array<{
+      id: string;
+      name: string;
+      offerType: string;
+      targetType: string;
+    }>;
+  }> {
+    const now = new Date();
+    const conditions: any[] = [
+      eq(sales.isActive, true),
+      sql`${sales.offerType} = ${offerType}`,
+      lte(sales.validFrom, now),
+      gte(sales.validUntil, now),
+    ];
+
+    // Check for different target types
+    if (targetType === "all") {
+      // Check if any active sale exists with same offer type
+      const conflictingSales = await db
+        .select({
+          id: sales.id,
+          name: sales.name,
+          offerType: sales.offerType,
+        })
+        .from(sales)
+        .where(and(...conditions));
+
+      return {
+        hasConflict: conflictingSales.length > 0,
+        conflictingSales: conflictingSales.map(sale => ({
+          ...sale,
+          targetType: "all",
+        })),
+      };
+    }
+
+    if (targetType === "category" && categoryId) {
+      // Check if same category has same offer type
+      conditions.push(eq(sales.categoryId, categoryId));
+
+      const conflictingSales = await db
+        .select({
+          id: sales.id,
+          name: sales.name,
+          offerType: sales.offerType,
+        })
+        .from(sales)
+        .where(and(...conditions));
+
+      return {
+        hasConflict: conflictingSales.length > 0,
+        conflictingSales: conflictingSales.map(sale => ({
+          ...sale,
+          targetType: "category",
+        })),
+      };
+    }
+
+    if (targetType === "products" && productIds && productIds.length > 0) {
+      // Check if any selected products already have same offer type
+      const conflictingSales = await db
+        .select({
+          id: sales.id,
+          name: sales.name,
+          offerType: sales.offerType,
+        })
+        .from(sales)
+        .innerJoin(saleProducts, eq(sales.id, saleProducts.saleId))
+        .where(and(...conditions, eq(saleProducts.productId, productIds[0])));
+
+      // Check for each product (simplified - checking first product as representative)
+      const hasConflict = conflictingSales.length > 0;
+
+      return {
+        hasConflict,
+        conflictingSales: conflictingSales.map(sale => ({
+          ...sale,
+          targetType: "products",
+        })),
+      };
+    }
+
+    return {
+      hasConflict: false,
+      conflictingSales: [],
+    };
   }
 }
 

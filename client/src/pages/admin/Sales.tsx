@@ -5,6 +5,7 @@ import { Plus, Edit, Trash2, Percent, DollarSign, Tag, Zap, Calendar } from "luc
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   Table,
@@ -68,6 +69,7 @@ export default function AdminSales() {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [editingSale, setEditingSale] = useState<SaleWithDetails | null>(null);
   const [deletingSaleId, setDeletingSaleId] = useState<string | null>(null);
+  const [productSearch, setProductSearch] = useState("");
   const [formData, setFormData] = useState<SaleFormData>({
     name: "",
     description: "",
@@ -85,6 +87,7 @@ export default function AdminSales() {
     isFeatured: false,
     bannerImage: "",
   });
+  const [conflictWarning, setConflictWarning] = useState<string>("");
 
   const { data: sales, isLoading } = useQuery<SaleWithDetails[]>({
     queryKey: ["/api/admin/sales"],
@@ -101,7 +104,7 @@ export default function AdminSales() {
     enabled: !!user && user.role === "admin",
   });
 
-  const products = productsData?.products || [];
+  const products = productsData?.data || [];
 
   const categories = useFilterStore((state) => state.categories);
   const fetchFilters = useFilterStore((state) => state.fetchFilters);
@@ -124,11 +127,24 @@ export default function AdminSales() {
       handleCloseDialog();
     },
     onError: (error: any) => {
-      toast({
-        title: "Error",
-        description: error.message || "Failed to create sale",
-        variant: "destructive",
-      });
+      if (error.conflicts) {
+        // Show conflict details
+        const conflictList = error.conflicts.map((sale: any) => 
+          `• "${sale.name}" (${sale.offerType} on ${sale.targetType})`
+        ).join('\n');
+        
+        toast({
+          title: "Sale Conflict Detected",
+          description: `Cannot create sale. Conflicts found:\n${conflictList}`,
+          variant: "destructive",
+        });
+      } else {
+        toast({
+          title: "Error",
+          description: error.message || "Failed to create sale",
+          variant: "destructive",
+        });
+      }
     },
   });
 
@@ -222,7 +238,41 @@ export default function AdminSales() {
   const handleCloseDialog = () => {
     setDialogOpen(false);
     setEditingSale(null);
+    setConflictWarning("");
   };
+
+  const checkConflicts = async () => {
+    if (!formData.offerType || !formData.targetType) return;
+    
+    try {
+      const response = await apiRequest("POST", "/api/admin/sales/check-conflicts", {
+        offerType: formData.offerType,
+        targetType: formData.targetType,
+        categoryId: formData.categoryId,
+        productIds: formData.productIds
+      });
+      const result = await response.json();
+      
+      if (result.hasConflict) {
+        const conflictList = result.conflictingSales.map((sale: any) => 
+          `• "${sale.name}" (${sale.offerType})`
+        ).join('\n');
+        setConflictWarning(`Warning: This will conflict with existing sales:\n${conflictList}`);
+      } else {
+        setConflictWarning("");
+      }
+    } catch (error) {
+      // Don't show error for conflict check failures
+      setConflictWarning("");
+    }
+  };
+
+  // Check conflicts when relevant fields change
+  useEffect(() => {
+    if (dialogOpen && !editingSale) {
+      checkConflicts();
+    }
+  }, [formData.offerType, formData.targetType, formData.categoryId, formData.productIds]);
 
   const handleSubmit = () => {
     if (!formData.name.trim() || !formData.discountValue || !formData.startDate || !formData.endDate) {
@@ -418,6 +468,15 @@ export default function AdminSales() {
               {editingSale ? "Update sale details" : "Create a new sale offer"}
             </DialogDescription>
           </DialogHeader>
+          
+          {conflictWarning && (
+            <div className="bg-yellow-50 border border-yellow-200 rounded-md p-3 mb-4">
+              <p className="text-sm text-yellow-800 whitespace-pre-line">
+                {conflictWarning}
+              </p>
+            </div>
+          )}
+          
           <div className="space-y-4 py-4">
             <div>
               <Label htmlFor="name">Sale Name *</Label>
@@ -558,15 +617,27 @@ export default function AdminSales() {
             {formData.targetType === "products" && (
               <div>
                 <Label htmlFor="products">Products *</Label>
+                <div className="mb-2">
+                  <Input
+                    placeholder="Search products by name or SKU..."
+                    value={productSearch}
+                    onChange={(e) => setProductSearch(e.target.value)}
+                    className="w-full"
+                  />
+                </div>
                 <div className="border rounded-md p-2 max-h-32 overflow-y-auto">
-                  {products?.map((product: any) => (
+                  {products
+                    ?.filter((product: any) => 
+                      product.name.toLowerCase().includes(productSearch.toLowerCase()) ||
+                      (product.sku && product.sku.toLowerCase().includes(productSearch.toLowerCase()))
+                    )
+                    .map((product: any) => (
                     <div key={product.id} className="flex items-center space-x-2 p-1">
-                      <input
-                        type="checkbox"
+                      <Checkbox
                         id={product.id}
                         checked={formData.productIds.includes(product.id)}
-                        onChange={(e) => {
-                          if (e.target.checked) {
+                        onCheckedChange={(checked) => {
+                          if (checked) {
                             setFormData({ 
                               ...formData, 
                               productIds: [...formData.productIds, product.id] 
@@ -579,8 +650,11 @@ export default function AdminSales() {
                           }
                         }}
                       />
-                      <label htmlFor={product.id} className="text-sm">
+                      <label htmlFor={product.id} className="text-sm cursor-pointer">
                         {product.name}
+                        {product.sku && (
+                          <span className="text-muted-foreground ml-2">(SKU: {product.sku})</span>
+                        )}
                       </label>
                     </div>
                   ))}
