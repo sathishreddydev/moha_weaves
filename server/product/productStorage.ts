@@ -57,9 +57,9 @@ export interface IproductRepository {
       limit: number;
       offset: number;
       search?: string;
-      categoryId?: string[];
-      colorId?: string[];
-      fabricId?: string[];
+      categoryIds?: string[];
+      colorIds?: string[];
+      fabricIds?: string[];
       dateFrom?: string;
       dateTo?: string;
     },
@@ -74,12 +74,13 @@ export interface IproductRepository {
     page: number;
     pageSize: number;
     search?: string;
-    categoriesFilters?: { id: string; subcategories?: { id: string }[] }[];
-    colorsFilters?: { id: string }[];
-    fabricsFilters?: { id: string }[];
+    categoryIds?: string[];
+    colorIds?: string[];
+    fabricIds?: string[];
     status?: string;
     dateFrom?: string;
     dateTo?: string;
+    userRole?: string;
   }): Promise<{
     data: ProductWithDetails[];
     total: number;
@@ -103,6 +104,7 @@ export class productRepository {
     limit?: number;
     onSale?: boolean;
     ids?: string[];
+    userRole?: string;
   }): Promise<ProductWithDetails[]> {
     const conditions = [eq(products.isActive, true)];
 
@@ -205,7 +207,7 @@ export class productRepository {
     else if (filters?.sort === "name") orderBy = asc(products.name);
 
     // Query
-    const result = await db
+    const queryResult = await db
       .select()
       .from(products)
       .leftJoin(categories, eq(products.categoryId, categories.id))
@@ -216,7 +218,7 @@ export class productRepository {
       .orderBy(orderBy)
       .limit(filters?.limit || 100);
 
-    const productResults = result.map((row) => ({
+    const productResults = queryResult.map((row) => ({
       ...row.products,
       category: row.categories,
       subcategory: row.subcategories,
@@ -297,7 +299,7 @@ export class productRepository {
         discountedPrice = Math.max(0, discountedPrice);
       }
 
-      return {
+      const productResult: any = {
         ...product,
         activeSale: applicableSale
           ? {
@@ -310,6 +312,13 @@ export class productRepository {
           : null,
         discountedPrice: applicableSale ? discountedPrice : undefined,
       };
+
+      // Hide actualPrice for non-admin/inventory users
+      if (filters?.userRole !== 'admin' && filters?.userRole !== 'inventory') {
+        delete productResult.actualPrice;
+      }
+
+      return productResult;
     });
 
     // Apply onSale filter
@@ -321,7 +330,7 @@ export class productRepository {
     return filteredResults;
   }
 
-  async getProduct(id: string): Promise<ProductWithDetails | undefined> {
+  async getProduct(id: string, userRole?: string): Promise<ProductWithDetails | undefined> {
     const [result] = await db
       .select()
       .from(products)
@@ -404,7 +413,7 @@ export class productRepository {
       discountedPrice = Math.max(0, discountedPrice);
     }
 
-    return {
+    const productResult: any = {
       ...product,
       category: result.categories,
       subcategory: result.subcategories,
@@ -421,6 +430,13 @@ export class productRepository {
         : null,
       discountedPrice: applicableSale ? discountedPrice : undefined,
     };
+
+    // Hide actualPrice for non-admin/inventory users
+    if (userRole !== 'admin' && userRole !== 'inventory') {
+      delete productResult.actualPrice;
+    }
+
+    return productResult;
   }
 
   async createProduct(product: InsertProduct): Promise<Product> {
@@ -749,6 +765,7 @@ export class productRepository {
     status?: string;
     dateFrom?: string;
     dateTo?: string;
+    userRole?: string;
   }): Promise<{
     data: ProductWithDetails[];
     total: number;
@@ -766,6 +783,7 @@ export class productRepository {
       status,
       dateFrom,
       dateTo,
+      userRole,
     } = params;
     const offset = (page - 1) * pageSize;
 
@@ -891,7 +909,7 @@ export class productRepository {
           row.products.totalStock - row.products.onlineStock - totalStoreStock,
         );
 
-        return {
+        const productData: any = {
           ...row.products,
           category: row.categories,
           subcategory: row.subcategories,
@@ -900,6 +918,13 @@ export class productRepository {
           storeAllocations,
           unallocated,
         };
+
+        // Hide actualPrice for non-admin/inventory users
+        if (userRole !== 'admin' && userRole !== 'inventory') {
+          delete productData.actualPrice;
+        }
+
+        return productData;
       }),
     );
 

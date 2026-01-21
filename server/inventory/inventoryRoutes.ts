@@ -48,6 +48,11 @@ const productBaseSchema = z.object({
     .string()
     .or(z.number())
     .transform((val) => String(val)),
+  actualPrice: z
+    .string()
+    .or(z.number())
+    .transform((val) => String(val))
+    .optional(),
   categoryId: emptyToNull,
   subcategoryId: emptyToNull,
   colorId: emptyToNull,
@@ -336,7 +341,6 @@ export const inventoryRoutes = (app: Express) => {
   // Inventory product management (moved from admin)
   app.post("/api/inventory/getProducts", authInventory, async (req, res) => {
     try {
-      const { page, pageSize } = req.query;
       const {
         search,
         status,
@@ -359,6 +363,7 @@ export const inventoryRoutes = (app: Express) => {
         status,
         dateFrom,
         dateTo,
+        userRole: (req as any).user?.role,
       });
       return res.json(result);
     } catch (error) {

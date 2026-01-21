@@ -64,6 +64,7 @@ interface ProductFormData {
   name: string;
   description: string;
   price: string;
+  actualPrice: string;
   categoryId: string;
   subcategoryId: string;
   colorId: string;
@@ -99,12 +100,18 @@ export default function InventoryProducts() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [dialogOpen, setDialogOpen] = useState(false);
-  const [editingProduct, setEditingProduct] = useState<ProductWithDetails | null>(null);
+  const [editingProduct, setEditingProduct] =
+    useState<ProductWithDetails | null>(null);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
-  const [deletingproductId, setDeletingproductId] = useState<string | null>(null);
-  const [storeAllocations, setStoreAllocations] = useState<StoreAllocation[]>([]);
+  const [deletingproductId, setDeletingproductId] = useState<string | null>(
+    null,
+  );
+  const [storeAllocations, setStoreAllocations] = useState<StoreAllocation[]>(
+    [],
+  );
   const [printDialogOpen, setPrintDialogOpen] = useState(false);
-  const [printingProduct, setPrintingProduct] = useState<ProductWithDetails | null>(null);
+  const [printingProduct, setPrintingProduct] =
+    useState<ProductWithDetails | null>(null);
   const printRef = useRef<HTMLDivElement>(null);
   const [selectedRows, setSelectedRows] = useState<Set<string>>(new Set());
   const [bulkDeleteDialogOpen, setBulkDeleteDialogOpen] = useState(false);
@@ -115,8 +122,9 @@ export default function InventoryProducts() {
     name: "",
     description: "",
     price: "",
+    actualPrice: "",
     categoryId: "",
-    subcategoryId: "", // Added missing subcategoryId property
+    subcategoryId: "",
     colorId: "",
     fabricId: "",
     imageUrl: "",
@@ -208,7 +216,7 @@ export default function InventoryProducts() {
               storeId: a.storeId,
               quantity: a.quantity,
             })),
-        }
+        },
       );
       return response.json();
     },
@@ -248,14 +256,14 @@ export default function InventoryProducts() {
   const bulkDeleteMutation = useMutation({
     mutationFn: async (ids: string[]) => {
       await Promise.all(
-        ids.map((id) => apiRequest("DELETE", `/api/inventory/products/${id}`))
+        ids.map((id) => apiRequest("DELETE", `/api/inventory/products/${id}`)),
       );
     },
     onSuccess: () => {
       refetch();
-      toast({ 
-        title: "Success", 
-        description: `${selectedRows.size} product(s) deleted successfully` 
+      toast({
+        title: "Success",
+        description: `${selectedRows.size} product(s) deleted successfully`,
       });
       setBulkDeleteDialogOpen(false);
       setSelectedRows(new Set());
@@ -275,6 +283,7 @@ export default function InventoryProducts() {
       name: "",
       description: "",
       price: "",
+      actualPrice: "",
       categoryId: "",
       subcategoryId: "",
       colorId: "",
@@ -290,7 +299,7 @@ export default function InventoryProducts() {
     });
     setStoreAllocations(
       stores?.map((s) => ({ storeId: s.id, storeName: s.name, quantity: 0 })) ||
-        []
+        [],
     );
     setDialogOpen(true);
   };
@@ -301,6 +310,7 @@ export default function InventoryProducts() {
       name: product.name,
       description: product.description || "",
       price: product.price.toString(),
+      actualPrice: (product as any).actualPrice?.toString() || "",
       categoryId: product.categoryId || "",
       subcategoryId: product.subcategoryId || "",
       colorId: product.colorId || "",
@@ -318,14 +328,14 @@ export default function InventoryProducts() {
     try {
       const response = await fetch(
         `/api/inventory/products/${product.id}/allocations`,
-        { credentials: "include" }
+        { credentials: "include" },
       );
       const existingAllocations = await response.json();
 
       const allocs =
         stores?.map((s) => {
           const existing = existingAllocations.find(
-            (a: StoreAllocation) => a.storeId === s.id
+            (a: StoreAllocation) => a.storeId === s.id,
           );
           return {
             storeId: s.id,
@@ -340,7 +350,7 @@ export default function InventoryProducts() {
           storeId: s.id,
           storeName: s.name,
           quantity: 0,
-        })) || []
+        })) || [],
       );
     }
 
@@ -358,7 +368,7 @@ export default function InventoryProducts() {
 
     const totalAllocated = storeAllocations.reduce(
       (sum, a) => sum + a.quantity,
-      0
+      0,
     );
 
     if (formData.distributionChannel === "shop") {
@@ -395,14 +405,14 @@ export default function InventoryProducts() {
   const updateStoreAllocation = (storeId: string, quantity: number) => {
     setStoreAllocations((prev) =>
       prev.map((a) =>
-        a.storeId === storeId ? { ...a, quantity: Math.max(0, quantity) } : a
-      )
+        a.storeId === storeId ? { ...a, quantity: Math.max(0, quantity) } : a,
+      ),
     );
   };
 
   const totalStoreAllocated = storeAllocations.reduce(
     (sum, a) => sum + a.quantity,
-    0
+    0,
   );
   const remainingToAllocate =
     formData.distributionChannel === "shop"
@@ -567,7 +577,10 @@ export default function InventoryProducts() {
     const data = new Blob([excelBuffer], {
       type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
     });
-    saveAs(data, `products_inventory_${new Date().toISOString().split("T")[0]}.xlsx`);
+    saveAs(
+      data,
+      `products_inventory_${new Date().toISOString().split("T")[0]}.xlsx`,
+    );
 
     toast({
       title: "Success",
@@ -581,7 +594,9 @@ export default function InventoryProducts() {
         id: "select",
         header: ({ table }) => {
           const allOnPage = products.map((s) => s.id);
-          const allSelected = allOnPage.length > 0 && allOnPage.every((id) => selectedRows.has(id));
+          const allSelected =
+            allOnPage.length > 0 &&
+            allOnPage.every((id) => selectedRows.has(id));
           return (
             <input
               type="checkbox"
@@ -621,7 +636,9 @@ export default function InventoryProducts() {
         header: "Name",
         cell: ({ row }) => (
           <div className="max-w-[200px]">
-            <span className="font-medium line-clamp-1">{row.original.name}</span>
+            <span className="font-medium line-clamp-1">
+              {row.original.name}
+            </span>
             {row.original.isFeatured && (
               <Badge variant="secondary" className="ml-2 text-xs">
                 Featured
@@ -665,9 +682,7 @@ export default function InventoryProducts() {
         cell: ({ row }) => (
           <div className="text-sm">
             <span
-              className={
-                row.original.totalStock < 10 ? "text-destructive" : ""
-              }
+              className={row.original.totalStock < 10 ? "text-destructive" : ""}
             >
               {row.original.totalStock} total
             </span>
@@ -749,7 +764,7 @@ export default function InventoryProducts() {
         ),
       },
     ],
-    [selectedRows, products]
+    [selectedRows, products],
   );
 
   return (
@@ -757,7 +772,10 @@ export default function InventoryProducts() {
       <div className="max-w-7xl mx-auto">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
           <div>
-            <h1 className="text-2xl font-semibold" data-testid="text-page-title">
+            <h1
+              className="text-2xl font-semibold"
+              data-testid="text-page-title"
+            >
               products
             </h1>
             <p className="text-muted-foreground">Manage product inventory</p>
@@ -858,7 +876,19 @@ export default function InventoryProducts() {
                   data-testid="input-description"
                 />
               </div>
-
+              <div>
+                <Label htmlFor="price">Actual Price (INR)</Label>
+                <Input
+                  id="actualPrice"
+                  type="number"
+                  value={formData.actualPrice}
+                  onChange={(e) =>
+                    setFormData({ ...formData, actualPrice: e.target.value })
+                  }
+                  required
+                  data-testid="input-price"
+                />
+              </div>
               <div>
                 <Label htmlFor="price">Price (INR)</Label>
                 <Input
@@ -924,7 +954,10 @@ export default function InventoryProducts() {
                   </SelectTrigger>
                   <SelectContent>
                     {categories
-                      .find((cat: Category & { subcategories: Subcategory[] }) => cat.id === formData.categoryId)
+                      .find(
+                        (cat: Category & { subcategories: Subcategory[] }) =>
+                          cat.id === formData.categoryId,
+                      )
                       ?.subcategories.map((sub: Subcategory) => (
                         <SelectItem key={sub.id} value={sub.id}>
                           {sub.name}
@@ -1063,7 +1096,7 @@ export default function InventoryProducts() {
                               onChange={(e) =>
                                 updateStoreAllocation(
                                   alloc.storeId,
-                                  parseInt(e.target.value) || 0
+                                  parseInt(e.target.value) || 0,
                                 )
                               }
                               data-testid={`input-store-${alloc.storeId}`}
@@ -1112,7 +1145,7 @@ export default function InventoryProducts() {
                             onChange={(e) =>
                               updateStoreAllocation(
                                 alloc.storeId,
-                                parseInt(e.target.value) || 0
+                                parseInt(e.target.value) || 0,
                               )
                             }
                             data-testid={`input-store-${alloc.storeId}`}
@@ -1185,18 +1218,33 @@ export default function InventoryProducts() {
                             // Delete from Cloudinary if it's a Cloudinary URL
                             if (img.includes("cloudinary.com")) {
                               try {
-                                await apiRequest("DELETE", "/api/uploads/cloudinary", { url: img });
-                                toast({ title: "Success", description: "Image deleted from Cloudinary" });
+                                await apiRequest(
+                                  "DELETE",
+                                  "/api/uploads/cloudinary",
+                                  { url: img },
+                                );
+                                toast({
+                                  title: "Success",
+                                  description: "Image deleted from Cloudinary",
+                                });
                               } catch (error) {
-                                console.error("Failed to delete from Cloudinary:", error);
-                                toast({ title: "Warning", description: "Failed to delete from Cloudinary", variant: "destructive" });
+                                console.error(
+                                  "Failed to delete from Cloudinary:",
+                                  error,
+                                );
+                                toast({
+                                  title: "Warning",
+                                  description:
+                                    "Failed to delete from Cloudinary",
+                                  variant: "destructive",
+                                });
                               }
                             }
                             // Remove from form state
                             setFormData({
                               ...formData,
                               images: formData.images.filter(
-                                (_, i) => i !== index
+                                (_, i) => i !== index,
                               ),
                             });
                           }}
@@ -1261,11 +1309,25 @@ export default function InventoryProducts() {
                           // Delete from Cloudinary if it's a Cloudinary URL
                           if (formData.videoUrl.includes("cloudinary.com")) {
                             try {
-                              await apiRequest("DELETE", "/api/uploads/cloudinary", { url: formData.videoUrl });
-                              toast({ title: "Success", description: "Video deleted from Cloudinary" });
+                              await apiRequest(
+                                "DELETE",
+                                "/api/uploads/cloudinary",
+                                { url: formData.videoUrl },
+                              );
+                              toast({
+                                title: "Success",
+                                description: "Video deleted from Cloudinary",
+                              });
                             } catch (error) {
-                              console.error("Failed to delete from Cloudinary:", error);
-                              toast({ title: "Warning", description: "Failed to delete from Cloudinary", variant: "destructive" });
+                              console.error(
+                                "Failed to delete from Cloudinary:",
+                                error,
+                              );
+                              toast({
+                                title: "Warning",
+                                description: "Failed to delete from Cloudinary",
+                                variant: "destructive",
+                              });
                             }
                           }
                           setFormData({ ...formData, videoUrl: "" });
@@ -1320,8 +1382,8 @@ export default function InventoryProducts() {
                 {createMutation.isPending || updateMutation.isPending
                   ? "Saving..."
                   : editingProduct
-                  ? "Update"
-                  : "Create"}
+                    ? "Update"
+                    : "Create"}
               </Button>
             </DialogFooter>
           </form>
@@ -1333,8 +1395,8 @@ export default function InventoryProducts() {
           <DialogHeader>
             <DialogTitle>Delete product</DialogTitle>
             <DialogDescription>
-              Are you sure you want to delete this product? This action cannot be
-              undone.
+              Are you sure you want to delete this product? This action cannot
+              be undone.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
@@ -1358,12 +1420,16 @@ export default function InventoryProducts() {
         </DialogContent>
       </Dialog>
 
-      <Dialog open={bulkDeleteDialogOpen} onOpenChange={setBulkDeleteDialogOpen}>
+      <Dialog
+        open={bulkDeleteDialogOpen}
+        onOpenChange={setBulkDeleteDialogOpen}
+      >
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Delete Multiple products</DialogTitle>
             <DialogDescription>
-              Are you sure you want to delete {selectedRows.size} product(s)? This action cannot be undone.
+              Are you sure you want to delete {selectedRows.size} product(s)?
+              This action cannot be undone.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
@@ -1432,8 +1498,12 @@ export default function InventoryProducts() {
                       <span>{product.onlineStock}</span>
                     </div>
                     <div className="detail-row flex justify-between border-b pb-2">
-                      <span className="label font-semibold">Distribution Channel:</span>
-                      <span className="capitalize">{product.distributionChannel}</span>
+                      <span className="label font-semibold">
+                        Distribution Channel:
+                      </span>
+                      <span className="capitalize">
+                        {product.distributionChannel}
+                      </span>
                     </div>
                   </div>
                   <div className="barcode-container mt-6 flex justify-center">
@@ -1448,7 +1518,10 @@ export default function InventoryProducts() {
               ))}
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setBulkPrintDialogOpen(false)}>
+            <Button
+              variant="outline"
+              onClick={() => setBulkPrintDialogOpen(false)}
+            >
               Cancel
             </Button>
             <Button onClick={handleBulkPrintConfirm}>
@@ -1503,13 +1576,19 @@ export default function InventoryProducts() {
                   <span>{printingProduct.onlineStock}</span>
                 </div>
                 <div className="detail-row flex justify-between border-b pb-2">
-                  <span className="label font-semibold">Distribution Channel:</span>
-                  <span className="capitalize">{printingProduct.distributionChannel}</span>
+                  <span className="label font-semibold">
+                    Distribution Channel:
+                  </span>
+                  <span className="capitalize">
+                    {printingProduct.distributionChannel}
+                  </span>
                 </div>
                 {printingProduct.description && (
                   <div className="detail-row flex justify-between border-b pb-2">
                     <span className="label font-semibold">Description:</span>
-                    <span className="text-right max-w-md">{printingProduct.description}</span>
+                    <span className="text-right max-w-md">
+                      {printingProduct.description}
+                    </span>
                   </div>
                 )}
               </div>

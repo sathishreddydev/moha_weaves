@@ -176,6 +176,7 @@ export const adminRoutes = (app: Express) => {
         status,
         dateFrom,
         dateTo,
+        userRole: (req as any).user?.role,
       });
       return res.json(result);
     } catch (error) {
