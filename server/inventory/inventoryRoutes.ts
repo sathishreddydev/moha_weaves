@@ -1,4 +1,4 @@
-import type { Express, Request, Response, NextFunction } from "express";
+import type { Express, Request, Response } from "express";
 import { storage } from "../storage";
 import { refundService } from "../refund/refundService";
 import { createAuthMiddleware } from "../authMiddleware";

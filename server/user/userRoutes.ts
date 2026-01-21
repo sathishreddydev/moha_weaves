@@ -66,21 +66,4 @@ export const userRoutes = (app: Express) => {
       res.status(500).json({ message: "Failed to fetch order history" });
     }
   });
-
-  // User: Get order status history
-  app.get("/api/user/orders/:id/history", authUser, async (req, res) => {
-    try {
-      const user = (req as any).user;
-      const order = await orderService.getOrder(req.params.id);
-
-      if (!order || order.userId !== user.id) {
-        return res.status(404).json({ message: "Order not found" });
-      }
-
-      const history = await storage.getItemStatusHistory(req.params.id);
-      res.json(history);
-    } catch (error) {
-      res.status(500).json({ message: "Failed to fetch order history" });
-    }
-  });
 };

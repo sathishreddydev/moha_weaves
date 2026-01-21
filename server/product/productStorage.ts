@@ -90,7 +90,7 @@ export interface IproductRepository {
   }>;
 }
 export class productRepository {
-    async getNewProducts(filters?: {
+  async getNewProducts(filters?: {
     search?: string;
     category?: string[];
     subcategory?: string[];
@@ -314,7 +314,7 @@ export class productRepository {
       };
 
       // Hide actualPrice for non-admin/inventory users
-      if (filters?.userRole !== 'admin' && filters?.userRole !== 'inventory') {
+      if (filters?.userRole !== "admin" && filters?.userRole !== "inventory") {
         delete productResult.actualPrice;
       }
 
@@ -330,7 +330,10 @@ export class productRepository {
     return filteredResults;
   }
 
-  async getProduct(id: string, userRole?: string): Promise<ProductWithDetails | undefined> {
+  async getProduct(
+    id: string,
+    userRole?: string,
+  ): Promise<ProductWithDetails | undefined> {
     const [result] = await db
       .select()
       .from(products)
@@ -432,7 +435,7 @@ export class productRepository {
     };
 
     // Hide actualPrice for non-admin/inventory users
-    if (userRole !== 'admin' && userRole !== 'inventory') {
+    if (userRole !== "admin" && userRole !== "inventory") {
       delete productResult.actualPrice;
     }
 
@@ -920,7 +923,7 @@ export class productRepository {
         };
 
         // Hide actualPrice for non-admin/inventory users
-        if (userRole !== 'admin' && userRole !== 'inventory') {
+        if (userRole !== "admin" && userRole !== "inventory") {
           delete productData.actualPrice;
         }
 

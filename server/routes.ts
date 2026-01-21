@@ -12,7 +12,6 @@ import { inventoryRoutes } from "./inventory/inventoryRoutes";
 import { storeRoutes } from "./store/storeRoutes";
 import { userRoutes } from "./user/userRoutes";
 import { publicRoutes } from "./common/publicRoutes";
-import multer from "multer";
 import { salesService } from "./sales&offer/salesStorage";
 import { productService } from "./product/productStorage";
 import { reviewRoutes } from "./review/reviewRoutes";

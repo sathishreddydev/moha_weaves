@@ -1,7 +1,7 @@
 import { checkReviewForSpam } from "server/checkReviewForSpam";
 import { reviewService } from "./reviewStorage";
 import { createAuthMiddleware } from "server/authMiddleware";
-import type { Express, Request, Response, NextFunction } from "express";
+import type { Express, Request, Response } from "express";
 
 export const reviewRoutes = (app: Express) => {
   const authUser = createAuthMiddleware(["user"]);

@@ -1,3 +1,6 @@
+// Import sql for raw queries
+import { sql } from "drizzle-orm";
+
 import { orders } from "@shared/tables";
 import { db } from "../db";
 
@@ -17,9 +20,6 @@ export class IdGenerator {
         .from(orders)
         .where(sql`${orders.id} LIKE 'MOHAORD%'`);
 
-      console.log(maxSeq ?? 0);
-
-      console.log("maxSeq", maxSeq);
 
       return maxSeq + 1;
     } catch (error) {
@@ -80,6 +80,3 @@ export class IdGenerator {
     return urlSafeId;
   }
 }
-
-// Import sql for raw queries
-import { sql } from "drizzle-orm";

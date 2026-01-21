@@ -7,7 +7,7 @@ import { couponsService } from "server/coupons/couponsStorage";
 import { razorpay } from "server/razorpayClient";
 import { fetchPaymentDetails } from "../razorpayClient";
 import { createOrderTransaction, paymentInfo } from "./createOrderService";
-import crypto from "crypto";
+import * as crypto from "crypto";
 
 export const orderRoutes = (app: Express) => {
   const authUser = createAuthMiddleware(["user"]);

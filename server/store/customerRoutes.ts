@@ -2,19 +2,10 @@ import { z } from "zod";
 import type { Express, Request, Response } from "express";
 import { createAuthMiddleware } from "../authMiddleware";
 import { CustomerService } from "./customerStorage";
-import { parsePaginationParams } from "../paginationHelper";
 
 const customerService = new CustomerService();
 
 // Validation schemas
-const updateCustomerNotesSchema = z.object({
-  notes: z.string().optional(),
-});
-
-const updateLoyaltyPointsSchema = z.object({
-  points: z.number().min(0),
-});
-
 const redeemLoyaltyPointsSchema = z.object({
   phone: z.string().min(1),
   pointsToRedeem: z.number().min(1, "Points to redeem must be at least 1"),
