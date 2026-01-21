@@ -4,7 +4,7 @@ services:
     name: moha-weaves
     env: node
     plan: free
-    buildCommand: npm install && npm run build && npm run create-admin
+    buildCommand: NODE_ENV=production npm install && npm run build && NODE_ENV=production npm run create-admin
     startCommand: npm start
     healthCheckPath: /health
     envVars:
