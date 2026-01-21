@@ -1,11 +1,7 @@
 
-import { config } from "dotenv";
 import { db } from "../server/db";
 import { users } from "../shared/schema";
 import bcrypt from "bcryptjs";
-
-// Only load production environment variables
-config({ path: ".env.production" });
 
 async function createAdmin() {
   const email = process.argv[2] || "admin@moha.com";
