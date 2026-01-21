@@ -817,39 +817,4 @@ export const adminRoutes = (app: Express) => {
     }
   });
 
-  // Admin: Stock Movement Endpoints
-  app.get("/api/admin/stock-movements", authAdmin, async (req, res) => {
-    try {
-      const { source, productId, limit } = req.query;
-      const movements = await storage.getStockMovements({
-        source: source as string,
-        productId: productId as string,
-        limit: limit ? parseInt(limit as string) : undefined,
-      });
-      res.json(movements);
-    } catch (error) {
-      console.error("Error fetching stock movements:", error);
-      res.status(500).json({ message: "Failed to fetch stock movements" });
-    }
-  });
-
-  app.get("/api/admin/stock-stats", authAdmin, async (req, res) => {
-    try {
-      const stats = await storage.getStockMovementStats();
-      res.json(stats);
-    } catch (error) {
-      console.error("Error fetching stock stats:", error);
-      res.status(500).json({ message: "Failed to fetch stock stats" });
-    }
-  });
-
-  app.get("/api/admin/inventory-overview", authAdmin, async (req, res) => {
-    try {
-      const overview = await storage.getInventoryOverview();
-      res.json(overview);
-    } catch (error) {
-      console.error("Error fetching inventory overview:", error);
-      res.status(500).json({ message: "Failed to fetch inventory overview" });
-    }
-  });
-};
+  };

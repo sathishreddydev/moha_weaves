@@ -167,7 +167,7 @@ export const storeRoutes = (app: Express) => {
     }
   });
 
-  app.post("/api/store/requests", authStore, async (req, res) => {
+  app.post("/api/store/requests/paginated", authStore, async (req, res) => {
     try {
       const user = (req as any).user;
       if (!user.storeId) {
