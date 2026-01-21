@@ -67,7 +67,7 @@ export default function AdminReviews() {
                   <TableHead>Product</TableHead>
                   <TableHead>Customer</TableHead>
                   <TableHead>Rating</TableHead>
-                  <TableHead>Massage</TableHead>
+                  <TableHead>Message</TableHead>
                   <TableHead>Date</TableHead>
                 </TableRow>
               </TableHeader>
