@@ -27,70 +27,180 @@ import {
   sql,
 } from "drizzle-orm";
 import { db } from "server/db";
+import { IproductRepository } from "./types";
 
-export interface IproductRepository {
-  getNewProducts(filters?: {
-    search?: string;
-    category?: string[];
-    subcategory?: string[];
-    color?: string[];
-    fabric?: string[];
-    featured?: boolean;
-    minPrice?: number;
-    maxPrice?: number;
-    distributionChannel?: "shop" | "online" | "both";
-    sort?: string;
-    limit?: number;
-    onSale?: boolean;
-    ids?: string[];
-  }): Promise<ProductWithDetails[]>;
-  getProduct(id: string): Promise<ProductWithDetails | undefined>;
-  createProduct(product: InsertProduct): Promise<Product>;
-  updateProduct(
-    id: string,
-    data: Partial<InsertProduct>,
-  ): Promise<Product | undefined>;
-  deleteProduct(id: string): Promise<boolean>;
-  getLowStockProducts(threshold?: number): Promise<ProductWithDetails[]>;
-  getShopProductsPaginated(
-    storeId: string,
-    options: {
-      limit: number;
-      offset: number;
-      search?: string;
-      categoryIds?: string[];
-      colorIds?: string[];
-      fabricIds?: string[];
-      dateFrom?: string;
-      dateTo?: string;
-    },
-  ): Promise<{
-    data: { product: ProductWithDetails; storeStock: number }[];
-    total: number;
-    totalProducts?: number;
-    inStockProducts?: number;
-    outOfStockProducts?: number;
-  }>;
-  getProductsPaginated(params: {
-    page: number;
-    pageSize: number;
-    search?: string;
-    categoryIds?: string[];
-    colorIds?: string[];
-    fabricIds?: string[];
-    status?: string;
-    dateFrom?: string;
-    dateTo?: string;
-    userRole?: string;
-  }): Promise<{
-    data: ProductWithDetails[];
-    total: number;
-    page: number;
-    pageSize: number;
-    totalPages: number;
-  }>;
-}
-export class productRepository {
+export class productRepository implements IproductRepository {
+  private async getActiveSales() {
+    const now = new Date();
+    return await db
+      .select()
+      .from(sales)
+      .where(
+        and(
+          eq(sales.isActive, true),
+          lte(sales.validFrom, now),
+          gte(sales.validUntil, now),
+        ),
+      );
+  }
+
+  // Helper method to fetch sale product mappings (optimized)
+  private async getSaleProductMappings(saleIds?: string[]) {
+    if (saleIds && saleIds.length > 0) {
+      return await db
+        .select()
+        .from(saleProducts)
+        .where(inArray(saleProducts.saleId, saleIds));
+    }
+    return await db.select().from(saleProducts);
+  }
+
+  // Helper method to resolve names to IDs for categories
+  private async resolveCategoryNames(names: string[]) {
+    if (names.length === 0) return [];
+    const result = await db
+      .select({ id: categories.id })
+      .from(categories)
+      .where(inArray(categories.name, names));
+    return result.map((c) => c.id);
+  }
+
+  // Helper method to resolve names to IDs for subcategories
+  private async resolveSubcategoryNames(names: string[]) {
+    if (names.length === 0) return [];
+    const result = await db
+      .select({ id: subcategories.id })
+      .from(subcategories)
+      .where(inArray(subcategories.name, names));
+    return result.map((s) => s.id);
+  }
+
+  // Helper method to resolve names to IDs for colors
+  private async resolveColorNames(names: string[]) {
+    if (names.length === 0) return [];
+    const result = await db
+      .select({ id: colors.id })
+      .from(colors)
+      .where(inArray(colors.name, names));
+    return result.map((c) => c.id);
+  }
+
+  // Helper method to resolve names to IDs for fabrics
+  private async resolveFabricNames(names: string[]) {
+    if (names.length === 0) return [];
+    const result = await db
+      .select({ id: fabrics.id })
+      .from(fabrics)
+      .where(inArray(fabrics.name, names));
+    return result.map((f) => f.id);
+  }
+
+  // Helper method to find applicable sale for a product
+  private findApplicableSale(
+    productId: string,
+    categoryId: string | null,
+    activeSales: any[],
+    saleProductMappings: any[],
+  ) {
+    // Check for product-specific sale
+    const productSaleMapping = saleProductMappings.find(
+      (sp) => sp.productId === productId,
+    );
+    let applicableSale = null;
+    if (productSaleMapping) {
+      applicableSale = activeSales.find(
+        (s) => s.id === productSaleMapping.saleId,
+      );
+    }
+
+    // Check for category-wide sale if no product-specific sale
+    if (!applicableSale && categoryId) {
+      applicableSale = activeSales.find(
+        (s) =>
+          s.categoryId === categoryId &&
+          !saleProductMappings.some(
+            (sp) => sp.saleId === s.id && sp.productId === productId,
+          ),
+      );
+    }
+
+    return applicableSale;
+  }
+
+  // Helper method to calculate discounted price
+  private calculateDiscountedPrice(originalPrice: number, applicableSale: any) {
+    let discountedPrice = originalPrice;
+    if (applicableSale) {
+      if (
+        applicableSale.offerType === "percentage" ||
+        applicableSale.offerType === "category" ||
+        applicableSale.offerType === "flash_sale"
+      ) {
+        const discount =
+          originalPrice * (parseFloat(applicableSale.discountValue) / 100);
+        const maxDiscount = applicableSale.maxDiscount
+          ? parseFloat(applicableSale.maxDiscount)
+          : originalPrice;
+        discountedPrice =
+          originalPrice - Math.min(discount, maxDiscount, originalPrice);
+      } else if (
+        applicableSale.offerType === "flat" ||
+        applicableSale.offerType === "product"
+      ) {
+        const flatDiscount = Math.min(
+          parseFloat(applicableSale.discountValue),
+          originalPrice,
+        );
+        discountedPrice = originalPrice - flatDiscount;
+      }
+      discountedPrice = Math.max(0, discountedPrice);
+    }
+    return discountedPrice;
+  }
+
+  // Helper method to construct active sale object
+  private constructActiveSaleObject(applicableSale: any) {
+    return applicableSale
+      ? {
+          id: applicableSale.id,
+          name: applicableSale.name,
+          offerType: applicableSale.offerType,
+          discountValue: applicableSale.discountValue,
+          maxDiscount: applicableSale.maxDiscount || undefined,
+        }
+      : null;
+  }
+
+   private async resolveCategoryAndSubcategoryIds(categoryIds: string[]) {
+    if (categoryIds.length === 0) return [];
+
+    const categoriesResult = await db
+      .select({ id: categories.id })
+      .from(categories)
+      .where(inArray(categories.id, categoryIds));
+
+    const selectedCategoryIds = categoriesResult.map((c) => c.id);
+
+    // Get direct subcategories that were passed in the IDs
+    const directSubcategoriesResult = await db
+      .select({ id: subcategories.id })
+      .from(subcategories)
+      .where(inArray(subcategories.id, categoryIds));
+
+    const directSubcategoryIds = directSubcategoriesResult.map((s) => s.id);
+
+    // Get subcategories under selected categories
+    const expandedSubcategories = selectedCategoryIds.length > 0
+      ? await db
+          .select({ id: subcategories.id })
+          .from(subcategories)
+          .where(inArray(subcategories.categoryId, selectedCategoryIds))
+      : [];
+
+    return Array.from(
+      new Set([...directSubcategoryIds, ...expandedSubcategories.map(s => s.id)]),
+    );
+  }
   async getNewProducts(filters?: {
     search?: string;
     category?: string[];
@@ -123,49 +233,33 @@ export class productRepository {
       );
     }
 
-    // Filter by category names - look up IDs from names
+    // Filter by category names - use helper method
     if (filters?.category && filters.category.length > 0) {
-      const matchingCategories = await db
-        .select({ id: categories.id })
-        .from(categories)
-        .where(inArray(categories.name, filters.category));
-      const categoryIds = matchingCategories.map((c) => c.id);
+      const categoryIds = await this.resolveCategoryNames(filters.category);
       if (categoryIds.length > 0) {
         conditions.push(inArray(products.categoryId, categoryIds));
       }
     }
 
-    // Filter by color names - look up IDs from names
+    // Filter by color names - use helper method
     if (filters?.color && filters.color.length > 0) {
-      const matchingColors = await db
-        .select({ id: colors.id })
-        .from(colors)
-        .where(inArray(colors.name, filters.color));
-      const colorIds = matchingColors.map((c) => c.id);
+      const colorIds = await this.resolveColorNames(filters.color);
       if (colorIds.length > 0) {
         conditions.push(inArray(products.colorId, colorIds));
       }
     }
 
-    // Filter by subcategory names - look up IDs from names
+    // Filter by subcategory names - use helper method
     if (filters?.subcategory && filters.subcategory.length > 0) {
-      const matchingSubcategories = await db
-        .select({ id: subcategories.id })
-        .from(subcategories)
-        .where(inArray(subcategories.name, filters.subcategory));
-      const subcategoryIds = matchingSubcategories.map((s) => s.id);
+      const subcategoryIds = await this.resolveSubcategoryNames(filters.subcategory);
       if (subcategoryIds.length > 0) {
         conditions.push(inArray(products.subcategoryId, subcategoryIds));
       }
     }
 
-    // Filter by fabric names - look up IDs from names
+    // Filter by fabric names - use helper method
     if (filters?.fabric && filters.fabric.length > 0) {
-      const matchingFabrics = await db
-        .select({ id: fabrics.id })
-        .from(fabrics)
-        .where(inArray(fabrics.name, filters.fabric));
-      const fabricIds = matchingFabrics.map((f) => f.id);
+      const fabricIds = await this.resolveFabricNames(filters.fabric);
       if (fabricIds.length > 0) {
         conditions.push(inArray(products.fabricId, fabricIds));
       }
@@ -227,93 +321,30 @@ export class productRepository {
       fabric: row.fabrics,
     }));
 
-    // --- handle sales as before ---
-    const now = new Date();
-    const activeSales = await db
-      .select()
-      .from(sales)
-      .where(
-        and(
-          eq(sales.isActive, true),
-          lte(sales.validFrom, now),
-          gte(sales.validUntil, now),
-        ),
-      );
-
-    const saleProductMappings = await db
-      .select()
-      .from(saleProducts)
-      .where(
-        inArray(
-          saleProducts.saleId,
-          activeSales.map((s) => s.id),
-        ),
-      );
+    // --- handle sales using optimized helper methods ---
+    const activeSales = await this.getActiveSales();
+    const saleProductMappings = await this.getSaleProductMappings(
+      activeSales.map((s) => s.id)
+    );
 
     const results: ProductWithDetails[] = productResults.map((product) => {
-      let applicableSale = null;
-
-      const productSaleMapping = saleProductMappings.find(
-        (sp) => sp.productId === product.id,
+      const applicableSale = this.findApplicableSale(
+        product.id,
+        product.categoryId,
+        activeSales,
+        saleProductMappings,
       );
-      if (productSaleMapping) {
-        applicableSale = activeSales.find(
-          (s) => s.id === productSaleMapping.saleId,
-        );
-      }
 
-      if (!applicableSale && product.categoryId) {
-        applicableSale = activeSales.find(
-          (s) =>
-            s.categoryId === product.categoryId &&
-            !saleProductMappings.some(
-              (sp) => sp.saleId === s.id && sp.productId === product.id,
-            ),
-        );
-      }
-
-      let discountedPrice = parseFloat(product.price);
-      if (applicableSale) {
-        const originalPrice = discountedPrice;
-        if (
-          applicableSale.offerType === "percentage" ||
-          applicableSale.offerType === "category" ||
-          applicableSale.offerType === "flash_sale"
-        ) {
-          const discount =
-            originalPrice * (parseFloat(applicableSale.discountValue) / 100);
-          const maxDiscount = applicableSale.maxDiscount
-            ? parseFloat(applicableSale.maxDiscount)
-            : originalPrice;
-          discountedPrice =
-            originalPrice - Math.min(discount, maxDiscount, originalPrice);
-        } else if (
-          applicableSale.offerType === "flat" ||
-          applicableSale.offerType === "product"
-        ) {
-          const flatDiscount = Math.min(
-            parseFloat(applicableSale.discountValue),
-            originalPrice,
-          );
-          discountedPrice = originalPrice - flatDiscount;
-        }
-        discountedPrice = Math.max(0, discountedPrice);
-      }
+      const discountedPrice = this.calculateDiscountedPrice(
+        parseFloat(product.price),
+        applicableSale,
+      );
 
       const productResult: any = {
         ...product,
-        activeSale: applicableSale
-          ? {
-              id: applicableSale.id,
-              name: applicableSale.name,
-              offerType: applicableSale.offerType,
-              discountValue: applicableSale.discountValue,
-              maxDiscount: applicableSale.maxDiscount || undefined,
-            }
-          : null,
+        activeSale: this.constructActiveSaleObject(applicableSale),
         discountedPrice: applicableSale ? discountedPrice : undefined,
       };
-
 
       return productResult;
     });
@@ -344,74 +375,25 @@ export class productRepository {
 
     const product = result.products;
 
-    // Fetch active sales
-    const now = new Date();
-    const activeSales = await db
-      .select()
-      .from(sales)
-      .where(
-        and(
-          eq(sales.isActive, true),
-          lte(sales.validFrom, now),
-          gte(sales.validUntil, now),
-        ),
-      );
-
-    // Fetch sale product mappings
-    const saleProductMappings = await db.select().from(saleProducts);
-
-    // Find applicable sale (product-specific first, then category-wide)
-    let applicableSale = null;
-
-    // Check for product-specific sale
-    const productSaleMapping = saleProductMappings.find(
-      (sp) => sp.productId === product.id,
+    // Fetch active sales and mappings using optimized helper methods
+    const activeSales = await this.getActiveSales();
+    const saleProductMappings = await this.getSaleProductMappings(
+      activeSales.map((s) => s.id)
     );
-    if (productSaleMapping) {
-      applicableSale = activeSales.find(
-        (s) => s.id === productSaleMapping.saleId,
-      );
-    }
 
-    // Check for category-wide sale if no product-specific sale
-    if (!applicableSale && product.categoryId) {
-      applicableSale = activeSales.find(
-        (s) =>
-          s.categoryId === product.categoryId &&
-          !saleProductMappings.some(
-            (sp) => sp.saleId === s.id && sp.productId === product.id,
-          ),
-      );
-    }
+    // Find applicable sale using helper method
+    const applicableSale = this.findApplicableSale(
+      product.id,
+      product.categoryId,
+      activeSales,
+      saleProductMappings,
+    );
 
-    // Calculate discounted price using consistent logic across all flows
-    let discountedPrice = parseFloat(product.price);
-    if (applicableSale) {
-      const originalPrice = discountedPrice;
-      if (
-        applicableSale.offerType === "percentage" ||
-        applicableSale.offerType === "category" ||
-        applicableSale.offerType === "flash_sale"
-      ) {
-        const discount =
-          originalPrice * (parseFloat(applicableSale.discountValue) / 100);
-        const maxDiscount = applicableSale.maxDiscount
-          ? parseFloat(applicableSale.maxDiscount)
-          : originalPrice; // Cap at price if no maxDiscount
-        discountedPrice =
-          originalPrice - Math.min(discount, maxDiscount, originalPrice);
-      } else if (
-        applicableSale.offerType === "flat" ||
-        applicableSale.offerType === "product"
-      ) {
-        const flatDiscount = Math.min(
-          parseFloat(applicableSale.discountValue),
-          originalPrice,
-        );
-        discountedPrice = originalPrice - flatDiscount;
-      }
-      discountedPrice = Math.max(0, discountedPrice);
-    }
+    // Calculate discounted price using helper method
+    const discountedPrice = this.calculateDiscountedPrice(
+      parseFloat(product.price),
+      applicableSale,
+    );
 
     const productResult: any = {
       ...product,
@@ -419,15 +401,7 @@ export class productRepository {
       subcategory: result.subcategories,
       color: result.colors,
       fabric: result.fabrics,
-      activeSale: applicableSale
-        ? {
-            id: applicableSale.id,
-            name: applicableSale.name,
-            offerType: applicableSale.offerType,
-            discountValue: applicableSale.discountValue,
-            maxDiscount: applicableSale.maxDiscount || undefined,
-          }
-        : null,
+      activeSale: this.constructActiveSaleObject(applicableSale),
       discountedPrice: applicableSale ? discountedPrice : undefined,
     };
 
@@ -527,32 +501,8 @@ export class productRepository {
     }
     const incomingIds: string[] = options.categoryIds ?? [];
 
-    const categoriesResult = await db
-      .select({ id: categories.id })
-      .from(categories)
-      .where(inArray(categories.id, incomingIds));
-
-    const categoryIds = categoriesResult.map((c) => c.id);
-
-    const subcategoriesResult = await db
-      .select({ id: subcategories.id })
-      .from(subcategories)
-      .where(inArray(subcategories.id, incomingIds));
-
-    const directSubcategoryIds = subcategoriesResult.map((s) => s.id);
-
-    const expandedSubcategories = categoryIds.length
-      ? await db
-          .select({ id: subcategories.id })
-          .from(subcategories)
-          .where(inArray(subcategories.categoryId, categoryIds))
-      : [];
-
-    const expandedSubcategoryIds = expandedSubcategories.map((s) => s.id);
-
-    const finalSubcategoryIds = Array.from(
-      new Set([...directSubcategoryIds, ...expandedSubcategoryIds]),
-    );
+    const finalSubcategoryIds = await this.resolveCategoryAndSubcategoryIds(incomingIds);
+    
     if (finalSubcategoryIds.length) {
       conditions.push(inArray(products.subcategoryId, finalSubcategoryIds));
     }
@@ -599,21 +549,11 @@ export class productRepository {
         .where(whereClause),
     ]);
 
-    // Fetch active sales
-    const now = new Date();
-    const activeSales = await db
-      .select()
-      .from(sales)
-      .where(
-        and(
-          eq(sales.isActive, true),
-          lte(sales.validFrom, now),
-          gte(sales.validUntil, now),
-        ),
-      );
-
-    // Fetch sale product mappings
-    const saleProductMappings = await db.select().from(saleProducts);
+    // Fetch active sales and mappings using optimized helper methods
+    const activeSales = await this.getActiveSales();
+    const saleProductMappings = await this.getSaleProductMappings(
+      activeSales.map((s) => s.id)
+    );
 
     // Fetch stock requests for all products in the result (batch query - efficient)
     const productIds = allProducts.map((row) => row.products.id);
@@ -651,55 +591,19 @@ export class productRepository {
     const data = allProducts.map((row) => {
       const product = row.products;
 
-      // Find applicable sale
-      let applicableSale = null;
-      const productSaleMapping = saleProductMappings.find(
-        (sp) => sp.productId === product.id,
+      // Find applicable sale using helper method
+      const applicableSale = this.findApplicableSale(
+        product.id,
+        product.categoryId,
+        activeSales,
+        saleProductMappings,
       );
-      if (productSaleMapping) {
-        applicableSale = activeSales.find(
-          (s) => s.id === productSaleMapping.saleId,
-        );
-      }
-      // Only exclude category pricing when THIS product is explicitly mapped to a different sale
-      if (!applicableSale && product.categoryId) {
-        applicableSale = activeSales.find(
-          (s) =>
-            s.categoryId === product.categoryId &&
-            !saleProductMappings.some(
-              (sp) => sp.saleId === s.id && sp.productId === product.id,
-            ),
-        );
-      }
 
-      // Calculate discounted price using consistent logic across all flows
-      let discountedPrice = parseFloat(product.price);
-      if (applicableSale) {
-        const originalPrice = discountedPrice;
-        if (
-          applicableSale.offerType === "percentage" ||
-          applicableSale.offerType === "category" ||
-          applicableSale.offerType === "flash_sale"
-        ) {
-          const discount =
-            originalPrice * (parseFloat(applicableSale.discountValue) / 100);
-          const maxDiscount = applicableSale.maxDiscount
-            ? parseFloat(applicableSale.maxDiscount)
-            : originalPrice;
-          discountedPrice =
-            originalPrice - Math.min(discount, maxDiscount, originalPrice);
-        } else if (
-          applicableSale.offerType === "flat" ||
-          applicableSale.offerType === "product"
-        ) {
-          const flatDiscount = Math.min(
-            parseFloat(applicableSale.discountValue),
-            originalPrice,
-          );
-          discountedPrice = originalPrice - flatDiscount;
-        }
-        discountedPrice = Math.max(0, discountedPrice);
-      }
+      // Calculate discounted price using helper method
+      const discountedPrice = this.calculateDiscountedPrice(
+        parseFloat(product.price),
+        applicableSale,
+      );
 
       return {
         product: {
@@ -708,15 +612,7 @@ export class productRepository {
           subcategory: row.subcategories,
           color: row.colors,
           fabric: row.fabrics,
-          activeSale: applicableSale
-            ? {
-                id: applicableSale.id,
-                name: applicableSale.name,
-                offerType: applicableSale.offerType,
-                discountValue: applicableSale.discountValue,
-                maxDiscount: applicableSale.maxDiscount || undefined,
-              }
-            : null,
+          activeSale: this.constructActiveSaleObject(applicableSale),
           discountedPrice: applicableSale ? discountedPrice : undefined,
         },
         storeStock: row.store_inventory.quantity,
@@ -779,7 +675,6 @@ export class productRepository {
       status,
       dateFrom,
       dateTo,
-      userRole,
     } = params;
     const offset = (page - 1) * pageSize;
 
@@ -812,32 +707,7 @@ export class productRepository {
         ),
       );
     }
-    // Resolve categories and subcategories in single queries
-    const incomingIds: string[] = categoryIds ?? [];
-    let finalSubcategoryIds: string[] = [];
-
-    if (incomingIds.length > 0) {
-      // Get both categories and subcategories in parallel
-      const [categoriesResult, subcategoriesResult] = await Promise.all([
-        db.select({ id: categories.id, categoryId: sql`NULL` }).from(categories).where(inArray(categories.id, incomingIds)),
-        db.select({ id: subcategories.id, categoryId: subcategories.categoryId }).from(subcategories).where(inArray(subcategories.id, incomingIds))
-      ]);
-
-      const selectedCategoryIds = categoriesResult.map((c) => c.id);
-      const directSubcategoryIds = subcategoriesResult.map((s) => s.id);
-
-      // Get subcategories under selected categories
-      const expandedSubcategories = selectedCategoryIds.length > 0
-        ? await db
-            .select({ id: subcategories.id })
-            .from(subcategories)
-            .where(inArray(subcategories.categoryId, selectedCategoryIds))
-        : [];
-
-      finalSubcategoryIds = Array.from(
-        new Set([...directSubcategoryIds, ...expandedSubcategories.map(s => s.id)]),
-      );
-    }
+    const finalSubcategoryIds = await this.resolveCategoryAndSubcategoryIds(categoryIds ?? []);
 
     if (finalSubcategoryIds.length) {
       conditions.push(inArray(products.subcategoryId, finalSubcategoryIds));
@@ -859,7 +729,6 @@ export class productRepository {
 
     const total = Number(countResult?.count || 0);
 
-    // Single query to get all product data with related information
     const result = await db
       .select({
         product: products,
@@ -887,7 +756,6 @@ export class productRepository {
       .limit(pageSize)
       .offset(offset);
 
-    // Group results by product and aggregate related data
     const productMap = new Map<string, any>();
     
     for (const row of result) {
