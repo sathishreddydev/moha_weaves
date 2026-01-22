@@ -57,9 +57,8 @@ export default function StoreHistory() {
     handlePaginationChange,
     refetch,
   } = useDataTable<StoreSaleWithItems>({
-    queryKey: "/api/store/sales/paginated",
+    queryKey: "/api/store/salesHistory",
     initialPageSize: 10,
-    method: "GET",
   });
 
   const formatPrice = (price: number | string) => {

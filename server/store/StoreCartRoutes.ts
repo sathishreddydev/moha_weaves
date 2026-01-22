@@ -131,15 +131,24 @@ export const storeCartRoutes = (app: Express) => {
       const validatedData = updateCartSchema.parse(req.body);
       const storeRepo = new StoreRepository();
 
-      // Validate stock availability for all items
-      for (const item of validatedData.items) {
-        if (item.quantity === undefined) continue; // Skip items without quantity
+      // Validate stock availability for all items in single query
+      const productIds = validatedData.items
+        .filter(item => item.quantity !== undefined)
+        .map(item => item.productId);
 
-        const inventory = await storeRepo.getStoreInventoryItem(storeId, item.productId);
-        if (!inventory || inventory.quantity < item.quantity) {
+      const inventoryData = await storeRepo.getStoreInventoryItems(storeId, productIds);
+      const inventoryMap = new Map(
+        inventoryData.map((inv: any) => [inv.productId, inv])
+      );
+
+      for (const item of validatedData.items) {
+        if (item.quantity === undefined) continue;
+
+        const inventory = inventoryMap.get(item.productId);
+        if (!inventory || (inventory as any).quantity < item.quantity) {
           return res.status(400).json({
             error: "Insufficient stock",
-            message: `Only ${inventory?.quantity || 0} items available for item ${item.productId}`
+            message: `Only ${(inventory as any)?.quantity || 0} items available for item ${item.productId}`
           });
         }
       }
@@ -200,13 +209,19 @@ export const storeCartRoutes = (app: Express) => {
       const validatedData = checkoutSchema.parse(req.body);
       const storeRepo = new StoreRepository();
 
-      // Validate stock availability for all checkout items
+      // Validate stock availability for all checkout items in single query
+      const productIds = validatedData.items.map(item => item.productId);
+      const inventoryData = await storeRepo.getStoreInventoryItems(storeId, productIds);
+      const inventoryMap = new Map(
+        inventoryData.map((inv: any) => [inv.productId, inv])
+      );
+
       for (const item of validatedData.items) {
-        const inventory = await storeRepo.getStoreInventoryItem(storeId, item.productId);
-        if (!inventory || inventory.quantity < item.quantity) {
+        const inventory = inventoryMap.get(item.productId);
+        if (!inventory || (inventory as any).quantity < item.quantity) {
           return res.status(400).json({
             error: "Insufficient stock",
-            message: `Only ${inventory?.quantity || 0} items available for item ${item.productId}. Cannot complete checkout.`
+            message: `Only ${(inventory as any)?.quantity || 0} items available for item ${item.productId}. Cannot complete checkout.`
           });
         }
       }

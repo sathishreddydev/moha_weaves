@@ -812,34 +812,33 @@ export class productRepository {
         ),
       );
     }
+    // Resolve categories and subcategories in single queries
     const incomingIds: string[] = categoryIds ?? [];
+    let finalSubcategoryIds: string[] = [];
 
-    const categoriesResult = await db
-      .select({ id: categories.id })
-      .from(categories)
-      .where(inArray(categories.id, incomingIds));
+    if (incomingIds.length > 0) {
+      // Get both categories and subcategories in parallel
+      const [categoriesResult, subcategoriesResult] = await Promise.all([
+        db.select({ id: categories.id, categoryId: sql`NULL` }).from(categories).where(inArray(categories.id, incomingIds)),
+        db.select({ id: subcategories.id, categoryId: subcategories.categoryId }).from(subcategories).where(inArray(subcategories.id, incomingIds))
+      ]);
 
-    const selectedCategoryIds = categoriesResult.map((c) => c.id);
+      const selectedCategoryIds = categoriesResult.map((c) => c.id);
+      const directSubcategoryIds = subcategoriesResult.map((s) => s.id);
 
-    const subcategoriesResult = await db
-      .select({ id: subcategories.id })
-      .from(subcategories)
-      .where(inArray(subcategories.id, incomingIds));
+      // Get subcategories under selected categories
+      const expandedSubcategories = selectedCategoryIds.length > 0
+        ? await db
+            .select({ id: subcategories.id })
+            .from(subcategories)
+            .where(inArray(subcategories.categoryId, selectedCategoryIds))
+        : [];
 
-    const directSubcategoryIds = subcategoriesResult.map((s) => s.id);
+      finalSubcategoryIds = Array.from(
+        new Set([...directSubcategoryIds, ...expandedSubcategories.map(s => s.id)]),
+      );
+    }
 
-    const expandedSubcategories = selectedCategoryIds.length
-      ? await db
-          .select({ id: subcategories.id })
-          .from(subcategories)
-          .where(inArray(subcategories.categoryId, selectedCategoryIds))
-      : [];
-
-    const expandedSubcategoryIds = expandedSubcategories.map((s) => s.id);
-
-    const finalSubcategoryIds = Array.from(
-      new Set([...directSubcategoryIds, ...expandedSubcategoryIds]),
-    );
     if (finalSubcategoryIds.length) {
       conditions.push(inArray(products.subcategoryId, finalSubcategoryIds));
     }
@@ -860,72 +859,79 @@ export class productRepository {
 
     const total = Number(countResult?.count || 0);
 
+    // Single query to get all product data with related information
     const result = await db
-      .select()
+      .select({
+        product: products,
+        category: categories,
+        subcategory: subcategories,
+        color: colors,
+        fabric: fabrics,
+        actualPrice: productActualPrices.actualPrice,
+        storeInventory: {
+          storeId: storeInventory.storeId,
+          quantity: storeInventory.quantity,
+          storeName: stores.name,
+        },
+      })
       .from(products)
       .leftJoin(categories, eq(products.categoryId, categories.id))
       .leftJoin(subcategories, eq(products.subcategoryId, subcategories.id))
       .leftJoin(colors, eq(products.colorId, colors.id))
       .leftJoin(fabrics, eq(products.fabricId, fabrics.id))
+      .leftJoin(productActualPrices, eq(products.id, productActualPrices.productId))
+      .leftJoin(storeInventory, eq(products.id, storeInventory.productId))
+      .leftJoin(stores, eq(storeInventory.storeId, stores.id))
       .where(whereClause)
       .orderBy(desc(products.createdAt))
       .limit(pageSize)
       .offset(offset);
 
-    const productList = await Promise.all(
-      result.map(async (row) => {
-        const allocations = await db
-          .select({
-            storeId: storeInventory.storeId,
-            quantity: storeInventory.quantity,
-          })
-          .from(storeInventory)
-          .where(eq(storeInventory.productId, row.products.id));
+    // Group results by product and aggregate related data
+    const productMap = new Map<string, any>();
+    
+    for (const row of result) {
+      const productId = row.product.id;
+      
+      if (!productMap.has(productId)) {
+        productMap.set(productId, {
+          ...row.product,
+          category: row.category,
+          subcategory: row.subcategory,
+          color: row.color,
+          fabric: row.fabric,
+          actualPrice: row.actualPrice || null,
+          storeAllocations: [],
+        });
+      }
+      
+      // Add store allocation if it exists
+      if (row.storeInventory.storeId) {
+        const product = productMap.get(productId);
+        product.storeAllocations.push({
+          storeId: row.storeInventory.storeId,
+          storeName: row.storeInventory.storeName || "Unknown",
+          quantity: row.storeInventory.quantity,
+        });
+      }
+    }
 
-        // Fetch actual price
-        const [actualPriceData] = await db
-          .select()
-          .from(productActualPrices)
-          .where(eq(productActualPrices.productId, row.products.id))
-          .limit(1);
-
-        const storeAllocations = await Promise.all(
-          allocations.map(async (alloc) => {
-            const [store] = await db
-              .select()
-              .from(stores)
-              .where(eq(stores.id, alloc.storeId));
-            return {
-              storeId: alloc.storeId,
-              storeName: store?.name || "Unknown",
-              quantity: alloc.quantity,
-            };
-          }),
-        );
-
-        const totalStoreStock = storeAllocations.reduce(
-          (sum, alloc) => sum + alloc.quantity,
-          0,
-        );
-        const unallocated = Math.max(
-          0,
-          row.products.totalStock - row.products.onlineStock - totalStoreStock,
-        );
-
-        const productData: any = {
-          ...row.products,
-          category: row.categories,
-          subcategory: row.subcategories,
-          color: row.colors,
-          fabric: row.fabrics,
-          actualPrice: actualPriceData?.actualPrice || null,
-          storeAllocations,
-          unallocated,
-        };
-
-       return productData;
-      }),
-    );
+    // Calculate unallocated stock and format final result
+    const productList = Array.from(productMap.values()).map((product) => {
+      const totalStoreStock = product.storeAllocations.reduce(
+        (sum:any, alloc:any) => sum + alloc.quantity,
+        0,
+      );
+      const unallocated = Math.max(
+        0,
+        product.totalStock - product.onlineStock - totalStoreStock,
+      );
+      
+      return {
+        ...product,
+        unallocated,
+      };
+    });
 
     return {
       data: productList,

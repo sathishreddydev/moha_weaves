@@ -35,7 +35,7 @@ import {
   appSettings,
 } from "@shared/schema";
 import { CustomerService } from "./customerStorage";
-import { and, desc, eq, gte, gt, ilike, lte, sql } from "drizzle-orm";
+import { and, desc, eq, gte, gt, ilike, lte, sql, inArray } from "drizzle-orm";
 import { db } from "server/db";
 
 export interface StoreStorage {
@@ -169,6 +169,10 @@ export interface StoreStorage {
     storeId: string,
     productId: string,
   ): Promise<StoreInventory | undefined>;
+  getStoreInventoryItems(
+    storeId: string,
+    productIds: string[],
+  ): Promise<StoreInventory[]>;
   getStoreCart(storeId: string): Promise<{ items: any[] }>;
   deleteFromStoreCart(
     storeId: string,
@@ -407,79 +411,93 @@ export class StoreRepository implements StoreStorage {
     storeId: string,
     query: string,
   ): Promise<StoreSaleWithItems[]> {
-    const searchConditions = [
-      eq(storeSales.storeId, storeId),
-      sql`${storeSales.id}::text ILIKE ${`%${query}%`}`,
-      sql`${storeSales.customerName} ILIKE ${`%${query}%`}`,
-      sql`${storeSales.customerPhone} ILIKE ${`%${query}%`}`,
-    ];
-
     const whereClause = and(
       eq(storeSales.storeId, storeId),
       sql`(${storeSales.id}::text ILIKE ${`%${query}%`} OR ${storeSales.customerName} ILIKE ${`%${query}%`} OR ${storeSales.customerPhone} ILIKE ${`%${query}%`})`,
     );
 
-    const salesList = await db
-      .select()
+    // Single query to get sales with all related data using LEFT JOIN
+    const salesData = await db
+      .select({
+        sale: storeSales,
+        store: stores,
+        item: storeSaleItems,
+        product: products,
+        category: categories,
+        color: colors,
+        fabric: fabrics,
+        totalReturned: sql<number>`COALESCE(SUM(${storeExchangeReturnItems.quantity}), 0)`,
+      })
       .from(storeSales)
       .innerJoin(stores, eq(storeSales.storeId, stores.id))
+      .leftJoin(storeSaleItems, eq(storeSales.id, storeSaleItems.saleId))
+      .leftJoin(products, eq(storeSaleItems.productId, products.id))
+      .leftJoin(categories, eq(products.categoryId, categories.id))
+      .leftJoin(colors, eq(products.colorId, colors.id))
+      .leftJoin(fabrics, eq(products.fabricId, fabrics.id))
+      .leftJoin(
+        storeExchangeReturnItems,
+        eq(storeSaleItems.id, storeExchangeReturnItems.saleItemId)
+      )
       .where(whereClause)
+      .groupBy(
+        storeSales.id,
+        stores.id,
+        storeSaleItems.id,
+        products.id,
+        categories.id,
+        colors.id,
+        fabrics.id
+      )
       .orderBy(desc(storeSales.createdAt))
-      .limit(20); // Limit to 20 results for better UX
+      .limit(20);
 
-    const result: StoreSaleWithItems[] = [];
-
-    for (const row of salesList) {
-      const items = await db
-        .select()
-        .from(storeSaleItems)
-        .innerJoin(products, eq(storeSaleItems.productId, products.id))
-        .leftJoin(categories, eq(products.categoryId, categories.id))
-        .leftJoin(colors, eq(products.colorId, colors.id))
-        .leftJoin(fabrics, eq(products.fabricId, fabrics.id))
-        .where(eq(storeSaleItems.saleId, row.store_sales.id));
-
-      const itemsWithReturns = await Promise.all(
-        items.map(async (item) => {
-          const returnedResult = await db
-            .select({
-              totalReturned: sql<number>`COALESCE(SUM(${storeExchangeReturnItems.quantity}), 0)`,
-            })
-            .from(storeExchangeReturnItems)
-            .where(
-              eq(storeExchangeReturnItems.saleItemId, item.store_sale_items.id),
-            );
-
-          const returnedQuantity = Number(
-            returnedResult[0]?.totalReturned || 0,
-          );
-
-          return {
-            ...item.store_sale_items,
-            returnedQuantity,
-            product: {
-              ...item.products!,
-              category: item.categories,
-              color: item.colors,
-              fabric: item.fabrics,
-            },
-          };
-        }),
-      );
-
-      // Get eligibility data for this sale
-      const eligibilityData = await this.checkStoreSaleExchangeEligibility(
-        row.store_sales.id,
-        storeId,
-      );
-
-      result.push({
-        ...row.store_sales,
-        store: row.stores,
-        eligibilityData,
-        items: itemsWithReturns,
-      });
+    // Group results by sale and aggregate items
+    const salesMap = new Map<string, any>();
+    
+    for (const row of salesData) {
+      const saleId = row.sale.id;
+      
+      if (!salesMap.has(saleId)) {
+        salesMap.set(saleId, {
+          ...row.sale,
+          store: row.store,
+          items: [],
+        });
+      }
+      
+      // Add item if it exists
+      if (row.item) {
+        const sale = salesMap.get(saleId);
+        sale.items.push({
+          ...row.item,
+          returnedQuantity: Number(row.totalReturned || 0),
+          product: row.product ? {
+            ...row.product,
+            category: row.category,
+            color: row.color,
+            fabric: row.fabric,
+          } : null,
+        });
+      }
     }
+
+    // Get eligibility data for all sales in parallel
+    const saleIds = Array.from(salesMap.keys());
+    const eligibilityPromises = saleIds.map(saleId => 
+      this.checkStoreSaleExchangeEligibility(saleId, storeId)
+        .catch(() => ({ eligible: false, reason: "Error checking eligibility" }))
+    );
+    
+    const eligibilityResults = await Promise.all(eligibilityPromises);
+    
+    // Combine results
+    const result: StoreSaleWithItems[] = [];
+    saleIds.forEach((saleId, index) => {
+      const sale = salesMap.get(saleId);
+      sale.eligibilityData = eligibilityResults[index];
+      result.push(sale);
+    });
 
     return result;
   }
@@ -1524,6 +1542,21 @@ export class StoreRepository implements StoreStorage {
         ),
       );
     return result || undefined;
+  }
+
+  async getStoreInventoryItems(
+    storeId: string,
+    productIds: string[],
+  ): Promise<StoreInventory[]> {
+    return await db
+      .select()
+      .from(storeInventory)
+      .where(
+        and(
+          eq(storeInventory.storeId, storeId),
+          inArray(storeInventory.productId, productIds),
+        ),
+      );
   }
 
   async addToStoreCart(

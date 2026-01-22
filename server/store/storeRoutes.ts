@@ -83,7 +83,7 @@ export const storeRoutes = (app: Express) => {
     }
   });
 
-  app.get("/api/store/sales/paginated", authStore, async (req, res) => {
+  app.post("/api/store/salesHistory", authStore, async (req, res) => {
     try {
       const user = (req as any).user;
       if (!user.storeId) {
@@ -92,13 +92,13 @@ export const storeRoutes = (app: Express) => {
 
       const params = parsePaginationParams(req.query);
       const offset = getOffset(params.page, params.pageSize);
-
+      const { search, dateFrom, dateTo } = req.body;
       const result = await storeService.getStoreSalesPaginated(user.storeId, {
         limit: params.pageSize,
         offset,
-        search: params.search,
-        dateFrom: params.dateFrom,
-        dateTo: params.dateTo,
+        search: search,
+        dateFrom: dateFrom,
+        dateTo: dateTo,
       });
 
       const response = createPaginatedResponse(

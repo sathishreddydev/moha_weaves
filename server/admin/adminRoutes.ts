@@ -153,7 +153,6 @@ export const adminRoutes = (app: Express) => {
   // Admin product management
   app.post("/api/admin/getProducts", authAdmin, async (req, res) => {
     try {
-      const { page, pageSize } = req.query;
       const {
         search,
         status,
