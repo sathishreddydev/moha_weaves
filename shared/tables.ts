@@ -204,8 +204,6 @@ export const orders = pgTable("orders", {
     .notNull()
     .default("pending"),
   paymentMethod: enums.paymentMethodEnum("payment_method").default("razorpay"),
-  paymentId: text("payment_id"),
-  stripePaymentIntentId: text("stripe_payment_intent_id"),
   razorpayPaymentId: text("razorpay_payment_id"),
   shippingAddress: text("shipping_address").notNull(),
   phone: text("phone").notNull(),
