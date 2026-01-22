@@ -313,10 +313,6 @@ export class productRepository {
         discountedPrice: applicableSale ? discountedPrice : undefined,
       };
 
-      // Hide actualPrice for non-admin/inventory users
-      if (filters?.userRole !== "admin" && filters?.userRole !== "inventory") {
-        delete productResult.actualPrice;
-      }
 
       return productResult;
     });
@@ -434,10 +430,6 @@ export class productRepository {
       discountedPrice: applicableSale ? discountedPrice : undefined,
     };
 
-    // Hide actualPrice for non-admin/inventory users
-    if (userRole !== "admin" && userRole !== "inventory") {
-      delete productResult.actualPrice;
-    }
 
     return productResult;
   }
@@ -922,12 +914,7 @@ export class productRepository {
           unallocated,
         };
 
-        // Hide actualPrice for non-admin/inventory users
-        if (userRole !== "admin" && userRole !== "inventory") {
-          delete productData.actualPrice;
-        }
-
-        return productData;
+       return productData;
       }),
     );
 

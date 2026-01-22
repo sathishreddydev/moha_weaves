@@ -5,43 +5,8 @@
     {
       "idx": 0,
       "version": "7",
-      "when": 1768034593453,
-      "tag": "0000_marvelous_golden_guardian",
-      "breakpoints": true
-    },
-    {
-      "idx": 1,
-      "version": "7",
-      "when": 1768046813882,
-      "tag": "0001_unknown_giant_girl",
-      "breakpoints": true
-    },
-    {
-      "idx": 2,
-      "version": "7",
-      "when": 1768062268707,
-      "tag": "0002_low_captain_universe",
-      "breakpoints": true
-    },
-    {
-      "idx": 3,
-      "version": "7",
-      "when": 1768921129606,
-      "tag": "0003_wise_madame_web",
-      "breakpoints": true
-    },
-    {
-      "idx": 4,
-      "version": "7",
-      "when": 1768985020492,
-      "tag": "0004_tired_vapor",
-      "breakpoints": true
-    },
-    {
-      "idx": 5,
-      "version": "7",
-      "when": 1768985790441,
-      "tag": "0005_jazzy_roxanne_simpson",
+      "when": 1769008727719,
+      "tag": "0000_absurd_slapstick",
       "breakpoints": true
     }
   ]

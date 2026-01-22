@@ -53,6 +53,7 @@ import type {
   Fabric,
   Store,
 } from "@shared/schema";
+import { ProductPrintDetails } from "./ProductPrintDetails";
 
 interface StoreAllocation {
   storeId: string;
@@ -115,8 +116,6 @@ export default function InventoryProducts() {
   const printRef = useRef<HTMLDivElement>(null);
   const [selectedRows, setSelectedRows] = useState<Set<string>>(new Set());
   const [bulkDeleteDialogOpen, setBulkDeleteDialogOpen] = useState(false);
-  const [bulkPrintDialogOpen, setBulkPrintDialogOpen] = useState(false);
-  const bulkPrintRef = useRef<HTMLDivElement>(null);
 
   const [formData, setFormData] = useState<ProductFormData>({
     name: "",
@@ -433,7 +432,6 @@ export default function InventoryProducts() {
       printWindow.document.write(`
         <html>
           <head>
-            <title>Print Product Details</title>
             <style>
               body { font-family: Arial, sans-serif; padding: 20px; }
               .product-details { max-width: 800px; margin: 0 auto; }
@@ -468,42 +466,7 @@ export default function InventoryProducts() {
 
   const handleBulkPrint = () => {
     if (selectedRows.size === 0) return;
-    setBulkPrintDialogOpen(true);
-  };
-
-  const handleBulkPrintConfirm = () => {
-    if (!bulkPrintRef.current) return;
-
-    const printContent = bulkPrintRef.current.innerHTML;
-    const printWindow = window.open("", "_blank");
-    if (printWindow) {
-      printWindow.document.write(`
-        <html>
-          <head>
-            <title>Print Multiple Products</title>
-            <style>
-              body { font-family: Arial, sans-serif; padding: 20px; }
-              .product-details { max-width: 800px; margin: 0 auto 40px; page-break-after: always; }
-              .product-details:last-child { page-break-after: auto; }
-              h1 { text-align: center; margin-bottom: 20px; }
-              .detail-row { display: flex; justify-content: space-between; margin: 10px 0; padding: 8px; border-bottom: 1px solid #eee; }
-              .label { font-weight: bold; }
-              .barcode-container { text-align: center; margin: 20px 0; }
-              @media print {
-                body { padding: 0; }
-              }
-            </style>
-          </head>
-          <body>${printContent}</body>
-        </html>
-      `);
-      printWindow.document.close();
-      setTimeout(() => {
-        printWindow.print();
-        printWindow.close();
-        setBulkPrintDialogOpen(false);
-      }, 250);
-    }
+    setPrintDialogOpen(true);
   };
 
   const handleRowSelect = (id: string, checked: boolean) => {
@@ -776,7 +739,7 @@ export default function InventoryProducts() {
               className="text-2xl font-semibold"
               data-testid="text-page-title"
             >
-              products
+              Products
             </h1>
             <p className="text-muted-foreground">Manage product inventory</p>
             {selectedRows.size > 0 && (
@@ -821,21 +784,17 @@ export default function InventoryProducts() {
           </div>
         </div>
 
-        <Card>
-          <CardContent className="p-4">
-            <DataTable
-              columns={columns}
-              data={products}
-              totalCount={totalCount}
-              pageIndex={pageIndex}
-              pageSize={pageSize}
-              onPaginationChange={handlePaginationChange}
-              isLoading={isLoading}
-              searchPlaceholder="Search products..."
-              emptyMessage="No products found"
-            />
-          </CardContent>
-        </Card>
+        <DataTable
+          columns={columns}
+          data={products}
+          totalCount={totalCount}
+          pageIndex={pageIndex}
+          pageSize={pageSize}
+          onPaginationChange={handlePaginationChange}
+          isLoading={isLoading}
+          searchPlaceholder="Search products..."
+          emptyMessage="No products found"
+        />
       </div>
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
@@ -1451,157 +1410,19 @@ export default function InventoryProducts() {
         </DialogContent>
       </Dialog>
 
-      <Dialog open={bulkPrintDialogOpen} onOpenChange={setBulkPrintDialogOpen}>
-        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>Print Multiple Products with Barcodes</DialogTitle>
-          </DialogHeader>
-          <div ref={bulkPrintRef}>
-            {products
-              .filter((s) => selectedRows.has(s.id))
-              .map((product) => (
-                <div key={product.id} className="product-details">
-                  <h1 className="text-xl font-bold text-center mb-4">
-                    Product Details
-                  </h1>
-                  <div className="space-y-3">
-                    <div className="detail-row flex justify-between border-b pb-2">
-                      <span className="label font-semibold">SKU:</span>
-                      <span>{product.sku || "-"}</span>
-                    </div>
-                    <div className="detail-row flex justify-between border-b pb-2">
-                      <span className="label font-semibold">Name:</span>
-                      <span>{product.name}</span>
-                    </div>
-                    <div className="detail-row flex justify-between border-b pb-2">
-                      <span className="label font-semibold">Category:</span>
-                      <span>{product.category?.name || "-"}</span>
-                    </div>
-                    <div className="detail-row flex justify-between border-b pb-2">
-                      <span className="label font-semibold">Color:</span>
-                      <span>{product.color?.name || "-"}</span>
-                    </div>
-                    <div className="detail-row flex justify-between border-b pb-2">
-                      <span className="label font-semibold">Fabric:</span>
-                      <span>{product.fabric?.name || "-"}</span>
-                    </div>
-                    <div className="detail-row flex justify-between border-b pb-2">
-                      <span className="label font-semibold">Price:</span>
-                      <span>{formatPrice(product.price)}</span>
-                    </div>
-                    <div className="detail-row flex justify-between border-b pb-2">
-                      <span className="label font-semibold">Total Stock:</span>
-                      <span>{product.totalStock}</span>
-                    </div>
-                    <div className="detail-row flex justify-between border-b pb-2">
-                      <span className="label font-semibold">Online Stock:</span>
-                      <span>{product.onlineStock}</span>
-                    </div>
-                    <div className="detail-row flex justify-between border-b pb-2">
-                      <span className="label font-semibold">
-                        Distribution Channel:
-                      </span>
-                      <span className="capitalize">
-                        {product.distributionChannel}
-                      </span>
-                    </div>
-                  </div>
-                  <div className="barcode-container mt-6 flex justify-center">
-                    <Barcode
-                      value={product.sku || product.id}
-                      width={2}
-                      height={60}
-                      displayValue={true}
-                    />
-                  </div>
-                </div>
-              ))}
-          </div>
-          <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => setBulkPrintDialogOpen(false)}
-            >
-              Cancel
-            </Button>
-            <Button onClick={handleBulkPrintConfirm}>
-              <Printer className="h-4 w-4 mr-2" />
-              Print All
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
       <Dialog open={printDialogOpen} onOpenChange={setPrintDialogOpen}>
         <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Print Product Details with Barcode</DialogTitle>
           </DialogHeader>
-          {printingProduct && (
-            <div ref={printRef} className="product-details">
-              <h1 className="text-xl font-bold text-center mb-4">
-                Product Details
-              </h1>
-              <div className="space-y-3">
-                <div className="detail-row flex justify-between border-b pb-2">
-                  <span className="label font-semibold">SKU:</span>
-                  <span>{printingProduct.sku || "-"}</span>
-                </div>
-                <div className="detail-row flex justify-between border-b pb-2">
-                  <span className="label font-semibold">Name:</span>
-                  <span>{printingProduct.name}</span>
-                </div>
-                <div className="detail-row flex justify-between border-b pb-2">
-                  <span className="label font-semibold">Category:</span>
-                  <span>{printingProduct.category?.name || "-"}</span>
-                </div>
-                <div className="detail-row flex justify-between border-b pb-2">
-                  <span className="label font-semibold">Color:</span>
-                  <span>{printingProduct.color?.name || "-"}</span>
-                </div>
-                <div className="detail-row flex justify-between border-b pb-2">
-                  <span className="label font-semibold">Fabric:</span>
-                  <span>{printingProduct.fabric?.name || "-"}</span>
-                </div>
-                <div className="detail-row flex justify-between border-b pb-2">
-                  <span className="label font-semibold">Price:</span>
-                  <span>{formatPrice(printingProduct.price)}</span>
-                </div>
-                <div className="detail-row flex justify-between border-b pb-2">
-                  <span className="label font-semibold">Total Stock:</span>
-                  <span>{printingProduct.totalStock}</span>
-                </div>
-                <div className="detail-row flex justify-between border-b pb-2">
-                  <span className="label font-semibold">Online Stock:</span>
-                  <span>{printingProduct.onlineStock}</span>
-                </div>
-                <div className="detail-row flex justify-between border-b pb-2">
-                  <span className="label font-semibold">
-                    Distribution Channel:
-                  </span>
-                  <span className="capitalize">
-                    {printingProduct.distributionChannel}
-                  </span>
-                </div>
-                {printingProduct.description && (
-                  <div className="detail-row flex justify-between border-b pb-2">
-                    <span className="label font-semibold">Description:</span>
-                    <span className="text-right max-w-md">
-                      {printingProduct.description}
-                    </span>
-                  </div>
-                )}
-              </div>
-              <div className="barcode-container mt-6 flex justify-center">
-                <Barcode
-                  value={printingProduct.sku || printingProduct.id}
-                  width={2}
-                  height={60}
-                  displayValue={true}
-                />
-              </div>
-            </div>
-          )}
+          <ProductPrintDetails
+            products={products}
+            selectedRows={
+              printingProduct ? new Set([printingProduct.id]) : selectedRows
+            }
+            printRef={printRef}
+          />
+
           <DialogFooter>
             <Button variant="outline" onClick={() => setPrintDialogOpen(false)}>
               Cancel

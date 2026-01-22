@@ -14,7 +14,7 @@ import {
 
 export const NavItems = [
   { icon: LayoutDashboard, label: "Dashboard", href: "/inventory/dashboard" },
-  { icon: Shirt, label: "products", href: "/inventory/products" },
+  { icon: Shirt, label: "Products", href: "/inventory/products" },
   {
     icon: BarChart3,
     label: "Stock Distribution",

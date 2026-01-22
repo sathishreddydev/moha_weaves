@@ -51,8 +51,8 @@ const productBaseSchema = z.object({
   actualPrice: z
     .string()
     .or(z.number())
-    .transform((val) => String(val))
-    .optional(),
+    .optional()
+    .transform((val) => val ? String(val) : undefined),
   categoryId: emptyToNull,
   subcategoryId: emptyToNull,
   colorId: emptyToNull,
@@ -404,13 +404,14 @@ export const inventoryRoutes = (app: Express) => {
         });
       }
 
-      const { storeAllocations, ...productData } = validation.data;
+      const { storeAllocations, actualPrice, ...productData } = validation.data;
 
       if (productData.distributionChannel === "online") {
         productData.onlineStock = productData.totalStock;
         const product = await inventoryService.createProductWithAllocations(
           productData,
           [],
+          actualPrice,
         );
         res.json(product);
       } else if (productData.distributionChannel === "shop") {
@@ -428,6 +429,7 @@ export const inventoryRoutes = (app: Express) => {
         const product = await inventoryService.createProductWithAllocations(
           productData,
           allocations,
+          actualPrice,
         );
         res.json(product);
       } else {
@@ -442,6 +444,7 @@ export const inventoryRoutes = (app: Express) => {
         const product = await inventoryService.createProductWithAllocations(
           productData,
           allocations,
+          actualPrice,
         );
         res.json(product);
       }
@@ -460,7 +463,7 @@ export const inventoryRoutes = (app: Express) => {
         });
       }
 
-      const { storeAllocations, ...productData } = validation.data;
+      const { storeAllocations, actualPrice, ...productData } = validation.data;
       const allocations = storeAllocations || [];
 
       if (productData.distributionChannel === "online") {
@@ -469,6 +472,7 @@ export const inventoryRoutes = (app: Express) => {
           req.params.id,
           productData,
           [],
+          actualPrice,
         );
         res.json(product);
       } else if (productData.distributionChannel === "shop") {
@@ -489,6 +493,7 @@ export const inventoryRoutes = (app: Express) => {
           req.params.id,
           productData,
           allocations,
+          actualPrice,
         );
         res.json(product);
       } else if (productData.distributionChannel === "both") {
@@ -509,6 +514,7 @@ export const inventoryRoutes = (app: Express) => {
           req.params.id,
           productData,
           allocations,
+          actualPrice,
         );
         res.json(product);
       } else {
@@ -516,6 +522,7 @@ export const inventoryRoutes = (app: Express) => {
           req.params.id,
           productData,
           allocations,
+          actualPrice,
         );
         res.json(product);
       }

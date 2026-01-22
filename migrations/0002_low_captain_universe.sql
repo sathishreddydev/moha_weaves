@@ -1,2 +1,0 @@
-ALTER TABLE "products" ADD COLUMN "subcategory_id" varchar;--> statement-breakpoint
-ALTER TABLE "products" ADD CONSTRAINT "products_subcategory_id_subcategories_id_fk" FOREIGN KEY ("subcategory_id") REFERENCES "public"."subcategories"("id") ON DELETE no action ON UPDATE no action;

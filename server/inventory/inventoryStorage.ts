@@ -1,4 +1,4 @@
-import { InsertProduct, Product, storeInventory, stores } from "@shared/schema";
+import { InsertProduct, Product, storeInventory, stores, productActualPrices } from "@shared/schema";
 import { and, eq } from "drizzle-orm";
 import { db } from "server/db";
 import { productService } from "server/product/productStorage";
@@ -7,12 +7,14 @@ import { storeService } from "server/store/storeStorage";
 interface IStorage {
   createProductWithAllocations(
     product: InsertProduct,
-    storeAllocations: { storeId: string; quantity: number }[]
+    storeAllocations: { storeId: string; quantity: number }[],
+    actualPrice?: string
   ): Promise<Product>;
   updateProductWithAllocations(
     id: string,
     data: Partial<InsertProduct>,
-    storeAllocations: { storeId: string; quantity: number }[]
+    storeAllocations: { storeId: string; quantity: number }[],
+    actualPrice?: string
   ): Promise<Product | undefined>;
   getProductAllocations(
     productId: string
@@ -22,10 +24,21 @@ interface IStorage {
 export class InventoryRepository implements IStorage {
   async createProductWithAllocations(
     product: InsertProduct,
-    storeAllocations: { storeId: string; quantity: number }[]
+    storeAllocations: { storeId: string; quantity: number }[],
+    actualPrice?: string
   ): Promise<Product> {
     return await db.transaction(async (tx) => {
       const createdProduct = await productService.createProduct(product);
+
+      // Save actual price if provided
+      if (actualPrice) {
+        await tx.insert(productActualPrices).values({
+          productId: createdProduct.id,
+          actualPrice: actualPrice,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        });
+      }
 
       for (const allocation of storeAllocations) {
         await tx.insert(storeInventory).values({
@@ -43,11 +56,40 @@ export class InventoryRepository implements IStorage {
   async updateProductWithAllocations(
     id: string,
     data: Partial<InsertProduct>,
-    storeAllocations: { storeId: string; quantity: number }[]
+    storeAllocations: { storeId: string; quantity: number }[],
+    actualPrice?: string
   ): Promise<Product | undefined> {
     return await db.transaction(async (tx) => {
       const updatedProduct = await productService.updateProduct(id, data);
       if (!updatedProduct) return undefined;
+
+      // Update actual price if provided
+      if (actualPrice !== undefined) {
+        const existingActualPrice = await tx
+          .select()
+          .from(productActualPrices)
+          .where(eq(productActualPrices.productId, id))
+          .limit(1);
+
+        if (existingActualPrice.length > 0) {
+          // Update existing record
+          await tx
+            .update(productActualPrices)
+            .set({ 
+              actualPrice: actualPrice,
+              updatedAt: new Date()
+            })
+            .where(eq(productActualPrices.productId, id));
+        } else if (actualPrice) {
+          // Create new record if actualPrice is provided and no existing record
+          await tx.insert(productActualPrices).values({
+            productId: id,
+            actualPrice: actualPrice,
+            createdAt: new Date(),
+            updatedAt: new Date(),
+          });
+        }
+      }
 
       for (const allocation of storeAllocations) {
         const existing = await storeService.getStoreInventoryItem(

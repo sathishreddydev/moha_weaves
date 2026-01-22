@@ -105,7 +105,6 @@ export const products = pgTable("products", {
   name: text("name").notNull(),
   description: text("description"),
   price: decimal("price", { precision: 10, scale: 2 }).notNull(),
-  actualPrice: decimal("actualPrice", { precision: 10, scale: 2 }),
   categoryId: varchar("category_id").references(() => categories.id),
   subcategoryId: varchar("subcategory_id").references(() => subcategories.id),
   colorId: varchar("color_id").references(() => colors.id),
@@ -735,6 +734,20 @@ export const storeExchangeNewItems = pgTable("store_exchange_new_items", {
   quantity: integer("quantity").notNull(),
   unitPrice: decimal("unit_price", { precision: 10, scale: 2 }).notNull(),
   lineAmount: decimal("line_amount", { precision: 10, scale: 2 }).notNull(),
+});
+
+// Product actual prices (separate table for actual cost prices)
+export const productActualPrices = pgTable("product_actual_prices", {
+  id: varchar("id")
+    .primaryKey()
+    .default(sql`gen_random_uuid()`),
+  productId: varchar("product_id")
+    .references(() => products.id)
+    .notNull()
+    .unique(),
+  actualPrice: decimal("actual_price", { precision: 10, scale: 2 }).notNull(),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });
 
 // Contact Us Schema
