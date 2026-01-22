@@ -114,6 +114,7 @@ export type ProductWithDetails = Product & {
   subcategory?: Subcategory | null;
   color?: Color | null;
   fabric?: Fabric | null;
+  actualPrice?: number | null;
   storeAllocations?: {
     storeId: string;
     storeName: string;

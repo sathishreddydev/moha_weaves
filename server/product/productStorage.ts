@@ -12,6 +12,7 @@ import {
   stockRequests,
   storeInventory,
   stores,
+  productActualPrices,
 } from "@shared/schema";
 import {
   eq,
@@ -881,6 +882,13 @@ export class productRepository {
           .from(storeInventory)
           .where(eq(storeInventory.productId, row.products.id));
 
+        // Fetch actual price
+        const [actualPriceData] = await db
+          .select()
+          .from(productActualPrices)
+          .where(eq(productActualPrices.productId, row.products.id))
+          .limit(1);
+
         const storeAllocations = await Promise.all(
           allocations.map(async (alloc) => {
             const [store] = await db
@@ -910,6 +918,7 @@ export class productRepository {
           subcategory: row.subcategories,
           color: row.colors,
           fabric: row.fabrics,
+          actualPrice: actualPriceData?.actualPrice || null,
           storeAllocations,
           unallocated,
         };
