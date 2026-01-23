@@ -91,10 +91,6 @@ export default function AdminProductDetail() {
             <p className="text-muted-foreground">SKU: {product.sku || "N/A"}</p>
           </div>
         </div>
-        <Button>
-          <Edit className="h-4 w-4 mr-2" />
-          Edit Product
-        </Button>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
@@ -165,20 +161,26 @@ export default function AdminProductDetail() {
                   <label className="text-sm font-medium text-muted-foreground">
                     Category
                   </label>
-                  <p className="font-semibold">{product.category?.name || "N/A"}</p>
+                  <p className="font-semibold">
+                    {product.category?.name || "N/A"}
+                  </p>
                 </div>
                 <div>
                   <label className="text-sm font-medium text-muted-foreground">
                     Subcategory
                   </label>
-                  <p className="font-semibold">{product.subcategory?.name || "N/A"}</p>
+                  <p className="font-semibold">
+                    {product.subcategory?.name || "N/A"}
+                  </p>
                 </div>
               </div>
               <div>
                 <label className="text-sm font-medium text-muted-foreground">
                   Description
                 </label>
-                <p className="mt-1">{product.description || "No description available"}</p>
+                <p className="mt-1">
+                  {product.description || "No description available"}
+                </p>
               </div>
             </CardContent>
           </Card>
@@ -194,25 +196,37 @@ export default function AdminProductDetail() {
               </CardHeader>
               <CardContent className="space-y-4">
                 <div>
-                  <label className="text-sm font-medium text-muted-foreground">
+                  <label className="text-xs font-medium text-muted-foreground">
+                    Actual Price
+                  </label>
+                  <p className="text-xs font-bold text-primary">
+                    {formatPrice(product?.actualPrice ?? 0)}
+                  </p>
+                </div>
+                <div>
+                  <label className="text-xs font-medium text-muted-foreground">
                     Regular Price
                   </label>
-                  <p className="text-xl font-bold text-primary">
+                  <p className="text-xs font-bold text-primary">
                     {formatPrice(product.price)}
                   </p>
                 </div>
                 {product.discountedPrice && (
                   <div>
-                    <label className="text-sm font-medium text-muted-foreground">
+                    <label className="text-xs font-medium text-muted-foreground">
                       Discounted Price
                     </label>
-                    <p className="text-xl font-bold text-green-600">
+                    <p className="text-xs font-bold text-green-600">
                       {formatPrice(product.discountedPrice)}
                     </p>
                     <Badge variant="secondary" className="mt-1">
                       {Math.round(
-                        (1 - parseFloat(product.discountedPrice.toString()) / parseFloat(product.price)) * 100,
-                      )}% OFF
+                        (1 -
+                          parseFloat(product.discountedPrice.toString()) /
+                            parseFloat(product.price)) *
+                          100,
+                      )}
+                      % OFF
                     </Badge>
                   </div>
                 )}
@@ -231,9 +245,13 @@ export default function AdminProductDetail() {
                   <label className="text-sm font-medium text-muted-foreground">
                     Total Stock
                   </label>
-                  <p className={`text-xl font-bold ${
-                    product.totalStock < 10 ? "text-red-600" : "text-green-600"
-                  }`}>
+                  <p
+                    className={`text-xl font-bold ${
+                      product.totalStock < 10
+                        ? "text-red-600"
+                        : "text-green-600"
+                    }`}
+                  >
                     {product.totalStock} units
                   </p>
                 </div>
@@ -244,12 +262,19 @@ export default function AdminProductDetail() {
                     </label>
                     <p className="font-semibold">{product.onlineStock}</p>
                   </div>
-                  <div>
+                  <div className="flex flex-col">
                     <label className="text-sm font-medium text-muted-foreground">
                       Store Allocations
                     </label>
-                    <p className="font-semibold">
-                      {product.storeAllocations?.reduce((sum, alloc) => sum + alloc.quantity, 0) || 0}
+
+                    <p >
+                      {product.storeAllocations?.length
+                        ? product.storeAllocations.map((alloc) => (
+                            <span key={alloc.storeId} className="text-xs">
+                              {alloc.storeName} - {alloc.quantity}
+                            </span>
+                          ))
+                        : "0"}
                     </p>
                   </div>
                 </div>
@@ -271,13 +296,17 @@ export default function AdminProductDetail() {
                   <label className="text-sm font-medium text-muted-foreground">
                     Color
                   </label>
-                  <p className="font-semibold">{product.color?.name || "N/A"}</p>
+                  <p className="font-semibold">
+                    {product.color?.name || "N/A"}
+                  </p>
                 </div>
                 <div>
                   <label className="text-sm font-medium text-muted-foreground">
                     Fabric
                   </label>
-                  <p className="font-semibold">{product.fabric?.name || "N/A"}</p>
+                  <p className="font-semibold">
+                    {product.fabric?.name || "N/A"}
+                  </p>
                 </div>
                 <div>
                   <label className="text-sm font-medium text-muted-foreground">
@@ -293,12 +322,16 @@ export default function AdminProductDetail() {
                   </label>
                   <div className="flex items-center gap-2 mt-1">
                     {product.isActive ? (
-                      <Badge className="bg-green-100 text-green-800">Active</Badge>
+                      <Badge className="bg-green-100 text-green-800">
+                        Active
+                      </Badge>
                     ) : (
                       <Badge variant="secondary">Inactive</Badge>
                     )}
                     {product.isFeatured && (
-                      <Badge className="bg-amber-100 text-amber-800">Featured</Badge>
+                      <Badge className="bg-amber-100 text-amber-800">
+                        Featured
+                      </Badge>
                     )}
                   </div>
                 </div>

@@ -56,8 +56,10 @@ import {
   gte,
   lte,
   lt,
+  gt,
   inArray,
   count,
+  sum,
 } from "drizzle-orm";
 import { userService } from "./auth/authStorage";
 import { orderService } from "./order/orderStorage";
@@ -222,6 +224,47 @@ export interface IStorage {
       storeStock: number;
     }[];
   }>;
+
+  // Advanced Analytics
+  getInventoryTurnover(): Promise<{
+    productId: string;
+    productName: string;
+    sku: string;
+    totalStock: number;
+    averageStock: number;
+    costOfGoodsSold: number;
+    turnoverRatio: number;
+    daysOfSupply: number;
+    category: string;
+  }[]>;
+
+  getABCAnalysis(): Promise<{
+    class: 'A' | 'B' | 'C';
+    productId: string;
+    productName: string;
+    sku: string;
+    revenueContribution: number;
+    cumulativeRevenue: number;
+    revenuePercentage: number;
+    quantitySold: number;
+    currentStock: number;
+    category: string;
+  }[]>;
+
+  getSeasonalTrends(): Promise<{
+    productId: string;
+    productName: string;
+    category: string;
+    monthlyData: {
+      month: string;
+      year: number;
+      quantity: number;
+      revenue: number;
+    }[];
+    trend: 'increasing' | 'decreasing' | 'stable' | 'seasonal';
+    seasonalityIndex: number;
+    peakMonths: string[];
+  }[]>;
 
   // Stock restoration from returns
   restoreStockFromReturn(
@@ -1445,6 +1488,317 @@ export class DatabaseStorage implements IStorage {
       updatedBy,
       createdAt: new Date(),
     });
+  }
+
+  // Advanced Analytics Implementation
+  async getInventoryTurnover(): Promise<{
+    productId: string;
+    productName: string;
+    sku: string;
+    totalStock: number;
+    averageStock: number;
+    costOfGoodsSold: number;
+    turnoverRatio: number;
+    daysOfSupply: number;
+    category: string;
+  }[]> {
+    // Get sales data for the last 12 months
+    const twelveMonthsAgo = new Date();
+    twelveMonthsAgo.setMonth(twelveMonthsAgo.getMonth() - 12);
+
+    const salesData = await db
+      .select({
+        productId: stockMovements.productId,
+        quantity: sql<number>`ABS(SUM(CASE WHEN movement_type = 'sale' THEN quantity ELSE 0 END))::int`,
+        revenue: sql<number>`SUM(CASE WHEN movement_type = 'sale' THEN ABS(quantity) * ${products.price} ELSE 0 END)::decimal(10,2)`,
+      })
+      .from(stockMovements)
+      .innerJoin(products, eq(stockMovements.productId, products.id))
+      .where(
+        and(
+          eq(stockMovements.movementType, 'sale'),
+          gte(stockMovements.createdAt, twelveMonthsAgo)
+        )
+      )
+      .groupBy(stockMovements.productId);
+
+    // Get current stock data
+    const currentStock = await db
+      .select({
+        productId: products.id,
+        productName: products.name,
+        sku: products.sku,
+        totalStock: products.totalStock,
+        category: categories.name,
+      })
+      .from(products)
+      .leftJoin(categories, eq(products.categoryId, categories.id))
+      .where(gt(products.totalStock, 0));
+
+    // Calculate turnover metrics
+    const turnoverData = currentStock.map(product => {
+      const sales = salesData.find(s => s.productId === product.productId);
+      const quantitySold = sales?.quantity || 0;
+      const revenue = Number(sales?.revenue || 0);
+      const averageStock = product.totalStock > 0 ? product.totalStock : 1; // Avoid division by zero
+      const costOfGoodsSold = revenue * 0.7; // Assuming 70% COGS (you may want to track actual cost)
+      const turnoverRatio = averageStock > 0 ? (costOfGoodsSold / averageStock) : 0;
+      const daysOfSupply = quantitySold > 0 ? (product.totalStock / quantitySold) * 365 : 999;
+
+      return {
+        productId: product.productId,
+        productName: product.productName,
+        sku: product.sku || '',
+        totalStock: product.totalStock,
+        averageStock,
+        costOfGoodsSold,
+        turnoverRatio: Math.round(turnoverRatio * 100) / 100,
+        daysOfSupply: Math.round(daysOfSupply),
+        category: product.category || 'Uncategorized',
+      };
+    });
+
+    return turnoverData.sort((a, b) => b.turnoverRatio - a.turnoverRatio);
+  }
+
+  async getABCAnalysis(): Promise<{
+    class: 'A' | 'B' | 'C';
+    productId: string;
+    productName: string;
+    sku: string;
+    revenueContribution: number;
+    cumulativeRevenue: number;
+    revenuePercentage: number;
+    quantitySold: number;
+    currentStock: number;
+    category: string;
+  }[]> {
+    // Get sales data for the last 12 months
+    const twelveMonthsAgo = new Date();
+    twelveMonthsAgo.setMonth(twelveMonthsAgo.getMonth() - 12);
+
+    const salesData = await db
+      .select({
+        productId: stockMovements.productId,
+        productName: products.name,
+        sku: products.sku,
+        quantity: sql<number>`ABS(SUM(CASE WHEN movement_type = 'sale' THEN quantity ELSE 0 END))::int`,
+        revenue: sql<number>`SUM(CASE WHEN movement_type = 'sale' THEN ABS(quantity) * ${products.price} ELSE 0 END)::decimal(10,2)`,
+        category: sql<string>`COALESCE(${categories.name}, 'Uncategorized')`,
+        currentStock: products.totalStock,
+      })
+      .from(stockMovements)
+      .innerJoin(products, eq(stockMovements.productId, products.id))
+      .leftJoin(categories, eq(products.categoryId, categories.id))
+      .where(
+        and(
+          eq(stockMovements.movementType, 'sale'),
+          gte(stockMovements.createdAt, twelveMonthsAgo)
+        )
+      )
+      .groupBy(stockMovements.productId, products.name, products.sku, categories.name, products.totalStock)
+      .having(sql`ABS(SUM(CASE WHEN movement_type = 'sale' THEN quantity ELSE 0 END)) > 0`);
+
+    if (salesData.length === 0) return [];
+
+    // Sort by revenue (descending)
+    salesData.sort((a, b) => Number(b.revenue) - Number(a.revenue));
+
+    // Calculate total revenue
+    const totalRevenue = salesData.reduce((sum, item) => sum + Number(item.revenue), 0);
+
+    // Calculate cumulative revenue and assign ABC classes
+    let cumulativeRevenue = 0;
+    const abcData = salesData.map((item, index) => {
+      const revenue = Number(item.revenue);
+      cumulativeRevenue += revenue;
+      const revenuePercentage = (revenue / totalRevenue) * 100;
+      const cumulativePercentage = (cumulativeRevenue / totalRevenue) * 100;
+
+      let abcClass: 'A' | 'B' | 'C';
+      if (cumulativePercentage <= 80) {
+        abcClass = 'A';
+      } else if (cumulativePercentage <= 95) {
+        abcClass = 'B';
+      } else {
+        abcClass = 'C';
+      }
+
+      return {
+        class: abcClass,
+        productId: item.productId,
+        productName: item.productName,
+        sku: item.sku || '',
+        revenueContribution: revenue,
+        cumulativeRevenue,
+        revenuePercentage: Math.round(revenuePercentage * 100) / 100,
+        quantitySold: item.quantity,
+        currentStock: item.currentStock,
+        category: item.category,
+      };
+    });
+
+    return abcData;
+  }
+
+  async getSeasonalTrends(): Promise<{
+    productId: string;
+    productName: string;
+    category: string;
+    monthlyData: {
+      month: string;
+      year: number;
+      quantity: number;
+      revenue: number;
+    }[];
+    trend: 'increasing' | 'decreasing' | 'stable' | 'seasonal';
+    seasonalityIndex: number;
+    peakMonths: string[];
+  }[]> {
+    // Get monthly sales data for the last 24 months
+    const twentyFourMonthsAgo = new Date();
+    twentyFourMonthsAgo.setMonth(twentyFourMonthsAgo.getMonth() - 24);
+
+    const monthlySales = await db
+      .select({
+        productId: stockMovements.productId,
+        productName: products.name,
+        category: sql<string>`COALESCE(${categories.name}, 'Uncategorized')`,
+        month: sql<string>`TO_CHAR(${stockMovements.createdAt}, 'YYYY-MM')`,
+        year: sql<number>`EXTRACT(YEAR FROM ${stockMovements.createdAt})::int`,
+        quantity: sql<number>`ABS(SUM(CASE WHEN movement_type = 'sale' THEN quantity ELSE 0 END))::int`,
+        revenue: sql<number>`SUM(CASE WHEN movement_type = 'sale' THEN ABS(quantity) * ${products.price} ELSE 0 END)::decimal(10,2)`,
+      })
+      .from(stockMovements)
+      .innerJoin(products, eq(stockMovements.productId, products.id))
+      .leftJoin(categories, eq(products.categoryId, categories.id))
+      .where(
+        and(
+          eq(stockMovements.movementType, 'sale'),
+          gte(stockMovements.createdAt, twentyFourMonthsAgo)
+        )
+      )
+      .groupBy(
+        stockMovements.productId,
+        products.name,
+        categories.name,
+        sql`TO_CHAR(${stockMovements.createdAt}, 'YYYY-MM')`,
+        sql`EXTRACT(YEAR FROM ${stockMovements.createdAt})`
+      )
+      .orderBy(
+        stockMovements.productId,
+        sql`TO_CHAR(${stockMovements.createdAt}, 'YYYY-MM')`
+      );
+
+    // Group by product and analyze trends
+    const productGroups = monthlySales.reduce((groups, sale) => {
+      if (!groups[sale.productId]) {
+        groups[sale.productId] = {
+          productId: sale.productId,
+          productName: sale.productName,
+          category: sale.category,
+          monthlyData: [],
+        };
+      }
+      groups[sale.productId].monthlyData.push({
+        month: sale.month,
+        year: sale.year,
+        quantity: sale.quantity,
+        revenue: Number(sale.revenue),
+      });
+      return groups;
+    }, {} as Record<string, any>);
+
+    // Analyze trends for each product
+    const trendsData = Object.values(productGroups).map((product: any) => {
+      const monthlyData = product.monthlyData;
+      
+      // Calculate trend using linear regression on quantities
+      const n = monthlyData.length;
+      if (n < 3) {
+        return {
+          ...product,
+          trend: 'stable' as const,
+          seasonalityIndex: 0,
+          peakMonths: [],
+        };
+      }
+
+      // Simple linear regression to determine trend
+      const xValues: number[] = [];
+      const yValues: number[] = [];
+      
+      for (let i = 0; i < monthlyData.length; i++) {
+        xValues.push(i);
+        yValues.push(monthlyData[i].quantity);
+      }
+      
+      const xMean = xValues.reduce((a: number, b: number) => a + b, 0) / n;
+      const yMean = yValues.reduce((a: number, b: number) => a + b, 0) / n;
+      
+      let numerator = 0;
+      for (let i = 0; i < xValues.length; i++) {
+        numerator += (xValues[i] - xMean) * (yValues[i] - yMean);
+      }
+      
+      const denominator = xValues.reduce((sum: number, x: number) => sum + Math.pow(x - xMean, 2), 0);
+      
+      const slope = denominator !== 0 ? numerator / denominator : 0;
+      
+      // Determine trend
+      let trend: 'increasing' | 'decreasing' | 'stable' | 'seasonal';
+      if (Math.abs(slope) < 0.5) {
+        trend = 'stable';
+      } else if (slope > 0) {
+        trend = 'increasing';
+      } else {
+        trend = 'decreasing';
+      }
+
+      // Calculate seasonality (simplified - looking for monthly patterns)
+      const monthlyAverages = new Map<string, number>();
+      const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+      
+      monthlyData.forEach((data: any) => {
+        const month = new Date(data.month + '-01').getMonth();
+        const monthName = monthNames[month];
+        if (!monthlyAverages.has(monthName)) {
+          monthlyAverages.set(monthName, 0);
+        }
+        monthlyAverages.set(monthName, monthlyAverages.get(monthName)! + data.quantity);
+      });
+
+      // Average the monthly totals across years
+      const yearsOfData = new Set(monthlyData.map((d: any) => d.year)).size;
+      monthlyAverages.forEach((total, month) => {
+        monthlyAverages.set(month, total / yearsOfData);
+      });
+
+      // Calculate seasonality index (coefficient of variation)
+      const avgMonthly = Array.from(monthlyAverages.values()).reduce((a, b) => a + b, 0) / 12;
+      const variance = Array.from(monthlyAverages.values()).reduce((sum, val) => sum + Math.pow(val - avgMonthly, 2), 0) / 12;
+      const stdDev = Math.sqrt(variance);
+      const seasonalityIndex = avgMonthly > 0 ? (stdDev / avgMonthly) * 100 : 0;
+
+      // Find peak months (months with sales > 20% above average)
+      const peakMonths = Array.from(monthlyAverages.entries())
+        .filter(([_, avg]) => avg > avgMonthly * 1.2)
+        .map(([month, _]) => month);
+
+      // If high seasonality, mark as seasonal
+      if (seasonalityIndex > 30) {
+        trend = 'seasonal';
+      }
+
+      return {
+        ...product,
+        trend,
+        seasonalityIndex: Math.round(seasonalityIndex),
+        peakMonths,
+      };
+    });
+
+    return trendsData;
   }
 }
 
