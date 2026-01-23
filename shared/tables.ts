@@ -744,6 +744,7 @@ export const productActualPrices = pgTable("product_actual_prices", {
     .notNull()
     .unique(),
   actualPrice: decimal("actual_price", { precision: 10, scale: 2 }).notNull(),
+  totalActualStock: integer("total_actual_stock").notNull().default(0),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });

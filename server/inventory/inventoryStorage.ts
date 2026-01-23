@@ -30,11 +30,12 @@ export class InventoryRepository implements IStorage {
     return await db.transaction(async (tx) => {
       const createdProduct = await productService.createProduct(product);
 
-      // Save actual price if provided
+      // Save actual price and total actual stock if provided
       if (actualPrice) {
         await tx.insert(productActualPrices).values({
           productId: createdProduct.id,
-          actualPrice: actualPrice,
+          actualPrice: actualPrice || "0",
+          totalActualStock: createdProduct.totalStock,
           createdAt: new Date(),
           updatedAt: new Date(),
         });
@@ -63,7 +64,7 @@ export class InventoryRepository implements IStorage {
       const updatedProduct = await productService.updateProduct(id, data);
       if (!updatedProduct) return undefined;
 
-      // Update actual price if provided
+      // Update actual price and total actual stock if provided
       if (actualPrice !== undefined) {
         const existingActualPrice = await tx
           .select()
@@ -75,16 +76,18 @@ export class InventoryRepository implements IStorage {
           // Update existing record
           await tx
             .update(productActualPrices)
-            .set({ 
-              actualPrice: actualPrice,
+            .set({
+              actualPrice: actualPrice || existingActualPrice[0].actualPrice,
+              totalActualStock: updatedProduct.totalStock,
               updatedAt: new Date()
             })
             .where(eq(productActualPrices.productId, id));
         } else if (actualPrice) {
-          // Create new record if actualPrice is provided and no existing record
+          // Create new record if actualPrice is provided or has stock
           await tx.insert(productActualPrices).values({
             productId: id,
-            actualPrice: actualPrice,
+            actualPrice: actualPrice || "0",
+            totalActualStock: updatedProduct.totalStock,
             createdAt: new Date(),
             updatedAt: new Date(),
           });
