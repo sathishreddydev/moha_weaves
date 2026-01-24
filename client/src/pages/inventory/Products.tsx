@@ -11,6 +11,7 @@ import {
   Image as ImageIcon,
   Printer,
   Download,
+  AlertTriangle,
 } from "lucide-react";
 import Barcode from "react-barcode";
 import * as XLSX from "xlsx";
@@ -686,6 +687,21 @@ export default function InventoryProducts() {
             title="Print with Barcode"
           >
             <Printer className="h-4 w-4" />
+          </Button>
+        ),
+      },
+      {
+        id: "reportDamage",
+        header: "Report Damage",
+        cell: ({ row }) => (
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => navigate(`/inventory/damage-report/${row.original.sku}`)}
+            data-testid={`button-report-damage-${row.original.id}`}
+            title="Report Damage"
+          >
+            <AlertTriangle className="h-4 w-4 text-orange-500" />
           </Button>
         ),
       },

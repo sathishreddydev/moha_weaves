@@ -29,6 +29,5 @@ export const NavItems = [
   { icon: RotateCcw, label: "Returns", href: "/inventory/returns" },
   { icon: ArrowLeftRight, label: "Exchanges", href: "/inventory/exchanges" },
   { icon: CreditCard, label: "Refunds", href: "/inventory/refunds" },
-  { icon: AlertTriangle, label: "Report Damage", href: "/inventory/damage-report" },
   { icon: FileText, label: "Damage History", href: "/inventory/damage-history" },
 ];

@@ -15,7 +15,7 @@ import { stockMovementTypeEnum, stockMovementSourceEnum, damageSourceEnum, damag
 
 export interface DamageReportData {
   productId: string;
-  source: "warehouse" | "online_return" | "shipping" | "manufacturing";
+  source: "store" | "warehouse" | "online_return" | "shipping" | "manufacturing";
   stockReductions: {
     [allocationId: string]: number; // online, storeId1, storeId2, etc.
   };
@@ -25,7 +25,7 @@ export interface DamageReportData {
   reportedBy: string;
   costValue?: string;
   recoveryValue?: string;
-  disposalMethod?: string;
+  disposalMethod?: string | null;
   notes?: string;
   allocationType?: "online" | "store" | "both";
 }
@@ -178,7 +178,7 @@ export class ProductDamageService {
 
   async getDamages(filters?: {
     productId?: string;
-    source?: "store" | "online_return" | "warehouse" | "shipping" | "manufacturing";
+    source?: string;
     status?: string;
     limit?: number;
   }): Promise<ProductDamage[]> {

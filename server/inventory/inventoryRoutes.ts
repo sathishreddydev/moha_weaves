@@ -474,6 +474,20 @@ export const inventoryRoutes = (app: Express) => {
     }
   });
 
+  // Get product by SKU
+  app.get("/api/inventory/product-by-sku/:sku", authInventory, async (req, res) => {
+    try {
+      const product = await productService.getProductBySku(req.params.sku);
+      if (!product) {
+        return res.status(404).json({ message: "Product not found" });
+      }
+      res.json(product);
+    } catch (error) {
+      console.error("Error fetching product by SKU:", error);
+      res.status(500).json({ message: "Failed to fetch product" });
+    }
+  });
+
   // Admin/Inventory: Get all refunds
   app.get("/api/inventory/refunds", authInventory, async (req, res) => {
     try {
@@ -1089,10 +1103,20 @@ export const inventoryRoutes = (app: Express) => {
     try {
       const validatedData = insertProductDamageSchema.parse(req.body);
       
-      // Add the user reporting the damage
+      // Add the user reporting the damage and filter to only include expected fields
       const damageData = {
-        ...validatedData,
+        productId: validatedData.productId,
+        source: validatedData.source,
+        stockReductions: validatedData.stockReductions,
+        damageCategory: validatedData.damageCategory,
+        damageSeverity: validatedData.damageSeverity,
+        reason: validatedData.reason,
         reportedBy: req.user!.id,
+        costValue: validatedData.costValue,
+        recoveryValue: validatedData.recoveryValue,
+        disposalMethod: validatedData.disposalMethod,
+        notes: validatedData.notes,
+        allocationType: validatedData.allocationType,
       };
 
       const damage = await productDamageService.reportDamage(damageData);
@@ -1110,7 +1134,7 @@ export const inventoryRoutes = (app: Express) => {
       
       const damages = await productDamageService.getDamages({
         productId: productId as string,
-        source: source as string,
+        source: source as "store" | "online_return" | "warehouse" | "shipping" | "manufacturing",
         status: status as string,
         limit: limit ? parseInt(limit as string) : undefined,
       });
@@ -1129,7 +1153,7 @@ export const inventoryRoutes = (app: Express) => {
       
       const analytics = await productDamageService.getDamageAnalytics({
         productId: productId as string,
-        source: source as string,
+        source: source as "store" | "online_return" | "warehouse" | "shipping" | "manufacturing",
         dateFrom: dateFrom as string,
         dateTo: dateTo as string,
       });

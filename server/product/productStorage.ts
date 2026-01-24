@@ -409,6 +409,113 @@ export class productRepository implements IproductRepository {
     return productResult;
   }
 
+  async getProductBySku(
+    sku: string,
+    userRole?: string,
+  ): Promise<ProductWithDetails | undefined> {
+    const result = await db
+      .select({
+        product: products,
+        category: categories,
+        subcategory: subcategories,
+        color: colors,
+        fabric: fabrics,
+        actualPrice: productActualPrices.actualPrice,
+        storeInventory: {
+          storeId: storeInventory.storeId,
+          quantity: storeInventory.quantity,
+          storeName: stores.name,
+        },
+      })
+      .from(products)
+      .leftJoin(categories, eq(products.categoryId, categories.id))
+      .leftJoin(subcategories, eq(products.subcategoryId, subcategories.id))
+      .leftJoin(colors, eq(products.colorId, colors.id))
+      .leftJoin(fabrics, eq(products.fabricId, fabrics.id))
+      .leftJoin(productActualPrices, eq(products.id, productActualPrices.productId))
+      .leftJoin(storeInventory, eq(products.id, storeInventory.productId))
+      .leftJoin(stores, eq(storeInventory.storeId, stores.id))
+      .where(eq(products.sku, sku));
+
+    if (result.length === 0) return undefined;
+
+    // Group store allocations by product ID
+    const productMap = new Map<string, any>();
+    
+    for (const row of result) {
+      const productId = row.product.id;
+      
+      if (!productMap.has(productId)) {
+        productMap.set(productId, {
+          ...row.product,
+          category: row.category,
+          subcategory: row.subcategory,
+          color: row.color,
+          fabric: row.fabric,
+          actualPrice: row.actualPrice || null,
+          storeAllocations: [],
+        });
+      }
+      
+      // Add store allocation if it exists
+      if (row.storeInventory.storeId) {
+        const product = productMap.get(productId);
+        product.storeAllocations.push({
+          storeId: row.storeInventory.storeId,
+          storeName: row.storeInventory.storeName || "Unknown",
+          quantity: row.storeInventory.quantity,
+        });
+      }
+    }
+
+    // Calculate unallocated stock and format final result
+    const productList = Array.from(productMap.values()).map((product) => {
+      const totalStoreStock = product.storeAllocations.reduce(
+        (sum: any, alloc: any) => sum + alloc.quantity,
+        0,
+      );
+      const unallocated = Math.max(
+        0,
+        product.totalStock - product.onlineStock - totalStoreStock,
+      );
+      
+      return {
+        ...product,
+        unallocated,
+      };
+    });
+
+    const productData = productList[0];
+
+    // Fetch active sales and mappings using optimized helper methods
+    const activeSales = await this.getActiveSales();
+    const saleProductMappings = await this.getSaleProductMappings(
+      activeSales.map((s) => s.id)
+    );
+
+    // Find applicable sale using helper method
+    const applicableSale = this.findApplicableSale(
+      productData.id,
+      productData.categoryId,
+      activeSales,
+      saleProductMappings,
+    );
+
+    // Calculate discounted price using helper method
+    const discountedPrice = this.calculateDiscountedPrice(
+      parseFloat(productData.price),
+      applicableSale,
+    );
+
+    const productResult: any = {
+      ...productData,
+      activeSale: this.constructActiveSaleObject(applicableSale),
+      discountedPrice: applicableSale ? discountedPrice : undefined,
+    };
+
+    return productResult;
+  }
+
   async createProduct(product: InsertProduct): Promise<Product> {
     // Auto-generate SKU if not provided: MH-YYYYMMDD-XXXXX (timestamp + random suffix)
     let productData = product;

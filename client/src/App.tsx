@@ -200,6 +200,7 @@ function Router() {
                 <Route path="exchanges" element={<InventoryExchanges />} />
                 <Route path="refunds" element={<InventoryRefunds />} />
                 <Route path="damage-report" element={<DamageReport />} />
+                <Route path="damage-report/:sku" element={<DamageReport />} />
                 <Route path="damage-history" element={<DamageHistory />} />
               </Route>
             </Route>

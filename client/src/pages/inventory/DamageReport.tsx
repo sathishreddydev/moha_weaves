@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useState, useEffect } from "react";
+import { useNavigate, useParams } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -45,6 +45,7 @@ interface StockReductions {
 export default function DamageReport() {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const { sku } = useParams();
 
   const [formData, setFormData] = useState({
     productId: "",
@@ -60,7 +61,7 @@ export default function DamageReport() {
     stockReductions: {} as StockReductions,
   });
 
-  // Get products for selection
+  // Get specific product by ID when SKU is provided, otherwise get all products
   const { data: products = [], isLoading: productsLoading, error: productsError } = useQuery({
     queryKey: ["/api/inventory/getProducts"],
     queryFn: async () => {
@@ -68,9 +69,40 @@ export default function DamageReport() {
       const result = await response.json();
       return result.data || result; // Handle different response structures
     },
-    enabled: !!user && (user.role === "inventory" || user.role === "admin"),
+    enabled: !!user && (user.role === "inventory" || user.role === "admin") && !sku,
     retry: 2,
   });
+
+  // Get specific product by SKU when SKU is provided
+  const { data: productBySku, isLoading: productBySkuLoading, error: productBySkuError } = useQuery({
+    queryKey: ["/api/inventory/product-by-sku", sku],
+    queryFn: async () => {
+      if (!sku) return null;
+      const response = await apiRequest("GET", `/api/inventory/product-by-sku/${sku}`);
+      return response.json();
+    },
+    enabled: !!user && (user.role === "inventory" || user.role === "admin") && !!sku,
+    retry: 2,
+  });
+
+  // Auto-select product when SKU is provided
+  useEffect(() => {
+    if (sku && productBySku) {
+      setFormData({
+        productId: productBySku.id,
+        source: "",
+        damageCategory: "",
+        damageSeverity: "",
+        reason: "",
+        costValue: "",
+        recoveryValue: "",
+        disposalMethod: "",
+        notes: "",
+        allocationType: "",
+        stockReductions: {} as StockReductions,
+      });
+    }
+  }, [sku, productBySku]);
 
   // Report damage mutation
   const reportDamageMutation = useMutation({
@@ -230,7 +262,7 @@ export default function DamageReport() {
     reportDamageMutation.mutate(damageData);
   };
 
-  const selectedProduct = products.find((p: any) => p.id === formData.productId);
+  const selectedProduct = sku ? productBySku : products.find((p: any) => p.id === formData.productId);
 
   return (
     <div className="max-w-4xl mx-auto p-6">
@@ -245,26 +277,26 @@ export default function DamageReport() {
       </div>
 
       {/* Error State */}
-      {productsError && (
+      {(productsError || productBySkuError) && (
         <Alert className="mb-6">
           <AlertTriangle className="h-4 w-4" />
           <AlertDescription>
-            Failed to load products. Please refresh the page and try again.
+            {sku ? "Failed to load product. Please check the SKU and try again." : "Failed to load products. Please refresh the page and try again."}
           </AlertDescription>
         </Alert>
       )}
 
       {/* Loading State */}
-      {productsLoading ? (
+      {(productsLoading || productBySkuLoading) ? (
         <Card>
           <CardContent className="p-6">
             <div className="flex items-center justify-center py-8">
               <Loader2 className="h-8 w-8 animate-spin mr-2" />
-              <span>Loading products...</span>
+              <span>{sku ? "Loading product..." : "Loading products..."}</span>
             </div>
           </CardContent>
         </Card>
-      ) : products.length === 0 ? (
+      ) : !sku && products.length === 0 ? (
         <Card>
           <CardContent className="p-6">
             <div className="text-center py-8">
@@ -272,6 +304,18 @@ export default function DamageReport() {
               <h3 className="text-lg font-medium mb-2">No Products Available</h3>
               <p className="text-muted-foreground">
                 There are no products in the inventory to report damage for.
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+      ) : sku && !productBySku ? (
+        <Card>
+          <CardContent className="p-6">
+            <div className="text-center py-8">
+              <Package className="h-12 w-12 mx-auto text-gray-400 mb-4" />
+              <h3 className="text-lg font-medium mb-2">Product Not Found</h3>
+              <p className="text-muted-foreground">
+                No product found with SKU: {sku}
               </p>
             </div>
           </CardContent>
@@ -286,26 +330,42 @@ export default function DamageReport() {
               {/* Product Selection */}
               <div className="space-y-2">
                 <Label htmlFor="productId">Product *</Label>
-                <Select
-                  value={formData.productId}
-                  onValueChange={(value) => setFormData({ ...formData, productId: value, allocationType: "", stockReductions: {} as StockReductions })}
-                  disabled={productsLoading}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder={productsLoading ? "Loading products..." : "Select product"} />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {products.map((product: any) => (
-                      <SelectItem key={product.id} value={product.id}>
-                        <div className="flex items-center gap-2">
-                          <Package className="h-4 w-4" />
-                          <span>{product.name}</span>
-                          <Badge variant="outline">SKU: {product.sku}</Badge>
-                        </div>
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+                {sku ? (
+                  <div className="p-3 bg-muted rounded-md">
+                    {selectedProduct ? (
+                      <div className="flex items-center gap-2">
+                        <Package className="h-4 w-4" />
+                        <span className="font-medium">{selectedProduct.name}</span>
+                        <Badge variant="outline">SKU: {selectedProduct.sku}</Badge>
+                      </div>
+                    ) : (
+                      <div className="text-muted-foreground">
+                        Loading product details...
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <Select
+                    value={formData.productId}
+                    onValueChange={(value) => setFormData({ ...formData, productId: value, allocationType: "", stockReductions: {} as StockReductions })}
+                    disabled={productsLoading}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder={productsLoading ? "Loading products..." : "Select product"} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {products.map((product: any) => (
+                        <SelectItem key={product.id} value={product.id}>
+                          <div className="flex items-center gap-2">
+                            <Package className="h-4 w-4" />
+                            <span>{product.name}</span>
+                            <Badge variant="outline">SKU: {product.sku}</Badge>
+                          </div>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                )}
               </div>
 
             {/* Damage Details */}
