@@ -15,6 +15,13 @@
       "when": 1769159248770,
       "tag": "0001_perpetual_thor_girl",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1769244079936,
+      "tag": "0002_slim_quentin_quire",
+      "breakpoints": true
     }
   ]
 }
