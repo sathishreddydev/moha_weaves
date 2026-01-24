@@ -15,7 +15,6 @@ import { toast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 
 const damageSources = [
-  { value: "store", label: "In-Store" },
   { value: "warehouse", label: "Warehouse" },
   { value: "online_return", label: "Online Return" },
   { value: "shipping", label: "Shipping" },
@@ -39,6 +38,10 @@ const damageSeverities = [
   { value: "total_loss", label: "Total Loss" },
 ];
 
+interface StockReductions {
+  [key: string]: string; // online, storeId1, storeId2, etc.
+}
+
 export default function DamageReport() {
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -46,7 +49,6 @@ export default function DamageReport() {
   const [formData, setFormData] = useState({
     productId: "",
     source: "",
-    quantity: "",
     damageCategory: "",
     damageSeverity: "",
     reason: "",
@@ -54,17 +56,20 @@ export default function DamageReport() {
     recoveryValue: "",
     disposalMethod: "",
     notes: "",
+    allocationType: "",
+    stockReductions: {} as StockReductions,
   });
 
   // Get products for selection
-  const { data: products = [], isLoading: productsLoading } = useQuery({
+  const { data: products = [], isLoading: productsLoading, error: productsError } = useQuery({
     queryKey: ["/api/inventory/getProducts"],
     queryFn: async () => {
       const response = await apiRequest("POST", "/api/inventory/getProducts", {});
       const result = await response.json();
-      return result.data;
+      return result.data || result; // Handle different response structures
     },
     enabled: !!user && (user.role === "inventory" || user.role === "admin"),
+    retry: 2,
   });
 
   // Report damage mutation
@@ -86,24 +91,132 @@ export default function DamageReport() {
       return response.json();
     },
     onSuccess: () => {
+      toast({
+        title: "Success",
+        description: "Damage reported successfully",
+      });
+      // Reset form after successful submission
+      setFormData({
+        productId: "",
+        source: "",
+        damageCategory: "",
+        damageSeverity: "",
+        reason: "",
+        costValue: "",
+        recoveryValue: "",
+        disposalMethod: "",
+        notes: "",
+        allocationType: "",
+        stockReductions: {} as StockReductions,
+      });
       navigate("/inventory/damage-history");
     },
     onError: (error: any) => {
+      console.error("Damage report error:", error);
+      
+      // Parse detailed error messages from backend
+      let errorMessage = "Failed to report damage";
+      
+      if (error.message) {
+        if (error.message.includes("Stock reduction failed for allocations")) {
+          // Extract individual allocation errors
+          const allocationErrors = error.message.split("Stock reduction failed for allocations:")[1];
+          if (allocationErrors) {
+            const errors = allocationErrors.split(";").map((e: string) => e.trim()).filter((e: string) => e);
+            errorMessage = "Stock reduction issues:\n" + errors.join("\n");
+          }
+        } else if (error.message.includes("Insufficient")) {
+          errorMessage = error.message;
+        } else {
+          errorMessage = error.message;
+        }
+      }
+      
+      toast({
+        title: "Error",
+        description: errorMessage,
+        variant: "destructive",
+      });
     },
   });
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!formData.productId || !formData.source || !formData.quantity ||
-      !formData.damageCategory || !formData.damageSeverity || !formData.reason) {
+    // Basic form validation
+    if (!formData.productId || !formData.source ||
+      !formData.damageCategory || !formData.damageSeverity || !formData.reason || !formData.allocationType) {
+      toast({
+        title: "Validation Error",
+        description: "Please fill all required fields",
+        variant: "destructive",
+      });
       return;
+    }
+
+    // Validate stock reductions
+    const stockReductions = formData.stockReductions;
+    const totalReductions = Object.values(stockReductions).reduce((sum, qty) => sum + (parseInt(qty) || 0), 0);
+    
+    if (totalReductions === 0) {
+      toast({
+        title: "Validation Error",
+        description: "Please enter damage quantity for at least one allocation",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Stock validation before submission
+    const selectedProduct = products.find((p: any) => p.id === formData.productId);
+    if (!selectedProduct) {
+      toast({
+        title: "Error",
+        description: "Selected product not found",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Validate each stock reduction against available stock
+    for (const [allocationId, quantity] of Object.entries(stockReductions)) {
+      const qty = parseInt(quantity) || 0;
+      if (qty <= 0) continue;
+
+      let maxStock = 0;
+      let stockType = "";
+
+      if (allocationId === "online") {
+        maxStock = selectedProduct.onlineStock || 0;
+        stockType = "online";
+      } else {
+        const storeAllocation = selectedProduct.storeAllocations?.find((s: any) => s.storeId === allocationId);
+        if (!storeAllocation) {
+          toast({
+            title: "Error",
+            description: `Store allocation not found for ${allocationId}`,
+            variant: "destructive",
+          });
+          return;
+        }
+        maxStock = storeAllocation.quantity || 0;
+        stockType = `store ${storeAllocation.storeName}`;
+      }
+
+      if (qty > maxStock) {
+        toast({
+          title: "Stock Error",
+          description: `Cannot reduce ${qty} units from ${stockType}. Available: ${maxStock} units.`,
+          variant: "destructive",
+        });
+        return;
+      }
     }
 
     const damageData = {
       productId: formData.productId,
       source: formData.source,
-      quantity: parseInt(formData.quantity),
+      stockReductions: stockReductions,
       damageCategory: formData.damageCategory,
       damageSeverity: formData.damageSeverity,
       reason: formData.reason,
@@ -111,6 +224,7 @@ export default function DamageReport() {
       recoveryValue: formData.recoveryValue || undefined,
       disposalMethod: formData.disposalMethod || undefined,
       notes: formData.notes || undefined,
+      allocationType: formData.allocationType || undefined,
     };
 
     reportDamageMutation.mutate(damageData);
@@ -130,22 +244,55 @@ export default function DamageReport() {
         </p>
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Damage Information</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <form onSubmit={handleSubmit} className="space-y-6">
-            {/* Product Selection */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      {/* Error State */}
+      {productsError && (
+        <Alert className="mb-6">
+          <AlertTriangle className="h-4 w-4" />
+          <AlertDescription>
+            Failed to load products. Please refresh the page and try again.
+          </AlertDescription>
+        </Alert>
+      )}
+
+      {/* Loading State */}
+      {productsLoading ? (
+        <Card>
+          <CardContent className="p-6">
+            <div className="flex items-center justify-center py-8">
+              <Loader2 className="h-8 w-8 animate-spin mr-2" />
+              <span>Loading products...</span>
+            </div>
+          </CardContent>
+        </Card>
+      ) : products.length === 0 ? (
+        <Card>
+          <CardContent className="p-6">
+            <div className="text-center py-8">
+              <Package className="h-12 w-12 mx-auto text-gray-400 mb-4" />
+              <h3 className="text-lg font-medium mb-2">No Products Available</h3>
+              <p className="text-muted-foreground">
+                There are no products in the inventory to report damage for.
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+      ) : (
+        <Card>
+          <CardHeader>
+            <CardTitle>Damage Information</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <form onSubmit={handleSubmit} className="space-y-6">
+              {/* Product Selection */}
               <div className="space-y-2">
                 <Label htmlFor="productId">Product *</Label>
                 <Select
                   value={formData.productId}
-                  onValueChange={(value) => setFormData({ ...formData, productId: value })}
+                  onValueChange={(value) => setFormData({ ...formData, productId: value, allocationType: "", stockReductions: {} as StockReductions })}
+                  disabled={productsLoading}
                 >
                   <SelectTrigger>
-                    <SelectValue placeholder="Select product" />
+                    <SelectValue placeholder={productsLoading ? "Loading products..." : "Select product"} />
                   </SelectTrigger>
                   <SelectContent>
                     {products.map((product: any) => (
@@ -161,25 +308,6 @@ export default function DamageReport() {
                 </Select>
               </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="quantity">Quantity Damaged *</Label>
-                <Input
-                  id="quantity"
-                  type="number"
-                  min="1"
-                  placeholder="Enter quantity"
-                  value={formData.quantity}
-                  onChange={(e) => setFormData({ ...formData, quantity: e.target.value })}
-                  required
-                />
-                {selectedProduct && (
-                  <p className="text-sm text-muted-foreground">
-                    Available stock: {selectedProduct.totalStock}
-                  </p>
-                )}
-              </div>
-            </div>
-
             {/* Damage Details */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div className="space-y-2">
@@ -187,9 +315,10 @@ export default function DamageReport() {
                 <Select
                   value={formData.source}
                   onValueChange={(value) => setFormData({ ...formData, source: value })}
+                  disabled={!formData.productId}
                 >
                   <SelectTrigger>
-                    <SelectValue placeholder="Select source" />
+                    <SelectValue placeholder={formData.productId ? "Select source" : "Select product first"} />
                   </SelectTrigger>
                   <SelectContent>
                     {damageSources.map((source) => (
@@ -206,9 +335,10 @@ export default function DamageReport() {
                 <Select
                   value={formData.damageCategory}
                   onValueChange={(value) => setFormData({ ...formData, damageCategory: value })}
+                  disabled={!formData.productId}
                 >
                   <SelectTrigger>
-                    <SelectValue placeholder="Select category" />
+                    <SelectValue placeholder={formData.productId ? "Select category" : "Select product first"} />
                   </SelectTrigger>
                   <SelectContent>
                     {damageCategories.map((category) => (
@@ -225,9 +355,10 @@ export default function DamageReport() {
                 <Select
                   value={formData.damageSeverity}
                   onValueChange={(value) => setFormData({ ...formData, damageSeverity: value })}
+                  disabled={!formData.productId}
                 >
                   <SelectTrigger>
-                    <SelectValue placeholder="Select severity" />
+                    <SelectValue placeholder={formData.productId ? "Select severity" : "Select product first"} />
                   </SelectTrigger>
                   <SelectContent>
                     {damageSeverities.map((severity) => (
@@ -240,6 +371,149 @@ export default function DamageReport() {
               </div>
             </div>
 
+            {/* Stock Allocation */}
+            <div className="space-y-4">
+              <h3 className="text-lg font-medium">Stock Allocation</h3>
+              <div className="space-y-2">
+                <Label htmlFor="allocationType">Allocation Type *</Label>
+                <Select
+                  value={formData.allocationType}
+                  onValueChange={(value) => setFormData({ ...formData, allocationType: value, stockReductions: {} as StockReductions })}
+                  disabled={!formData.productId}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder={formData.productId ? "Select allocation type" : "Select product first"} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="online">Online Stock Only</SelectItem>
+                    <SelectItem value="store">Store Stock Only</SelectItem>
+                    <SelectItem value="both">Online + Store Stock</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Dynamic Stock Input Fields */}
+              {selectedProduct && formData.allocationType && (
+                <div className="space-y-4">
+                  <h4 className="text-md font-medium">Enter Damage Quantities</h4>
+                  
+                  {/* Online Stock Input */}
+                  {(formData.allocationType === "online" || formData.allocationType === "both") && (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="onlineStock">Online Stock</Label>
+                        <Input
+                          id="onlineStock"
+                          type="number"
+                          min="0"
+                          placeholder="0"
+                          value={formData.stockReductions?.online || ""}
+                          onChange={(e) => setFormData({ 
+                            ...formData, 
+                            stockReductions: { 
+                              ...formData.stockReductions, 
+                              online: e.target.value 
+                            } as StockReductions
+                          })}
+                          disabled={!formData.productId}
+                          className={
+                            (() => {
+                              const qty = parseInt(formData.stockReductions?.online) || 0;
+                              const maxStock = selectedProduct.onlineStock || 0;
+                              return qty > maxStock ? "border-red-500 focus:border-red-500" : "";
+                            })()
+                          }
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Available Online Stock</Label>
+                        <div className="p-2 bg-gray-50 rounded border">
+                          <p className="text-sm font-medium">{selectedProduct.onlineStock || 0} units</p>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Store Stock Inputs */}
+                  {(formData.allocationType === "store" || formData.allocationType === "both") && 
+                    selectedProduct.storeAllocations?.map((store: any) => (
+                      <div key={store.storeId} className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                          <Label htmlFor={store.storeId}>{store.storeName}</Label>
+                          <Input
+                            id={store.storeId}
+                            type="number"
+                            min="0"
+                            placeholder="0"
+                            value={formData.stockReductions?.[store.storeId] || ""}
+                            onChange={(e) => setFormData({ 
+                              ...formData, 
+                              stockReductions: { 
+                                ...formData.stockReductions, 
+                                [store.storeId]: e.target.value 
+                              } as StockReductions
+                            })}
+                            disabled={!formData.productId}
+                            className={
+                              (() => {
+                                const qty = parseInt(formData.stockReductions?.[store.storeId]) || 0;
+                                const maxStock = store.quantity || 0;
+                                return qty > maxStock ? "border-red-500 focus:border-red-500" : "";
+                              })()
+                            }
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label>Available Stock</Label>
+                          <div className="p-2 bg-gray-50 rounded border">
+                            <p className="text-sm font-medium">{store.quantity || 0} units</p>
+                          </div>
+                        </div>
+                      </div>
+                    ))
+                  }
+
+                  {/* Validation Alerts */}
+                  {(() => {
+                    const alerts = [];
+                    
+                    // Online stock validation
+                    if ((formData.allocationType === "online" || formData.allocationType === "both") && formData.stockReductions?.online) {
+                      const qty = parseInt(formData.stockReductions.online) || 0;
+                      const maxStock = selectedProduct.onlineStock || 0;
+                      if (qty > maxStock) {
+                        alerts.push({
+                          type: "online",
+                          message: `Online stock: Cannot reduce ${qty} units. Available: ${maxStock} units.`
+                        });
+                      }
+                    }
+
+                    // Store stock validation
+                    if (formData.allocationType === "store" || formData.allocationType === "both") {
+                      selectedProduct.storeAllocations?.forEach((store: any) => {
+                        const qty = parseInt(formData.stockReductions?.[store.storeId]) || 0;
+                        const maxStock = store.quantity || 0;
+                        if (qty > maxStock) {
+                          alerts.push({
+                            type: "store",
+                            message: `${store.storeName}: Cannot reduce ${qty} units. Available: ${maxStock} units.`
+                          });
+                        }
+                      });
+                    }
+
+                    return alerts;
+                  })().map((alert, index) => (
+                    <Alert key={index}>
+                      <AlertTriangle className="h-4 w-4" />
+                      <AlertDescription>{alert.message}</AlertDescription>
+                    </Alert>
+                  ))}
+                </div>
+              )}
+            </div>
+
             {/* Reason */}
             <div className="space-y-2">
               <Label htmlFor="reason">Reason for Damage *</Label>
@@ -248,6 +522,7 @@ export default function DamageReport() {
                 placeholder="Describe what caused the damage..."
                 value={formData.reason}
                 onChange={(e) => setFormData({ ...formData, reason: e.target.value })}
+                disabled={!formData.productId}
                 required
               />
             </div>
@@ -265,6 +540,7 @@ export default function DamageReport() {
                     placeholder="0.00"
                     value={formData.costValue}
                     onChange={(e) => setFormData({ ...formData, costValue: e.target.value })}
+                    disabled={!formData.productId}
                   />
                 </div>
 
@@ -277,6 +553,7 @@ export default function DamageReport() {
                     placeholder="0.00"
                     value={formData.recoveryValue}
                     onChange={(e) => setFormData({ ...formData, recoveryValue: e.target.value })}
+                    disabled={!formData.productId}
                   />
                 </div>
               </div>
@@ -288,6 +565,7 @@ export default function DamageReport() {
                   placeholder="e.g., Recycle, Dispose, Return to supplier"
                   value={formData.disposalMethod}
                   onChange={(e) => setFormData({ ...formData, disposalMethod: e.target.value })}
+                  disabled={!formData.productId}
                 />
               </div>
             </div>
@@ -300,18 +578,9 @@ export default function DamageReport() {
                 placeholder="Any additional information about the damage..."
                 value={formData.notes}
                 onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
+                disabled={!formData.productId}
               />
             </div>
-
-            {/* Stock Warning */}
-            {selectedProduct && parseInt(formData.quantity) > selectedProduct.totalStock && (
-              <Alert>
-                <AlertTriangle className="h-4 w-4" />
-                <AlertDescription>
-                  Warning: You're reporting more damaged quantity than available stock ({selectedProduct.totalStock}).
-                </AlertDescription>
-              </Alert>
-            )}
 
             {/* Submit Button */}
             <div className="flex justify-end gap-4">
@@ -324,7 +593,7 @@ export default function DamageReport() {
               </Button>
               <Button
                 type="submit"
-                disabled={reportDamageMutation.isPending}
+                disabled={reportDamageMutation.isPending || !formData.productId}
               >
                 {reportDamageMutation.isPending ? (
                   <>
@@ -339,6 +608,7 @@ export default function DamageReport() {
           </form>
         </CardContent>
       </Card>
+      )}
     </div>
   );
 }

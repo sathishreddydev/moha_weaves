@@ -5,7 +5,9 @@ import {
   products,
   users,
   stockMovements,
-  productActualPrices
+  productActualPrices,
+  storeInventory,
+  stores
 } from "@shared/schema";
 import { eq, and, sql } from "drizzle-orm";
 import { db } from "server/db";
@@ -13,8 +15,10 @@ import { stockMovementTypeEnum, stockMovementSourceEnum, damageSourceEnum, damag
 
 export interface DamageReportData {
   productId: string;
-  source: "store" | "online_return" | "warehouse" | "shipping" | "manufacturing";
-  quantity: number;
+  source: "warehouse" | "online_return" | "shipping" | "manufacturing";
+  stockReductions: {
+    [allocationId: string]: number; // online, storeId1, storeId2, etc.
+  };
   damageCategory: "manufacturing_defect" | "shipping_damage" | "storage_damage" | "handling_damage" | "customer_damage" | "expired" | "theft_loss" | "other";
   damageSeverity: "minor" | "major" | "total_loss";
   reason: string;
@@ -23,6 +27,7 @@ export interface DamageReportData {
   recoveryValue?: string;
   disposalMethod?: string;
   notes?: string;
+  allocationType?: "online" | "store" | "both";
 }
 
 export interface DamageAnalytics {
@@ -51,7 +56,7 @@ export class ProductDamageService {
         .values({
           productId: data.productId,
           source: data.source,
-          quantity: data.quantity,
+          quantity: Object.values(data.stockReductions).reduce((sum, qty) => sum + qty, 0), // Total damaged quantity
           damageCategory: data.damageCategory,
           damageSeverity: data.damageSeverity,
           reason: data.reason,
@@ -60,30 +65,112 @@ export class ProductDamageService {
           recoveryValue: data.recoveryValue,
           disposalMethod: data.disposalMethod,
           notes: data.notes,
+          allocationType: data.allocationType || "both",
           status: "pending",
           createdAt: new Date(),
           updatedAt: new Date(),
         })
         .returning();
 
-      // 2. Update product stock (reduce from totalStock)
-      await tx
-        .update(products)
-        .set({
-          totalStock: sql`${products.totalStock} - ${data.quantity}`
-        })
-        .where(eq(products.id, data.productId));
+      // 2. Process each stock reduction with detailed error tracking
+      const errors: string[] = [];
+      const successfulReductions: Array<{ allocationId: string; quantity: number }> = [];
 
-      // 3. Record stock movement
-      await tx.insert(stockMovements).values({
-        productId: data.productId,
-        quantity: -data.quantity,
-        movementType: "adjustment",
-        source: "store",
-        orderRefId: damage.id,
-        notes: `Damage reported: ${data.reason}`,
-        createdAt: new Date(),
-      });
+      for (const [allocationId, quantity] of Object.entries(data.stockReductions)) {
+        if (quantity <= 0) continue; // Skip zero quantities
+
+        try {
+          if (allocationId === "online") {
+            // Reduce from online stock
+            const [product] = await tx
+              .select({ onlineStock: products.onlineStock, totalStock: products.totalStock })
+              .from(products)
+              .where(eq(products.id, data.productId));
+
+            if (!product || product.onlineStock < quantity) {
+              throw new Error(`Insufficient online stock. Available: ${product?.onlineStock || 0}, Requested: ${quantity}`);
+            }
+
+            await tx
+              .update(products)
+              .set({
+                onlineStock: sql`${products.onlineStock} - ${quantity}`,
+                totalStock: sql`${products.totalStock} - ${quantity}`
+              })
+              .where(eq(products.id, data.productId));
+
+            // Record stock movement for online
+            await tx.insert(stockMovements).values({
+              productId: data.productId,
+              quantity: -quantity,
+              movementType: "adjustment",
+              source: "online",
+              orderRefId: damage.id,
+              notes: `Damage reported - Online stock: ${data.reason}`,
+              createdAt: new Date(),
+            });
+
+            successfulReductions.push({ allocationId: "online", quantity });
+
+          } else {
+            // Reduce from store inventory
+            const storeId = allocationId;
+            
+            const [storeStock] = await tx
+              .select({ quantity: storeInventory.quantity })
+              .from(storeInventory)
+              .where(and(
+                eq(storeInventory.productId, data.productId),
+                eq(storeInventory.storeId, storeId)
+              ));
+
+            if (!storeStock || storeStock.quantity < quantity) {
+              throw new Error(`Insufficient store stock for store ${storeId}. Available: ${storeStock?.quantity || 0}, Requested: ${quantity}`);
+            }
+
+            await tx
+              .update(storeInventory)
+              .set({
+                quantity: sql`${storeInventory.quantity} - ${quantity}`
+              })
+              .where(and(
+                eq(storeInventory.productId, data.productId),
+                eq(storeInventory.storeId, storeId)
+              ));
+
+            // Also update total stock
+            await tx
+              .update(products)
+              .set({
+                totalStock: sql`${products.totalStock} - ${quantity}`
+              })
+              .where(eq(products.id, data.productId));
+
+            // Record stock movement for store
+            await tx.insert(stockMovements).values({
+              productId: data.productId,
+              quantity: -quantity,
+              movementType: "adjustment",
+              source: "store",
+              orderRefId: damage.id,
+              notes: `Damage reported - Store ${storeId}: ${data.reason}`,
+              createdAt: new Date(),
+            });
+
+            successfulReductions.push({ allocationId: storeId, quantity });
+          }
+        } catch (error) {
+          errors.push(`${allocationId}: ${error instanceof Error ? error.message : 'Unknown error'}`);
+        }
+      }
+
+      // If any reductions failed, throw detailed error
+      if (errors.length > 0) {
+        throw new Error(`Stock reduction failed for allocations: ${errors.join('; ')}`);
+      }
+
+      // Log successful reductions for debugging
+      console.log(`Successfully processed stock reductions:`, successfulReductions);
 
       return damage;
     });
@@ -110,11 +197,13 @@ export class ProductDamageService {
         recoveryValue: productDamages.recoveryValue,
         disposalMethod: productDamages.disposalMethod,
         notes: productDamages.notes,
+        allocationType: productDamages.allocationType,
+        storeId: productDamages.storeId,
         status: productDamages.status,
         createdAt: productDamages.createdAt,
         updatedAt: productDamages.updatedAt,
       })
-      .from(productDamages);
+      .from(productDamages) as any;
 
     // Apply filters
     const conditions = [];
@@ -156,10 +245,12 @@ export class ProductDamageService {
         damageSeverity: productDamages.damageSeverity,
         costValue: productDamages.costValue,
         recoveryValue: productDamages.recoveryValue,
+        allocationType: productDamages.allocationType,
+        storeId: productDamages.storeId,
         status: productDamages.status,
         createdAt: productDamages.createdAt,
       })
-      .from(productDamages);
+      .from(productDamages) as any;
 
     // Apply filters
     const conditions = [];
@@ -184,12 +275,12 @@ export class ProductDamageService {
 
     // Calculate analytics
     const totalDamages = allDamages.length;
-    const totalCost = allDamages.reduce((sum, d) => sum + Number(d.costValue || 0), 0);
-    const totalRecovered = allDamages.reduce((sum, d) => sum + Number(d.recoveryValue || 0), 0);
+    const totalCost = allDamages.reduce((sum:any, d:any) => sum + Number(d.costValue || 0), 0);
+    const totalRecovered = allDamages.reduce((sum:any, d:any) => sum + Number(d.recoveryValue || 0), 0);
 
     // Group by source
-    const damagesBySource = allDamages.reduce((acc, damage) => {
-      const existing = acc.find(item => item.source === damage.source);
+    const damagesBySource = allDamages.reduce((acc:any, damage:any) => {
+      const existing = acc.find((item:any) => item.source === damage.source);
       if (existing) {
         existing.count += 1;
         existing.cost += Number(damage.costValue || 0);
@@ -204,8 +295,8 @@ export class ProductDamageService {
     }, [] as Array<{ source: string; count: number; cost: number }>);
 
     // Group by category
-    const damagesByCategory = allDamages.reduce((acc, damage) => {
-      const existing = acc.find(item => item.category === damage.damageCategory);
+    const damagesByCategory = allDamages.reduce((acc:any, damage:any) => {
+      const existing = acc.find((item:any )=> item.category === damage.damageCategory);
       if (existing) {
         existing.count += 1;
         existing.cost += Number(damage.costValue || 0);
