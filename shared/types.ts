@@ -97,6 +97,8 @@ export type SaleProduct = typeof tables.saleProducts.$inferSelect;
 export type InsertSaleProduct = z.infer<typeof schemas.insertSaleProductSchema>;
 export type ContactMessage = typeof tables.contactMessages.$inferSelect;
 export type InsertContactMessage = typeof tables.contactMessages.$inferInsert;
+export type ProductDamage = typeof tables.productDamages.$inferSelect;
+export type InsertProductDamage = typeof tables.productDamages.$inferInsert;
 
 // Extended types for frontend use
 export type OnlineExchangeWithDetails = OnlineExchange & {

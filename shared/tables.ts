@@ -749,6 +749,32 @@ export const productActualPrices = pgTable("product_actual_prices", {
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });
 
+// Product damages for tracking damaged products
+export const productDamages = pgTable("product_damages", {
+  id: varchar("id")
+    .primaryKey()
+    .default(sql`gen_random_uuid()`),
+  productId: varchar("product_id")
+    .references(() => products.id)
+    .notNull(),
+  source: enums.damageSourceEnum("source").notNull(), // "store", "online_return", "warehouse", "shipping", "manufacturing"
+  quantity: integer("quantity").notNull(),
+  damageCategory: enums.damageCategoryEnum("damage_category").notNull(),
+  damageSeverity: enums.damageSeverityEnum("damage_severity").notNull(),
+  reason: text("reason").notNull(),
+  reportedBy: varchar("reported_by")
+    .references(() => users.id)
+    .notNull(),
+  approvedBy: varchar("approved_by").references(() => users.id),
+  costValue: decimal("cost_value", { precision: 10, scale: 2 }),
+  recoveryValue: decimal("recovery_value", { precision: 10, scale: 2 }),
+  disposalMethod: text("disposal_method"),
+  notes: text("notes"),
+  status: varchar("status").notNull().default("pending"),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
 // Contact Us Schema
 export const contactMessages = pgTable("contact_messages", {
   id: varchar("id")

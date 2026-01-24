@@ -118,8 +118,8 @@ export default function InventoryReturns() {
     handlePaginationChange,
     refetch,
   } = useDataTable<ReturnRequestWithDetails>({
-    queryKey: "/api/inventory/returns",
-    initialPageSize: 10,method: "GET",
+    queryKey: "/api/inventory/returnRequests",
+    initialPageSize: 10
   });
   const updateStatusMutation = useMutation({
     mutationFn: async ({ id, status, notes }: { id: string; status: string; notes?: string }) => {

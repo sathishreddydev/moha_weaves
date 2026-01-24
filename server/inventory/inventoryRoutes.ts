@@ -9,6 +9,9 @@ import { inventoryService } from "./inventoryStorage";
 import { productService } from "server/product/productStorage";
 import { publicStorage } from "../common/publicStorage";
 import { productBaseSchema, trackingNumberSchema } from "./schema";
+import { productDamageService } from "./productDamageService";
+import { insertProductDamageSchema } from "@shared/schema";
+import { z } from "zod";
 
 
 
@@ -1076,6 +1079,104 @@ export const inventoryRoutes = (app: Express) => {
     } catch (error) {
       console.error("Error fetching store sales:", error);
       res.status(500).json({ message: "Failed to fetch store sales" });
+    }
+  });
+
+  // Product Damage Management
+  
+  // Report product damage
+  app.post("/api/inventory/damages", authInventory, async (req, res) => {
+    try {
+      const validatedData = insertProductDamageSchema.parse(req.body);
+      
+      // Add the user reporting the damage
+      const damageData = {
+        ...validatedData,
+        reportedBy: req.user!.id,
+      };
+
+      const damage = await productDamageService.reportDamage(damageData);
+      res.status(201).json(damage);
+    } catch (error) {
+      console.error("Error reporting damage:", error);
+      res.status(500).json({ message: "Failed to report damage" });
+    }
+  });
+
+  // Get all damages with filters
+  app.get("/api/inventory/damages", authInventory, async (req, res) => {
+    try {
+      const { productId, source, status, limit } = req.query;
+      
+      const damages = await productDamageService.getDamages({
+        productId: productId as string,
+        source: source as string,
+        status: status as string,
+        limit: limit ? parseInt(limit as string) : undefined,
+      });
+      
+      res.json(damages);
+    } catch (error) {
+      console.error("Error fetching damages:", error);
+      res.status(500).json({ message: "Failed to fetch damages" });
+    }
+  });
+
+  // Get damage analytics
+  app.get("/api/inventory/damage-analytics", authInventory, async (req, res) => {
+    try {
+      const { productId, source, dateFrom, dateTo } = req.query;
+      
+      const analytics = await productDamageService.getDamageAnalytics({
+        productId: productId as string,
+        source: source as string,
+        dateFrom: dateFrom as string,
+        dateTo: dateTo as string,
+      });
+      
+      res.json(analytics);
+    } catch (error) {
+      console.error("Error fetching damage analytics:", error);
+      res.status(500).json({ message: "Failed to fetch damage analytics" });
+    }
+  });
+
+  // Get specific damage by ID
+  app.get("/api/inventory/damages/:id", authInventory, async (req, res) => {
+    try {
+      const damage = await productDamageService.getDamageById(req.params.id);
+      
+      if (!damage) {
+        return res.status(404).json({ message: "Damage not found" });
+      }
+      
+      res.json(damage);
+    } catch (error) {
+      console.error("Error fetching damage:", error);
+      res.status(500).json({ message: "Failed to fetch damage" });
+    }
+  });
+
+  // Update damage status (approve/reject)
+  app.patch("/api/inventory/damages/:id/status", authInventory, async (req, res) => {
+    try {
+      const { status, notes } = req.body;
+      
+      if (!status) {
+        return res.status(400).json({ message: "Status is required" });
+      }
+      
+      const damage = await productDamageService.updateDamageStatus(
+        req.params.id,
+        status,
+        req.user!.id,
+        notes
+      );
+      
+      res.json(damage);
+    } catch (error) {
+      console.error("Error updating damage status:", error);
+      res.status(500).json({ message: "Failed to update damage status" });
     }
   });
 };

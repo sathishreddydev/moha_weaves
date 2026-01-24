@@ -184,6 +184,16 @@ export const insertContactMessageSchema = createInsertSchema(tables.contactMessa
   message: z.string().min(10, "Message must be at least 10 characters"),
 });
 
+export const insertProductDamageSchema = createInsertSchema(tables.productDamages)
+  .omit({ id: true, createdAt: true, updatedAt: true, reportedBy: true })
+  .extend({
+    quantity: z.number().min(1, "Quantity must be at least 1"),
+    reason: z.string().min(5, "Reason must be at least 5 characters"),
+    costValue: z.string().optional(),
+    recoveryValue: z.string().optional(),
+    notes: z.string().optional(),
+  });
+
 // Type exports for frontend
 export type StoreCustomer = typeof tables.store_customers.$inferSelect;
 export type CustomerPurchase = {

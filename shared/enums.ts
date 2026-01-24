@@ -173,3 +173,29 @@ export const balanceDirectionEnum = pgEnum("balance_direction", [
   "due_from_customer",
   "even",
 ]);
+
+// Damage tracking enums
+export const damageCategoryEnum = pgEnum("damage_category", [
+  "manufacturing_defect",
+  "shipping_damage",
+  "storage_damage",
+  "handling_damage",
+  "customer_damage",
+  "expired",
+  "theft_loss",
+  "other",
+]);
+
+export const damageSeverityEnum = pgEnum("damage_severity", [
+  "minor",
+  "major",
+  "total_loss",
+]);
+
+export const damageSourceEnum = pgEnum("damage_source", [
+  "store",           // In-store damage
+  "online_return",   // Customer return damage
+  "warehouse",       // Warehouse damage
+  "shipping",        // Shipping damage
+  "manufacturing",   // Manufacturing defect
+]);

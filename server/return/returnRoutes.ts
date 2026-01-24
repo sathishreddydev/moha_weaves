@@ -18,10 +18,11 @@ export const returnRoutes = (app: Express) => {
   // ======================
 
   // Get all return requests with filtering
-  app.get("/api/inventory/returns", authInventory, async (req: Request, res: Response) => {
+  app.post("/api/inventory/returnRequests", authInventory, async (req: Request, res: Response) => {
+    
     try {
-      const { status, userId, reason, resolution, page, pageSize, search, dateFrom, dateTo } = req.query;
-
+      const { page, pageSize } = req.query;
+      const { status, userId, reason, resolution, search, dateFrom, dateTo}=req.body
       const filters: any = {};
       if (typeof status === "string" && status.length > 0) filters.status = status;
       if (typeof userId === "string" && userId.length > 0) filters.userId = userId;

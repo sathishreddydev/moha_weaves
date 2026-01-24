@@ -391,3 +391,22 @@ export const storeExchangeNewItemsRelations = relations(
     }),
   })
 );
+
+// Product damage relations
+export const productDamagesRelations = relations(
+  tables.productDamages,
+  ({ one }) => ({
+    product: one(tables.products, {
+      fields: [tables.productDamages.productId],
+      references: [tables.products.id],
+    }),
+    reporter: one(tables.users, {
+      fields: [tables.productDamages.reportedBy],
+      references: [tables.users.id],
+    }),
+    approver: one(tables.users, {
+      fields: [tables.productDamages.approvedBy],
+      references: [tables.users.id],
+    }),
+  })
+);
