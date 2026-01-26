@@ -25,7 +25,7 @@ export interface IproductRepository {
     id: string,
     data: Partial<InsertProduct>,
   ): Promise<Product | undefined>;
-  deleteProduct(id: string): Promise<boolean>;
+  deleteProducts(id: string[]): Promise<string[]>;
   getLowStockProducts(threshold?: number): Promise<ProductWithDetails[]>;
   getShopProductsPaginated(
     storeId: string,

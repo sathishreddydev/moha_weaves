@@ -12,6 +12,7 @@ import {
   CreditCard,
   AlertTriangle,
   FileText,
+  Package,
 } from "lucide-react";
 
 export const NavItems = [
@@ -23,6 +24,7 @@ export const NavItems = [
     href: "/inventory/distribution",
   },
   // { icon: TrendingUp, label: "Analytics", href: "/inventory/analytics" },
+  // { icon: Package, label: "Stock Movements", href: "/inventory/stock-movements" },
   { icon: ClipboardList, label: "Store Requests", href: "/inventory/requests" },
   { icon: Truck, label: "Online Orders", href: "/inventory/orders" },
   { icon: Store, label: "Store Orders", href: "/inventory/store-orders" },

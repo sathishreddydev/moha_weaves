@@ -171,7 +171,7 @@ export class productRepository implements IproductRepository {
       : null;
   }
 
-   private async resolveCategoryAndSubcategoryIds(categoryIds: string[]) {
+  private async resolveCategoryAndSubcategoryIds(categoryIds: string[]) {
     if (categoryIds.length === 0) return [];
 
     const categoriesResult = await db
@@ -190,15 +190,19 @@ export class productRepository implements IproductRepository {
     const directSubcategoryIds = directSubcategoriesResult.map((s) => s.id);
 
     // Get subcategories under selected categories
-    const expandedSubcategories = selectedCategoryIds.length > 0
-      ? await db
-          .select({ id: subcategories.id })
-          .from(subcategories)
-          .where(inArray(subcategories.categoryId, selectedCategoryIds))
-      : [];
+    const expandedSubcategories =
+      selectedCategoryIds.length > 0
+        ? await db
+            .select({ id: subcategories.id })
+            .from(subcategories)
+            .where(inArray(subcategories.categoryId, selectedCategoryIds))
+        : [];
 
     return Array.from(
-      new Set([...directSubcategoryIds, ...expandedSubcategories.map(s => s.id)]),
+      new Set([
+        ...directSubcategoryIds,
+        ...expandedSubcategories.map((s) => s.id),
+      ]),
     );
   }
   async getNewProducts(filters?: {
@@ -251,7 +255,9 @@ export class productRepository implements IproductRepository {
 
     // Filter by subcategory names - use helper method
     if (filters?.subcategory && filters.subcategory.length > 0) {
-      const subcategoryIds = await this.resolveSubcategoryNames(filters.subcategory);
+      const subcategoryIds = await this.resolveSubcategoryNames(
+        filters.subcategory,
+      );
       if (subcategoryIds.length > 0) {
         conditions.push(inArray(products.subcategoryId, subcategoryIds));
       }
@@ -324,7 +330,7 @@ export class productRepository implements IproductRepository {
     // --- handle sales using optimized helper methods ---
     const activeSales = await this.getActiveSales();
     const saleProductMappings = await this.getSaleProductMappings(
-      activeSales.map((s) => s.id)
+      activeSales.map((s) => s.id),
     );
 
     const results: ProductWithDetails[] = productResults.map((product) => {
@@ -378,7 +384,7 @@ export class productRepository implements IproductRepository {
     // Fetch active sales and mappings using optimized helper methods
     const activeSales = await this.getActiveSales();
     const saleProductMappings = await this.getSaleProductMappings(
-      activeSales.map((s) => s.id)
+      activeSales.map((s) => s.id),
     );
 
     // Find applicable sale using helper method
@@ -404,7 +410,6 @@ export class productRepository implements IproductRepository {
       activeSale: this.constructActiveSaleObject(applicableSale),
       discountedPrice: applicableSale ? discountedPrice : undefined,
     };
-
 
     return productResult;
   }
@@ -432,7 +437,10 @@ export class productRepository implements IproductRepository {
       .leftJoin(subcategories, eq(products.subcategoryId, subcategories.id))
       .leftJoin(colors, eq(products.colorId, colors.id))
       .leftJoin(fabrics, eq(products.fabricId, fabrics.id))
-      .leftJoin(productActualPrices, eq(products.id, productActualPrices.productId))
+      .leftJoin(
+        productActualPrices,
+        eq(products.id, productActualPrices.productId),
+      )
       .leftJoin(storeInventory, eq(products.id, storeInventory.productId))
       .leftJoin(stores, eq(storeInventory.storeId, stores.id))
       .where(eq(products.sku, sku));
@@ -441,10 +449,10 @@ export class productRepository implements IproductRepository {
 
     // Group store allocations by product ID
     const productMap = new Map<string, any>();
-    
+
     for (const row of result) {
       const productId = row.product.id;
-      
+
       if (!productMap.has(productId)) {
         productMap.set(productId, {
           ...row.product,
@@ -456,7 +464,7 @@ export class productRepository implements IproductRepository {
           storeAllocations: [],
         });
       }
-      
+
       // Add store allocation if it exists
       if (row.storeInventory.storeId) {
         const product = productMap.get(productId);
@@ -478,7 +486,7 @@ export class productRepository implements IproductRepository {
         0,
         product.totalStock - product.onlineStock - totalStoreStock,
       );
-      
+
       return {
         ...product,
         unallocated,
@@ -490,7 +498,7 @@ export class productRepository implements IproductRepository {
     // Fetch active sales and mappings using optimized helper methods
     const activeSales = await this.getActiveSales();
     const saleProductMappings = await this.getSaleProductMappings(
-      activeSales.map((s) => s.id)
+      activeSales.map((s) => s.id),
     );
 
     // Find applicable sale using helper method
@@ -545,13 +553,14 @@ export class productRepository implements IproductRepository {
     return result || undefined;
   }
 
-  async deleteProduct(id: string): Promise<boolean> {
-    const [result] = await db
+  async deleteProducts(ids: string[]): Promise<string[]> {
+    const deleted = await db
       .update(products)
       .set({ isActive: false })
-      .where(eq(products.id, id))
-      .returning();
-    return !!result;
+      .where(inArray(products.id, ids))
+      .returning({ id: products.id });
+
+    return deleted.map((row) => row.id);
   }
   async getLowStockProducts(threshold = 10): Promise<ProductWithDetails[]> {
     const result = await db
@@ -608,8 +617,9 @@ export class productRepository implements IproductRepository {
     }
     const incomingIds: string[] = options.categoryIds ?? [];
 
-    const finalSubcategoryIds = await this.resolveCategoryAndSubcategoryIds(incomingIds);
-    
+    const finalSubcategoryIds =
+      await this.resolveCategoryAndSubcategoryIds(incomingIds);
+
     if (finalSubcategoryIds.length) {
       conditions.push(inArray(products.subcategoryId, finalSubcategoryIds));
     }
@@ -659,7 +669,7 @@ export class productRepository implements IproductRepository {
     // Fetch active sales and mappings using optimized helper methods
     const activeSales = await this.getActiveSales();
     const saleProductMappings = await this.getSaleProductMappings(
-      activeSales.map((s) => s.id)
+      activeSales.map((s) => s.id),
     );
 
     // Fetch stock requests for all products in the result (batch query - efficient)
@@ -814,7 +824,9 @@ export class productRepository implements IproductRepository {
         ),
       );
     }
-    const finalSubcategoryIds = await this.resolveCategoryAndSubcategoryIds(categoryIds ?? []);
+    const finalSubcategoryIds = await this.resolveCategoryAndSubcategoryIds(
+      categoryIds ?? [],
+    );
 
     if (finalSubcategoryIds.length) {
       conditions.push(inArray(products.subcategoryId, finalSubcategoryIds));
@@ -855,7 +867,10 @@ export class productRepository implements IproductRepository {
       .leftJoin(subcategories, eq(products.subcategoryId, subcategories.id))
       .leftJoin(colors, eq(products.colorId, colors.id))
       .leftJoin(fabrics, eq(products.fabricId, fabrics.id))
-      .leftJoin(productActualPrices, eq(products.id, productActualPrices.productId))
+      .leftJoin(
+        productActualPrices,
+        eq(products.id, productActualPrices.productId),
+      )
       .leftJoin(storeInventory, eq(products.id, storeInventory.productId))
       .leftJoin(stores, eq(storeInventory.storeId, stores.id))
       .where(whereClause)
@@ -864,10 +879,10 @@ export class productRepository implements IproductRepository {
       .offset(offset);
 
     const productMap = new Map<string, any>();
-    
+
     for (const row of result) {
       const productId = row.product.id;
-      
+
       if (!productMap.has(productId)) {
         productMap.set(productId, {
           ...row.product,
@@ -879,7 +894,7 @@ export class productRepository implements IproductRepository {
           storeAllocations: [],
         });
       }
-      
+
       // Add store allocation if it exists
       if (row.storeInventory.storeId) {
         const product = productMap.get(productId);
@@ -894,14 +909,14 @@ export class productRepository implements IproductRepository {
     // Calculate unallocated stock and format final result
     const productList = Array.from(productMap.values()).map((product) => {
       const totalStoreStock = product.storeAllocations.reduce(
-        (sum:any, alloc:any) => sum + alloc.quantity,
+        (sum: any, alloc: any) => sum + alloc.quantity,
         0,
       );
       const unallocated = Math.max(
         0,
         product.totalStock - product.onlineStock - totalStoreStock,
       );
-      
+
       return {
         ...product,
         unallocated,

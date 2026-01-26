@@ -75,6 +75,7 @@ const InventoryStoreOrders = lazy(
 ); // Added new page
 const DamageReport = lazy(() => import("@/pages/inventory/DamageReport"));
 const DamageHistory = lazy(() => import("@/pages/inventory/DamageHistory"));
+const InventoryStockMovements = lazy(() => import("@/pages/inventory/StockMovements"));
 
 const StoreLogin = lazy(() => import("@/pages/store/Login"));
 const StoreDashboard = lazy(() => import("@/pages/store/Dashboard"));
@@ -202,6 +203,7 @@ function Router() {
                 <Route path="damage-report" element={<DamageReport />} />
                 <Route path="damage-report/:sku" element={<DamageReport />} />
                 <Route path="damage-history" element={<DamageHistory />} />
+                <Route path="stock-movements" element={<InventoryStockMovements />} />
               </Route>
             </Route>
           </Route>

@@ -65,6 +65,7 @@ import { userService } from "./auth/authStorage";
 import { orderService } from "./order/orderStorage";
 import { storeService } from "./store/storeStorage";
 import { productService } from "./product/productStorage";
+
 export type ReviewWithUser = Omit<
   typeof productReviews.$inferSelect,
   "userId"
@@ -74,6 +75,11 @@ export type ReviewWithUser = Omit<
     name: string;
   };
 };
+
+export interface StockMovementWithDetails extends StockMovement {
+  productName?: string;
+  storeName?: string;
+}
 
 export interface IStorage {
   getAllOrders(filters?: {
@@ -277,7 +283,7 @@ export interface IStorage {
     source?: string;
     productId?: string;
     limit?: number;
-  }): Promise<StockMovement[]>;
+  }): Promise<StockMovementWithDetails[]>;
 
   // Item status history tracking
   itemHistory(
@@ -1337,7 +1343,7 @@ export class DatabaseStorage implements IStorage {
     source?: string;
     productId?: string;
     limit?: number;
-  }): Promise<StockMovement[]> {
+  }): Promise<StockMovementWithDetails[]> {
     const conditions = [];
 
     if (filters?.source) {
@@ -1349,14 +1355,28 @@ export class DatabaseStorage implements IStorage {
       conditions.push(eq(stockMovements.productId, filters.productId));
     }
 
-    let query = db
-      .select()
+    const query = db
+      .select({
+        id: stockMovements.id,
+        productId: stockMovements.productId,
+        quantity: stockMovements.quantity,
+        movementType: stockMovements.movementType,
+        source: stockMovements.source,
+        orderRefId: stockMovements.orderRefId,
+        storeId: stockMovements.storeId,
+        notes: stockMovements.notes,
+        createdAt: stockMovements.createdAt,
+        productName: products.name,
+        storeName: stores.name || undefined,
+      })
       .from(stockMovements)
+      .innerJoin(products, eq(stockMovements.productId, products.id))
+      .leftJoin(stores, eq(stockMovements.storeId, stores.id))
       .where(conditions.length > 0 ? and(...conditions) : undefined)
       .orderBy(desc(stockMovements.createdAt));
 
     if (filters?.limit) {
-      query = query.limit(filters.limit) as any;
+      return query.limit(filters.limit) as any;
     }
 
     return query;
