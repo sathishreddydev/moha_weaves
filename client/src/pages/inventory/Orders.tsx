@@ -100,7 +100,7 @@ export default function InventoryOrders() {
         `/api/inventory/orders/${orderId}/items/${itemId}/status`,
         { status }
       );
-      return response.json();
+      return response;
     },
     onSuccess: () => {
       refetch();
@@ -124,7 +124,7 @@ export default function InventoryOrders() {
         `/api/inventory/orders/${orderId}/status`,
         { status }
       );
-      return response.json();
+      return response;
     },
     onSuccess: () => {
       refetch();

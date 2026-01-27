@@ -99,8 +99,7 @@ export function useDataTable<T>({
   }, [queryKey, queryParams]);
   const queryFn = useCallback(async (): Promise<PaginatedResponse<T>> => {
     const res = await apiRequest(method, url, requestBody);
-    if (!res.ok) throw new Error("Failed to fetch data");
-    return res.json();
+    return res;
   }, [url, requestBody]);
 
   const { data, isLoading, isFetching, error, refetch } = useQuery<

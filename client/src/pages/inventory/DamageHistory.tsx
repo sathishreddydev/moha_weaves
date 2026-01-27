@@ -114,11 +114,8 @@ export default function DamageHistory() {
       if (filters.status && filters.status !== "all") params.append('status', filters.status);
       if (filters.limit) params.append('limit', filters.limit);
 
-      const response = await fetch(`/api/inventory/damages?${params}`);
-      if (!response.ok) {
-        throw new Error("Failed to fetch damages");
-      }
-      return response.json();
+      const response = await apiRequest("GET", `/api/inventory/damages?${params}`);
+      return response;
     },
     enabled: !!user && (user.role === "inventory" || user.role === "admin"),
   });
@@ -128,8 +125,7 @@ export default function DamageHistory() {
     queryKey: ["/api/inventory/getProducts"],
     queryFn: async () => {
       const response = await apiRequest("POST", "/api/inventory/getProducts", {});
-      const result = await response.json();
-      return result.data;
+      return response.data;
     },
     enabled: !!user && (user.role === "inventory"),
   });
@@ -138,11 +134,8 @@ export default function DamageHistory() {
   const { data: analytics } = useQuery<DamageAnalytics>({
     queryKey: ["/api/inventory/damage-analytics"],
     queryFn: async () => {
-      const response = await fetch("/api/inventory/damage-analytics");
-      if (!response.ok) {
-        throw new Error("Failed to fetch analytics");
-      }
-      return response.json();
+      const response = await apiRequest("GET", "/api/inventory/damage-history");
+      return response;
     },
     enabled: !!user && (user.role === "inventory" || user.role === "admin"),
   });

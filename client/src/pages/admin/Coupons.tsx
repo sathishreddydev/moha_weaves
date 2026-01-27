@@ -123,7 +123,7 @@ export default function AdminCoupons() {
         perUserLimit: data.perUserLimit ? parseInt(data.perUserLimit) : 1,
         expiresAt: data.expiresAt || null,
       });
-      return response.json();
+      return response;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/admin/coupons"] });
@@ -150,7 +150,7 @@ export default function AdminCoupons() {
         perUserLimit: data.perUserLimit ? parseInt(data.perUserLimit) : 1,
         expiresAt: data.expiresAt || null,
       });
-      return response.json();
+      return response;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/admin/coupons"] });

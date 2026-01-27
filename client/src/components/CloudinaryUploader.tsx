@@ -86,13 +86,7 @@ export function CloudinaryUploader({
 
         const response = await apiRequest("POST", "/api/uploads/cloudinary", formData);
 
-        if (!response.ok) {
-          const errorData = await response.json().catch(() => ({}));
-          throw new Error(errorData.error || "Upload failed");
-        }
-
-        const data = await response.json();
-        uploadedUrls.push(data.url);
+        uploadedUrls.push(response.url);
       }
 
       onComplete?.(uploadedUrls);

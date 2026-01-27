@@ -138,7 +138,7 @@ export default function InventoryExchanges() {
         `/api/inventory/online-exchanges/${id}/status`,
         { status, inspectionNotes: notes }
       );
-      return response.json();
+      return response;
     },
     onSuccess: () => {
       refetch();

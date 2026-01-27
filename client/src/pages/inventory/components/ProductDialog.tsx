@@ -117,7 +117,7 @@ export const ProductDialog = ({
                         quantity: a.quantity,
                     })),
             });
-            return response.json();
+            return response;
         },
         onSuccess: () => {
             refetch();
@@ -157,7 +157,7 @@ export const ProductDialog = ({
                         })),
                 },
             );
-            return response.json();
+            return response;
         },
         onSuccess: () => {
             refetch();

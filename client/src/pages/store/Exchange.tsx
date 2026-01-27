@@ -123,11 +123,8 @@ export default function StoreExchange() {
   } = useQuery<StoreSaleWithItems>({
     queryKey: ["/api/store/sales", selectedSaleId],
     queryFn: async () => {
-      const response = await fetch(`/api/store/sales/${selectedSaleId}`, {
-        credentials: "include",
-      });
-      if (!response.ok) throw new Error("Sale not found");
-      return response.json();
+      const response = await apiRequest("GET", `/api/store/sales/${selectedSaleId}`);
+      return response;
     },
     enabled: !!selectedSaleId && !!user && user.role === "store",
   });
@@ -172,7 +169,7 @@ export default function StoreExchange() {
         "/api/store/store-exchanges",
         data,
       );
-      return response.json();
+      return response;
     },
     onSuccess: async (data) => {
       queryClient.invalidateQueries({
@@ -218,14 +215,7 @@ export default function StoreExchange() {
         setIsSearching(true);
         setShowSearchResults(true);
         try {
-          const response = await fetch(
-            `/api/store/sales/search?query=${encodeURIComponent(saleIdInput.trim())}`,
-            {
-              credentials: "include",
-            },
-          );
-          if (!response.ok) throw new Error("Search failed");
-          const results = await response.json();
+          const results = await apiRequest("GET", `/api/store_customers/search?q=${encodeURIComponent(saleIdInput.trim())}`);
           setSearchResults(results);
         } catch (error) {
           toast({

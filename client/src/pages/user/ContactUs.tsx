@@ -6,6 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Mail, Phone, MapPin, Clock, Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { apiRequest } from "@/lib/queryClient";
 
 export default function ContactUs() {
   const [formData, setFormData] = useState({
@@ -31,31 +32,7 @@ export default function ContactUs() {
     setIsSubmitting(true);
 
     try {
-      const response = await fetch('/api/contact', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(formData),
-      });
-
-      const result = await response.json();
-
-      if (!response.ok) {
-        if (result.errors && result.errors.length > 0) {
-          // Show validation errors
-          result.errors.forEach((error: any) => {
-            toast({
-              title: "Validation Error",
-              description: error.message,
-              variant: "destructive",
-            });
-          });
-        } else {
-          throw new Error(result.message || 'Failed to submit form');
-        }
-        return;
-      }
+      const result = await apiRequest("POST", "/api/contact", formData);
 
       // Success
       toast({

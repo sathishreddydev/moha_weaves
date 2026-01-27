@@ -70,7 +70,7 @@ export default function InventoryOrderDetail() {
         `/api/inventory/orders/${orderId}/tracking`,
         { trackingNumber: value }
       );
-      return response.json();
+      return response;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/inventory/orders", id] });

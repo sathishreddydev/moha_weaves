@@ -28,14 +28,14 @@ export default function Refunds() {
     queryFn: async () => {
       const params = statusFilter !== "all" ? `?status=${statusFilter}` : "";
       const response = await apiRequest("GET", `/api/inventory/refunds${params}`);
-      return response.json();
+      return response;
     },
   });
 
   const processRefundMutation = useMutation({
     mutationFn: async ({ id, status }: { id: string; status: string }) => {
       const response = await apiRequest("PATCH", `/api/inventory/refunds/${id}/process`, { status });
-      return response.json();
+      return response;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/inventory/refunds"], exact: false });
@@ -49,7 +49,7 @@ export default function Refunds() {
         "POST",
         `/api/inventory/refunds/${id}/check-status`
       );
-      return response.json();
+      return response;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/inventory/refunds"], exact: false });

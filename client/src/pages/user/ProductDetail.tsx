@@ -62,7 +62,7 @@ export default function ProductDetail() {
         category: [product?.categoryId],
         limit: 4,
       });
-      return response.json();
+      return response;
     },
   });
   const cartItems = useCartStore((state) => state.cart);
@@ -90,9 +90,8 @@ export default function ProductDetail() {
   }>({
     queryKey: ["/api/products", id, "reviews"],
     queryFn: async () => {
-      const res = await fetch(`/api/products/${id}/reviews`);
-      if (!res.ok) throw new Error("Failed to fetch reviews");
-      return res.json();
+      const response = await apiRequest("GET", `/api/products/${id}/reviews`);
+      return response;
     },
   });
   const formatPrice = (price: string | number) => {

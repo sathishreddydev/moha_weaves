@@ -92,7 +92,7 @@ export default function AdminStaff() {
   const createMutation = useMutation({
     mutationFn: async (data: StaffFormData) => {
       const response = await apiRequest("POST", "/api/admin/users", data);
-      return response.json();
+      return response;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/admin/getUsers"] });
@@ -128,7 +128,7 @@ export default function AdminStaff() {
         `/api/admin/users/${id}`,
         payload
       );
-      return response.json();
+      return response;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/admin/getUsers"] });
@@ -150,7 +150,7 @@ export default function AdminStaff() {
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
       const response = await apiRequest("DELETE", `/api/admin/users/${id}`);
-      return response.json();
+      return response;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/admin/getUsers"] });

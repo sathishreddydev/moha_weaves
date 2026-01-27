@@ -21,7 +21,7 @@ export default function Home() {
         sort: "featured",
         limit: 8,
       });
-      return response.json();
+      return response;
     },
   });
 
@@ -34,7 +34,7 @@ export default function Home() {
         sort: "newest",
         limit: 4,
       });
-      return response.json();
+      return response;
     },
   });
 

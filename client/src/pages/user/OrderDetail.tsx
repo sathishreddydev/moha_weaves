@@ -73,13 +73,7 @@ export default function OrderDetail() {
       if (!order?.items) return [];
       const idsSet = new Set(order.items.map((it) => it.product.id));
       const ids = Array.from(idsSet);
-      const res = await fetch("/api/getProducts", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ids }),
-      });
-      if (!res.ok) throw new Error("Failed to fetch stock");
-      const data = await res.json();
+      const data = await apiRequest("POST", "/api/products/stock-check", { ids });
       return data.map((s: any) => ({ id: s.id, stock: Number(s.onlineStock) || 0 }));
     },
     enabled: !!order?.items,
@@ -139,10 +133,10 @@ export default function OrderDetail() {
     mutationFn: async (data: any) => {
       if (data.resolution === "exchange") {
         const response = await apiRequest("POST", "/api/user/online-exchanges", data);
-        return response.json();
+        return response;
       } else {
         const response = await apiRequest("POST", "/api/user/returns", data);
-        return response.json();
+        return response;
       }
     },
     onSuccess: (data, variables) => {

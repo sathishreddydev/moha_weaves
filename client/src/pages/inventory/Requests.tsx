@@ -109,7 +109,7 @@ export default function InventoryRequests() {
         `/api/inventory/requests/${id}/status`,
         { status, rejectionReason }
       );
-      return response.json();
+      return response;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/inventory/requests"] });

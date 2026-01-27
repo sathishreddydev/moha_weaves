@@ -25,6 +25,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Progress } from "@/components/ui/progress";
 import { useAuth } from "@/lib/auth";
 import { useQuery } from "@tanstack/react-query";
+import { apiRequest } from "@/lib/queryClient";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Table,
@@ -117,9 +118,9 @@ export default function StoreDashboard() {
     enabled: !!user && user.role === "store",
     queryFn: async () => {
       const [stats, recentSales, lowStockProducts] = await Promise.all([
-        fetch("/api/store/stats").then((res) => res.json()),
-        fetch("/api/store/sales/recent").then((res) => res.json()),
-        fetch("/api/store/products/low-stock").then((res) => res.json()),
+        apiRequest("GET", "/api/store/stats"),
+        apiRequest("GET", "/api/store/sales/recent"),
+        apiRequest("GET", "/api/store/products/low-stock"),
       ]);
       return { stats, recentSales, lowStockProducts };
     },

@@ -86,7 +86,7 @@ export function ObjectUploader({
           fileName: file.name,
           contentType: file.type,
         });
-        const { uploadURL, objectPath, uploadToken } = await presignedResponse.json();
+        const { uploadURL, objectPath, uploadToken } = presignedResponse;
 
         const uploadResponse = await fetch(uploadURL, {
           method: "PUT",
@@ -106,11 +106,11 @@ export function ObjectUploader({
         });
         
         if (!confirmResponse.ok) {
-          const errorData = await confirmResponse.json().catch(() => ({}));
+          const errorData = confirmResponse || {};
           throw new Error(errorData.error || "Failed to confirm upload");
         }
         
-        const confirmData = await confirmResponse.json();
+        const confirmData = confirmResponse;
         uploadedUrls.push(confirmData.objectPath);
       }
 

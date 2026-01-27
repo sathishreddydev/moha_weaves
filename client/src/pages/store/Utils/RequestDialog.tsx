@@ -32,7 +32,7 @@ export const RequestDialog = ({
       notes: string;
     }) => {
       const response = await apiRequest("POST", "/api/store/requests", data);
-      return response.json();
+      return response;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/store/requests"] });

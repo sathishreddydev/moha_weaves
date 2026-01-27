@@ -14,6 +14,7 @@ import {
 } from "@/components/ui/select";
 import { ProductCard } from "@/components/product/ProductCard";
 import { useQuery } from "@tanstack/react-query";
+import { apiRequest } from "@/lib/queryClient";
 import type { ProductWithDetails } from "@shared/schema";
 import { useFilterStore } from "@/components/Store/useFilterStore";
 import { CheckedState } from "@radix-ui/react-checkbox";
@@ -285,12 +286,8 @@ export default function products() {
         maxPrice: filters.priceRange.max,
       };
       
-      const res = await fetch("/api/getProducts", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(apiFilters),
-      });
-      return res.json();
+      const response = await apiRequest("POST", "/api/getProducts", apiFilters);
+      return response;
     },
     placeholderData: (previousData) => previousData,
   });

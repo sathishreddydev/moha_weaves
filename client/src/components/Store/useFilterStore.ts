@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import { produce } from "immer";
 import { Category, Color, Fabric, Subcategory, CategoryWithSubcategories } from "@shared/schema";
+import { apiRequest } from "@/lib/queryClient";
 
 type FilterState = {
   categories: CategoryWithSubcategories[];
@@ -28,10 +29,7 @@ export const useFilterStore = create<FilterState>((set) => ({
         })
       );
 
-      const res = await fetch("/api/filters");
-      if (!res.ok) throw new Error();
-
-      const data = await res.json();
+      const data = await apiRequest("GET", "/api/filters");
 
       set(
         produce((state: FilterState) => {

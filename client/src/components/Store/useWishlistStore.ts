@@ -26,8 +26,7 @@ export const useWishlistStore = create<WishlistState>((set, get) => ({
   getWishlist: async () => {
     set({ isLoadingWishlist: true });
     try {
-      const res = await apiRequest("GET", "/api/user/wishlist");
-      const data = await res.json();
+      const data = await apiRequest("GET", "/api/user/wishlist");
       set({ wishlist: data.wishlist, count: data.count });
     } catch (err) {
       toast({
@@ -43,8 +42,7 @@ export const useWishlistStore = create<WishlistState>((set, get) => ({
   addItem: async (productId) => {
     set({ isAddingItem: true });
     try {
-      const res = await apiRequest("POST", "/api/user/wishlist", { productId });
-      const data = await res.json();
+      const data = await apiRequest("POST", "/api/user/wishlist", { productId });
       set({ wishlist: data.wishlist, count: data.count });
       toast({ title: "Added", description: "Item added to wishlist." });
     } catch (err) {
@@ -61,8 +59,7 @@ export const useWishlistStore = create<WishlistState>((set, get) => ({
   removeItem: async (productId) => {
     set({ isRemovingItem: true });
     try {
-      const res = await apiRequest("DELETE", `/api/user/wishlist/${productId}`);
-      const data = await res.json();
+      const data = await apiRequest("DELETE", `/api/user/wishlist/${productId}`);
       set(
         produce((state) => {
           state.wishlist = state.wishlist.filter(

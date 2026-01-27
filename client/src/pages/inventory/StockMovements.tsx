@@ -81,9 +81,8 @@ export default function StockMovements() {
       }
       params.set("limit", "100"); // Get more data for better filtering
       
-      const res = await apiRequest("GET", `/api/inventory/stock-movements?${params.toString()}`);
-      if (!res.ok) throw new Error("Failed to fetch stock movements");
-      return res.json();
+      const response = await apiRequest("GET", `/api/inventory/stock-movements?${params.toString()}`);
+      return response;
     },
     refetchInterval: 30000, // Refresh every 30 seconds
   });

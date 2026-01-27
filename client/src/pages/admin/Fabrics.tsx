@@ -69,7 +69,7 @@ export default function AdminFabrics() {
   const createMutation = useMutation({
     mutationFn: async (data: typeof formData) => {
       const response = await apiRequest("POST", "/api/admin/fabrics", data);
-      return response.json();
+      return response;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/filters"] });
@@ -88,7 +88,7 @@ export default function AdminFabrics() {
   const updateMutation = useMutation({
     mutationFn: async ({ id, data }: { id: string; data: typeof formData }) => {
       const response = await apiRequest("PATCH", `/api/admin/fabrics/${id}`, data);
-      return response.json();
+      return response;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/filters"] });
@@ -107,7 +107,7 @@ export default function AdminFabrics() {
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
       const response = await apiRequest("DELETE", `/api/admin/fabrics/${id}`);
-      return response.json();
+      return response;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/filters"] });

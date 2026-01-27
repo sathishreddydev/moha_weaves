@@ -71,7 +71,7 @@ export default function StoreRequests() {
         "PATCH",
         `/api/store/requests/${id}/received`,
       );
-      return response.json();
+      return response;
     },
     onSuccess: () => {
       refetch();

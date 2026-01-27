@@ -168,10 +168,9 @@ export default function Cart() {
     }
 
     try {
-      const res = await apiRequest("POST", "/api/store/apply-coupon", {
+      const data = await apiRequest("POST", "/api/store/apply-coupon", {
         code: couponCode,
       });
-      const data = await res.json();
       setDiscount(data.discount);
       toast({
         title: "Coupon Applied",
@@ -263,11 +262,10 @@ export default function Cart() {
   const fetchLoyaltyPoints = async (phone: string) => {
     try {
       setLoyaltyLoading(true);
-      const res = await apiRequest(
+      const data = await apiRequest(
         "GET",
         `/api/store_customers/${phone}/loyalty-points`,
       );
-      const data = await res.json();
       if (data.exists && data.customer) {
         setCustomerName(data.customer.name);
         setExistingCustomer(data.customer);
@@ -321,7 +319,7 @@ export default function Cart() {
     setDisabledCompBtn(true);
 
     try {
-      const res = await apiRequest("POST", "/api/store/checkout", {
+      const data = await apiRequest("POST", "/api/store/checkout", {
         items: cartItems,
         discount,
         loyaltyDiscount:
@@ -337,7 +335,6 @@ export default function Cart() {
         customerName,
         customerPhone,
       });
-      const data = await res.json();
 
       toast({
         title: "Order Completed",

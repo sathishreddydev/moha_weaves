@@ -1,5 +1,6 @@
 import { createContext, useContext, useState, useEffect, useCallback, useRef } from "react";
 import type { User } from "@shared/schema";
+import { apiRequest } from "./queryClient";
 
 interface AuthContextType {
   user: User | null;
@@ -27,17 +28,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     isRefreshing.current = true;
     refreshPromise.current = (async () => {
       try {
-        const res = await fetch("/api/auth/refresh", {
-          method: "POST",
-          credentials: "include",
-        });
-
-        if (!res.ok) {
-          setUser(null);
-          return false;
-        }
-
-        const data = await res.json();
+        const data = await apiRequest("POST", "/api/auth/refresh");
         setUser(data.user);
         return true;
       } catch (err) {

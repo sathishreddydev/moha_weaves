@@ -1,55 +1,65 @@
 import { QueryClient, QueryFunction } from "@tanstack/react-query";
+import axios, { AxiosError } from "axios";
 
-async function throwIfResNotOk(res: Response) {
-  if (!res.ok) {
-    let errorMessage = `${res.status}: ${res.statusText}`;
-    let errorData: any = {};
+// Create axios instance with default configuration
+export const api = axios.create({
+  baseURL: import.meta.env.VITE_API_URL || '',
+  withCredentials: true,
+  headers: {
+    'Content-Type': 'application/json',
+  },
+});
+
+async function throwIfResNotOk(error: any) {
+  if (error instanceof AxiosError) {
+    const errorMessage = error.response?.data?.message || 
+                        error.response?.data?.error || 
+                        error.message || 
+                        `${error.response?.status}: ${error.response?.statusText}`;
     
-    try {
-      const text = await res.text();
-      if (text) {
-        try {
-          errorData = JSON.parse(text);
-          errorMessage = errorData.message || text;
-        } catch {
-          errorMessage = `${res.status}: ${text}`;
-        }
-      }
-    } catch {
-      // Fallback to status text
-    }
-    
-    const error = new Error(errorMessage);
-    (error as any).data = errorData;
-    throw error;
+    const customError = new Error(errorMessage);
+    (customError as any).data = error.response?.data || {};
+    (customError as any).status = error.response?.status;
+    throw customError;
   }
+  throw error;
 }
 
 export async function apiRequest(
   method: string,
   url: string,
-  data?: any,
-  options: RequestInit = {}
-): Promise<Response> {
-  const isFormData = data instanceof FormData;
-  const headers: HeadersInit = {
-    ...(isFormData ? {} : { "Content-Type": "application/json" }),
-    ...options.headers,
-  };
+  reqBody?: any,
+  options: any = {}
+): Promise<any> {
+  try {
+    const isFormData = reqBody instanceof FormData;
+    
+    // Configure axios request
+    const config: any = {
+      method,
+      url,
+      ...options,
+    };
 
-  // Remove Content-Type header if it was set in options for FormData
-  if (isFormData && options.headers) {
-    const optionsHeaders = options.headers as Record<string, string>;
-    delete optionsHeaders["Content-Type"];
+    // Handle data/body
+    if (reqBody) {
+      if (isFormData) {
+        config.data = reqBody;
+        config.headers = {
+          ...config.headers,
+          'Content-Type': 'multipart/form-data',
+        };
+      } else {
+        config.data = reqBody;
+      }
+    }
+
+    const response = await api.request(config);
+    return response.data;
+  } catch (error) {
+    await throwIfResNotOk(error);
+    throw error;
   }
-
-  return fetch(url, {
-    method,
-    headers,
-    body: data ? (isFormData ? data : JSON.stringify(data)) : undefined,
-    credentials: "include",
-    ...options,
-  });
 }
 
 type UnauthorizedBehavior = "returnNull" | "throw";
@@ -58,16 +68,16 @@ export const getQueryFn: <T>(options: {
 }) => QueryFunction<T> =
   ({ on401: unauthorizedBehavior }) =>
   async ({ queryKey }) => {
-    const res = await fetch(queryKey.join("/") as string, {
-      credentials: "include",
-    });
-
-    if (unauthorizedBehavior === "returnNull" && res.status === 401) {
-      return null;
+    try {
+      const response = await api.get(queryKey.join("/") as string);
+      return response.data;
+    } catch (error) {
+      if (error instanceof AxiosError && unauthorizedBehavior === "returnNull" && error.response?.status === 401) {
+        return null;
+      }
+      await throwIfResNotOk(error);
+      throw error;
     }
-
-    await throwIfResNotOk(res);
-    return await res.json();
   };
 
 export const queryClient = new QueryClient({

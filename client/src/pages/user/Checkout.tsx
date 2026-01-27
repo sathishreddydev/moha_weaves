@@ -93,7 +93,7 @@ export default function Checkout() {
         code,
         orderAmount: subtotal,
       });
-      return response.json();
+      return response;
     },
     onSuccess: (data: {
       valid: boolean;
@@ -163,8 +163,7 @@ export default function Checkout() {
     let pincodeData;
     try {
       setCheckingPincode(true);
-      const res = await fetch(`/api/pincodes/${pincode}/check`);
-      pincodeData = await res.json();
+      const pincodeData = await apiRequest("GET", `/api/pincodes/${pincode}/check`);
       setCheckingPincode(false);
 
       if (!pincodeData.available) {
@@ -226,7 +225,7 @@ export default function Checkout() {
           couponId: params.couponId,
         });
 
-        const data = await res.json();
+        const data = res;
 
         toast({
           title: "Payment Success!",
@@ -273,10 +272,9 @@ export default function Checkout() {
     const shippingAddress = `${selectedAddress.name}\n${selectedAddress.phone}\n${selectedAddress.locality}\n${selectedAddress.city} - ${selectedAddress.pincode}`;
 
     try {
-      const res = await apiRequest("POST", "/api/user/create-razorpay-order", {
+      const razorpayOrder = await apiRequest("POST", "/api/user/create-razorpay-order", {
         couponId: appliedCoupon?.id,
       });
-      const razorpayOrder = await res.json();
 
       openRazorpayCheckout({
         razorpayOrderId: razorpayOrder.razorpayOrderId,

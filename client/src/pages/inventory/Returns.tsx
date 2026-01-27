@@ -128,7 +128,7 @@ export default function InventoryReturns() {
         `/api/inventory/returns/${id}/status`,
         { status, inspectionNotes: notes }
       );
-      return response.json();
+      return response;
     },
     onSuccess: () => {
       refetch();

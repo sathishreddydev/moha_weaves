@@ -36,8 +36,7 @@ export default function Invoice() {
 
       setLoading(true);
       try {
-        const res = await apiRequest("GET", `/api/store/receipt/${saleId}`);
-        const data = await res.json();
+        const data = await apiRequest("GET", `/api/store/receipt/${saleId}`);
         setInvoiceData(data);
       } catch (error) {
         console.error("Error fetching invoice data:", error);

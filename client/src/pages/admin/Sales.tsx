@@ -98,8 +98,7 @@ export default function AdminSales() {
     queryKey: ["/api/admin/getProducts"],
     queryFn: async () => {
       const response = await apiRequest("POST", "/api/admin/getProducts", {});
-      const result = await response.json();
-      return result;
+      return response;
     },
     enabled: !!user && user.role === "admin",
   });
@@ -119,7 +118,7 @@ export default function AdminSales() {
   const createMutation = useMutation({
     mutationFn: async (data: SaleFormData) => {
       const response = await apiRequest("POST", "/api/admin/sales", data);
-      return response.json();
+      return response;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/admin/sales"] });
@@ -151,7 +150,7 @@ export default function AdminSales() {
   const updateMutation = useMutation({
     mutationFn: async ({ id, data }: { id: string; data: SaleFormData }) => {
       const response = await apiRequest("PATCH", `/api/admin/sales/${id}`, data);
-      return response.json();
+      return response;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/admin/sales"] });
@@ -251,10 +250,9 @@ export default function AdminSales() {
         categoryId: formData.categoryId,
         productIds: formData.productIds
       });
-      const result = await response.json();
       
-      if (result.hasConflict) {
-        const conflictList = result.conflictingSales.map((sale: any) => 
+      if (response.hasConflict) {
+        const conflictList = response.conflictingSales.map((sale: any) => 
           `• "${sale.name}" (${sale.offerType})`
         ).join('\n');
         setConflictWarning(`Warning: This will conflict with existing sales:\n${conflictList}`);

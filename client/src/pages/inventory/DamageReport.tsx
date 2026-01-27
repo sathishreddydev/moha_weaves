@@ -65,9 +65,8 @@ export default function DamageReport() {
   const { data: products = [], isLoading: productsLoading, error: productsError } = useQuery({
     queryKey: ["/api/inventory/getProducts"],
     queryFn: async () => {
-      const response = await apiRequest("POST", "/api/inventory/getProducts", {});
-      const result = await response.json();
-      return result.data || result; // Handle different response structures
+      const response = await apiRequest("POST", "/api/inventory/getProducts", { page: 1, pageSize: 10 });
+      return response;
     },
     enabled: !!user && (user.role === "inventory" || user.role === "admin") && !sku,
     retry: 2,
@@ -79,7 +78,7 @@ export default function DamageReport() {
     queryFn: async () => {
       if (!sku) return null;
       const response = await apiRequest("GET", `/api/inventory/product-by-sku/${sku}`);
-      return response.json();
+      return response;
     },
     enabled: !!user && (user.role === "inventory" || user.role === "admin") && !!sku,
     retry: 2,
@@ -107,20 +106,8 @@ export default function DamageReport() {
   // Report damage mutation
   const reportDamageMutation = useMutation({
     mutationFn: async (data: any) => {
-      const response = await fetch("/api/inventory/damages", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(data),
-      });
-
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.message || "Failed to report damage");
-      }
-
-      return response.json();
+      const response = await apiRequest("POST", "/api/inventory/damages", data);
+      return response;
     },
     onSuccess: () => {
       toast({
@@ -145,10 +132,10 @@ export default function DamageReport() {
     },
     onError: (error: any) => {
       console.error("Damage report error:", error);
-      
+
       // Parse detailed error messages from backend
       let errorMessage = "Failed to report damage";
-      
+
       if (error.message) {
         if (error.message.includes("Stock reduction failed for allocations")) {
           // Extract individual allocation errors
@@ -163,7 +150,7 @@ export default function DamageReport() {
           errorMessage = error.message;
         }
       }
-      
+
       toast({
         title: "Error",
         description: errorMessage,
@@ -189,7 +176,7 @@ export default function DamageReport() {
     // Validate stock reductions
     const stockReductions = formData.stockReductions;
     const totalReductions = Object.values(stockReductions).reduce((sum, qty) => sum + (parseInt(qty) || 0), 0);
-    
+
     if (totalReductions === 0) {
       toast({
         title: "Validation Error",
@@ -368,306 +355,306 @@ export default function DamageReport() {
                 )}
               </div>
 
-            {/* Damage Details */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="source">Damage Source *</Label>
-                <Select
-                  value={formData.source}
-                  onValueChange={(value) => setFormData({ ...formData, source: value })}
-                  disabled={!formData.productId}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder={formData.productId ? "Select source" : "Select product first"} />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {damageSources.map((source) => (
-                      <SelectItem key={source.value} value={source.value}>
-                        {source.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+              {/* Damage Details */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="source">Damage Source *</Label>
+                  <Select
+                    value={formData.source}
+                    onValueChange={(value) => setFormData({ ...formData, source: value })}
+                    disabled={!formData.productId}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder={formData.productId ? "Select source" : "Select product first"} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {damageSources.map((source) => (
+                        <SelectItem key={source.value} value={source.value}>
+                          {source.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="damageCategory">Damage Category *</Label>
+                  <Select
+                    value={formData.damageCategory}
+                    onValueChange={(value) => setFormData({ ...formData, damageCategory: value })}
+                    disabled={!formData.productId}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder={formData.productId ? "Select category" : "Select product first"} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {damageCategories.map((category) => (
+                        <SelectItem key={category.value} value={category.value}>
+                          {category.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="damageSeverity">Severity *</Label>
+                  <Select
+                    value={formData.damageSeverity}
+                    onValueChange={(value) => setFormData({ ...formData, damageSeverity: value })}
+                    disabled={!formData.productId}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder={formData.productId ? "Select severity" : "Select product first"} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {damageSeverities.map((severity) => (
+                        <SelectItem key={severity.value} value={severity.value}>
+                          {severity.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="damageCategory">Damage Category *</Label>
-                <Select
-                  value={formData.damageCategory}
-                  onValueChange={(value) => setFormData({ ...formData, damageCategory: value })}
-                  disabled={!formData.productId}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder={formData.productId ? "Select category" : "Select product first"} />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {damageCategories.map((category) => (
-                      <SelectItem key={category.value} value={category.value}>
-                        {category.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+              {/* Stock Allocation */}
+              <div className="space-y-4">
+                <h3 className="text-lg font-medium">Stock Allocation</h3>
+                <div className="space-y-2">
+                  <Label htmlFor="allocationType">Allocation Type *</Label>
+                  <Select
+                    value={formData.allocationType}
+                    onValueChange={(value) => setFormData({ ...formData, allocationType: value, stockReductions: {} as StockReductions })}
+                    disabled={!formData.productId}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder={formData.productId ? "Select allocation type" : "Select product first"} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="online">Online Stock Only</SelectItem>
+                      <SelectItem value="store">Store Stock Only</SelectItem>
+                      <SelectItem value="both">Online + Store Stock</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="damageSeverity">Severity *</Label>
-                <Select
-                  value={formData.damageSeverity}
-                  onValueChange={(value) => setFormData({ ...formData, damageSeverity: value })}
-                  disabled={!formData.productId}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder={formData.productId ? "Select severity" : "Select product first"} />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {damageSeverities.map((severity) => (
-                      <SelectItem key={severity.value} value={severity.value}>
-                        {severity.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
+                {/* Dynamic Stock Input Fields */}
+                {selectedProduct && formData.allocationType && (
+                  <div className="space-y-4">
+                    <h4 className="text-md font-medium">Enter Damage Quantities</h4>
 
-            {/* Stock Allocation */}
-            <div className="space-y-4">
-              <h3 className="text-lg font-medium">Stock Allocation</h3>
-              <div className="space-y-2">
-                <Label htmlFor="allocationType">Allocation Type *</Label>
-                <Select
-                  value={formData.allocationType}
-                  onValueChange={(value) => setFormData({ ...formData, allocationType: value, stockReductions: {} as StockReductions })}
-                  disabled={!formData.productId}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder={formData.productId ? "Select allocation type" : "Select product first"} />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="online">Online Stock Only</SelectItem>
-                    <SelectItem value="store">Store Stock Only</SelectItem>
-                    <SelectItem value="both">Online + Store Stock</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              {/* Dynamic Stock Input Fields */}
-              {selectedProduct && formData.allocationType && (
-                <div className="space-y-4">
-                  <h4 className="text-md font-medium">Enter Damage Quantities</h4>
-                  
-                  {/* Online Stock Input */}
-                  {(formData.allocationType === "online" || formData.allocationType === "both") && (
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div className="space-y-2">
-                        <Label htmlFor="onlineStock">Online Stock</Label>
-                        <Input
-                          id="onlineStock"
-                          type="number"
-                          min="0"
-                          placeholder="0"
-                          value={formData.stockReductions?.online || ""}
-                          onChange={(e) => setFormData({ 
-                            ...formData, 
-                            stockReductions: { 
-                              ...formData.stockReductions, 
-                              online: e.target.value 
-                            } as StockReductions
-                          })}
-                          disabled={!formData.productId}
-                          className={
-                            (() => {
-                              const qty = parseInt(formData.stockReductions?.online) || 0;
-                              const maxStock = selectedProduct.onlineStock || 0;
-                              return qty > maxStock ? "border-red-500 focus:border-red-500" : "";
-                            })()
-                          }
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label>Available Online Stock</Label>
-                        <div className="p-2 bg-gray-50 rounded border">
-                          <p className="text-sm font-medium">{selectedProduct.onlineStock || 0} units</p>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Store Stock Inputs */}
-                  {(formData.allocationType === "store" || formData.allocationType === "both") && 
-                    selectedProduct.storeAllocations?.map((store: any) => (
-                      <div key={store.storeId} className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {/* Online Stock Input */}
+                    {(formData.allocationType === "online" || formData.allocationType === "both") && (
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div className="space-y-2">
-                          <Label htmlFor={store.storeId}>{store.storeName}</Label>
+                          <Label htmlFor="onlineStock">Online Stock</Label>
                           <Input
-                            id={store.storeId}
+                            id="onlineStock"
                             type="number"
                             min="0"
                             placeholder="0"
-                            value={formData.stockReductions?.[store.storeId] || ""}
-                            onChange={(e) => setFormData({ 
-                              ...formData, 
-                              stockReductions: { 
-                                ...formData.stockReductions, 
-                                [store.storeId]: e.target.value 
+                            value={formData.stockReductions?.online || ""}
+                            onChange={(e) => setFormData({
+                              ...formData,
+                              stockReductions: {
+                                ...formData.stockReductions,
+                                online: e.target.value
                               } as StockReductions
                             })}
                             disabled={!formData.productId}
                             className={
                               (() => {
-                                const qty = parseInt(formData.stockReductions?.[store.storeId]) || 0;
-                                const maxStock = store.quantity || 0;
+                                const qty = parseInt(formData.stockReductions?.online) || 0;
+                                const maxStock = selectedProduct.onlineStock || 0;
                                 return qty > maxStock ? "border-red-500 focus:border-red-500" : "";
                               })()
                             }
                           />
                         </div>
                         <div className="space-y-2">
-                          <Label>Available Stock</Label>
+                          <Label>Available Online Stock</Label>
                           <div className="p-2 bg-gray-50 rounded border">
-                            <p className="text-sm font-medium">{store.quantity || 0} units</p>
+                            <p className="text-sm font-medium">{selectedProduct.onlineStock || 0} units</p>
                           </div>
                         </div>
                       </div>
-                    ))
-                  }
+                    )}
 
-                  {/* Validation Alerts */}
-                  {(() => {
-                    const alerts = [];
-                    
-                    // Online stock validation
-                    if ((formData.allocationType === "online" || formData.allocationType === "both") && formData.stockReductions?.online) {
-                      const qty = parseInt(formData.stockReductions.online) || 0;
-                      const maxStock = selectedProduct.onlineStock || 0;
-                      if (qty > maxStock) {
-                        alerts.push({
-                          type: "online",
-                          message: `Online stock: Cannot reduce ${qty} units. Available: ${maxStock} units.`
-                        });
-                      }
+                    {/* Store Stock Inputs */}
+                    {(formData.allocationType === "store" || formData.allocationType === "both") &&
+                      selectedProduct.storeAllocations?.map((store: any) => (
+                        <div key={store.storeId} className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <div className="space-y-2">
+                            <Label htmlFor={store.storeId}>{store.storeName}</Label>
+                            <Input
+                              id={store.storeId}
+                              type="number"
+                              min="0"
+                              placeholder="0"
+                              value={formData.stockReductions?.[store.storeId] || ""}
+                              onChange={(e) => setFormData({
+                                ...formData,
+                                stockReductions: {
+                                  ...formData.stockReductions,
+                                  [store.storeId]: e.target.value
+                                } as StockReductions
+                              })}
+                              disabled={!formData.productId}
+                              className={
+                                (() => {
+                                  const qty = parseInt(formData.stockReductions?.[store.storeId]) || 0;
+                                  const maxStock = store.quantity || 0;
+                                  return qty > maxStock ? "border-red-500 focus:border-red-500" : "";
+                                })()
+                              }
+                            />
+                          </div>
+                          <div className="space-y-2">
+                            <Label>Available Stock</Label>
+                            <div className="p-2 bg-gray-50 rounded border">
+                              <p className="text-sm font-medium">{store.quantity || 0} units</p>
+                            </div>
+                          </div>
+                        </div>
+                      ))
                     }
 
-                    // Store stock validation
-                    if (formData.allocationType === "store" || formData.allocationType === "both") {
-                      selectedProduct.storeAllocations?.forEach((store: any) => {
-                        const qty = parseInt(formData.stockReductions?.[store.storeId]) || 0;
-                        const maxStock = store.quantity || 0;
+                    {/* Validation Alerts */}
+                    {(() => {
+                      const alerts = [];
+
+                      // Online stock validation
+                      if ((formData.allocationType === "online" || formData.allocationType === "both") && formData.stockReductions?.online) {
+                        const qty = parseInt(formData.stockReductions.online) || 0;
+                        const maxStock = selectedProduct.onlineStock || 0;
                         if (qty > maxStock) {
                           alerts.push({
-                            type: "store",
-                            message: `${store.storeName}: Cannot reduce ${qty} units. Available: ${maxStock} units.`
+                            type: "online",
+                            message: `Online stock: Cannot reduce ${qty} units. Available: ${maxStock} units.`
                           });
                         }
-                      });
-                    }
+                      }
 
-                    return alerts;
-                  })().map((alert, index) => (
-                    <Alert key={index}>
-                      <AlertTriangle className="h-4 w-4" />
-                      <AlertDescription>{alert.message}</AlertDescription>
-                    </Alert>
-                  ))}
+                      // Store stock validation
+                      if (formData.allocationType === "store" || formData.allocationType === "both") {
+                        selectedProduct.storeAllocations?.forEach((store: any) => {
+                          const qty = parseInt(formData.stockReductions?.[store.storeId]) || 0;
+                          const maxStock = store.quantity || 0;
+                          if (qty > maxStock) {
+                            alerts.push({
+                              type: "store",
+                              message: `${store.storeName}: Cannot reduce ${qty} units. Available: ${maxStock} units.`
+                            });
+                          }
+                        });
+                      }
+
+                      return alerts;
+                    })().map((alert, index) => (
+                      <Alert key={index}>
+                        <AlertTriangle className="h-4 w-4" />
+                        <AlertDescription>{alert.message}</AlertDescription>
+                      </Alert>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Reason */}
+              <div className="space-y-2">
+                <Label htmlFor="reason">Reason for Damage *</Label>
+                <Textarea
+                  id="reason"
+                  placeholder="Describe what caused the damage..."
+                  value={formData.reason}
+                  onChange={(e) => setFormData({ ...formData, reason: e.target.value })}
+                  disabled={!formData.productId}
+                  required
+                />
+              </div>
+
+              {/* Financial Information */}
+              <div className="space-y-4">
+                <h3 className="text-lg font-medium">Financial Information (Optional)</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="costValue">Cost Value (₹)</Label>
+                    <Input
+                      id="costValue"
+                      type="number"
+                      step="0.01"
+                      placeholder="0.00"
+                      value={formData.costValue}
+                      onChange={(e) => setFormData({ ...formData, costValue: e.target.value })}
+                      disabled={!formData.productId}
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="recoveryValue">Recovery Value (₹)</Label>
+                    <Input
+                      id="recoveryValue"
+                      type="number"
+                      step="0.01"
+                      placeholder="0.00"
+                      value={formData.recoveryValue}
+                      onChange={(e) => setFormData({ ...formData, recoveryValue: e.target.value })}
+                      disabled={!formData.productId}
+                    />
+                  </div>
                 </div>
-              )}
-            </div>
-
-            {/* Reason */}
-            <div className="space-y-2">
-              <Label htmlFor="reason">Reason for Damage *</Label>
-              <Textarea
-                id="reason"
-                placeholder="Describe what caused the damage..."
-                value={formData.reason}
-                onChange={(e) => setFormData({ ...formData, reason: e.target.value })}
-                disabled={!formData.productId}
-                required
-              />
-            </div>
-
-            {/* Financial Information */}
-            <div className="space-y-4">
-              <h3 className="text-lg font-medium">Financial Information (Optional)</h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="costValue">Cost Value (₹)</Label>
-                  <Input
-                    id="costValue"
-                    type="number"
-                    step="0.01"
-                    placeholder="0.00"
-                    value={formData.costValue}
-                    onChange={(e) => setFormData({ ...formData, costValue: e.target.value })}
-                    disabled={!formData.productId}
-                  />
-                </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="recoveryValue">Recovery Value (₹)</Label>
+                  <Label htmlFor="disposalMethod">Disposal Method</Label>
                   <Input
-                    id="recoveryValue"
-                    type="number"
-                    step="0.01"
-                    placeholder="0.00"
-                    value={formData.recoveryValue}
-                    onChange={(e) => setFormData({ ...formData, recoveryValue: e.target.value })}
+                    id="disposalMethod"
+                    placeholder="e.g., Recycle, Dispose, Return to supplier"
+                    value={formData.disposalMethod}
+                    onChange={(e) => setFormData({ ...formData, disposalMethod: e.target.value })}
                     disabled={!formData.productId}
                   />
                 </div>
               </div>
 
+              {/* Additional Notes */}
               <div className="space-y-2">
-                <Label htmlFor="disposalMethod">Disposal Method</Label>
-                <Input
-                  id="disposalMethod"
-                  placeholder="e.g., Recycle, Dispose, Return to supplier"
-                  value={formData.disposalMethod}
-                  onChange={(e) => setFormData({ ...formData, disposalMethod: e.target.value })}
+                <Label htmlFor="notes">Additional Notes</Label>
+                <Textarea
+                  id="notes"
+                  placeholder="Any additional information about the damage..."
+                  value={formData.notes}
+                  onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
                   disabled={!formData.productId}
                 />
               </div>
-            </div>
 
-            {/* Additional Notes */}
-            <div className="space-y-2">
-              <Label htmlFor="notes">Additional Notes</Label>
-              <Textarea
-                id="notes"
-                placeholder="Any additional information about the damage..."
-                value={formData.notes}
-                onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
-                disabled={!formData.productId}
-              />
-            </div>
-
-            {/* Submit Button */}
-            <div className="flex justify-end gap-4">
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => navigate("/inventory")}
-              >
-                Cancel
-              </Button>
-              <Button
-                type="submit"
-                disabled={reportDamageMutation.isPending || !formData.productId}
-              >
-                {reportDamageMutation.isPending ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Reporting...
-                  </>
-                ) : (
-                  "Report Damage"
-                )}
-              </Button>
-            </div>
-          </form>
-        </CardContent>
-      </Card>
+              {/* Submit Button */}
+              <div className="flex justify-end gap-4">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => navigate("/inventory")}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  type="submit"
+                  disabled={reportDamageMutation.isPending || !formData.productId}
+                >
+                  {reportDamageMutation.isPending ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Reporting...
+                    </>
+                  ) : (
+                    "Report Damage"
+                  )}
+                </Button>
+              </div>
+            </form>
+          </CardContent>
+        </Card>
       )}
     </div>
   );

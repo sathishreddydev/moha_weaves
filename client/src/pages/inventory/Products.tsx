@@ -125,8 +125,7 @@ export default function InventoryProducts() {
   const deleteMutation = useMutation({
     mutationFn: async (ids: string[]) => {
       const res = await apiRequest("DELETE", "/api/inventory/products", { ids });
-      const data = await res.json();
-      return data.ids as string[];
+      return res.ids as string[];
     },
     onSuccess: (deletedIds) => {
       refetch();
@@ -203,11 +202,10 @@ export default function InventoryProducts() {
     });
 
     try {
-      const response = await fetch(
-        `/api/inventory/products/${product.id}/allocations`,
-        { credentials: "include" },
+      const existingAllocations = await apiRequest(
+        "GET",
+        `/api/inventory/products/${product.id}/allocations`
       );
-      const existingAllocations = await response.json();
 
       const allocs =
         stores?.map((s) => {

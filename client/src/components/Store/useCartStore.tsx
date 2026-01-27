@@ -29,8 +29,7 @@ export const useCartStore = create<CartState>((set, get) => ({
   getCart: async () => {
     set({ isLoadingCart: true });
     try {
-      const res = await apiRequest("GET", "/api/user/cart");
-      const data = await res.json();
+      const data = await apiRequest("GET", "/api/user/cart");
       set({ cart: data.cart, count: data.count });
     } catch {
       toast({
@@ -49,11 +48,10 @@ export const useCartStore = create<CartState>((set, get) => ({
     }));
 
     try {
-      const res = await apiRequest("POST", "/api/user/cart", {
+      const data = await apiRequest("POST", "/api/user/cart", {
         productId,
         quantity,
       });
-      const data = await res.json();
       set({ cart: data.cart, count: data.count });
 
       const addedItem = data.cart.find(
@@ -111,10 +109,9 @@ export const useCartStore = create<CartState>((set, get) => ({
 
       if (quantity > cartItem.product.onlineStock) return;
 
-      const res = await apiRequest("PATCH", `/api/user/cart/${id}`, {
+      const data = await apiRequest("PATCH", `/api/user/cart/${id}`, {
         quantity,
       });
-      const data = await res.json();
 
       set(
         produce((state) => {
@@ -165,8 +162,7 @@ export const useCartStore = create<CartState>((set, get) => ({
     try {
       const cartItem = get().cart.find((c) => c.id === id);
 
-      const res = await apiRequest("DELETE", `/api/user/cart/${id}`);
-      const data = await res.json();
+      const data = await apiRequest("DELETE", `/api/user/cart/${id}`);
 
       set(
         produce((state) => {

@@ -71,10 +71,10 @@ export default function ItemOrderDetails() {
           "/api/user/online-exchanges",
           data,
         );
-        return response.json();
+        return response;
       } else {
         const response = await apiRequest("POST", "/api/user/returns", data);
-        return response.json();
+        return response;
       }
     },
     onSuccess: (data, variables) => {
