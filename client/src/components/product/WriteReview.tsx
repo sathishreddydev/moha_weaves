@@ -29,7 +29,7 @@ export function WriteReview({ product }: ReviewsProps) {
         `/api/products/${product.id}/reviews`,
         data
       );
-      return response.json();
+      return response;
     },
     onSuccess: () => {
       toast({ title: "Review submitted successfully" });

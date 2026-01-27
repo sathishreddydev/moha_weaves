@@ -52,9 +52,7 @@ export const useAddressStore = create<AddressStore>((set, get) => ({
   fetchAddresses: async () => {
     set({ fetchLoading: true });
     try {
-      const res = await apiRequest("GET", "/api/user/addresses");
-      if (!res.ok) throw new Error("Failed to fetch addresses");
-      const data = await res.json();
+      const data = await apiRequest("GET", "/api/user/addresses");
       set({ addresses: data });
     } catch (err: any) {
       toast({ title: "Error", description: err.message });
@@ -66,9 +64,7 @@ export const useAddressStore = create<AddressStore>((set, get) => ({
   addAddress: async (address) => {
     set({ addLoading: true });
     try {
-      const res = await apiRequest("POST", "/api/user/addresses", address);
-      if (!res.ok) throw new Error("Failed to add address");
-      const data = await res.json();
+      const data = await apiRequest("POST", "/api/user/addresses", address);
       set({ addresses: data });
       toast({ title: "Success", description: "Address added" });
     } catch (err: any) {
@@ -81,9 +77,7 @@ export const useAddressStore = create<AddressStore>((set, get) => ({
   updateAddress: async (id, data) => {
     set({ updateLoading: true });
     try {
-      const res = await apiRequest("PATCH", `/api/user/addresses/${id}`, data);
-      if (!res.ok) throw new Error("Failed to update address");
-      const updated = await res.json();
+      const updated = await apiRequest("PATCH", `/api/user/addresses/${id}`, data);
       set({ addresses: updated });
       toast({ title: "Success", description: "Address updated" });
     } catch (err: any) {
@@ -117,12 +111,10 @@ export const useAddressStore = create<AddressStore>((set, get) => ({
   setDefaultAddress: async (id) => {
     set({ defaultLoading: true });
     try {
-      const res = await apiRequest(
+      const updated = await apiRequest(
         "PATCH",
         `/api/user/addresses/${id}/default`
       );
-      if (!res.ok) throw new Error("Failed to set default address");
-      const updated = await res.json();
       set({ addresses: updated });
       toast({ title: "Success", description: "Default address updated" });
     } catch (err: any) {
@@ -135,9 +127,7 @@ export const useAddressStore = create<AddressStore>((set, get) => ({
   checkPincode: async (pincode) => {
     set({ pincodeLoading: true, pincodeError: null, pincodeInfo: null });
     try {
-      const res = await apiRequest("GET", `/api/pincodes/${pincode}/check`);
-      if (!res.ok) throw new Error("Failed to check pincode");
-      const data = await res.json();
+      const data = await apiRequest("GET", `/api/pincodes/${pincode}/check`);
       set({ pincodeInfo: data });
 
       if (!data.available) {

@@ -194,7 +194,7 @@ export default function AdminCategories() {
         `/api/admin/categories/${id}`,
         data
       );
-      return response.json();
+      return response;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/admin/categories?includeSubcategories=true"] });
@@ -213,7 +213,7 @@ export default function AdminCategories() {
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
       const response = await apiRequest("DELETE", `/api/admin/categories/${id}`);
-      return response.json();
+      return response;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/admin/categories?includeSubcategories=true"] });

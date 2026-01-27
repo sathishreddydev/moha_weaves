@@ -1,6 +1,7 @@
 import { Storage, File } from "@google-cloud/storage";
 import { Response } from "express";
 import { randomUUID } from "crypto";
+import axios from "axios";
 import {
   ObjectAclPolicy,
   ObjectPermission,
@@ -283,22 +284,21 @@ async function signObjectURL({
     method,
     expires_at: new Date(Date.now() + ttlSec * 1000).toISOString(),
   };
-  const response = await fetch(
+  const response = await axios.post(
     `${MOHASIDECAR_ENDPOINT}/object-storage/signed-object-url`,
+    request,
     {
-      method: "POST",
       headers: {
         "Content-Type": "application/json",
       },
-      body: JSON.stringify(request),
     }
   );
-  if (!response.ok) {
+  if (response.status !== 200) {
     throw new Error(
       `Failed to sign object URL, errorcode: ${response.status}, ` +
         `make sure you're running on moha`
     );
   }
-  const { signed_url: signedURL } = await response.json();
+  const { signed_url: signedURL } = response.data;
   return signedURL;
 }

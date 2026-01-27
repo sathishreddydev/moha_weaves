@@ -9,7 +9,6 @@ interface AuthContextType {
   logout: () => Promise<void>;
   register: (data: any) => Promise<any>;
   changePassword: (currentPassword: string, newPassword: string) => Promise<any>;
-  authFetch: (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>;
 }
 
 const AuthContext = createContext<AuthContextType | null>(null);
@@ -44,49 +43,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
 
-  const authFetch = useCallback(async (input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
-    const makeRequest = () => fetch(input, {
-      ...init,
-      credentials: "include",
-    });
-
-    const res = await makeRequest();
-
-    if (res.status === 401) {
-      const clonedRes = res.clone();
-      try {
-        const data = await clonedRes.json();
-        if (data.code === "TOKEN_EXPIRED" || data.message === "Token expired") {
-          const refreshed = await refreshAccessToken();
-          if (refreshed) {
-            return makeRequest();
-          }
-        }
-      } catch {
-        // JSON parse failed, return original response
-      }
-    }
-
-    return res;
-  }, [refreshAccessToken]);
-
   const checkAuth = useCallback(async () => {
     try {
-      const res = await fetch("/api/auth/me", {
-        credentials: "include",
-      });
-
-      if (res.ok) {
-        const data = await res.json();
-        setUser(data.user);
-        return;
-      }
-
-      // If access token expired → refresh once
-      const refreshed = await refreshAccessToken();
-      if (!refreshed) {
-        setUser(null);
-      }
+      const data = await apiRequest("GET", "/api/auth/me");
+      setUser(data.user);
+      return;
     } catch {
       setUser(null);
     } finally {
@@ -100,23 +61,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const login = async (email: string, password: string, role: string) => {
     try {
-      const res = await fetch(`/api/auth/${role}/login`, {
-        method: "POST",
-        credentials: "include",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ email, password }),
-      });
+      const data = await apiRequest("POST", `/api/auth/${role}/login`, { email, password });
 
-      const data = await res.json();
-
-      if (res.ok) {
-        setUser(data.user);
-        return { success: true };
-      }
-
-      return { success: false, error: data.message };
+      setUser(data.user);
+      return { success: true };
     } catch {
       return { success: false, error: "Network error" };
     }
@@ -125,21 +73,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const register = async (data: any) => {
     try {
-      const res = await fetch("/api/auth/user/register", {
-        method: "POST",
-        credentials: "include",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(data),
-      });
+      const result = await apiRequest("POST", "/api/auth/user/register", data);
 
-      const result = await res.json();
-
-      if (res.ok) {
-        setUser(result.user);
-        return { success: true };
-      }
-
-      return { success: false, error: result.message };
+      setUser(result.user);
+      return { success: true };
     } catch {
       return { success: false, error: "Network error" };
     }
@@ -147,10 +84,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const logout = async () => {
     try {
-      await fetch("/api/auth/logout", {
-        method: "POST",
-        credentials: "include",
-      });
+      await apiRequest("POST", "/api/auth/logout");
     } finally {
       setUser(null);
     }
@@ -159,27 +93,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const changePassword = async (currentPassword: string, newPassword: string) => {
     try {
-      const res = await fetch("/api/auth/change-password", {
-        method: "POST",
-        credentials: "include",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ currentPassword, newPassword }),
-      });
+      await apiRequest("POST", "/api/auth/change-password", { currentPassword, newPassword });
 
-      const data = await res.json();
-
-      if (res.ok) {
-        return { success: true };
-      }
-
-      return { success: false, error: data.message };
+      return { success: true };
     } catch {
       return { success: false, error: "Network error" };
     }
   };
 
   return (
-    <AuthContext.Provider value={{ user, isLoading, login, logout, register, changePassword, authFetch }}>
+    <AuthContext.Provider value={{ user, isLoading, login, logout, register, changePassword }}>
       {children}
     </AuthContext.Provider>
   );

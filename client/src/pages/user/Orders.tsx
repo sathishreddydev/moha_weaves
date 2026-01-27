@@ -11,6 +11,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Separator } from "@/components/ui/separator";
 import { useAuth } from "@/lib/auth";
 import { useQuery } from "@tanstack/react-query";
+import { apiRequest } from "@/lib/queryClient";
 import type { OrderWithItems, ReturnRequestWithDetails, Refund, OnlineExchangeWithDetails } from "@shared/schema";
 import { WriteReview } from "@/components/product/WriteReview";
 import { useDebounce } from "@/components/common/useDebounceHook";
@@ -36,10 +37,7 @@ export default function Orders() {
 
   const handleDownloadInvoice = async (orderId: string) => {
     try {
-      const response = await fetch(`/api/user/orders/${orderId}/invoice`, {
-        method: "GET",
-        credentials: "include",
-      });
+      const response = await apiRequest("GET", `/api/user/orders/${orderId}/invoice`);
 
       if (!response.ok) {
         throw new Error("Failed to download invoice");
