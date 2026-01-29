@@ -51,7 +51,6 @@ import type {
 } from "@shared/schema";
 import { ProductPrintDetails } from "./ProductPrintDetails";
 import { ProductFormData, StoreAllocation } from "./components/Types";
-import { ProductDialog } from "./components/ProductDialog";
 
 
 const formatPrice = (price: string | number) => {
@@ -66,15 +65,9 @@ const formatPrice = (price: string | number) => {
 export default function InventoryProducts() {
   const navigate = useNavigate();
   const { toast } = useToast();
-  const [dialogOpen, setDialogOpen] = useState(false);
-  const [editingProduct, setEditingProduct] =
-    useState<ProductWithDetails | null>(null);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [deletingproductId, setDeletingproductId] = useState<string | null>(
     null,
-  );
-  const [storeAllocations, setStoreAllocations] = useState<StoreAllocation[]>(
-    [],
   );
   const [printDialogOpen, setPrintDialogOpen] = useState(false);
   const [printingProduct, setPrintingProduct] =
@@ -82,31 +75,6 @@ export default function InventoryProducts() {
   const printRef = useRef<HTMLDivElement>(null);
   const [selectedRows, setSelectedRows] = useState<Set<string>>(new Set());
   const [bulkDeleteDialogOpen, setBulkDeleteDialogOpen] = useState(false);
-
-  const [formData, setFormData] = useState<ProductFormData>({
-    name: "",
-    description: "",
-    price: "",
-    actualPrice: "",
-    categoryId: "",
-    subcategoryId: "",
-    colorId: "",
-    fabricId: "",
-    imageUrl: "",
-    images: [],
-    videoUrl: "",
-    totalStock: 0,
-    onlineStock: 0,
-    distributionChannel: "both",
-    isFeatured: false,
-    isActive: true,
-  });
-
-
-
-  const { data: stores } = useQuery<Store[]>({
-    queryKey: ["/api/inventory/stores"],
-  });
 
   const {
     data: products,
@@ -149,88 +117,6 @@ export default function InventoryProducts() {
       });
     },
   });
-
-
-
-
-  const handleOpenCreate = () => {
-    setEditingProduct(null);
-    setFormData({
-      name: "",
-      description: "",
-      price: "",
-      actualPrice: "",
-      categoryId: "",
-      subcategoryId: "",
-      colorId: "",
-      fabricId: "",
-      imageUrl: "",
-      images: [],
-      videoUrl: "",
-      totalStock: 0,
-      onlineStock: 0,
-      distributionChannel: "both",
-      isFeatured: false,
-      isActive: true,
-    });
-    setStoreAllocations(
-      stores?.map((s) => ({ storeId: s.id, storeName: s.name, quantity: 0 })) ||
-      [],
-    );
-    setDialogOpen(true);
-  };
-
-  const handleOpenEdit = async (product: ProductWithDetails) => {
-    setEditingProduct(product);
-    setFormData({
-      name: product.name,
-      description: product.description || "",
-      price: product.price.toString(),
-      actualPrice: (product as any).actualPrice?.toString() || "",
-      categoryId: product.categoryId || "",
-      subcategoryId: product.subcategoryId || "",
-      colorId: product.colorId || "",
-      fabricId: product.fabricId || "",
-      imageUrl: product.imageUrl || "",
-      images: (product as any).images || [],
-      videoUrl: (product as any).videoUrl || "",
-      totalStock: product.totalStock,
-      onlineStock: product.onlineStock,
-      distributionChannel: product.distributionChannel,
-      isFeatured: product.isFeatured,
-      isActive: product.isActive,
-    });
-
-    try {
-      const existingAllocations = await apiRequest(
-        "GET",
-        `/api/inventory/products/${product.id}/allocations`
-      );
-
-      const allocs =
-        stores?.map((s) => {
-          const existing = existingAllocations.find(
-            (a: StoreAllocation) => a.storeId === s.id,
-          );
-          return {
-            storeId: s.id,
-            storeName: s.name,
-            quantity: existing?.quantity || 0,
-          };
-        }) || [];
-      setStoreAllocations(allocs);
-    } catch {
-      setStoreAllocations(
-        stores?.map((s) => ({
-          storeId: s.id,
-          storeName: s.name,
-          quantity: 0,
-        })) || [],
-      );
-    }
-
-    setDialogOpen(true);
-  };
 
 
   const handlePrintBarcode = (product: ProductWithDetails) => {
@@ -536,7 +422,7 @@ export default function InventoryProducts() {
             <Button
               variant="ghost"
               size="icon"
-              onClick={() => handleOpenEdit(row.original)}
+              onClick={() => navigate(`/inventory/products/editProduct/${row.original.sku}`)}
               data-testid={`button-edit-${row.original.id}`}
             >
               <Edit className="h-4 w-4" />
@@ -607,7 +493,7 @@ export default function InventoryProducts() {
               <Download className="h-4 w-4 mr-2" />
               Download Excel
             </Button>
-            <Button onClick={handleOpenCreate} data-testid="button-add-product">
+            <Button onClick={()=>{navigate('/inventory/products/addProduct')}} data-testid="button-add-product">
               <Plus className="h-4 w-4 mr-2" />
               Add product
             </Button>
@@ -626,18 +512,6 @@ export default function InventoryProducts() {
           emptyMessage="No products found"
         />
       </div>
-
-      <ProductDialog
-        refetch={refetch}
-        setEditingProduct={setEditingProduct}
-        dialogOpen={dialogOpen}
-        setDialogOpen={setDialogOpen}
-        editingProduct={editingProduct}
-        formData={formData}
-        setFormData={setFormData}
-        setStoreAllocations={setStoreAllocations}
-        storeAllocations={storeAllocations}
-      />
 
       <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
         <DialogContent>

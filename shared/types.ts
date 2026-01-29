@@ -117,6 +117,8 @@ export type ProductWithDetails = Product & {
   color?: Color | null;
   fabric?: Fabric | null;
   actualPrice?: number | null;
+  images?: string[];
+  videoUrl?: string;
   storeAllocations?: {
     storeId: string;
     storeName: string;

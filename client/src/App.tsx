@@ -58,6 +58,8 @@ const AdminSettings = lazy(() => import("@/pages/admin/Settings"));
 const InventoryLogin = lazy(() => import("@/pages/inventory/Login"));
 const InventoryDashboard = lazy(() => import("@/pages/inventory/Dashboard"));
 const InventoryProducts = lazy(() => import("@/pages/inventory/Products"));
+const InventoryAddProduct = lazy(() => import("@/pages/inventory/components/AddProduct"));
+const InventoryEditProduct = lazy(() => import("@/pages/inventory/components/EditProduct"));
 const InventoryStockDistribution = lazy(
   () => import("@/pages/inventory/StockDistribution")
 );
@@ -188,6 +190,8 @@ function Router() {
 
                 <Route path="dashboard" element={<InventoryDashboard />} />
                 <Route path="products" element={<InventoryProducts />} />
+                <Route path="products/addProduct" element={<InventoryAddProduct />} />
+                <Route path="products/editProduct/:sku" element={<InventoryEditProduct />} />
                 <Route
                   path="distribution"
                   element={<InventoryStockDistribution />}
