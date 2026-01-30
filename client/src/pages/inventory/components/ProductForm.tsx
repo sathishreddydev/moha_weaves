@@ -20,7 +20,7 @@ import { Category, Color, Fabric, Subcategory } from "@shared/types";
 
 interface ProductFormProps {
   formData: ProductFormData;
-  setFormData: (data: ProductFormData) => void;
+  setFormData: React.Dispatch<React.SetStateAction<ProductFormData>>;
   editingProduct?: any | null;
   categories: (Category & { subcategories: Subcategory[] })[];
   colors: Color[];
@@ -81,7 +81,7 @@ export const ProductForm = ({
     // Insert dragged image at new position
     newImages.splice(dropIndex, 0, draggedImage);
 
-    setFormData({ ...formData, images: newImages });
+    setFormData((prev) => ({ ...prev, images: newImages }));
     setDraggedIndex(null);
   };
 
@@ -115,7 +115,7 @@ export const ProductForm = ({
                   id="name"
                   value={formData.name}
                   onChange={(e) =>
-                    setFormData({ ...formData, name: e.target.value })
+                    setFormData((prev) => ({ ...prev, name: e.target.value }))
                   }
                   required
                   data-testid="input-name"
@@ -128,7 +128,10 @@ export const ProductForm = ({
                   id="description"
                   value={formData.description}
                   onChange={(e) =>
-                    setFormData({ ...formData, description: e.target.value })
+                    setFormData((prev) => ({
+                      ...prev,
+                      description: e.target.value,
+                    }))
                   }
                   data-testid="input-description"
                   className="w-full"
@@ -149,7 +152,10 @@ export const ProductForm = ({
                   type="number"
                   value={formData.actualPrice}
                   onChange={(e) =>
-                    setFormData({ ...formData, actualPrice: e.target.value })
+                    setFormData((prev) => ({
+                      ...prev,
+                      actualPrice: e.target.value,
+                    }))
                   }
                   required
                   data-testid="input-actual-price"
@@ -163,7 +169,7 @@ export const ProductForm = ({
                   type="number"
                   value={formData.price}
                   onChange={(e) =>
-                    setFormData({ ...formData, price: e.target.value })
+                    setFormData((prev) => ({ ...prev, price: e.target.value }))
                   }
                   required
                   data-testid="input-price"
@@ -187,10 +193,10 @@ export const ProductForm = ({
                   type="number"
                   value={formData.totalStock}
                   onChange={(e) =>
-                    setFormData({
-                      ...formData,
+                    setFormData((prev) => ({
+                      ...prev,
                       totalStock: parseInt(e.target.value) || 0,
-                    })
+                    }))
                   }
                   data-testid="input-total-stock"
                   className="w-full"
@@ -218,10 +224,10 @@ export const ProductForm = ({
                       type="number"
                       value={formData.onlineStock}
                       onChange={(e) =>
-                        setFormData({
-                          ...formData,
+                        setFormData((prev) => ({
+                          ...prev,
                           onlineStock: parseInt(e.target.value) || 0,
-                        })
+                        }))
                       }
                       data-testid="input-online-stock"
                       className="w-full"
@@ -344,10 +350,10 @@ export const ProductForm = ({
                     maxFileSize={10485760}
                     fileType="image"
                     onComplete={(urls) => {
-                      setFormData({
-                        ...formData,
-                        images: [...formData.images, ...urls],
-                      });
+                      setFormData((prev) => ({
+                        ...prev,
+                        images: [...prev.images, ...urls],
+                      }));
                     }}
                   >
                     <ImageIcon className="h-4 w-4 mr-2" />
@@ -408,12 +414,12 @@ export const ProductForm = ({
                                   });
                                 }
                               }
-                              setFormData({
-                                ...formData,
-                                images: formData.images.filter(
+                              setFormData((prev) => ({
+                                ...prev,
+                                images: prev.images.filter(
                                   (_, i) => i !== index,
                                 ),
-                              });
+                              }));
                             }}
                             className="absolute -top-2 -right-2 bg-destructive text-destructive-foreground rounded-full p-1"
                           >
@@ -443,7 +449,10 @@ export const ProductForm = ({
                       fileType="video"
                       onComplete={(urls) => {
                         if (urls.length > 0) {
-                          setFormData({ ...formData, videoUrl: urls[0] });
+                          setFormData((prev) => ({
+                            ...prev,
+                            videoUrl: urls[0],
+                          }));
                         }
                       }}
                     >
@@ -495,7 +504,7 @@ export const ProductForm = ({
                               });
                             }
                           }
-                          setFormData({ ...formData, videoUrl: "" });
+                          setFormData((prev) => ({ ...prev, videoUrl: "" }));
                         }}
                         className="text-destructive"
                       >
@@ -536,11 +545,14 @@ export const ProductForm = ({
 
                 <div>
                   <Label htmlFor="category">Category</Label>
+
                   <Select
                     value={formData.categoryId}
-                    onValueChange={(value) =>
-                      setFormData({ ...formData, categoryId: value })
-                    }
+                    onValueChange={(value) => {
+                      if (value !== "") {
+                        setFormData((prev) => ({ ...prev, categoryId: value }));
+                      }
+                    }}
                   >
                     <SelectTrigger
                       data-testid="select-category"
@@ -548,9 +560,10 @@ export const ProductForm = ({
                     >
                       <SelectValue placeholder="Select category" />
                     </SelectTrigger>
+
                     <SelectContent>
                       {categories?.map((cat) => (
-                        <SelectItem key={cat.id} value={cat.id}>
+                        <SelectItem key={cat.id} value={String(cat.id)}>
                           {cat.name}
                         </SelectItem>
                       ))}
@@ -561,10 +574,15 @@ export const ProductForm = ({
                 <div>
                   <Label htmlFor="subcategory">Subcategory</Label>
                   <Select
-                    value={formData.subcategoryId}
-                    onValueChange={(value) =>
-                      setFormData({ ...formData, subcategoryId: value })
-                    }
+                    value={formData.subcategoryId || ""}
+                    onValueChange={(value) => {
+                      if (value !== "") {
+                        setFormData((prev) => ({
+                          ...prev,
+                          subcategoryId: value,
+                        }));
+                      }
+                    }}
                     disabled={!formData.categoryId}
                   >
                     <SelectTrigger
@@ -591,10 +609,12 @@ export const ProductForm = ({
                 <div>
                   <Label htmlFor="color">Color</Label>
                   <Select
-                    value={formData.colorId}
-                    onValueChange={(value) =>
-                      setFormData({ ...formData, colorId: value })
-                    }
+                    value={formData.colorId || ""}
+                    onValueChange={(value) => {
+                      if (value !== "") {
+                        setFormData((prev) => ({ ...prev, colorId: value }));
+                      }
+                    }}
                   >
                     <SelectTrigger
                       data-testid="select-color"
@@ -621,10 +641,12 @@ export const ProductForm = ({
                 <div>
                   <Label htmlFor="fabric">Fabric</Label>
                   <Select
-                    value={formData.fabricId}
-                    onValueChange={(value) =>
-                      setFormData({ ...formData, fabricId: value })
-                    }
+                    value={formData.fabricId || ""}
+                    onValueChange={(value) => {
+                      if (value !== "") {
+                        setFormData((prev) => ({ ...prev, fabricId: value }));
+                      }
+                    }}
                   >
                     <SelectTrigger
                       data-testid="select-fabric"
@@ -646,8 +668,11 @@ export const ProductForm = ({
                   <Label htmlFor="channel">Distribution Channel</Label>
                   <Select
                     value={formData.distributionChannel}
-                    onValueChange={(value: "shop" | "online" | "both") =>
-                      setFormData({ ...formData, distributionChannel: value })
+                    onValueChange={(value: "shop" | "online" | "both") =>{
+                      setFormData((prev) => ({
+                        ...prev,
+                        distributionChannel: value,
+                      }))}
                     }
                   >
                     <SelectTrigger
@@ -677,7 +702,7 @@ export const ProductForm = ({
                     id="isFeatured"
                     checked={formData.isFeatured}
                     onCheckedChange={(checked) =>
-                      setFormData({ ...formData, isFeatured: checked })
+                      setFormData((prev) => ({ ...prev, isFeatured: checked }))
                     }
                     data-testid="switch-featured"
                   />
@@ -690,7 +715,7 @@ export const ProductForm = ({
                     id="isActive"
                     checked={formData.isActive}
                     onCheckedChange={(checked) =>
-                      setFormData({ ...formData, isActive: checked })
+                      setFormData((prev) => ({ ...prev, isActive: checked }))
                     }
                     data-testid="switch-active"
                   />

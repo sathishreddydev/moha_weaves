@@ -95,8 +95,7 @@ export default function EditProduct() {
       if (product.imageUrl && !allImages.includes(product.imageUrl)) {
         allImages = [product.imageUrl, ...allImages];
       }
-
-      setFormData({
+      const newFormData = {
         name: product.name,
         description: product.description || "",
         price: product.price.toString(),
@@ -113,7 +112,8 @@ export default function EditProduct() {
         distributionChannel: product.distributionChannel,
         isFeatured: product.isFeatured,
         isActive: product.isActive,
-      });
+      };
+      setFormData(newFormData);
 
       const allocs =
         stores?.map((s) => {
