@@ -121,6 +121,7 @@ export const products = pgTable("products", {
   isActive: boolean("is_active").notNull().default(false),
   isFeatured: boolean("is_featured").notNull().default(false),
   createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });
 
 // Store inventory (stock per store)

@@ -1,4 +1,4 @@
-import { InsertProduct, Product, storeInventory, stores, productActualPrices } from "@shared/schema";
+import { InsertProduct, Product, storeInventory, stores, productActualPrices, products } from "@shared/schema";
 import { and, eq } from "drizzle-orm";
 import { db } from "server/db";
 import { productService } from "server/product/productStorage";
@@ -61,7 +61,13 @@ export class InventoryRepository implements IStorage {
     actualPrice?: string
   ): Promise<Product | undefined> {
     return await db.transaction(async (tx) => {
-      const updatedProduct = await productService.updateProduct(id, data);
+      // Update product within transaction for atomicity
+      const [updatedProduct] = await tx
+        .update(products)
+        .set({ ...data, updatedAt: new Date() })
+        .where(eq(products.id, id))
+        .returning();
+      
       if (!updatedProduct) return undefined;
 
       // Update actual price and total actual stock if provided

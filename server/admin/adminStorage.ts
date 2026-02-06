@@ -221,28 +221,22 @@ export class AdminRepository implements IStorage {
       .where(eq(productActualPrices.productId, id))
       .limit(1);
 
-    // Fetch store allocations
+    // Fetch store allocations with store names in a single query to avoid N+1
     const allocations = await db
       .select({
         storeId: storeInventory.storeId,
         quantity: storeInventory.quantity,
+        storeName: stores.name,
       })
       .from(storeInventory)
+      .leftJoin(stores, eq(storeInventory.storeId, stores.id))
       .where(eq(storeInventory.productId, product.id));
 
-    const storeAllocations = await Promise.all(
-      allocations.map(async (alloc) => {
-        const [store] = await db
-          .select()
-          .from(stores)
-          .where(eq(stores.id, alloc.storeId));
-        return {
-          storeId: alloc.storeId,
-          storeName: store?.name || "Unknown",
-          quantity: alloc.quantity,
-        };
-      }),
-    );
+    const storeAllocations = allocations.map(alloc => ({
+      storeId: alloc.storeId,
+      storeName: alloc.storeName || "Unknown",
+      quantity: alloc.quantity,
+    }));
 
     // Fetch active sales
     const now = new Date();

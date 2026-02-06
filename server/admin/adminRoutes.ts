@@ -10,16 +10,64 @@ import { salesService } from "server/sales&offer/salesStorage";
 import { couponsService } from "server/coupons/couponsStorage";
 import { AdminServices } from "./adminStorage";
 import { productService } from "server/product/productStorage";
+import { z } from "zod";
+import { adminRateLimit, sensitiveRateLimit } from "../middleware/rateLimit";
+
+// Validation schemas
+const createUserSchema = z.object({
+  email: z.string().email("Invalid email format"),
+  password: z.string().min(6, "Password must be at least 6 characters"),
+  name: z.string().min(2, "Name must be at least 2 characters"),
+  phone: z.string().optional(),
+  role: z.enum(["admin", "inventory", "store"], {
+    errorMap: () => ({ message: "Invalid role" })
+  }),
+  storeId: z.string().optional()
+});
+
+const updateUserSchema = createUserSchema.partial().extend({
+  isActive: z.boolean().optional()
+});
+
+const updateOrderStatusSchema = z.object({
+  status: z.string().min(1, "Status is required")
+});
+
+const createProductSchema = z.object({
+  name: z.string().min(1, "Product name is required"),
+  sku: z.string().min(1, "SKU is required"),
+  price: z.string().min(1, "Price is required"),
+  categoryId: z.string().optional(),
+  subcategoryId: z.string().optional(),
+  colorId: z.string().optional(),
+  fabricId: z.string().optional(),
+  description: z.string().optional(),
+  images: z.array(z.string()).optional(),
+  totalStock: z.number().min(0, "Stock must be non-negative"),
+  onlineStock: z.number().min(0, "Online stock must be non-negative"),
+  isActive: z.boolean().optional(),
+  distributionChannel: z.enum(["online", "shop", "both"], {
+    errorMap: () => ({ message: "Invalid distribution channel" })
+  }).optional()
+});
 
 export const adminRoutes = (app: Express) => {
   const authAdmin = createAuthMiddleware(["admin"]);
+
+  // Apply general admin rate limiting to all admin routes
+  app.use("/api/admin", adminRateLimit);
 
   app.get("/api/admin/stats", authAdmin, async (req, res) => {
     try {
       const stats = await AdminServices.getAdminStats();
       res.json(stats);
     } catch (error) {
-      res.status(500).json({ message: "Failed to fetch stats" });
+      console.error("Error fetching admin stats:", error);
+      const message = error instanceof Error ? error.message : "Unknown error occurred";
+      res.status(500).json({ 
+        message: "Failed to fetch admin statistics", 
+        error: process.env.NODE_ENV === "development" ? message : undefined 
+      });
     }
   });
 
@@ -47,17 +95,38 @@ export const adminRoutes = (app: Express) => {
       });
       res.json(orders);
     } catch (error) {
-      res.status(500).json({ message: "Failed to fetch orders" });
+      console.error("Error fetching admin orders:", error);
+      const message = error instanceof Error ? error.message : "Unknown error occurred";
+      res.status(500).json({ 
+        message: "Failed to fetch orders", 
+        error: process.env.NODE_ENV === "development" ? message : undefined 
+      });
     }
   });
 
   app.patch("/api/admin/orders/:id/status", authAdmin, async (req, res) => {
     try {
-      const { status } = req.body;
+      const validatedData = updateOrderStatusSchema.safeParse(req.body);
+      if (!validatedData.success) {
+        return res.status(400).json({ 
+          message: "Invalid input data", 
+          errors: validatedData.error.errors 
+        });
+      }
+      
+      const { status } = validatedData.data;
       const order = await storage.updateOrderStatus(req.params.id, status);
+      if (!order) {
+        return res.status(404).json({ message: "Order not found" });
+      }
       res.json(order);
     } catch (error) {
-      res.status(500).json({ message: "Failed to update order" });
+      console.error("Error updating order status:", error);
+      const message = error instanceof Error ? error.message : "Unknown error occurred";
+      res.status(500).json({ 
+        message: "Failed to update order status", 
+        error: process.env.NODE_ENV === "development" ? message : undefined 
+      });
     }
   });
 
@@ -81,13 +150,38 @@ export const adminRoutes = (app: Express) => {
       const users = await userService.getUsers({ role: role as string });
       res.json(users.map(({ password, ...u }) => u));
     } catch (error) {
-      res.status(500).json({ message: "Failed to fetch users" });
+      console.error("Error fetching admin users:", error);
+      const message = error instanceof Error ? error.message : "Unknown error occurred";
+      res.status(500).json({ 
+        message: "Failed to fetch users", 
+        error: process.env.NODE_ENV === "development" ? message : undefined 
+      });
     }
   });
 
-  app.post("/api/admin/users", authAdmin, async (req, res) => {
+  app.post("/api/admin/users", authAdmin, sensitiveRateLimit, async (req, res) => {
     try {
       const { email, password, name, phone, role, storeId } = req.body;
+      
+      // Input validation
+      if (!email || !password || !name) {
+        return res.status(400).json({ 
+          message: "Email, password, and name are required" 
+        });
+      }
+      
+      if (!role) {
+        return res.status(400).json({ 
+          message: "User role is required" 
+        });
+      }
+      
+      if (password.length < 6) {
+        return res.status(400).json({ 
+          message: "Password must be at least 6 characters long" 
+        });
+      }
+      
       const hashedPassword = await bcrypt.hash(password, 10);
       const user = await userService.createUser({
         email,
@@ -98,16 +192,36 @@ export const adminRoutes = (app: Express) => {
         storeId,
       });
       const { password: _, ...safeUser } = user;
-      res.json(safeUser);
+      res.status(201).json(safeUser);
     } catch (error) {
-      res.status(500).json({ message: "Failed to create user" });
+      console.error("Error creating admin user:", error);
+      const message = error instanceof Error ? error.message : "Unknown error occurred";
+      
+      // Handle specific database errors
+      if (message.includes('duplicate key') || message.includes('UNIQUE')) {
+        return res.status(409).json({ 
+          message: "User with this email already exists" 
+        });
+      }
+      
+      res.status(500).json({ 
+        message: "Failed to create user", 
+        error: process.env.NODE_ENV === "development" ? message : undefined 
+      });
     }
   });
 
-  app.patch("/api/admin/users/:id", authAdmin, async (req, res) => {
+  app.patch("/api/admin/users/:id", authAdmin, sensitiveRateLimit, async (req, res) => {
     try {
-      const { email, password, name, phone, role, storeId, isActive } =
-        req.body;
+      const validatedData = updateUserSchema.safeParse(req.body);
+      if (!validatedData.success) {
+        return res.status(400).json({ 
+          message: "Invalid input data", 
+          errors: validatedData.error.errors 
+        });
+      }
+      
+      const { email, password, name, phone, role, storeId, isActive } = validatedData.data;
       const updateData: Record<string, unknown> = {
         email,
         name,
@@ -132,11 +246,23 @@ export const adminRoutes = (app: Express) => {
       const { password: _, ...safeUser } = user;
       res.json(safeUser);
     } catch (error) {
-      res.status(500).json({ message: "Failed to update user" });
+      console.error("Error updating admin user:", error);
+      const message = error instanceof Error ? error.message : "Unknown error occurred";
+      
+      if (message.includes('duplicate key') || message.includes('UNIQUE')) {
+        return res.status(409).json({ 
+          message: "User with this email already exists" 
+        });
+      }
+      
+      res.status(500).json({ 
+        message: "Failed to update user", 
+        error: process.env.NODE_ENV === "development" ? message : undefined 
+      });
     }
   });
 
-  app.delete("/api/admin/users/:id", authAdmin, async (req, res) => {
+  app.delete("/api/admin/users/:id", authAdmin, sensitiveRateLimit, async (req, res) => {
     try {
       const user = await userService.updateUser(req.params.id, {
         isActive: false,
@@ -146,7 +272,12 @@ export const adminRoutes = (app: Express) => {
       }
       res.json({ success: true });
     } catch (error) {
-      res.status(500).json({ message: "Failed to delete user" });
+      console.error("Error deleting admin user:", error);
+      const message = error instanceof Error ? error.message : "Unknown error occurred";
+      res.status(500).json({ 
+        message: "Failed to delete user", 
+        error: process.env.NODE_ENV === "development" ? message : undefined 
+      });
     }
   });
 
@@ -179,16 +310,41 @@ export const adminRoutes = (app: Express) => {
       });
       return res.json(result);
     } catch (error) {
-      res.status(500).json({ message: "Failed to fetch products" });
+      console.error("Error fetching admin products:", error);
+      const message = error instanceof Error ? error.message : "Unknown error occurred";
+      res.status(500).json({ 
+        message: "Failed to fetch products", 
+        error: process.env.NODE_ENV === "development" ? message : undefined 
+      });
     }
   });
 
-  app.post("/api/admin/products", authAdmin, async (req, res) => {
+  app.post("/api/admin/products", authAdmin, sensitiveRateLimit, async (req, res) => {
     try {
-      const product = await productService.createProduct(req.body);
-      res.json(product);
+      const validatedData = createProductSchema.safeParse(req.body);
+      if (!validatedData.success) {
+        return res.status(400).json({ 
+          message: "Invalid input data", 
+          errors: validatedData.error.errors 
+        });
+      }
+      
+      const product = await productService.createProduct(validatedData.data);
+      res.status(201).json(product);
     } catch (error) {
-      res.status(500).json({ message: "Failed to create product" });
+      console.error("Error creating admin product:", error);
+      const message = error instanceof Error ? error.message : "Unknown error occurred";
+      
+      if (message.includes('duplicate key') || message.includes('UNIQUE')) {
+        return res.status(409).json({ 
+          message: "Product with this SKU already exists" 
+        });
+      }
+      
+      res.status(500).json({ 
+        message: "Failed to create product", 
+        error: process.env.NODE_ENV === "development" ? message : undefined 
+      });
     }
   });
 
@@ -200,28 +356,64 @@ export const adminRoutes = (app: Express) => {
       }
       res.json(product);
     } catch (error) {
-      res.status(500).json({ message: "Failed to fetch product" });
+      console.error("Error fetching admin product:", error);
+      const message = error instanceof Error ? error.message : "Unknown error occurred";
+      res.status(500).json({ 
+        message: "Failed to fetch product", 
+        error: process.env.NODE_ENV === "development" ? message : undefined 
+      });
     }
   });
 
-  app.patch("/api/admin/products/:id", authAdmin, async (req, res) => {
+  app.patch("/api/admin/products/:id", authAdmin, sensitiveRateLimit, async (req, res) => {
     try {
+      const validatedData = createProductSchema.partial().safeParse(req.body);
+      if (!validatedData.success) {
+        return res.status(400).json({ 
+          message: "Invalid input data", 
+          errors: validatedData.error.errors 
+        });
+      }
+      
       const product = await productService.updateProduct(
         req.params.id,
-        req.body,
+        validatedData.data,
       );
+      if (!product) {
+        return res.status(404).json({ message: "Product not found" });
+      }
       res.json(product);
     } catch (error) {
-      res.status(500).json({ message: "Failed to update product" });
+      console.error("Error updating admin product:", error);
+      const message = error instanceof Error ? error.message : "Unknown error occurred";
+      
+      if (message.includes('duplicate key') || message.includes('UNIQUE')) {
+        return res.status(409).json({ 
+          message: "Product with this SKU already exists" 
+        });
+      }
+      
+      res.status(500).json({ 
+        message: "Failed to update product", 
+        error: process.env.NODE_ENV === "development" ? message : undefined 
+      });
     }
   });
 
-  app.delete("/api/admin/products/:id", authAdmin, async (req, res) => {
+  app.delete("/api/admin/products/:id", authAdmin, sensitiveRateLimit, async (req, res) => {
     try {
-      await productService.deleteProduct(req.params.id);
+      const deleted = await productService.deleteProducts([req.params.id]);
+      if (!deleted) {
+        return res.status(404).json({ message: "Product not found" });
+      }
       res.json({ success: true });
     } catch (error) {
-      res.status(500).json({ message: "Failed to delete product" });
+      console.error("Error deleting admin product:", error);
+      const message = error instanceof Error ? error.message : "Unknown error occurred";
+      res.status(500).json({ 
+        message: "Failed to delete product", 
+        error: process.env.NODE_ENV === "development" ? message : undefined 
+      });
     }
   });
 

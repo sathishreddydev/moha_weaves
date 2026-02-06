@@ -12,6 +12,9 @@ import { productBaseSchema, trackingNumberSchema } from "./schema";
 import { productDamageService } from "./productDamageService";
 import { insertProductDamageSchema } from "@shared/schema";
 import { z } from "zod";
+import { db } from "../db";
+import { products } from "@shared/schema";
+import { eq } from "drizzle-orm";
 
 const productWithAllocationsSchema = productBaseSchema.refine(
   (data) => {
@@ -37,7 +40,12 @@ export const inventoryRoutes = (app: Express) => {
 
       res.json({ categories, colors, fabrics });
     } catch (error) {
-      res.status(500).json({ message: "Failed to fetch filters" });
+      console.error("Error fetching inventory filters:", error);
+      const message = error instanceof Error ? error.message : "Unknown error occurred";
+      res.status(500).json({ 
+        message: "Failed to fetch filters", 
+        error: process.env.NODE_ENV === "development" ? message : undefined 
+      });
     }
   });
 
@@ -46,7 +54,12 @@ export const inventoryRoutes = (app: Express) => {
       const items = await productService.getLowStockProducts(10);
       res.json(items);
     } catch (error) {
-      res.status(500).json({ message: "Failed to fetch low stock items" });
+      console.error("Error fetching low stock items:", error);
+      const message = error instanceof Error ? error.message : "Unknown error occurred";
+      res.status(500).json({ 
+        message: "Failed to fetch low stock items", 
+        error: process.env.NODE_ENV === "development" ? message : undefined 
+      });
     }
   });
 
@@ -58,7 +71,12 @@ export const inventoryRoutes = (app: Express) => {
       });
       res.json(requests);
     } catch (error) {
-      res.status(500).json({ message: "Failed to fetch requests" });
+      console.error("Error fetching stock requests:", error);
+      const message = error instanceof Error ? error.message : "Unknown error occurred";
+      res.status(500).json({ 
+        message: "Failed to fetch requests", 
+        error: process.env.NODE_ENV === "development" ? message : undefined 
+      });
     }
   });
 
@@ -74,26 +92,58 @@ export const inventoryRoutes = (app: Express) => {
 
         // Get the request details to check stock before approval
         if (status === "approved") {
-          const request = await storage.getStockRequest(req.params.id);
+          const stockRequest = await storage.getStockRequest(req.params.id);
 
-          if (!request) {
+          if (!stockRequest) {
             return res.status(404).json({ message: "Request not found" });
           }
 
-          // Get product details to check available stock
-          const product = await productService.getProduct(request.productId);
-          if (!product) {
-            return res.status(404).json({ message: "Product not found" });
+          // Use database transaction to prevent race conditions
+          await db.transaction(async (tx: any) => {
+            // Get product details within transaction for consistent read
+            const [product] = await tx
+              .select()
+              .from(products)
+              .where(eq(products.id, stockRequest.productId))
+              .for('update'); // Lock the row for this transaction
+
+            if (!product) {
+              throw new Error("Product not found");
+            }
+
+            // Check if sufficient stock is available (double-check within transaction)
+            if (product.totalStock < stockRequest.quantity) {
+              throw new Error(`Insufficient stock available. Available: ${product.totalStock}, Requested: ${stockRequest.quantity}`);
+            }
+
+            // Update stock atomically
+            await tx
+              .update(products)
+              .set({ 
+                totalStock: product.totalStock - stockRequest.quantity,
+                updatedAt: new Date()
+              })
+              .where(eq(products.id, stockRequest.productId));
+          });
+
+          // If we get here, the stock was successfully updated
+          const updateData: any = { status };
+          if (rejectionReason && status === "rejected") {
+            updateData.notes = rejectionReason;
           }
 
-          // Check if sufficient stock is available
-          if (product.totalStock < request.quantity) {
-            return res.status(400).json({
-              message: `Insufficient stock available. Available: ${product.totalStock}, Requested: ${request.quantity}`,
-              availableStock: product.totalStock,
-              requestedQuantity: request.quantity,
-            });
+          const updatedRequest = await storage.updateStockRequestStatus(
+            req.params.id,
+            status,
+            (req as any).user.id,
+            rejectionReason,
+          );
+          
+          if (!updatedRequest) {
+            return res.status(404).json({ message: "Request not found" });
           }
+          res.json(updatedRequest);
+          return;
         }
 
         const updateData: any = { status };

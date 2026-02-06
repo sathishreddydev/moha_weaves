@@ -169,9 +169,6 @@ export class ProductDamageService {
         throw new Error(`Stock reduction failed for allocations: ${errors.join('; ')}`);
       }
 
-      // Log successful reductions for debugging
-      console.log(`Successfully processed stock reductions:`, successfulReductions);
-
       return damage;
     });
   }

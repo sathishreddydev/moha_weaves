@@ -76,11 +76,19 @@ export default function AdminStaff() {
   });
 
   const { data: staff, isLoading } = useQuery<SafeUser[]>({
-    queryKey: ["/api/admin/users", "?role=inventory"],
+    queryKey: ["/api/admin/getUsers", { role: "inventory" }],
+    queryFn: async () => {
+      const response = await apiRequest("POST", "/api/admin/getUsers", { role: "inventory" });
+      return response;
+    },
   });
 
   const { data: storeStaff } = useQuery<SafeUser[]>({
-    queryKey: ["/api/admin/users", "?role=store"],
+    queryKey: ["/api/admin/getUsers", { role: "store" }],
+    queryFn: async () => {
+      const response = await apiRequest("POST", "/api/admin/getUsers", { role: "store" });
+      return response;
+    },
   });
 
   const { data: stores } = useQuery<Store[]>({

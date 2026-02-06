@@ -143,7 +143,6 @@ export const refundRoutes = (app: Express) => {
     }
   });
 
-  // Debug endpoint: Check all pending refunds (should be called by cron job)
   app.post("/api/admin/check-pending-refunds", authInventory, async (req, res) => {
     try {
       await RefundWebhookService.checkPendingRefunds();
