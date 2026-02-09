@@ -33,6 +33,14 @@ const updateOrderStatusSchema = z.object({
   status: z.string().min(1, "Status is required")
 });
 
+const createCategorySchema = z.object({
+  name: z.string().min(1, "Category name is required"),
+  description: z.string().optional(),
+  imageUrl: z.string().optional(),
+  sizes: z.array(z.string()).default([]),
+  isActive: z.boolean().optional(),
+});
+
 const createProductSchema = z.object({
   name: z.string().min(1, "Product name is required"),
   sku: z.string().min(1, "SKU is required"),
@@ -438,10 +446,23 @@ export const adminRoutes = (app: Express) => {
 
   app.post("/api/admin/categories", authAdmin, async (req, res) => {
     try {
-      const category = await publicStorage.createCategory(req.body);
+      const validatedData = createCategorySchema.safeParse(req.body);
+      if (!validatedData.success) {
+        return res.status(400).json({ 
+          message: "Invalid input data", 
+          errors: validatedData.error.errors 
+        });
+      }
+      
+      const category = await publicStorage.createCategory(validatedData.data);
       res.json(category);
     } catch (error) {
-      res.status(500).json({ message: "Failed to create category" });
+      console.error("Error creating category:", error);
+      const message = error instanceof Error ? error.message : "Unknown error occurred";
+      res.status(500).json({ 
+        message: "Failed to create category", 
+        error: process.env.NODE_ENV === "development" ? message : undefined 
+      });
     }
   });
 

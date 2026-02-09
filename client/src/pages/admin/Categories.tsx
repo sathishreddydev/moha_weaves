@@ -65,6 +65,8 @@ import { useToast } from "@/hooks/use-toast";
 import { CloudinaryUploader } from "@/components/CloudinaryUploader";
 import type { Category, Subcategory } from "@shared/schema";
 
+const PREDEFINED_SIZES = ["XS", "S", "M", "L", "XL", "2XL", "3XL"];
+
 const navItems = [
   { icon: LayoutDashboard, label: "Dashboard", href: "/admin/dashboard" },
   { icon: Package, label: "products", href: "/admin/products" },
@@ -96,6 +98,8 @@ export default function AdminCategories() {
     description: "",
     imageUrl: "",
     isActive: true,
+    hasSizes: false,
+    sizes: [] as string[],
   });
   const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
   const [addSubcategoryForms, setAddSubcategoryForms] = useState<Record<string, boolean>>({});
@@ -237,7 +241,7 @@ export default function AdminCategories() {
 
   const handleOpenCreate = () => {
     setEditingCategory(null);
-    setFormData({ name: "", description: "", imageUrl: "", isActive: true });
+    setFormData({ name: "", description: "", imageUrl: "", isActive: true, hasSizes: false, sizes: [] });
     setSubcategories([]);
     setDialogOpen(true);
   };
@@ -249,6 +253,8 @@ export default function AdminCategories() {
       description: category.description || "",
       imageUrl: category.imageUrl || "",
       isActive: category.isActive,
+      hasSizes: !!(category.sizes && category.sizes.length > 0),
+      sizes: category.sizes || [],
     });
     setDialogOpen(true);
   };
@@ -273,10 +279,15 @@ export default function AdminCategories() {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    const submitData = {
+      ...formData,
+      sizes: formData.hasSizes ? formData.sizes : []
+    };
+    
     if (editingCategory) {
-      updateMutation.mutate({ id: editingCategory.id, data: formData });
+      updateMutation.mutate({ id: editingCategory.id, data: submitData });
     } else {
-      createMutation.mutate({ ...formData, subcategories });
+      createMutation.mutate({ ...submitData, subcategories });
     }
   };
 
@@ -397,6 +408,39 @@ export default function AdminCategories() {
     setDeleteDialogOpen(true);
   };
 
+  const handleSizesToggle = (checked: boolean) => {
+    setFormData({ 
+      ...formData, 
+      hasSizes: checked,
+      sizes: checked ? PREDEFINED_SIZES : []
+    });
+  };
+
+  const handleSizeToggle = (size: string) => {
+    setFormData(prev => ({
+      ...prev,
+      sizes: prev.sizes.includes(size)
+        ? prev.sizes.filter(s => s !== size)
+        : [...prev.sizes, size]
+    }));
+  };
+
+  const handleCustomSizeAdd = (customSize: string) => {
+    if (customSize.trim() && !formData.sizes.includes(customSize.trim())) {
+      setFormData(prev => ({
+        ...prev,
+        sizes: [...prev.sizes, customSize.trim()]
+      }));
+    }
+  };
+
+  const handleCustomSizeRemove = (customSize: string) => {
+    setFormData(prev => ({
+      ...prev,
+      sizes: prev.sizes.filter(s => s !== customSize)
+    }));
+  };
+
 
   // DataTable columns
   const columns: ColumnDef<Category & { subcategories?: Subcategory[] }>[] = [
@@ -447,6 +491,34 @@ export default function AdminCategories() {
         return (
           <div className="text-muted-foreground max-w-[300px] truncate">
             {description || "-"}
+          </div>
+        );
+      },
+    },
+    {
+      accessorKey: "sizes",
+      header: "Sizes",
+      cell: ({ row }) => {
+        const category = row.original;
+        const sizes = category.sizes || [];
+        return (
+          <div className="max-w-[200px]">
+            {sizes.length > 0 ? (
+              <div className="flex flex-wrap gap-1">
+                {sizes.slice(0, 3).map((size) => (
+                  <Badge key={size} variant="outline" className="text-xs">
+                    {size}
+                  </Badge>
+                ))}
+                {sizes.length > 3 && (
+                  <Badge variant="outline" className="text-xs">
+                    +{sizes.length - 3}
+                  </Badge>
+                )}
+              </div>
+            ) : (
+              <span className="text-muted-foreground text-sm">No sizes</span>
+            )}
           </div>
         );
       },
@@ -905,6 +977,98 @@ export default function AdminCategories() {
                 data-testid="switch-active"
               />
               <Label htmlFor="isActive">Active</Label>
+            </div>
+
+            {/* Sizes Section */}
+            <div className="space-y-4">
+              <div className="flex items-center gap-2">
+                <Switch
+                  id="hasSizes"
+                  checked={formData.hasSizes}
+                  onCheckedChange={handleSizesToggle}
+                  data-testid="switch-has-sizes"
+                />
+                <Label htmlFor="hasSizes">Enable Sizes</Label>
+              </div>
+
+              {formData.hasSizes && (
+                <div className="space-y-3 p-4 border rounded-lg bg-muted/30">
+                  <div>
+                    <Label className="text-sm font-medium">Available Sizes</Label>
+                    <div className="grid grid-cols-4 gap-2 mt-2">
+                      {PREDEFINED_SIZES.map((size) => (
+                        <div key={size} className="flex items-center space-x-2">
+                          <input
+                            type="checkbox"
+                            id={`size-${size}`}
+                            checked={formData.sizes.includes(size)}
+                            onChange={() => handleSizeToggle(size)}
+                            className="rounded border-gray-300"
+                          />
+                          <Label htmlFor={`size-${size}`} className="text-sm">
+                            {size}
+                          </Label>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div>
+                    <Label className="text-sm font-medium">Custom Sizes</Label>
+                    <div className="mt-2 space-y-2">
+                      <div className="flex gap-2">
+                        <Input
+                          placeholder="Add custom size (e.g., 4XL, Kids)"
+                          className="flex-1"
+                          onKeyPress={(e) => {
+                            if (e.key === 'Enter') {
+                              const target = e.target as HTMLInputElement;
+                              handleCustomSizeAdd(target.value);
+                              target.value = '';
+                            }
+                          }}
+                        />
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={(e) => {
+                            const input = e.currentTarget.previousElementSibling as HTMLInputElement;
+                            handleCustomSizeAdd(input.value);
+                            input.value = '';
+                          }}
+                        >
+                          Add
+                        </Button>
+                      </div>
+                      
+                      {/* Display custom sizes */}
+                      {formData.sizes.filter(size => !PREDEFINED_SIZES.includes(size)).length > 0 && (
+                        <div className="flex flex-wrap gap-2">
+                          {formData.sizes
+                            .filter(size => !PREDEFINED_SIZES.includes(size))
+                            .map((customSize) => (
+                              <Badge
+                                key={customSize}
+                                variant="secondary"
+                                className="flex items-center gap-1"
+                              >
+                                {customSize}
+                                <button
+                                  type="button"
+                                  onClick={() => handleCustomSizeRemove(customSize)}
+                                  className="ml-1 text-xs hover:text-destructive"
+                                >
+                                  ×
+                                </button>
+                              </Badge>
+                            ))}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
             <DialogFooter>
               <Button

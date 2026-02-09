@@ -48,6 +48,7 @@ export const categories = pgTable("categories", {
   description: text("description"),
   imageUrl: text("image_url"),
   isActive: boolean("is_active").notNull().default(true),
+  sizes: text("sizes").array().default([]),
 });
 
 // Subcategories for products

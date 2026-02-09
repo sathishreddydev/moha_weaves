@@ -16,6 +16,8 @@ export const insertRefreshTokenSchema = createInsertSchema(tables.refreshTokens)
 
 export const insertCategorySchema = createInsertSchema(tables.categories).omit({
   id: true,
+}).extend({
+  sizes: z.array(z.string()).default([]),
 });
 
 export const insertSubcategorySchema = createInsertSchema(tables.subcategories).omit({
