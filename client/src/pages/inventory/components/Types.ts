@@ -6,6 +6,19 @@ export interface FiltersData {
     fabrics: Fabric[];
 }
 
+export interface ProductVariant {
+  id?: string;
+  sku: string;
+  size: string;
+  stockQuantity: number;
+  onlineStock: number;
+  storeAllocations: StoreAllocation[];
+  isActive: boolean;
+  // Backend-only fields (hidden in frontend)
+  price?: string;
+  actualPrice?: string;
+}
+
 export interface ProductFormData {
     name: string;
     description: string;
@@ -23,6 +36,9 @@ export interface ProductFormData {
     distributionChannel: "shop" | "online" | "both";
     isFeatured: boolean;
     isActive: boolean;
+    // New variant fields
+    hasVariants: boolean;
+    variants: ProductVariant[];
 }
 
 export interface StoreAllocation {

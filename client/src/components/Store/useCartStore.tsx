@@ -12,7 +12,7 @@ interface CartState {
   isUpdatingItem: Record<string, boolean>; // key = cartItemId
   isRemovingItem: Record<string, boolean>; // key = cartItemId
   getCart: () => Promise<void>;
-  addItem: (productId: string, quantity: number) => Promise<void>;
+  addItem: (productId: string, quantity: number, variantId?: string) => Promise<void>;
   updateQuantity: (id: string, quantity: number) => Promise<void>;
   removeItem: (id: string) => Promise<void>;
   clearCart: () => void;
@@ -42,19 +42,46 @@ export const useCartStore = create<CartState>((set, get) => ({
     }
   },
 
-  addItem: async (productId, quantity) => {
+  addItem: async (productId, quantity, variantId) => {
     set((state) => ({
       isAddingItem: { ...state.isAddingItem, [productId]: true },
     }));
 
     try {
+      // Check current cart to validate stock before adding
+      const currentCart = get().cart;
+      const existingItem = currentCart.find(
+        (c: CartItemWithProduct) => c.product.id === productId && c.variantId === variantId
+      );
+      
+      // Get product data to check stock
+      const productData = currentCart.find(c => c.product.id === productId)?.product;
+      if (productData) {
+        const variantStock = variantId && productData.variants?.find(v => v.id === variantId)?.onlineStock;
+        const availableStock = Number(variantStock ?? productData.onlineStock);
+        const currentQuantity = existingItem?.quantity || 0;
+        const newTotalQuantity = currentQuantity + quantity;
+        
+        if (newTotalQuantity > availableStock) {
+          toast({
+            title: "Stock Limit Reached",
+            description: `Only ${availableStock} items available in stock.`,
+            variant: "destructive",
+          });
+          return;
+        }
+      }
+
       const data = await apiRequest("POST", "/api/user/cart", {
         productId,
         quantity,
+        variantId,
       });
       set({ cart: data.cart, count: data.count });
 
       const addedItem = data.cart.find(
+        (c: CartItemWithProduct) => c.product.id === productId && c.variantId === variantId
+      ) || data.cart.find(
         (c: CartItemWithProduct) => c.product.id === productId
       );
 
@@ -72,7 +99,10 @@ export const useCartStore = create<CartState>((set, get) => ({
                 {addedItem.product.name}
               </span>
               <span className="text-xs text-gray-500">
-                Successfully added to your cart
+                {addedItem.variantId && addedItem.product.variants?.find((v:any) => v.id === addedItem.variantId)?.size 
+                  ? `Size: ${addedItem.product.variants.find((v:any) => v.id === addedItem.variantId)?.size}` 
+                  : 'Successfully added to your cart'
+                }
               </span>
             </div>
           </div>
@@ -80,12 +110,20 @@ export const useCartStore = create<CartState>((set, get) => ({
           <span className="text-sm">Item added to cart</span>
         ),
       });
-    } catch {
-      toast({
-        title: "Error",
-        description: "Failed to add item.",
-        variant: "destructive",
-      });
+    } catch (error: any) {
+      if (error.message?.includes("available in stock")) {
+        toast({
+          title: "Stock Limit Reached",
+          description: error.message,
+          variant: "destructive",
+        });
+      } else {
+        toast({
+          title: "Error",
+          description: "Failed to add item.",
+          variant: "destructive",
+        });
+      }
     } finally {
       set((state) => ({
         isAddingItem: { ...state.isAddingItem, [productId]: false },
@@ -102,12 +140,16 @@ export const useCartStore = create<CartState>((set, get) => ({
       const cartItem = get().cart.find((c) => c.id === id);
       if (!cartItem) return;
 
-      if (quantity <= 0 || cartItem.product.onlineStock <= 0) {
+      // Get variant stock if variant exists, otherwise use product stock
+      const variantStock = cartItem.variantId && cartItem.product.variants?.find(v => v.id === cartItem.variantId)?.onlineStock;
+      const availableStock = Number(variantStock ?? cartItem.product.onlineStock);
+
+      if (quantity <= 0 || availableStock <= 0) {
         await get().removeItem(id);
         return;
       }
 
-      if (quantity > cartItem.product.onlineStock) return;
+      if (quantity > availableStock) return;
 
       const data = await apiRequest("PATCH", `/api/user/cart/${id}`, {
         quantity,
@@ -141,12 +183,20 @@ export const useCartStore = create<CartState>((set, get) => ({
           <span className="text-sm">Cart item updated</span>
         ),
       });
-    } catch {
-      toast({
-        title: "Error",
-        description: "Failed to update item.",
-        variant: "destructive",
-      });
+    } catch (error: any) {
+      if (error.message?.includes("available in stock")) {
+        toast({
+          title: "Stock Limit Reached",
+          description: error.message,
+          variant: "destructive",
+        });
+      } else {
+        toast({
+          title: "Error",
+          description: "Failed to update item.",
+          variant: "destructive",
+        });
+      }
     } finally {
       set((state) => ({
         isUpdatingItem: { ...state.isUpdatingItem, [id]: false },

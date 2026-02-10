@@ -403,6 +403,10 @@ export default function Orders() {
                               <div>
                                 <p className="text-sm text-muted-foreground">
                                   Qty: {item.quantity}
+                                  {(() => {
+                                    const variant = item.variantId && item.product.variants?.find((v: any) => v.id === item.variantId);
+                                    return variant ? ` • Size: ${variant.size}` : '';
+                                  })()}
                                 </p>
                                 {item.status === "delivered" && (
                                   <WriteReview product={item.product} />

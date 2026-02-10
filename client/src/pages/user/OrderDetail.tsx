@@ -552,7 +552,12 @@ export default function OrderDetail() {
                         </Link>
 
                         <div className="mt-1 text-sm text-muted-foreground space-y-0.5">
-                          <p>Qty: {item.quantity}</p>
+                          <p>Qty: {item.quantity}
+                            {(() => {
+                              const variant = item.variantId && item.product.variants?.find((v: any) => v.id === item.variantId);
+                              return variant ? ` • Size: ${variant.size}` : '';
+                            })()}
+                          </p>
                         </div>
                         <p className="font-semibold text-primary mt-2">
                           {formatPrice(item.price)}

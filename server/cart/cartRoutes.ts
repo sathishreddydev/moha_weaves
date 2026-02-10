@@ -25,16 +25,21 @@ export const cartRoutes = (app: Express) => {
 
   app.post("/api/user/cart", authUser, async (req, res) => {
     try {
-      const { productId, quantity = 1 } = req.body;
+      const { productId, quantity = 1, variantId } = req.body;
       const { cart, count } = await cartServices.addToCart({
         userId: (req as any).user.id,
         productId,
         quantity,
+        variantId,
       });
 
       res.json({ cart, count });
     } catch (error) {
-      res.status(500).json({ message: "Failed to add to cart" });
+      if (error instanceof Error && error.message.includes("available in stock")) {
+        res.status(400).json({ message: error.message });
+      } else {
+        res.status(500).json({ message: "Failed to add to cart" });
+      }
     }
   });
   app.patch("/api/user/cart/:id", authUser, async (req, res) => {
@@ -50,7 +55,13 @@ export const cartRoutes = (app: Express) => {
 
       res.json(updatedCart);
     } catch (error) {
-      res.status(500).json({ message: "Failed to update cart" });
+      if (error instanceof Error && error.message.includes("available in stock")) {
+        res.status(400).json({ message: error.message });
+      } else if (error instanceof Error && error.message.includes("Cart item not found")) {
+        res.status(404).json({ message: error.message });
+      } else {
+        res.status(500).json({ message: "Failed to update cart" });
+      }
     }
   });
 

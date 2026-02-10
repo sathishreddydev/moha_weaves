@@ -1,5 +1,5 @@
 import { useParams, Link, useNavigate } from "react-router-dom";
-import { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   Heart,
   ShoppingBag,
@@ -51,6 +51,8 @@ export default function ProductDetail() {
   const { user } = useAuth();
   const navigate = useNavigate();
   const [selectedImage, setSelectedImage] = useState(0);
+  const [selectedVariant, setSelectedVariant] = useState<string | null>(null);
+  
   const { data: product, isLoading } = useQuery<ProductWithDetails>({
     queryKey: ["/api/products", id],
   });
@@ -65,21 +67,7 @@ export default function ProductDetail() {
       return response;
     },
   });
-  const cartItems = useCartStore((state) => state.cart);
-  const updateQuantity = useCartStore((state) => state.updateQuantity);
-  const addCartItem = useCartStore((state) => state.addItem);
-  const isAddingItem = useCartStore((state) => state.isAddingItem);
-  const isUpdatingItem = useCartStore((state) => state.isUpdatingItem);
-  const isRemovingItem = useCartStore((state) => state.isRemovingItem);
-  const wishlistItems = useWishlistStore((state) => state.wishlist);
-  const addWishlistItem = useWishlistStore((state) => state.addItem);
-  const removeWishlistItem = useWishlistStore((state) => state.removeItem);
-  const isAddingWishlistItem = useWishlistStore((state) => state.isAddingItem);
-  const isInCart = cartItems?.some((item) => item.product.id === id);
-  const isInWishlist = wishlistItems?.some((item) => item.productId === id);
-  const isRemovingWishlistItem = useWishlistStore(
-    (state) => state.isRemovingItem,
-  );
+
   const { data: reviewsData, isLoading: reviewsLoading } = useQuery<{
     reviews: any[];
     stats: {
@@ -94,6 +82,41 @@ export default function ProductDetail() {
       return response;
     },
   });
+
+  // Get all active variants (including out of stock for display)
+  const allVariants = product?.variants?.filter(v => v.isActive) || [];
+  
+  // Get available variants for auto-selection
+  const availableVariants = allVariants.filter(v => v.onlineStock > 0);
+  
+  // Auto-select first available variant if none selected and variants exist
+  useEffect(() => {
+    if (availableVariants.length > 0 && !selectedVariant) {
+      setSelectedVariant(availableVariants[0].id);
+    }
+  }, [availableVariants, selectedVariant]);
+  
+  const selectedVariantData = allVariants.find(v => v.id === selectedVariant);
+  
+  // Cart and wishlist hooks
+  const cartItems = useCartStore((state) => state.cart);
+  const updateQuantity = useCartStore((state) => state.updateQuantity);
+  const addCartItem = useCartStore((state) => state.addItem);
+  const isAddingItem = useCartStore((state) => state.isAddingItem);
+  const isUpdatingItem = useCartStore((state) => state.isUpdatingItem);
+  const isRemovingItem = useCartStore((state) => state.isRemovingItem);
+  const wishlistItems = useWishlistStore((state) => state.wishlist);
+  const addWishlistItem = useWishlistStore((state) => state.addItem);
+  const removeWishlistItem = useWishlistStore((state) => state.removeItem);
+  const isAddingWishlistItem = useWishlistStore((state) => state.isAddingItem);
+  const isInCart = cartItems?.some((item) => 
+  item.product.id === id && 
+  (allVariants.length > 0 ? item.variantId === selectedVariant : true)
+);
+  const isInWishlist = wishlistItems?.some((item) => item.productId === id);
+  const isRemovingWishlistItem = useWishlistStore(
+    (state) => state.isRemovingItem,
+  );
   const formatPrice = (price: string | number) => {
     const numPrice = typeof price === "string" ? parseFloat(price) : price;
     return new Intl.NumberFormat("en-IN", {
@@ -155,17 +178,24 @@ export default function ProductDetail() {
     );
   }
 
-  const images = [product.imageUrl, ...(product.images || [])].filter(
-    Boolean,
-  ) as string[];
+  const images = product?.imageUrl ? [product.imageUrl, ...(product.images || [])].filter(Boolean) as string[] : [];
   if (images.length === 0) {
     images.push("/banner.png");
   }
 
   const isOnlineAvailable =
-    product.distributionChannel === "online" ||
-    product.distributionChannel === "both";
-  const hasStock = product.onlineStock > 0;
+    product?.distributionChannel === "online" ||
+    product?.distributionChannel === "both";
+  
+  const hasStock = selectedVariantData ? selectedVariantData.onlineStock > 0 : product?.onlineStock > 0;
+  
+  // Get display price (variant price if selected, otherwise product price)
+  const displayPrice = selectedVariantData?.price || product?.price;
+  const displayDiscountedPrice = product?.activeSale && product?.discountedPrice 
+    ? (selectedVariantData?.price ? 
+        parseFloat(selectedVariantData.price) * (product.discountedPrice / parseFloat(product.price)) 
+        : product.discountedPrice)
+    : undefined;
   const isButtonDisabled = (id: string) => {
     return Boolean(
       isAddingItem[id] || isUpdatingItem[id] || isRemovingItem[id],
@@ -194,6 +224,16 @@ export default function ProductDetail() {
     );
   };
   const ActionButtons = () => {
+    const handleAddToCart = () => {
+      if (allVariants.length > 0) {
+        // Add variant to cart
+        addCartItem(product.id, 1, selectedVariant || undefined);
+      } else {
+        // Add product without variant
+        addCartItem(product.id, 1);
+      }
+    };
+
     return (
       <>
         {isInCart ? (
@@ -208,8 +248,8 @@ export default function ProductDetail() {
         ) : (
           <Button
             className="flex-1 h-12 text-sm font-semibold rounded-full bg-gradient-to-r from-primary to-primary/90 hover:from-primary/90 hover:to-primary shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-[1.02]"
-            onClick={() => addCartItem(product.id, 1)}
-            disabled={isButtonDisabled(product.id)}
+            onClick={handleAddToCart}
+            disabled={isButtonDisabled(product.id) || (allVariants.length > 0 && !selectedVariant)}
             data-testid="button-add-to-cart"
           >
             Add to Cart <ShoppingBag className="h-4 w-4 ml-2" />
@@ -243,12 +283,12 @@ export default function ProductDetail() {
             </h1>
 
             <div className="flex items-baseline gap-2">
-              {!product.activeSale || !product.discountedPrice ? (
+              {!product.activeSale || !displayDiscountedPrice ? (
                 <p
                   className="text-3xl text-primary"
                   data-testid="text-product-price"
                 >
-                  {formatPrice(product.price)}
+                  {formatPrice(displayPrice)}
                 </p>
               ) : (
                 <>
@@ -256,17 +296,14 @@ export default function ProductDetail() {
                     className="text-3xl text-primary"
                     data-testid="text-product-price"
                   >
-                    {formatPrice(product.discountedPrice)}
+                    {formatPrice(displayDiscountedPrice)}
                   </p>
                   <p className="text-lg text-muted-foreground line-through">
-                    {formatPrice(product.price)}
+                    {formatPrice(displayPrice)}
                   </p>
                   <Badge className="bg-red-500 text-white border-0 text-sm px-2 py-1">
                     {Math.round(
-                      (1 -
-                        parseFloat(product.discountedPrice.toString()) /
-                          parseFloat(product.price)) *
-                        100,
+                      (1 - parseFloat(displayDiscountedPrice.toString()) / parseFloat(displayPrice.toString())) * 100,
                     )}
                     % OFF
                   </Badge>
@@ -282,7 +319,7 @@ export default function ProductDetail() {
                 <div className="flex items-center gap-2 px-3 py-2 bg-green-50 dark:bg-green-900/20 rounded-lg border border-green-200 dark:border-green-800">
                   <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
                   <span className="text-sm font-medium text-green-700 dark:text-green-400">
-                    {product.onlineStock} In Stock
+                    {selectedVariantData ? `${selectedVariantData.onlineStock} In Stock` : `${product.onlineStock} In Stock`}
                   </span>
                 </div>
               ) : (
@@ -313,6 +350,41 @@ export default function ProductDetail() {
                 "This exquisite product showcases finest craftsmanship, blending traditional artistry with contemporary elegance."}
             </p>
           </div>
+
+          {/* Size Selector */}
+          {allVariants.length > 0 && (
+            <div className="mb-6">
+              <p className="text-[10px] font-bold uppercase tracking-widest text-zinc-400 mb-3">
+                Select Size
+              </p>
+              <div className="flex flex-wrap gap-2">
+                {allVariants.map((variant) => (
+                  <button
+                    key={variant.id}
+                    onClick={() => setSelectedVariant(variant.id)}
+                    className={cn(
+                      "px-4 py-2 border rounded-lg text-sm font-medium transition-all duration-200",
+                      selectedVariant === variant.id
+                        ? "border-primary bg-primary text-primary-foreground"
+                        : "border-gray-300 hover:border-gray-400 text-gray-700",
+                      variant.onlineStock <= 0 && "opacity-50 cursor-not-allowed"
+                    )}
+                    disabled={variant.onlineStock <= 0}
+                  >
+                    {variant.size}
+                    {variant.onlineStock <= 0 && (
+                      <span className="text-xs text-red-500 ml-1">(Out of Stock)</span>
+                    )}
+                  </button>
+                ))}
+              </div>
+              {selectedVariantData && (
+                <p className="text-xs text-gray-500 mt-2">
+                  {selectedVariantData.onlineStock} items in stock
+                </p>
+              )}
+            </div>
+          )}
 
           {/* Action Buttons */}
           {user?.role === "user" && isOnlineAvailable && hasStock && (
@@ -571,7 +643,7 @@ export default function ProductDetail() {
                   {product.name}
                 </h3>
                 <p className="text-lg font-bold text-primary">
-                  {formatPrice(product.discountedPrice || product.price)}
+                  {formatPrice(displayDiscountedPrice || displayPrice)}
                 </p>
               </div>
               <div className="flex items-center gap-3">

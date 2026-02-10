@@ -8,6 +8,9 @@ import { razorpay } from "server/razorpayClient";
 import { fetchPaymentDetails } from "../razorpayClient";
 import { createOrderTransaction, paymentInfo } from "./createOrderService";
 import * as crypto from "crypto";
+import { db } from "server/db";
+import { eq, sql } from "drizzle-orm";
+import { products, productVariants } from "@shared/schema";
 
 export const orderRoutes = (app: Express) => {
   const authUser = createAuthMiddleware(["user"]);
@@ -317,10 +320,24 @@ export const orderRoutes = (app: Express) => {
       if (cartItems.cart.length === 0) {
         return res.status(400).json({ message: "Cart is empty" });
       }
-      // 1️⃣ Calculate total
+      // 1️⃣ Calculate total with variant pricing
       const totalAmount = cartItems.cart.reduce((sum, item) => {
-        const price =
-          (item.product as any).discountedPrice ?? item.product.price;
+        // Get variant price if variant exists, otherwise use product price
+        let price = typeof item.product.price === 'string' ? parseFloat(item.product.price) : item.product.price;
+        
+        if (item.variantId && item.product.variants) {
+          const variant = item.product.variants.find((v: any) => v.id === item.variantId);
+          if (variant && variant.price) {
+            price = typeof variant.price === 'string' ? parseFloat(variant.price) : variant.price;
+          }
+        }
+        
+        // Apply discount if available
+        if (item.product.activeSale && item.product.discountedPrice && item.product.price) {
+          const discountRatio = parseFloat(item.product.discountedPrice.toString()) / parseFloat(item.product.price.toString());
+          price = price * discountRatio;
+        }
+        
         return sum + price * item.quantity;
       }, 0);
 
@@ -389,10 +406,24 @@ export const orderRoutes = (app: Express) => {
         return res.status(400).json({ message: "Payment verification failed" });
       }
 
-      // 2️⃣ Calculate totals
+      // 1️⃣ Calculate totals with variant pricing
       const totalAmount = cartItems.cart.reduce((sum, item) => {
-        const price =
-          (item.product as any).discountedPrice ?? item.product.price;
+        // Get variant price if variant exists, otherwise use product price
+        let price = typeof item.product.price === 'string' ? parseFloat(item.product.price) : item.product.price;
+        
+        if (item.variantId && item.product.variants) {
+          const variant = item.product.variants.find((v: any) => v.id === item.variantId);
+          if (variant && variant.price) {
+            price = typeof variant.price === 'string' ? parseFloat(variant.price) : variant.price;
+          }
+        }
+        
+        // Apply discount if available
+        if (item.product.activeSale && item.product.discountedPrice && item.product.price) {
+          const discountRatio = parseFloat(item.product.discountedPrice.toString()) / parseFloat(item.product.price.toString());
+          price = price * discountRatio;
+        }
+        
         return sum + price * item.quantity;
       }, 0);
 
@@ -417,30 +448,75 @@ export const orderRoutes = (app: Express) => {
 
       const finalAmount = totalAmount - discountAmount;
 
-      // 3️⃣ Create order in DB (transaction-safe)
-      const order = await createOrderTransaction(
-        {
-          userId,
-          totalAmount: totalAmount.toString(),
-          discountAmount: discountAmount.toString(),
-          finalAmount: finalAmount.toString(),
-          couponId,
-          shippingAddress,
-          phone,
-          notes,
-          status: "created",
-          paymentStatus: "paid",
-          paymentMethod: "razorpay",
-          razorpayPaymentId,
-        },
-        cartItems.cart.map((item) => ({
-          productId: item.productId,
-          quantity: item.quantity,
-          price: (
-            (item.product as any).discountedPrice ?? item.product.price
-          ).toString(),
-        })),
-      );
+      // 4️⃣ Create order and deduct stock in a transaction
+      const order = await db.transaction(async (tx) => {
+        // Create the order first
+        const newOrder = await orderService.createOrder(
+          {
+            userId,
+            totalAmount: totalAmount.toString(),
+            discountAmount: discountAmount.toString(),
+            finalAmount: finalAmount.toString(),
+            couponId,
+            shippingAddress,
+            phone,
+            notes,
+            status: "created",
+            paymentStatus: "paid",
+            paymentMethod: "razorpay",
+            razorpayPaymentId,
+          },
+          cartItems.cart.map((item) => {
+            // Get variant price if variant exists, otherwise use product price
+            let price = typeof item.product.price === 'string' ? parseFloat(item.product.price) : item.product.price;
+            
+            if (item.variantId && item.product.variants) {
+              const variant = item.product.variants.find((v: any) => v.id === item.variantId);
+              if (variant && variant.price) {
+                price = typeof variant.price === 'string' ? parseFloat(variant.price) : variant.price;
+              }
+            }
+            
+            // Apply discount if available
+            if (item.product.activeSale && item.product.discountedPrice && item.product.price) {
+              const discountRatio = parseFloat(item.product.discountedPrice.toString()) / parseFloat(item.product.price.toString());
+              price = price * discountRatio;
+            }
+            
+            return {
+              productId: item.productId,
+              variantId: item.variantId, // Include variantId
+              quantity: item.quantity,
+              price: price.toString(),
+            };
+          })
+        );
+
+        // Deduct stock for variants and products
+        for (const cartItem of cartItems.cart) {
+          if (cartItem.variantId) {
+            // Deduct from variant stock
+            await tx
+              .update(productVariants)
+              .set({
+                onlineStock: sql`${productVariants.onlineStock} - ${cartItem.quantity}`,
+                stockQuantity: sql`${productVariants.stockQuantity} - ${cartItem.quantity}`,
+              })
+              .where(eq(productVariants.id, cartItem.variantId));
+          } else {
+            // Deduct from product stock
+            await tx
+              .update(products)
+              .set({
+                onlineStock: sql`${products.onlineStock} - ${cartItem.quantity}`,
+                totalStock: sql`${products.totalStock} - ${cartItem.quantity}`,
+              })
+              .where(eq(products.id, cartItem.productId));
+          }
+        }
+
+        return newOrder;
+      });
 
       if (validCoupon && discountAmount > 0) {
         await couponsService.applyCoupon(

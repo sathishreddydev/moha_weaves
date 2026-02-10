@@ -125,7 +125,7 @@ export const products = pgTable("products", {
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });
 
-// Store inventory (stock per store)
+// Store inventory (stock per store/variant)
 export const storeInventory = pgTable("store_inventory", {
   id: varchar("id")
     .primaryKey()
@@ -135,6 +135,40 @@ export const storeInventory = pgTable("store_inventory", {
     .notNull(),
   productId: varchar("product_id")
     .references(() => products.id)
+    .notNull(),
+  quantity: integer("quantity").notNull().default(0),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
+// Product variants (for products with size/color variations)
+export const productVariants = pgTable("product_variants", {
+  id: varchar("id")
+    .primaryKey()
+    .default(sql`gen_random_uuid()`),
+  productId: varchar("product_id")
+    .references(() => products.id)
+    .notNull(),
+  sku: varchar("sku").unique(),
+  size: varchar("size").notNull(),
+  stockQuantity: integer("stock_quantity").notNull().default(0),
+  onlineStock: integer("online_stock").notNull().default(0),
+  price: decimal("price", { precision: 10, scale: 2 }),
+  actualPrice: decimal("actual_price", { precision: 10, scale: 2 }),
+  isActive: boolean("is_active").notNull().default(true),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
+// Variant store inventory (stock per store per variant)
+export const variantStoreInventory = pgTable("variant_store_inventory", {
+  id: varchar("id")
+    .primaryKey()
+    .default(sql`gen_random_uuid()`),
+  variantId: varchar("variant_id")
+    .references(() => productVariants.id)
+    .notNull(),
+  storeId: varchar("store_id")
+    .references(() => stores.id)
     .notNull(),
   quantity: integer("quantity").notNull().default(0),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
@@ -183,6 +217,8 @@ export const cart = pgTable("cart", {
   productId: varchar("product_id")
     .references(() => products.id)
     .notNull(),
+  variantId: varchar("variant_id")
+    .references(() => productVariants.id),
   quantity: integer("quantity").notNull().default(1),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
@@ -230,6 +266,8 @@ export const orderItems = pgTable("order_items", {
   productId: varchar("product_id")
     .references(() => products.id)
     .notNull(),
+  variantId: varchar("variant_id")
+    .references(() => productVariants.id),
   quantity: integer("quantity").notNull(),
   price: decimal("price", { precision: 10, scale: 2 }).notNull(),
   status: text("status").notNull().default("pending"),

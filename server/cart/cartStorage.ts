@@ -10,6 +10,7 @@ import {
   saleProducts,
   cart,
   wishlist,
+  productVariants,
   CartItemWithProduct,
   WishlistItemWithProduct,
   InsertCartItem,
@@ -126,6 +127,7 @@ export class CartRepository {
       .leftJoin(categories, eq(products.categoryId, categories.id))
       .leftJoin(colors, eq(products.colorId, colors.id))
       .leftJoin(fabrics, eq(products.fabricId, fabrics.id))
+      .leftJoin(productVariants, eq(cart.variantId, productVariants.id))
       .where(eq(cart.userId, userId));
 
     const { activeSales, mappings } = await productRepo.loadSaleData();
@@ -134,13 +136,29 @@ export class CartRepository {
       rows.map(async (row) => {
         const product = await productRepo.buildProduct(row, activeSales, mappings);
 
+        // Include variant information if exists
+        const variantInfo = row.product_variants ? {
+          id: row.product_variants.id,
+          sku: row.product_variants.sku,
+          size: row.product_variants.size,
+          price: row.product_variants.price,
+          actualPrice: row.product_variants.actualPrice,
+          stockQuantity: row.product_variants.stockQuantity,
+          onlineStock: row.product_variants.onlineStock,
+          isActive: row.product_variants.isActive,
+        } : undefined;
+
         return {
           id: row.cart.id,
           createdAt: row.cart.createdAt,
           userId: row.cart.userId,
           productId: row.cart.productId,
           quantity: row.cart.quantity,
-          product,
+          variantId: row.cart.variantId,
+          product: {
+            ...product,
+            variants: variantInfo ? [variantInfo] : undefined,
+          },
         };
       })
     );
@@ -163,13 +181,44 @@ export class CartRepository {
   }
 
   async addToCart(item: InsertCartItem) {
+    // Check if item with same productId and variantId already exists
+    const existingConditions = [eq(cart.userId, item.userId), eq(cart.productId, item.productId)];
+    if (item.variantId) {
+      existingConditions.push(eq(cart.variantId, item.variantId));
+    }
+    
     const [existing] = await db
       .select()
       .from(cart)
-      .where(and(eq(cart.userId, item.userId), eq(cart.productId, item.productId)));
+      .where(and(...existingConditions));
+
+    // Get current stock to validate
+    let availableStock = 0;
+    if (item.variantId) {
+      // Get variant stock
+      const [variant] = await db
+        .select()
+        .from(productVariants)
+        .where(eq(productVariants.id, item.variantId));
+      availableStock = variant?.onlineStock || 0;
+    } else {
+      // Get product stock
+      const [product] = await db
+        .select()
+        .from(products)
+        .where(eq(products.id, item.productId));
+      availableStock = product?.onlineStock || 0;
+    }
+
+    const currentQuantity = existing?.quantity || 0;
+    const newQuantity = currentQuantity + (item.quantity || 1);
+
+    // Validate stock
+    if (newQuantity > availableStock) {
+      throw new Error(`Only ${availableStock} items available in stock.`);
+    }
 
     if (existing) {
-      const newQuantity = existing.quantity + (item.quantity || 1);
       if (newQuantity <= 0) {
         await db.delete(cart).where(eq(cart.id, existing.id));
       } else {
@@ -187,9 +236,43 @@ export class CartRepository {
   async updateCartItem(id: string, quantity: number, userId: string) {
     if (quantity <= 0) {
       await db.delete(cart).where(eq(cart.id, id));
-    } else {
-      await db.update(cart).set({ quantity }).where(eq(cart.id, id));
+      return await this.buildCart(userId);
     }
+
+    // Get the cart item to check stock
+    const [cartItem] = await db
+      .select()
+      .from(cart)
+      .where(eq(cart.id, id));
+
+    if (!cartItem) {
+      throw new Error("Cart item not found");
+    }
+
+    // Get current stock to validate
+    let availableStock = 0;
+    if (cartItem.variantId) {
+      // Get variant stock
+      const [variant] = await db
+        .select()
+        .from(productVariants)
+        .where(eq(productVariants.id, cartItem.variantId));
+      availableStock = variant?.onlineStock || 0;
+    } else {
+      // Get product stock
+      const [product] = await db
+        .select()
+        .from(products)
+        .where(eq(products.id, cartItem.productId));
+      availableStock = product?.onlineStock || 0;
+    }
+
+    // Validate stock
+    if (quantity > availableStock) {
+      throw new Error(`Only ${availableStock} items available in stock.`);
+    }
+
+    await db.update(cart).set({ quantity }).where(eq(cart.id, id));
     return await this.buildCart(userId);
   }
 

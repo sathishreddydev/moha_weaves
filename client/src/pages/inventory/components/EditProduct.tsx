@@ -42,6 +42,9 @@ export default function EditProduct() {
     distributionChannel: "both",
     isFeatured: false,
     isActive: true,
+    // New variant fields
+    hasVariants: false,
+    variants: [],
   });
   const {
     data: productBySku,
@@ -95,6 +98,9 @@ export default function EditProduct() {
       if (product.imageUrl && !allImages.includes(product.imageUrl)) {
         allImages = [product.imageUrl, ...allImages];
       }
+
+  
+
       const newFormData = {
         name: product.name,
         description: product.description || "",
@@ -112,20 +118,30 @@ export default function EditProduct() {
         distributionChannel: product.distributionChannel,
         isFeatured: product.isFeatured,
         isActive: product.isActive,
+        // New variant fields
+hasVariants: !!product?.variants?.length,
+        variants: product.variants,
       };
       setFormData(newFormData);
 
-      const allocs =
-        stores?.map((s) => {
-          const existing = productAllocations.find(
-            (a: StoreAllocation) => a.storeId === s.id,
-          );
-          return {
+      // For simple products, set store allocations
+      // For variant products, store allocations are handled per variant
+      const allocs = product.hasVariants 
+        ? stores?.map((s) => ({
             storeId: s.id,
             storeName: s.name,
-            quantity: existing?.quantity || 0,
-          };
-        }) || [];
+            quantity: 0, // Start with 0 for variant products
+          })) || []
+        : stores?.map((s) => {
+            const existing = productAllocations.find(
+              (a: StoreAllocation) => a.storeId === s.id,
+            );
+            return {
+              storeId: s.id,
+              storeName: s.name,
+              quantity: existing?.quantity || 0,
+            };
+          }) || [];
       setStoreAllocations(allocs);
     }
   }, [productBySku, stores, productAllocations]);

@@ -116,13 +116,29 @@ export type ProductWithDetails = Product & {
   subcategory?: Subcategory | null;
   color?: Color | null;
   fabric?: Fabric | null;
-  actualPrice?: number | null;
   images?: string[];
   videoUrl?: string;
   storeAllocations?: {
     storeId: string;
     storeName: string;
     quantity: number;
+  }[];
+  variants?: {
+    id: string;
+    sku: string;
+    size: string;
+    stockQuantity: number;
+    onlineStock: number;
+    price?: string;
+    actualPrice?: string;
+    isActive: boolean;
+    createdAt: Date;
+    updatedAt: Date;
+    storeAllocations?: {
+      storeId: string;
+      storeName: string;
+      quantity: number;
+    }[];
   }[];
   unallocated?: number;
   activeSale?: {

@@ -16,11 +16,25 @@ const isValidMediaUrl = (url: string): boolean => {
     return false;
   }
 };
+
 const emptyToNull = z
   .string()
   .transform((val) => (val === "" ? null : val))
   .nullable()
   .optional();
+
+const productVariantSchema = z.object({
+  id: z.string().optional(),
+  sku: z.string().optional(),
+  size: z.string().min(1, "Size is required"),
+  price: z.string().or(z.number()).nullable().transform((val) => val ? String(val) : undefined).optional(),
+  actualPrice: z.string().or(z.number()).nullable().transform((val) => val ? String(val) : undefined).optional(),
+  stockQuantity: z.number().int().min(0, "Stock quantity must be non-negative"),
+  onlineStock: z.number().int().min(0, "Online stock must be non-negative"),
+  isActive: z.boolean().default(true),
+  storeAllocations: z.array(storeAllocationSchema).optional().default([]),
+});
+
 export const productBaseSchema = z.object({
   name: z.string().min(1, "Name is required"),
   description: z.string().optional(),
@@ -61,6 +75,9 @@ export const productBaseSchema = z.object({
   distributionChannel: z.enum(["shop", "online", "both"]),
   isFeatured: z.boolean().optional().default(false),
   isActive: z.boolean().optional().default(true),
+  // Variant support fields
+  hasVariants: z.boolean().default(false),
+  variants: z.array(productVariantSchema).optional().default([]),
   storeAllocations: z.array(storeAllocationSchema).optional().default([]),
 });
 
@@ -71,4 +88,9 @@ export const trackingNumberSchema = z.object({
     .optional()
     .nullable()
     .transform((val) => (val === "" ? null : val)),
+});
+
+export const productUpdateSchema = productBaseSchema.partial().extend({
+  variants: z.array(productVariantSchema).optional().default([]),
+  storeAllocations: z.array(storeAllocationSchema).optional().default([]),
 });

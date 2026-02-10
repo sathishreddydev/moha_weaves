@@ -340,16 +340,29 @@ export default function Checkout() {
     return <OrderSuccess orderId={orderId} />;
   }
 
+  // Get variant info and pricing for cart item
+  const getItemVariant = (item: any) => {
+    if (item.variantId && item.product.variants) {
+      return item.product.variants.find((v: any) => v.id === item.variantId);
+    }
+    return null;
+  };
+
+  const getItemPrice = (item: any) => {
+    const variant = getItemVariant(item);
+    const basePrice = variant?.price || item.product.price;
+    
+    if (item.product.activeSale && item.product.discountedPrice) {
+      // Calculate discount for variant price
+      const discountRatio = parseFloat(item.product.discountedPrice.toString()) / parseFloat(item.product.price.toString());
+      return basePrice * discountRatio;
+    }
+    return basePrice;
+  };
+
   const subtotal = cartItems.reduce((sum, item) => {
-    const basePrice =
-      item.product.activeSale && item.product.discountedPrice
-        ? item.product.discountedPrice
-        : item.product.price;
-
-    const price =
-      typeof basePrice === "string" ? parseFloat(basePrice) : basePrice;
-
-    return sum + price * item.quantity;
+    const itemPrice = getItemPrice(item);
+    return sum + itemPrice * item.quantity;
   }, 0);
 
   const calculateDiscount = () => {
@@ -679,28 +692,38 @@ export default function Checkout() {
                       </h4>
                       <p className="text-sm text-muted-foreground">
                         Qty: {item.quantity}
+                        {(() => {
+                          const variant = getItemVariant(item);
+                          return variant ? ` • Size: ${variant.size}` : '';
+                        })()}
                       </p>
                       <div className="mt-2">
-                        {item.product.activeSale && item.product.discountedPrice ? (
-                          <div className="flex items-center gap-2">
+                        {(() => {
+                          const itemPrice = getItemPrice(item);
+                          const originalPrice = getItemVariant(item)?.price || item.product.price;
+                          const hasDiscount = item.product.activeSale && item.product.discountedPrice && itemPrice < originalPrice;
+                          
+                          return hasDiscount ? (
+                            <div className="flex items-center gap-2">
+                              <p
+                                className="font-semibold text-primary"
+                                data-testid={`text-item-price-${item.id}`}
+                              >
+                                {formatPrice(itemPrice)}
+                              </p>
+                              <p className="text-xs text-muted-foreground line-through">
+                                {formatPrice(originalPrice)}
+                              </p>
+                            </div>
+                          ) : (
                             <p
                               className="font-semibold text-primary"
                               data-testid={`text-item-price-${item.id}`}
                             >
-                              {formatPrice(item.product.discountedPrice)}
+                              {formatPrice(itemPrice)}
                             </p>
-                            <p className="text-xs text-muted-foreground line-through">
-                              {formatPrice(item.product.price)}
-                            </p>
-                          </div>
-                        ) : (
-                          <p
-                            className="font-semibold text-primary"
-                            data-testid={`text-item-price-${item.id}`}
-                          >
-                            {formatPrice(item.product.price)}
-                          </p>
-                        )}
+                          );
+                        })()}
                       </div>{" "}
                     </div>
                   </div>

@@ -35,6 +35,26 @@ export default function Cart() {
     }).format(numPrice);
   };
 
+  // Get variant info and pricing for cart item
+  const getItemVariant = (item: any) => {
+    if (item.variantId && item.product.variants) {
+      return item.product.variants.find((v: any) => v.id === item.variantId);
+    }
+    return null;
+  };
+
+  const getItemPrice = (item: any) => {
+    const variant = getItemVariant(item);
+    const basePrice = variant?.price || item.product.price;
+    
+    if (item.product.activeSale && item.product.discountedPrice) {
+      // Calculate discount for variant price
+      const discountRatio = parseFloat(item.product.discountedPrice.toString()) / parseFloat(item.product.price.toString());
+      return basePrice * discountRatio;
+    }
+    return basePrice;
+  };
+
   if (!user) {
     return (
       <div className="max-w-7xl mx-auto px-4 py-16 text-center">
@@ -85,15 +105,8 @@ export default function Cart() {
   }
 
   const subtotal = cartItems.reduce((sum, item) => {
-    // Use discounted price if available, otherwise use regular price
-    const price = item.product.discountedPrice
-      ? typeof item.product.discountedPrice === "string"
-        ? parseFloat(item.product.discountedPrice)
-        : item.product.discountedPrice
-      : typeof item.product.price === "string"
-      ? parseFloat(item.product.price)
-      : item.product.price;
-    return sum + price * item.quantity;
+    const itemPrice = getItemPrice(item);
+    return sum + itemPrice * item.quantity;
   }, 0);
 
   const shipping = subtotal >= 2999 ? 0 : 199;
@@ -146,28 +159,38 @@ export default function Cart() {
                   <div className="text-sm text-muted-foreground mt-1">
                     {item.product.category?.name}
                     {item.product.color && ` • ${item.product.color.name}`}
+                    {(() => {
+                      const variant = getItemVariant(item);
+                      return variant ? ` • Size: ${variant.size}` : '';
+                    })()}
                   </div>
                   <div className="mt-2">
-                    {item.product.activeSale && item.product.discountedPrice ? (
-                      <div className="flex items-center gap-2">
+                    {(() => {
+                      const itemPrice = getItemPrice(item);
+                      const originalPrice = getItemVariant(item)?.price || item.product.price;
+                      const hasDiscount = item.product.activeSale && item.product.discountedPrice && itemPrice < originalPrice;
+                      
+                      return hasDiscount ? (
+                        <div className="flex items-center gap-2">
+                          <p
+                            className="font-semibold text-primary"
+                            data-testid={`text-item-price-${item.id}`}
+                          >
+                            {formatPrice(itemPrice)}
+                          </p>
+                          <p className="text-xs text-muted-foreground line-through">
+                            {formatPrice(originalPrice)}
+                          </p>
+                        </div>
+                      ) : (
                         <p
                           className="font-semibold text-primary"
                           data-testid={`text-item-price-${item.id}`}
                         >
-                          {formatPrice(item.product.discountedPrice)}
+                          {formatPrice(itemPrice)}
                         </p>
-                        <p className="text-xs text-muted-foreground line-through">
-                          {formatPrice(item.product.price)}
-                        </p>
-                      </div>
-                    ) : (
-                      <p
-                        className="font-semibold text-primary"
-                        data-testid={`text-item-price-${item.id}`}
-                      >
-                        {formatPrice(item.product.price)}
-                      </p>
-                    )}
+                      );
+                    })()}
                   </div>
 
                   <div className="flex items-center justify-between mt-4">

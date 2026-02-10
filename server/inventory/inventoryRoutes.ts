@@ -383,8 +383,73 @@ export const inventoryRoutes = (app: Express) => {
         });
       }
 
-      const { storeAllocations, actualPrice, ...productData } = validation.data;
+      const { storeAllocations, actualPrice, variants, ...productData } = validation.data;
 
+      // Handle variant products
+      if (productData.hasVariants && variants && variants.length > 0) {
+        // Validate variant stock consistency
+        for (const variant of variants) {
+          const storeTotal = variant.storeAllocations?.reduce((sum, a) => sum + a.quantity, 0) || 0;
+          const onlinePlusStore = variant.onlineStock + storeTotal;
+          
+          if (onlinePlusStore !== variant.stockQuantity) {
+            return res.status(400).json({
+              message: `Variant ${variant.size}: Online (${variant.onlineStock}) + Store allocations (${storeTotal}) must equal total stock (${variant.stockQuantity})`,
+            });
+          }
+
+          // Validate distribution channel constraints for variants
+          if (productData.distributionChannel === "online" && storeTotal > 0) {
+            return res.status(400).json({
+              message: `Variant ${variant.size}: Distribution channel is 'Online Only' but has store allocations (${storeTotal})`,
+            });
+          }
+          if (productData.distributionChannel === "shop" && variant.onlineStock > 0) {
+            return res.status(400).json({
+              message: `Variant ${variant.size}: Distribution channel is 'Shop Only' but has online stock (${variant.onlineStock})`,
+            });
+          }
+        }
+
+        // Calculate aggregated totals from variants
+        const totalStock = variants.reduce((sum, v) => sum + v.stockQuantity, 0);
+        const onlineStock = variants.reduce((sum, v) => sum + v.onlineStock, 0);
+        
+        // Aggregate store allocations across variants
+        const storeAllocationsMap = new Map<string, {quantity: number, storeName: string}>();
+        variants.forEach(variant => {
+          variant.storeAllocations?.forEach(alloc => {
+            const current = storeAllocationsMap.get(alloc.storeId) || {quantity: 0, storeName: ''};
+            storeAllocationsMap.set(alloc.storeId, {
+              quantity: current.quantity + alloc.quantity,
+              storeName: current.storeName || `Store ${alloc.storeId}` // Fallback name
+            });
+          });
+        });
+        
+        const aggregatedStoreAllocations = Array.from(storeAllocationsMap.entries()).map(([storeId, data]) => ({
+          storeId,
+          quantity: data.quantity
+        }));
+
+        // Update product data with calculated totals
+        const updatedProductData = {
+          ...productData,
+          totalStock,
+          onlineStock
+        };
+
+        const product = await inventoryService.createProductWithVariants(
+          updatedProductData,
+          variants,
+          aggregatedStoreAllocations,
+          actualPrice,
+        );
+        res.json(product);
+        return;
+      }
+
+      // Handle simple products (existing logic)
       if (productData.distributionChannel === "online") {
         productData.onlineStock = productData.totalStock;
         const product = await inventoryService.createProductWithAllocations(
@@ -435,16 +500,86 @@ export const inventoryRoutes = (app: Express) => {
 
   app.patch("/api/inventory/products/:id", authInventory, async (req, res) => {
     try {
+      console.log("Update request body:", JSON.stringify(req.body, null, 2));
+      
       const validation = productUpdateSchema.safeParse(req.body);
       if (!validation.success) {
+        console.log("Validation errors:", validation.error.errors);
         return res.status(400).json({
           message: validation.error.errors[0]?.message || "Invalid input",
+          errors: validation.error.errors
         });
       }
 
-      const { storeAllocations, actualPrice, ...productData } = validation.data;
+      const { storeAllocations, actualPrice, variants, ...productData } = validation.data;
       const allocations = storeAllocations || [];
 
+      // Handle variant products
+      if (productData.hasVariants && variants && variants.length > 0) {
+        // Validate variant stock consistency
+        for (const variant of variants) {
+          const storeTotal = variant.storeAllocations?.reduce((sum, a) => sum + a.quantity, 0) || 0;
+          const onlinePlusStore = variant.onlineStock + storeTotal;
+          
+          if (onlinePlusStore !== variant.stockQuantity) {
+            return res.status(400).json({
+              message: `Variant ${variant.size}: Online (${variant.onlineStock}) + Store allocations (${storeTotal}) must equal total stock (${variant.stockQuantity})`,
+            });
+          }
+
+          // Validate distribution channel constraints for variants
+          if (productData.distributionChannel === "online" && storeTotal > 0) {
+            return res.status(400).json({
+              message: `Variant ${variant.size}: Distribution channel is 'Online Only' but has store allocations (${storeTotal})`,
+            });
+          }
+          if (productData.distributionChannel === "shop" && variant.onlineStock > 0) {
+            return res.status(400).json({
+              message: `Variant ${variant.size}: Distribution channel is 'Shop Only' but has online stock (${variant.onlineStock})`,
+            });
+          }
+        }
+
+        // Calculate aggregated totals from variants
+        const totalStock = variants.reduce((sum, v) => sum + v.stockQuantity, 0);
+        const onlineStock = variants.reduce((sum, v) => sum + v.onlineStock, 0);
+        
+        // Aggregate store allocations across variants
+        const storeAllocationsMap = new Map<string, {quantity: number, storeName: string}>();
+        variants.forEach(variant => {
+          variant.storeAllocations?.forEach(alloc => {
+            const current = storeAllocationsMap.get(alloc.storeId) || {quantity: 0, storeName: ''};
+            storeAllocationsMap.set(alloc.storeId, {
+              quantity: current.quantity + alloc.quantity,
+              storeName: current.storeName || `Store ${alloc.storeId}`
+            });
+          });
+        });
+        
+        const aggregatedStoreAllocations = Array.from(storeAllocationsMap.entries()).map(([storeId, data]) => ({
+          storeId,
+          quantity: data.quantity
+        }));
+
+        // Update product data with calculated totals
+        const updatedProductData = {
+          ...productData,
+          totalStock,
+          onlineStock
+        };
+
+        const product = await inventoryService.updateProductWithVariants(
+          req.params.id,
+          updatedProductData,
+          variants,
+          aggregatedStoreAllocations,
+          actualPrice,
+        );
+        res.json(product);
+        return;
+      }
+
+      // Handle simple products (existing logic)
       if (productData.distributionChannel === "online") {
         productData.onlineStock = productData.totalStock;
         const product = await inventoryService.updateProductWithAllocations(

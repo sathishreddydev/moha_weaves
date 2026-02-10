@@ -536,7 +536,11 @@ export default function ItemOrderDetails() {
                             {orderItem.product.name}
                           </h4>
                           <p className="text-xs text-muted-foreground mt-1">
-                            Qty: {orderItem.quantity} •{" "}
+                            Qty: {orderItem.quantity}
+                            {(() => {
+                              const variant = orderItem.variantId && orderItem.product.variants?.find((v: any) => v.id === orderItem.variantId);
+                              return variant ? ` • Size: ${variant.size}` : '';
+                            })()} •{" "}
                             {formatPrice(orderItem.price)}
                           </p>
                         </div>

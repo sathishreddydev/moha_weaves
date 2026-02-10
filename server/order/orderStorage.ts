@@ -16,6 +16,7 @@ import {
   itemStatusHistory,
   itemStatusEnum,
   users,
+  productVariants,
 } from "@shared/schema";
 import { IdGenerator } from "server/utils/idGenerator";
 import { returnStorage } from "server/return/returnStorage";
@@ -122,6 +123,7 @@ export class OrderRepository implements OrderStorage {
         .leftJoin(categories, eq(products.categoryId, categories.id))
         .leftJoin(colors, eq(products.colorId, colors.id))
         .leftJoin(fabrics, eq(products.fabricId, fabrics.id))
+        .leftJoin(productVariants, eq(orderItems.variantId, productVariants.id))
         .where(eq(orderItems.orderId, order.orders.id));
 
       // Get return eligibility for all items in this order
@@ -140,6 +142,8 @@ export class OrderRepository implements OrderStorage {
               category: row.categories,
               color: row.colors,
               fabric: row.fabrics,
+              variants: row.product_variants ? [row.product_variants] : undefined,
+              images: row.products.images || undefined,
             },
           };
         }),
@@ -160,6 +164,7 @@ export class OrderRepository implements OrderStorage {
       .leftJoin(categories, eq(products.categoryId, categories.id))
       .leftJoin(colors, eq(products.colorId, colors.id))
       .leftJoin(fabrics, eq(products.fabricId, fabrics.id))
+      .leftJoin(productVariants, eq(orderItems.variantId, productVariants.id))
       .where(eq(orderItems.orderId, order.id));
     
     const itemStatuses = await Promise.all(
@@ -190,6 +195,8 @@ export class OrderRepository implements OrderStorage {
             category: row.categories,
             color: row.colors,
             fabric: row.fabrics,
+            images: row.products.images || undefined,
+            variants: row.product_variants ? [row.product_variants] : undefined,
           },
         };
       }),
@@ -207,6 +214,7 @@ export class OrderRepository implements OrderStorage {
       .leftJoin(categories, eq(products.categoryId, categories.id))
       .leftJoin(colors, eq(products.colorId, colors.id))
       .leftJoin(fabrics, eq(products.fabricId, fabrics.id))
+      .leftJoin(productVariants, eq(orderItems.variantId, productVariants.id))
       .where(eq(orderItems.orderId, order.id));
     
     // Get return eligibility for all items in this order
@@ -244,6 +252,8 @@ export class OrderRepository implements OrderStorage {
             category: row.categories,
             color: row.colors,
             fabric: row.fabrics,
+            images: row.products.images ?? undefined,
+            variants: row.product_variants ? [row.product_variants] : undefined,
           },
         };
       }),
