@@ -6,6 +6,7 @@ import {
   categories,
   colors,
   fabrics,
+  productVariants,
   orders,
   users,
   stockMovements,
@@ -127,6 +128,7 @@ export class OnlineExchangeStorage implements IOnlineExchangeStorage {
         .leftJoin(categories, eq(products.categoryId, categories.id))
         .leftJoin(colors, eq(products.colorId, colors.id))
         .leftJoin(fabrics, eq(products.fabricId, fabrics.id))
+        .leftJoin(productVariants, eq(orderItems.variantId, productVariants.id))
         .where(eq(onlineExchangeItems.exchangeId, exchange.id));
 
       if (orderWithItems && user) {
@@ -145,6 +147,7 @@ export class OnlineExchangeStorage implements IOnlineExchangeStorage {
                   category: item.categories,
                   color: item.colors,
                   fabric: item.fabrics,
+                  variants: item.product_variants ? [item.product_variants] : undefined,
                 },
               },
             };

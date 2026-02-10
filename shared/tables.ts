@@ -199,6 +199,8 @@ export const storeCart = pgTable("store_cart", {
   productId: varchar("product_id")
     .references(() => products.id)
     .notNull(),
+  variantId: varchar("variant_id")
+    .references(() => productVariants.id),
   quantity: integer("quantity").notNull().default(1),
   unitPrice: decimal("unit_price", { precision: 10, scale: 2 }).notNull(),
   lineAmount: decimal("line_amount", { precision: 10, scale: 2 }).notNull(),

@@ -3,6 +3,7 @@ import { Heart, ShoppingBag, Eye, Minus, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { useState } from "react";
 import type { ProductWithDetails } from "@shared/schema";
 import { useAuth } from "@/lib/auth";
 import { useCartStore } from "../Store/useCartStore";
@@ -16,6 +17,9 @@ export function ProductCard({ product }: ProductCardProps) {
   const { user } = useAuth();
   const guestUser = ["admin", "inventory", "store"]?.includes(user?.role ?? "");
   const navigate = useNavigate();
+  const [selectedVariant, setSelectedVariant] = useState<string | null>(
+    product.variants && product.variants.length > 0 ? product.variants[0].id : null
+  );
 
   const {
     cart: cartItems,
@@ -34,7 +38,10 @@ export function ProductCard({ product }: ProductCardProps) {
     isAddingItem: isAddingWishlistItem,
   } = useWishlistStore();
 
-  const cartItem = cartItems?.find((item) => item.product.id === product.id);
+  const cartItem = cartItems?.find((item) => 
+    item.product.id === product.id && 
+    (product.variants && product.variants.length > 0 ? item.variantId === selectedVariant : true)
+  );
   const isInCart = !!cartItem;
 
   const isInWishlist = wishlist?.some((item) => item.productId === product.id);
@@ -43,12 +50,14 @@ export function ProductCard({ product }: ProductCardProps) {
     product.distributionChannel === "online" ||
     product.distributionChannel === "both";
 
-  const hasStock = product.onlineStock > 0;
+  const selectedVariantData = product.variants?.find(v => v.id === selectedVariant);
+  const hasStock = selectedVariantData ? selectedVariantData.onlineStock > 0 : product.onlineStock > 0;
   const disabledButton =
     isAddingItem[product.id] ||
     isUpdatingItem[product.id] ||
     isRemovingItem[product.id] ||
-    isLoadingCart;
+    isLoadingCart ||
+    (product.variants && product.variants.length > 0 && !selectedVariant);
   const formatPrice = (price: number | string) =>
     new Intl.NumberFormat("en-IN", {
       style: "currency",
@@ -80,6 +89,26 @@ export function ProductCard({ product }: ProductCardProps) {
             className="w-full h-full object-cover transition-transform duration-500 md:group-hover:scale-105"
           />
         </Link>
+
+        {/* Variant Selection */}
+        {product.variants && product.variants.length > 0 && (
+          <div className="absolute bottom-2 left-2 right-2 flex gap-1">
+            {product.variants.map((variant) => (
+              <button
+                key={variant.id}
+                onClick={() => setSelectedVariant(variant.id)}
+                className={`px-2 py-1 text-xs rounded-full transition-colors ${
+                  selectedVariant === variant.id
+                    ? "bg-primary text-white"
+                    : "bg-background/90 text-foreground hover:bg-background"
+                } ${variant.onlineStock <= 0 ? "opacity-50 cursor-not-allowed" : ""}`}
+                disabled={variant.onlineStock <= 0}
+              >
+                {variant.size}
+              </button>
+            ))}
+          </div>
+        )}
 
         <div className="absolute top-2 left-2 flex flex-col gap-1">
           {product.activeSale && (
@@ -162,7 +191,7 @@ export function ProductCard({ product }: ProductCardProps) {
                   onClick={() => handleUpdateQuantity(cartItem.quantity + 1)}
                   disabled={
                     disabledButton ||
-                    cartItem.quantity >= cartItem.product.onlineStock
+                    cartItem.quantity >= (selectedVariantData ? selectedVariantData.onlineStock : cartItem.product.onlineStock)
                   }
                   aria-label="Increase quantity"
                 >
@@ -181,7 +210,7 @@ export function ProductCard({ product }: ProductCardProps) {
                     return;
                   }
                   if (!hasStock) return;
-                  !disabledButton && addItem(product.id, 1);
+                  !disabledButton && addItem(product.id, 1, selectedVariant);
                 }}
                 disabled={disabledButton}
               >
@@ -234,20 +263,29 @@ export function ProductCard({ product }: ProductCardProps) {
         </div>
 
         <div className="flex items-center gap-2">
-          {product.activeSale && product.discountedPrice ? (
-            <>
-              <p className="text-primary">
-                {formatPrice(product.discountedPrice)}
+          {(() => {
+            const displayPrice = selectedVariantData ? selectedVariantData.price : product.price;
+            const displayDiscountedPrice = product.activeSale && product.discountedPrice 
+              ? (selectedVariantData ? 
+                  parseFloat(selectedVariantData.price) * (product.discountedPrice / parseFloat(product.price)) 
+                  : product.discountedPrice)
+              : undefined;
+            
+            return displayDiscountedPrice ? (
+              <>
+                <p className="text-primary">
+                  {formatPrice(displayDiscountedPrice)}
+                </p>
+                <p className="text-sm text-muted-foreground line-through">
+                  {formatPrice(displayPrice)}
+                </p>
+              </>
+            ) : (
+              <p className="text-primary text-sm">
+                {formatPrice(displayPrice)}
               </p>
-              <p className="text-sm text-muted-foreground line-through">
-                {formatPrice(product.price)}
-              </p>
-            </>
-          ) : (
-            <p className="text-primary text-sm">
-              {formatPrice(product.price)}
-            </p>
-          )}
+            );
+          })()}
         </div>
       </div>
     </Card>

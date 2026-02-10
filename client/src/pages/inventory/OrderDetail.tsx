@@ -294,7 +294,11 @@ export default function InventoryOrderDetail() {
                   <div className="flex-1 min-w-0">
                     <div className="font-medium text-sm truncate">{item.product?.name || "Unknown"}</div>
                     <div className="text-xs text-muted-foreground">
-                      Qty: {item.quantity} x {formatPrice(item.price)}
+                      Qty: {item.quantity}
+                      {(() => {
+                        const variant = item.variantId && item.product?.variants?.find((v: any) => v.id === item.variantId);
+                        return variant ? ` • Size: ${variant.size}` : '';
+                      })()} x {formatPrice(item.price)}
                     </div>
                     <Badge className={displayStatus.color}>
                     {displayStatus.label}

@@ -6,6 +6,7 @@ import {
   categories,
   colors,
   fabrics,
+  productVariants,
   refunds,
   orders,
   itemStatusHistory,
@@ -164,6 +165,7 @@ export class ReturnStorage implements IReturnStorage {
         .leftJoin(categories, eq(products.categoryId, categories.id))
         .leftJoin(colors, eq(products.colorId, colors.id))
         .leftJoin(fabrics, eq(products.fabricId, fabrics.id))
+        .leftJoin(productVariants, eq(orderItems.variantId, productVariants.id))
         .where(eq(returnItems.returnRequestId, request.id));
 
       const [refund] = await db
@@ -185,6 +187,7 @@ export class ReturnStorage implements IReturnStorage {
                 category: item.categories,
                 color: item.colors,
                 fabric: item.fabrics,
+                variants: item.product_variants ? [item.product_variants] : undefined,
               },
             },
           })),

@@ -8,6 +8,7 @@ import { CustomerService } from "./customerStorage";
 const cartItemSchema = z.object({
   id: z.string().optional(),
   productId: z.string(),
+  variantId: z.string().optional(),
   quantity: z.number().min(1),
   unitPrice: z.number().min(0),
   lineAmount: z.number().min(0),
@@ -16,6 +17,7 @@ const cartItemSchema = z.object({
 
 export const addToCartSchema = z.object({
   productId: z.string(),
+  variantId: z.string().optional(),
   quantity: z.number().min(1),
   unitPrice: z.number().min(0),
 });
@@ -27,6 +29,7 @@ export const updateCartSchema = z.object({
       quantity: z.number().min(1).optional(),
       unitPrice: z.number().min(0).optional(),
       productId: z.string(),
+      variantId: z.string().optional(),
     })
   ),
 });
@@ -103,6 +106,7 @@ export const storeCartRoutes = (app: Express) => {
       const updatedCart = await storeRepo.addToStoreCart(
         storeId,
         validatedData.productId,
+        validatedData.variantId,
         validatedData.quantity,
         validatedData.unitPrice
       );

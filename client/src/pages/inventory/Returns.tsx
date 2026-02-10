@@ -354,6 +354,15 @@ export default function InventoryReturns() {
                   <span>SKU: {item.id}</span>
                   <span className="h-1 w-1 bg-slate-300 rounded-full"></span>
                   <span>Qty: {item.quantity}</span>
+                  {(() => {
+                    const variant = item.orderItem?.variantId && item.orderItem?.product?.variants?.find((v: any) => v.id === item.orderItem?.variantId);
+                    return variant ? (
+                      <>
+                        <span className="h-1 w-1 bg-slate-300 rounded-full"></span>
+                        <span>Size: {variant.size}</span>
+                      </>
+                    ) : null;
+                  })()}
                   <span className="h-1 w-1 bg-slate-300 rounded-full"></span>
                   <span>{formatPrice(item.orderItem?.price || 0)} each</span>
                 </div>

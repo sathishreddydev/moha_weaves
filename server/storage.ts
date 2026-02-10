@@ -6,6 +6,7 @@ import {
   fabrics,
   stores,
   products,
+  productVariants,
   storeInventory,
   orders,
   orderItems,
@@ -405,6 +406,7 @@ export class DatabaseStorage implements IStorage {
         .leftJoin(categories, eq(products.categoryId, categories.id))
         .leftJoin(colors, eq(products.colorId, colors.id))
         .leftJoin(fabrics, eq(products.fabricId, fabrics.id))
+        .leftJoin(productVariants, eq(orderItems.variantId, productVariants.id))
         .where(eq(orderItems.orderId, order.orders.id));
 
       result.push({
@@ -418,6 +420,7 @@ export class DatabaseStorage implements IStorage {
             category: row.categories,
             color: row.colors,
             fabric: row.fabrics,
+            variants: row.product_variants ? [row.product_variants] : undefined,
           },
         })),
       });

@@ -155,7 +155,13 @@ export default function Returns() {
                       </div>
                       <div className="flex-1 min-w-0">
                         <h4 className="font-medium text-sm line-clamp-1">{item.orderItem.product.name}</h4>
-                        <p className="text-sm text-muted-foreground">Qty: {item.quantity}</p>
+                        <p className="text-sm text-muted-foreground">
+                          Qty: {item.quantity}
+                          {(() => {
+                            const variant = item.orderItem.variantId && item.orderItem.product.variants?.find((v: any) => v.id === item.orderItem.variantId);
+                            return variant ? ` • Size: ${variant.size}` : '';
+                          })()}
+                        </p>
                       </div>
                     </div>
                   ))}

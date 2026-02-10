@@ -269,6 +269,15 @@ export default function InventoryOrders() {
                   <span>SKU: {item.id}</span>
                   <span className="h-1 w-1 bg-slate-300 rounded-full"></span>
                   <span>Qty: {item.quantity}</span>
+                  {(() => {
+                    const variant = item.variantId && item.product?.variants?.find((v: any) => v.id === item.variantId);
+                    return variant ? (
+                      <>
+                        <span className="h-1 w-1 bg-slate-300 rounded-full"></span>
+                        <span>Size: {variant.size}</span>
+                      </>
+                    ) : null;
+                  })()}
                   <span className="h-1 w-1 bg-slate-300 rounded-full"></span>
                   <span>{formatPrice(item.price)} each</span>
                 </div>

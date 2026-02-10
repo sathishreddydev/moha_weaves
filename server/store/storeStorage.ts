@@ -31,8 +31,7 @@ import {
   coupons,
   Coupon,
   couponUsage,
-  store_customers,
-  appSettings,
+  productVariants,
 } from "@shared/schema";
 import { CustomerService } from "./customerStorage";
 import { and, desc, eq, gte, gt, ilike, lte, sql, inArray } from "drizzle-orm";
@@ -1562,6 +1561,7 @@ export class StoreRepository implements StoreStorage {
   async addToStoreCart(
     storeId: string,
     productId: string,
+    variantId: string | undefined,
     quantity: number,
     unitPrice: number,
   ): Promise<{ items: any[] }> {
@@ -1572,7 +1572,11 @@ export class StoreRepository implements StoreStorage {
         .select()
         .from(storeCart)
         .where(
-          and(eq(storeCart.storeId, storeId), eq(storeCart.productId, productId)),
+          and(
+            eq(storeCart.storeId, storeId), 
+            eq(storeCart.productId, productId),
+            variantId ? eq(storeCart.variantId, variantId) : sql`${storeCart.variantId} IS NULL`
+          ),
         )
         .limit(1);
 
@@ -1594,6 +1598,7 @@ export class StoreRepository implements StoreStorage {
         await tx.insert(storeCart).values({
           storeId,
           productId,
+          variantId,
           quantity,
           unitPrice: price.toString(),
           lineAmount: lineAmount.toString(),
@@ -1612,6 +1617,7 @@ export class StoreRepository implements StoreStorage {
       .leftJoin(categories, eq(products.categoryId, categories.id))
       .leftJoin(colors, eq(products.colorId, colors.id))
       .leftJoin(fabrics, eq(products.fabricId, fabrics.id))
+      .leftJoin(productVariants, eq(storeCart.variantId, productVariants.id))
       .leftJoin(
         storeInventory,
         and(
@@ -1700,6 +1706,7 @@ export class StoreRepository implements StoreStorage {
         return {
           id: item.store_cart.id,
           productId: item.store_cart.productId,
+          variantId: item.store_cart.variantId,
           quantity: item.store_cart.quantity,
           unitPrice: effectivePrice,
           lineAmount,
@@ -1713,6 +1720,7 @@ export class StoreRepository implements StoreStorage {
             category: item.categories,
             color: item.colors,
             fabric: item.fabrics,
+            variants: item.product_variants ? [item.product_variants] : undefined,
             activeSale: applicableSale
               ? {
                   id: applicableSale.id,
