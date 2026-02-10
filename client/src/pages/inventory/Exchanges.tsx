@@ -359,6 +359,12 @@ export default function InventoryExchanges() {
                   <span>SKU: {item.orderItemId}</span>
                   <span className="h-1 w-1 bg-slate-300 rounded-full"></span>
                   <span>Qty: {item.quantity}</span>
+                  {item.orderItem?.product?.variants && item.orderItem.product.variants.length > 0 && (
+                    <>
+                      <span className="h-1 w-1 bg-slate-300 rounded-full"></span>
+                      <span>Size: {item.orderItem.product.variants[0].size}</span>
+                    </>
+                  )}
                   <span className="h-1 w-1 bg-slate-300 rounded-full"></span>
                   <span>{formatPrice(item.orderItem?.product?.price || 0)} each</span>
                 </div>

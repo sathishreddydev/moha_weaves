@@ -193,6 +193,11 @@ const formatDate = (date: string | Date) => {
                       <div className="flex-1 min-w-0">
                         <h4 className="font-medium text-sm line-clamp-1">{item.orderItem.product.name}</h4>
                         <p className="text-sm text-muted-foreground">Qty: {item.quantity}</p>
+                        {item.orderItem.product.variants && item.orderItem.product.variants.length > 0 && (
+                          <p className="text-xs text-muted-foreground mt-1">
+                            Size: {item.orderItem.product.variants[0].size}
+                          </p>
+                        )}
                         {item.exchangeproductId && (
                           <p className="text-xs text-primary mt-1">Exchange for same product</p>
                         )}

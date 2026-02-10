@@ -6,6 +6,7 @@ import { toast } from "@/hooks/use-toast";
 interface CartItem {
   id: string;
   productId: string;
+  variantId?: string;
   quantity: number;
   unitPrice: number;
   lineAmount: number;
@@ -30,7 +31,7 @@ interface StoreCartState {
 
   setStoreId: (storeId: string) => void;
   fetchCart: () => Promise<void>;
-  addItem: (productId: string, quantity: number, unitPrice: number) => Promise<void>;
+  addItem: (productId: string, quantity: number, unitPrice: number, variantId?: string) => Promise<void>;
   updateItems: (items: CartItem[], productId: string) => Promise<void>;
   deleteItem: (productId: string) => Promise<void>;
   clearCart: () => void;
@@ -67,7 +68,7 @@ export const useStoreCart = create<StoreCartState>((set, get) => ({
     }
   },
 
-  addItem: async (productId, quantity, unitPrice) => {
+  addItem: async (productId, quantity, unitPrice, variantId?: string) => {
     const { storeId } = get();
     if (!storeId) return;
 
@@ -75,7 +76,7 @@ export const useStoreCart = create<StoreCartState>((set, get) => ({
       addCartLoading: { ...state.addCartLoading, [productId]: true },
     }));
     try {
-      const res = await axios.post(`/api/store/cart`, { productId, quantity, unitPrice });
+      const res = await axios.post(`/api/store/cart`, { productId, quantity, unitPrice, variantId });
       set({ items: res.data.items || [] });
 
       toast({

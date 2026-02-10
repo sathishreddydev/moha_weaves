@@ -27,35 +27,15 @@ type ShopProduct = {
   storeStock: number;
 };
 
-interface CartItem {
-  id: string;
-  productId: string;
-  quantity: number;
-  unitPrice: number;
-  lineAmount: number;
-  storeStock: number;
-  product: {
-    id: string;
-    name: string;
-    code: string;
-    image: string;
-    price?: string;
-    activeSale?: {
-      id: string;
-      name: string;
-      offerType: string;
-      discountValue: string;
-      maxDiscount?: string;
-    } | null;
-    discountedPrice?: number;
-  };
-}
-
 export default function StoreSale() {
   const { user } = useAuth();
   const { toast } = useToast();
   const navigate = useNavigate();
   const storeId = user?.storeId;
+  
+  // Variant selection state
+  const [selectedVariants, setSelectedVariants] = useState<Record<string, string>>({});
+  
   const {
     items: cartItems,
     fetchCart,
@@ -114,9 +94,9 @@ export default function StoreSale() {
   };
 
   const addToCart = (product: ShopProduct) => {
-    if (product.storeStock === 0) {
+    if (!storeId) {
       toast({
-        title: "Out of stock",
+        title: "Error",
         description: "This product is not available in your store",
         variant: "destructive",
       });
@@ -124,16 +104,18 @@ export default function StoreSale() {
     }
 
     const existing = cartItems.find(
-      (item) => item.productId === product.product.id,
+      (item) => item.productId === product.product.id && 
+      (product.product.variants && product.product.variants.length > 0 ? item.variantId === selectedVariants[product.product.id] : true)
     );
-    const price =
-      product.product.activeSale && product.product.discountedPrice
+    const selectedVariant = product.product.variants?.find(v => v.id === selectedVariants[product.product.id]);
+    const price = selectedVariant ? parseFloat(selectedVariant.price || '0') : 
+      (product.product.activeSale && product.product.discountedPrice
         ? product.product.discountedPrice
-        : parseFloat(product.product.price);
+        : parseFloat(product.product.price));
 
     if (existing) {
       if (existing.quantity < product.storeStock) {
-        addItem(product.product.id, 1, price);
+        addItem(product.product.id, 1, price, selectedVariants[product.product.id]);
       } else {
         toast({
           title: "Limit reached",
@@ -141,7 +123,7 @@ export default function StoreSale() {
         });
       }
     } else {
-      addItem(product.product.id, 1, price);
+      addItem(product.product.id, 1, price, selectedVariants[product.product.id]);
     }
   };
 
