@@ -322,7 +322,7 @@ export class AdminRepository implements IStorage {
       subcategory: result.subcategories,
       color: result.colors,
       fabric: result.fabrics,
-      actualPrice: actualPriceData?.actualPrice ? parseFloat(actualPriceData.actualPrice) : null,
+      actualPrice: actualPriceData?.actualPrice || null,
       storeAllocations,
       unallocated,
       activeSale: applicableSale

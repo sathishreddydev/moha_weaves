@@ -143,7 +143,7 @@ export class OrderRepository implements OrderStorage {
               color: row.colors,
               fabric: row.fabrics,
               variants: row.product_variants ? [row.product_variants] : undefined,
-              images: row.products.images || undefined,
+              images: row.products.images,
             },
           };
         }),
@@ -195,7 +195,7 @@ export class OrderRepository implements OrderStorage {
             category: row.categories,
             color: row.colors,
             fabric: row.fabrics,
-            images: row.products.images || undefined,
+            images: row.products.images,
             variants: row.product_variants ? [row.product_variants] : undefined,
           },
         };
@@ -252,7 +252,7 @@ export class OrderRepository implements OrderStorage {
             category: row.categories,
             color: row.colors,
             fabric: row.fabrics,
-            images: row.products.images ?? undefined,
+            images: row.products.images,
             variants: row.product_variants ? [row.product_variants] : undefined,
           },
         };

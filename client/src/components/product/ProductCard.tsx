@@ -3,6 +3,7 @@ import { Heart, ShoppingBag, Eye, Minus, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useState } from "react";
 import type { ProductWithDetails } from "@shared/schema";
 import { useAuth } from "@/lib/auth";
@@ -90,23 +91,29 @@ export function ProductCard({ product }: ProductCardProps) {
           />
         </Link>
 
-        {/* Variant Selection */}
+        {/* Size Dropdown */}
         {product.variants && product.variants.length > 0 && (
-          <div className="absolute bottom-2 left-2 right-2 flex gap-1">
-            {product.variants.map((variant) => (
-              <button
-                key={variant.id}
-                onClick={() => setSelectedVariant(variant.id)}
-                className={`px-2 py-1 text-xs rounded-full transition-colors ${
-                  selectedVariant === variant.id
-                    ? "bg-primary text-white"
-                    : "bg-background/90 text-foreground hover:bg-background"
-                } ${variant.onlineStock <= 0 ? "opacity-50 cursor-not-allowed" : ""}`}
-                disabled={variant.onlineStock <= 0}
-              >
-                {variant.size}
-              </button>
-            ))}
+          <div className="absolute bottom-2 left-2 right-2">
+            <Select
+              value={selectedVariant || ""}
+              onValueChange={(value) => setSelectedVariant(value)}
+              disabled={product.variants.every(v => v.onlineStock <= 0)}
+            >
+              <SelectTrigger className="h-7 text-xs bg-background/90 border-background/50">
+                <SelectValue placeholder="Select size" />
+              </SelectTrigger>
+              <SelectContent>
+                {product.variants.map((variant) => (
+                  <SelectItem 
+                    key={variant.id} 
+                    value={variant.id}
+                    disabled={variant.onlineStock <= 0}
+                  >
+                    {variant.size} {variant.onlineStock <= 0 ? "(Out of stock)" : ""}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
         )}
 
@@ -210,7 +217,7 @@ export function ProductCard({ product }: ProductCardProps) {
                     return;
                   }
                   if (!hasStock) return;
-                  !disabledButton && addItem(product.id, 1, selectedVariant);
+                  !disabledButton && addItem(product.id, 1, selectedVariant || undefined);
                 }}
                 disabled={disabledButton}
               >
@@ -264,10 +271,10 @@ export function ProductCard({ product }: ProductCardProps) {
 
         <div className="flex items-center gap-2">
           {(() => {
-            const displayPrice = selectedVariantData ? selectedVariantData.price : product.price;
+            const displayPrice = selectedVariantData ? (selectedVariantData.price || '0') : product.price;
             const displayDiscountedPrice = product.activeSale && product.discountedPrice 
               ? (selectedVariantData ? 
-                  parseFloat(selectedVariantData.price) * (product.discountedPrice / parseFloat(product.price)) 
+                  parseFloat(selectedVariantData?.price || "0") * (product.discountedPrice / parseFloat(product.price)) 
                   : product.discountedPrice)
               : undefined;
             

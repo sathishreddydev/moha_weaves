@@ -79,7 +79,7 @@ export type ReviewWithUser = Omit<
 
 export interface StockMovementWithDetails extends StockMovement {
   productName?: string;
-  storeName?: string;
+  storeName?: string | null;
 }
 
 export interface IStorage {

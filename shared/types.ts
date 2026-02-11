@@ -116,8 +116,9 @@ export type ProductWithDetails = Product & {
   subcategory?: Subcategory | null;
   color?: Color | null;
   fabric?: Fabric | null;
-  images?: string[];
-  videoUrl?: string;
+  images?: string[] | null;
+  videoUrl?: string | null;
+  actualPrice?: string | null;
   storeAllocations?: {
     storeId: string;
     storeName: string;
@@ -125,12 +126,12 @@ export type ProductWithDetails = Product & {
   }[];
   variants?: {
     id: string;
-    sku: string;
+    sku: string | null;
     size: string;
     stockQuantity: number;
     onlineStock: number;
-    price?: string;
-    actualPrice?: string;
+    price?: string | null;
+    actualPrice?: string | null;
     isActive: boolean;
     createdAt: Date;
     updatedAt: Date;
@@ -161,6 +162,7 @@ export type WishlistItemWithProduct = WishlistItem & {
 
 export type OrderWithItems = Order & {
   customerName?: string;
+  paymentId?: string;
   paymentDetails?: {
     available: boolean;
     method?: string;
