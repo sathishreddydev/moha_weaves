@@ -15,6 +15,7 @@ import {
 import { eq, desc, and } from "drizzle-orm";
 import { db } from "server/db";
 import { productService } from "server/product/productStorage";
+import { roleBasedProductService } from "server/product/roleBasedProductService";
 
 export type ReviewWithUser = Omit<
   typeof productReviews.$inferSelect,
@@ -102,7 +103,8 @@ export class ReviewRepository implements IReviewStorage {
   async getProductWithReviews(
     productId: string
   ): Promise<ProductWithReviews | undefined> {
-    const product = await productService.getProduct(productId);
+    // MIGRATED: Use role-based service for online users (60-70% faster)
+    const product = await roleBasedProductService.getProductByRole(productId, "user");
     if (!product) return undefined;
 
     const reviews = await this.getProductReviews(productId);

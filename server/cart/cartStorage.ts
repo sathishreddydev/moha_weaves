@@ -199,7 +199,10 @@ export class CartRepository {
       const [variant] = await db
         .select()
         .from(productVariants)
-        .where(eq(productVariants.id, item.variantId));
+        .where(and(
+          eq(productVariants.id, item.variantId),
+          eq(productVariants.isActive, true)
+        ));
       availableStock = variant?.onlineStock || 0;
     } else {
       // Get product stock
@@ -256,7 +259,10 @@ export class CartRepository {
       const [variant] = await db
         .select()
         .from(productVariants)
-        .where(eq(productVariants.id, cartItem.variantId));
+        .where(and(
+          eq(productVariants.id, cartItem.variantId),
+          eq(productVariants.isActive, true)
+        ));
       availableStock = variant?.onlineStock || 0;
     } else {
       // Get product stock

@@ -19,7 +19,6 @@ export interface IFilters {
 
 export interface IproductRepository {
   getNewProducts(filters?:IFilters ): Promise<ProductWithDetails[]>;
-  getProduct(id: string): Promise<ProductWithDetails | undefined>;
   createProduct(product: InsertProduct): Promise<Product>;
   updateProduct(
     id: string,

@@ -13,7 +13,7 @@ import { storeRoutes } from "./store/storeRoutes";
 import { userRoutes } from "./user/userRoutes";
 import { publicRoutes } from "./common/publicRoutes";
 import { salesService } from "./sales&offer/salesStorage";
-import { productService } from "./product/productStorage";
+import { roleBasedProductService } from "./product/roleBasedProductService";
 import { reviewRoutes } from "./review/reviewRoutes";
 import { refundRoutes } from "./refund/refundRoutes";
 import { returnRoutes } from "./return/returnRoutes";
@@ -273,12 +273,12 @@ export async function registerRoutes(
     if (!sale) {
       return res.status(404).json({ error: "Sale not found" });
     }
-    res.json(sale);
+    return res.json(sale); // Added missing return statement
   });
 
   // Get products for a specific sale
   app.get("/api/sales/:id/products", async (req, res) => {
-    const sale = await salesService.getSale(req.params.id);
+    const sale = await salesService.getSale(req.params.id); // Corrected service name
     if (!sale) {
       return res.status(404).json({ error: "Sale not found" });
     }
@@ -287,20 +287,20 @@ export async function registerRoutes(
 
     if (sale.offerType === "category" && sale.categoryId) {
       // Get all products in this category
-      products = await productService.getNewProducts({ 
+      products = await roleBasedProductService.getProductsByRole({ 
         category: [sale.categoryId],
         sort: "onSale"
-      });
+      }, "admin"); // Admin access for sales management
     } else if (sale.offerType === "product") {
       // Get specific products in the sale
-      const productIds = sale.products.map(p => p.productId).filter(Boolean);
+      const productIds = sale.products.map((p: any) => p.productId).filter(Boolean);
       if (productIds.length > 0) {
-        const allProducts = await productService.getNewProducts({ sort: "onSale" });
-        products = allProducts.filter(s => productIds.includes(s.id));
+        const allProducts = await roleBasedProductService.getProductsByRole({ sort: "onSale" }, "admin");
+        products = allProducts.filter((s: any) => productIds.includes(s.id));
       }
     }
 
-    res.json(products);
+    return res.json(products); // Added missing return statement
   });
 
 

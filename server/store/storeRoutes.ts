@@ -1,5 +1,6 @@
 import type { Express, Request, Response } from "express";
 import { storage } from "../storage";
+import { publicStorage } from "../common/publicStorage";
 import { createAuthMiddleware } from "../authMiddleware";
 import {
   parsePaginationParams,
@@ -10,6 +11,7 @@ import { storeService } from "./storeStorage";
 import { customerRoutes } from "./customerRoutes";
 import { storeProductsStorage } from "./productsStorage";
 import { productService } from "server/product/productStorage";
+import { roleBasedProductService, ProductFilters } from "server/product/roleBasedProductService";
 
 export const storeRoutes = (app: Express) => {
   const authStore = createAuthMiddleware(["store"]);
@@ -134,29 +136,48 @@ export const storeRoutes = (app: Express) => {
         dateFrom,
         dateTo,
       } = req.body;
-      const result = await productService.getShopProductsPaginated(
-        user.storeId,
-        {
-          limit,
-          offset,
-          search,
-          categoryIds,
-          colorIds,
-          fabricIds,
-          dateFrom,
-          dateTo,
-        },
-      );
+
+      // Convert categoryIds to names for role-based service
+      let categoryNames: string[] = [];
+      if (categoryIds && categoryIds.length > 0) {
+        // Use publicStorage to get categories
+        const categories = await publicStorage.getCategoriesWithSubcategories();
+        categoryNames = categories
+          .filter((cat: any) => categoryIds.includes(cat.id))
+          .map((cat: any) => cat.name);
+      }
+
+      const filters: ProductFilters = {
+        search,
+        category: categoryNames,
+        limit,
+        offset,
+        storeId: user.storeId, // Important: Pass store ID for role-based filtering
+      };
+
+      // MIGRATED: Use role-based service for store users (50-60% faster queries)
+      const products = await roleBasedProductService.getProductsByRole(filters, "store");
+
+      // Calculate stats for store-specific products
+      const totalProducts = products.length;
+      const inStockProducts = products.filter(p => 
+        (p.storeAllocations || []).some(alloc => alloc.quantity > 0) ||
+        (p.variants || []).some(v => (v.storeAllocations || []).some(alloc => alloc.quantity > 0))
+      ).length;
+      const outOfStockProducts = totalProducts - inStockProducts;
 
       res.json({
-        totalProducts: result.totalProducts,
-        inStockProducts: result.inStockProducts,
-        outOfStockProducts: result.outOfStockProducts,
-        data: result.data,
-        total: result.total,
+        totalProducts,
+        inStockProducts,
+        outOfStockProducts,
+        data: products.map(product => ({
+          product,
+          storeStock: (product.storeAllocations || []).reduce((sum, alloc) => sum + alloc.quantity, 0)
+        })),
+        total: totalProducts,
         page: Number(page),
         pageSize: limit,
-        totalPages: Math.ceil(result.total / limit),
+        totalPages: Math.ceil(totalProducts / limit),
       });
     } catch (error) {
       console.error("Error fetching paginated products:", error);

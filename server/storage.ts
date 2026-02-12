@@ -66,6 +66,7 @@ import { userService } from "./auth/authStorage";
 import { orderService } from "./order/orderStorage";
 import { storeService } from "./store/storeStorage";
 import { productService } from "./product/productStorage";
+import { roleBasedProductService } from "./product/roleBasedProductService";
 
 export type ReviewWithUser = Omit<
   typeof productReviews.$inferSelect,
@@ -736,7 +737,8 @@ export class DatabaseStorage implements IStorage {
     //   unallocated: number;
     // }[];
   }> {
-    const allProducts = await productService.getNewProducts({ limit: 1000 });
+    // MIGRATED: Use role-based service for analytics (admin access)
+    const allProducts = await roleBasedProductService.getProductsByRole({ limit: 1000 }, "admin");
 
     const totalProducts = allProducts.length;
 

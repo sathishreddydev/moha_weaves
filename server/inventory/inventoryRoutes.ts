@@ -7,6 +7,7 @@ import { orderService } from "../order/orderStorage";
 import { storeService } from "server/store/storeStorage";
 import { inventoryService } from "./inventoryStorage";
 import { productService } from "server/product/productStorage";
+import { roleBasedProductService, ProductFilters } from "server/product/roleBasedProductService";
 import { publicStorage } from "../common/publicStorage";
 import { productBaseSchema, trackingNumberSchema } from "./schema";
 import { productDamageService } from "./productDamageService";
@@ -44,20 +45,6 @@ export const inventoryRoutes = (app: Express) => {
       const message = error instanceof Error ? error.message : "Unknown error occurred";
       res.status(500).json({ 
         message: "Failed to fetch filters", 
-        error: process.env.NODE_ENV === "development" ? message : undefined 
-      });
-    }
-  });
-
-  app.get("/api/inventory/low-stock", authInventory, async (req, res) => {
-    try {
-      const items = await productService.getLowStockProducts(10);
-      res.json(items);
-    } catch (error) {
-      console.error("Error fetching low stock items:", error);
-      const message = error instanceof Error ? error.message : "Unknown error occurred";
-      res.status(500).json({ 
-        message: "Failed to fetch low stock items", 
         error: process.env.NODE_ENV === "development" ? message : undefined 
       });
     }
@@ -332,19 +319,35 @@ export const inventoryRoutes = (app: Express) => {
 
       const params = parsePaginationParams(req.query);
 
-      const result = await productService.getProductsPaginated({
+      // Convert categoryIds to names for role-based service
+      let categoryNames: string[] = [];
+      if (categoryIds && categoryIds.length > 0) {
+        const categories = await publicStorage.getCategoriesWithSubcategories();
+        categoryNames = categories
+          .filter((cat: any) => categoryIds.includes(cat.id))
+          .map((cat: any) => cat.name);
+      }
+
+      const filters: ProductFilters = {
+        search,
+        category: categoryNames,
+        limit: params.pageSize,
+        offset: (params.page - 1) * params.pageSize,
+      };
+
+      // MIGRATED: Use role-based service for inventory users (full access)
+      const products = await roleBasedProductService.getProductsByRole(filters, "inventory");
+
+      const total = products.length;
+      const totalPages = Math.ceil(total / params.pageSize);
+
+      return res.json({
+        data: products,
+        total,
         page: params.page,
         pageSize: params.pageSize,
-        search,
-        categoryIds,
-        colorIds,
-        fabricIds,
-        status,
-        dateFrom,
-        dateTo,
-        userRole: (req as any).user?.role,
+        totalPages,
       });
-      return res.json(result);
     } catch (error) {
       res.status(500).json({ message: "Failed to fetch products" });
     }
@@ -671,7 +674,8 @@ export const inventoryRoutes = (app: Express) => {
     authInventory,
     async (req, res) => {
       try {
-        const product = await productService.getProductBySku(req.params.sku);
+        // MIGRATED: Use role-based service for inventory users (full access)
+        const product = await roleBasedProductService.getProductBySkuByRole(req.params.sku, "inventory");
         if (!product) {
           return res.status(404).json({ message: "Product not found" });
         }
@@ -950,13 +954,15 @@ export const inventoryRoutes = (app: Express) => {
     }
   });
 
-  app.get("/api/inventory/stock-stats", authInventory, async (req, res) => {
+  app.get("/api/inventory/low-stock", authInventory, async (req, res) => {
     try {
-      const stats = await storage.getStockMovementStats();
-      res.json(stats);
+      // MIGRATED: Use role-based service for inventory users (full access)
+      const items = await roleBasedProductService.getProductsByRole({ limit: 10 }, "inventory");
+      const lowStockItems = items.filter(item => item.totalStock <= 10);
+      res.json(lowStockItems);
     } catch (error) {
-      console.error("Error fetching stock stats:", error);
-      res.status(500).json({ message: "Failed to fetch stock stats" });
+      console.error("Error fetching low stock items:", error);
+      res.status(500).json({ message: "Failed to fetch low stock items" });
     }
   });
 

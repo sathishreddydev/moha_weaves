@@ -207,6 +207,10 @@ export class productRepository implements IproductRepository {
       ]),
     );
   }
+  /**
+   * @deprecated Use roleBasedProductService.getProductsByRole(filters, "user") instead.
+   * This method will be removed in future versions. Migrate to role-based service for better performance.
+   */
   async getNewProducts(filters?: {
     search?: string;
     category?: string[];
@@ -340,7 +344,10 @@ export class productRepository implements IproductRepository {
         productActualPrices,
         eq(products.id, productActualPrices.productId),
       )
-      .leftJoin(productVariants, eq(products.id, productVariants.productId))
+      .leftJoin(productVariants, and(
+        eq(products.id, productVariants.productId),
+        eq(productVariants.isActive, true)
+      ))
       .leftJoin(storeInventory, eq(products.id, storeInventory.productId))
       .leftJoin(stores, eq(storeInventory.storeId, stores.id))
       .leftJoin(variantStoreInventory, eq(productVariants.id, variantStoreInventory.variantId))
@@ -459,332 +466,7 @@ export class productRepository implements IproductRepository {
     return filteredResults;
   }
 
-  async getProduct(
-    id: string,
-    userRole?: string,
-  ): Promise<ProductWithDetails | undefined> {
-    const result = await db
-      .select({
-        product: products,
-        category: categories,
-        subcategory: subcategories,
-        color: colors,
-        fabric: fabrics,
-        actualPrice: productActualPrices.actualPrice,
-        variants: productVariants,
-        storeInventory: {
-          storeId: storeInventory.storeId,
-          quantity: storeInventory.quantity,
-          storeName: stores.name,
-        },
-        variantStoreInventory: {
-          variantId: variantStoreInventory.variantId,
-          storeId: variantStoreInventory.storeId,
-          quantity: variantStoreInventory.quantity,
-          storeName: stores.name,
-        },
-      })
-      .from(products)
-      .leftJoin(categories, eq(products.categoryId, categories.id))
-      .leftJoin(subcategories, eq(products.subcategoryId, subcategories.id))
-      .leftJoin(colors, eq(products.colorId, colors.id))
-      .leftJoin(fabrics, eq(products.fabricId, fabrics.id))
-      .leftJoin(
-        productActualPrices,
-        eq(products.id, productActualPrices.productId),
-      )
-      .leftJoin(productVariants, eq(products.id, productVariants.productId))
-      .leftJoin(variantStoreInventory, eq(productVariants.id, variantStoreInventory.variantId))
-      .leftJoin(storeInventory, eq(products.id, storeInventory.productId))
-      .leftJoin(stores, eq(storeInventory.storeId, stores.id))
-      .where(eq(products.id, id));
-
-    if (result.length === 0) return undefined;
-
-    // Group store allocations by product ID
-    const productMap = new Map<string, any>();
-
-    for (const row of result) {
-      const productId = row.product.id;
-
-      if (!productMap.has(productId)) {
-        productMap.set(productId, {
-          ...row.product,
-          category: row.category,
-          subcategory: row.subcategory,
-          color: row.color,
-          fabric: row.fabric,
-          actualPrice: row.actualPrice || null,
-          storeAllocations: [],
-          variants: [],
-        });
-      }
-
-      // Add variant if it exists
-      if (row.variants?.id) {
-        const product = productMap.get(productId);
-        // Check if variant already exists to avoid duplicates
-        let variant = product.variants.find((v: any) => v.id === row?.variants?.id);
-        
-        if (!variant) {
-          variant = {
-            id: row.variants.id,
-            sku: row.variants.sku,
-            size: row.variants.size,
-            stockQuantity: row.variants.stockQuantity,
-            onlineStock: row.variants.onlineStock,
-            price: row.variants.price,
-            actualPrice: row.variants.actualPrice,
-            isActive: row.variants.isActive,
-            createdAt: row.variants.createdAt,
-            updatedAt: row.variants.updatedAt,
-            storeAllocations: [],
-          };
-          product.variants.push(variant);
-        }
-        
-        // Add variant store allocation if it exists
-        if (row.variantStoreInventory?.storeId) {
-          const storeAllocation = {
-            storeId: row.variantStoreInventory.storeId,
-            storeName: row.variantStoreInventory.storeName || "Unknown",
-            quantity: row.variantStoreInventory.quantity,
-          };
-          
-          // Check if store allocation already exists for this variant
-          const allocationExists = variant.storeAllocations.some(
-            (alloc: any) => alloc.storeId === row.variantStoreInventory.storeId
-          );
-          
-          if (!allocationExists) {
-            variant.storeAllocations.push(storeAllocation);
-          }
-        }
-      }
-
-      // Add store allocation if it exists
-      if (row.storeInventory.storeId) {
-        const product = productMap.get(productId);
-        product.storeAllocations.push({
-          storeId: row.storeInventory.storeId,
-          storeName: row.storeInventory.storeName || "Unknown",
-          quantity: row.storeInventory.quantity,
-        });
-      }
-    }
-
-    // Calculate unallocated stock and format final result
-    const productList = Array.from(productMap.values()).map((product) => {
-      const totalStoreStock = product.storeAllocations.reduce(
-        (sum: any, alloc: any) => sum + alloc.quantity,
-        0,
-      );
-      const unallocated = Math.max(
-        0,
-        product.totalStock - product.onlineStock - totalStoreStock,
-      );
-
-      return {
-        ...product,
-        unallocated,
-      };
-    });
-
-    const productData = productList[0];
-
-    // Fetch active sales and mappings using optimized helper methods
-    const activeSales = await this.getActiveSales();
-    const saleProductMappings = await this.getSaleProductMappings(
-      activeSales.map((s) => s.id),
-    );
-
-    // Find applicable sale using helper method
-    const applicableSale = this.findApplicableSale(
-      productData.id,
-      productData.categoryId,
-      activeSales,
-      saleProductMappings,
-    );
-
-    // Calculate discounted price using helper method
-    const discountedPrice = this.calculateDiscountedPrice(
-      parseFloat(productData.price),
-      applicableSale,
-    );
-
-    const productResult: any = {
-      ...productData,
-      activeSale: this.constructActiveSaleObject(applicableSale),
-      discountedPrice: applicableSale ? discountedPrice : undefined,
-    };
-
-    return productResult;
-  }
-
-  async getProductBySku(
-    sku: string,
-    userRole?: string,
-  ): Promise<ProductWithDetails | undefined> {
-     const result = await db
-      .select({
-        product: products,
-        category: categories,
-        subcategory: subcategories,
-        color: colors,
-        fabric: fabrics,
-        actualPrice: productActualPrices.actualPrice,
-        variants: productVariants,
-        storeInventory: {
-          storeId: storeInventory.storeId,
-          quantity: storeInventory.quantity,
-          storeName: stores.name,
-        },
-        variantStoreInventory: {
-          variantId: variantStoreInventory.variantId,
-          storeId: variantStoreInventory.storeId,
-          quantity: variantStoreInventory.quantity,
-          storeName: stores.name,
-        },
-      })
-      .from(products)
-      .leftJoin(categories, eq(products.categoryId, categories.id))
-      .leftJoin(subcategories, eq(products.subcategoryId, subcategories.id))
-      .leftJoin(colors, eq(products.colorId, colors.id))
-      .leftJoin(fabrics, eq(products.fabricId, fabrics.id))
-      .leftJoin(
-        productActualPrices,
-        eq(products.id, productActualPrices.productId),
-      )
-      .leftJoin(productVariants, eq(products.id, productVariants.productId))
-      .leftJoin(variantStoreInventory, eq(productVariants.id, variantStoreInventory.variantId))
-      .leftJoin(storeInventory, eq(products.id, storeInventory.productId))
-      .leftJoin(stores, eq(storeInventory.storeId, stores.id))
-      .where(eq(products.sku, sku));
-
-    if (result.length === 0) return undefined;
-
-    // Group store allocations by product ID
-    const productMap = new Map<string, any>();
-
-    for (const row of result) {
-      const productId = row.product.id;
-
-      if (!productMap.has(productId)) {
-        productMap.set(productId, {
-          ...row.product,
-          category: row.category,
-          subcategory: row.subcategory,
-          color: row.color,
-          fabric: row.fabric,
-          actualPrice: row.actualPrice || null,
-          storeAllocations: [],
-          variants: [],
-        });
-      }
-
-      // Add variant if it exists
-      if (row.variants?.id) {
-        const product = productMap.get(productId);
-        // Check if variant already exists to avoid duplicates
-        let variant = product.variants.find((v: any) => v.id === row?.variants?.id);
-        
-        if (!variant) {
-          variant = {
-            id: row.variants.id,
-            sku: row.variants.sku,
-            size: row.variants.size,
-            stockQuantity: row.variants.stockQuantity,
-            onlineStock: row.variants.onlineStock,
-            price: row.variants.price,
-            actualPrice: row.variants.actualPrice,
-            isActive: row.variants.isActive,
-            createdAt: row.variants.createdAt,
-            updatedAt: row.variants.updatedAt,
-            storeAllocations: [],
-          };
-          product.variants.push(variant);
-        }
-        
-        // Add variant store allocation if it exists
-        if (row.variantStoreInventory?.storeId) {
-          const storeAllocation = {
-            storeId: row.variantStoreInventory.storeId,
-            storeName: row.variantStoreInventory.storeName || "Unknown",
-            quantity: row.variantStoreInventory.quantity,
-          };
-          
-          // Check if store allocation already exists for this variant
-          const allocationExists = variant.storeAllocations.some(
-            (alloc: any) => alloc.storeId === row.variantStoreInventory.storeId
-          );
-          
-          if (!allocationExists) {
-            variant.storeAllocations.push(storeAllocation);
-          }
-        }
-      }
-
-      // Add store allocation if it exists
-      if (row.storeInventory.storeId) {
-        const product = productMap.get(productId);
-        product.storeAllocations.push({
-          storeId: row.storeInventory.storeId,
-          storeName: row.storeInventory.storeName || "Unknown",
-          quantity: row.storeInventory.quantity,
-        });
-      }
-    }
-
-    // Calculate unallocated stock and format final result
-    const productList = Array.from(productMap.values()).map((product) => {
-      const totalStoreStock = product.storeAllocations.reduce(
-        (sum: any, alloc: any) => sum + alloc.quantity,
-        0,
-      );
-      const unallocated = Math.max(
-        0,
-        product.totalStock - product.onlineStock - totalStoreStock,
-      );
-
-      return {
-        ...product,
-        unallocated,
-      };
-    });
-
-    const productData = productList[0];
-
-    // Fetch active sales and mappings using optimized helper methods
-    const activeSales = await this.getActiveSales();
-    const saleProductMappings = await this.getSaleProductMappings(
-      activeSales.map((s) => s.id),
-    );
-
-    // Find applicable sale using helper method
-    const applicableSale = this.findApplicableSale(
-      productData.id,
-      productData.categoryId,
-      activeSales,
-      saleProductMappings,
-    );
-
-    // Calculate discounted price using helper method
-    const discountedPrice = this.calculateDiscountedPrice(
-      parseFloat(productData.price),
-      applicableSale,
-    );
-
-    const productResult: any = {
-      ...productData,
-      activeSale: this.constructActiveSaleObject(applicableSale),
-      discountedPrice: applicableSale ? discountedPrice : undefined,
-    };
-
-    return productResult;
-  }
-
   async createProduct(product: InsertProduct): Promise<Product> {
-    // Auto-generate SKU if not provided: MH-YYYYMMDD-XXXXX (timestamp + random suffix)
     let productData = product;
     if (!product.sku) {
       const now = new Date();
@@ -840,6 +522,10 @@ export class productRepository implements IproductRepository {
       fabric: row.fabrics,
     }));
   }
+  /**
+   * @deprecated Use roleBasedProductService.getProductsByRole(filters, "store") instead.
+   * This method will be removed in future versions. Migrate to role-based service for better performance.
+   */
   async getShopProductsPaginated(
     storeId: string,
     options: {
@@ -1023,6 +709,10 @@ export class productRepository implements IproductRepository {
       outOfStockProducts: stats.outOfStockProducts,
     };
   }
+  /**
+   * @deprecated Use roleBasedProductService.getProductsByRole(filters, "admin") instead.
+   * This method will be removed in future versions. Migrate to role-based service for better performance.
+   */
   async getProductsPaginated(params: {
     page: number;
     pageSize: number;
@@ -1137,7 +827,10 @@ export class productRepository implements IproductRepository {
         productActualPrices,
         eq(products.id, productActualPrices.productId),
       )
-      .leftJoin(productVariants, eq(products.id, productVariants.productId))
+      .leftJoin(productVariants, and(
+        eq(products.id, productVariants.productId),
+        eq(productVariants.isActive, true)
+      ))
       .leftJoin(storeInventory, eq(products.id, storeInventory.productId))
       .leftJoin(stores, eq(storeInventory.storeId, stores.id))
       .leftJoin(variantStoreInventory, eq(productVariants.id, variantStoreInventory.variantId))

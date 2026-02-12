@@ -10,6 +10,7 @@ import { salesService } from "server/sales&offer/salesStorage";
 import { couponsService } from "server/coupons/couponsStorage";
 import { AdminServices } from "./adminStorage";
 import { productService } from "server/product/productStorage";
+import { roleBasedProductService, ProductFilters } from "server/product/roleBasedProductService";
 import { z } from "zod";
 import { adminRateLimit, sensitiveRateLimit } from "../middleware/rateLimit";
 
@@ -304,19 +305,35 @@ export const adminRoutes = (app: Express) => {
 
       const params = parsePaginationParams(req.query);
 
-      const result = await productService.getProductsPaginated({
+      // Convert categoryIds to names for role-based service
+      let categoryNames: string[] = [];
+      if (categoryIds && categoryIds.length > 0) {
+        const categories = await publicStorage.getCategoriesWithSubcategories();
+        categoryNames = categories
+          .filter((cat: any) => categoryIds.includes(cat.id))
+          .map((cat: any) => cat.name);
+      }
+
+      const filters: ProductFilters = {
+        search,
+        category: categoryNames,
+        limit: params.pageSize,
+        offset: (params.page - 1) * params.pageSize,
+      };
+
+      // MIGRATED: Use role-based service for admin users (full access)
+      const products = await roleBasedProductService.getProductsByRole(filters, "admin");
+
+      const total = products.length;
+      const totalPages = Math.ceil(total / params.pageSize);
+
+      return res.json({
+        data: products,
+        total,
         page: params.page,
         pageSize: params.pageSize,
-        search,
-        categoryIds,
-        colorIds,
-        fabricIds,
-        status,
-        dateFrom,
-        dateTo,
-        userRole: (req as any).user?.role,
+        totalPages,
       });
-      return res.json(result);
     } catch (error) {
       console.error("Error fetching admin products:", error);
       const message = error instanceof Error ? error.message : "Unknown error occurred";
