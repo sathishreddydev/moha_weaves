@@ -1,10 +1,10 @@
+import { DataTable } from "@/components/DataTable/DataTable";
+import { Badge } from "@/components/ui/badge";
+import { useDataTable } from "@/hooks/use-data-table";
+import type { ProductWithDetails } from "@shared/schema";
+import { ColumnDef } from "@tanstack/react-table";
 import { useMemo } from "react";
 import { Link } from "react-router-dom";
-import { Badge } from "@/components/ui/badge";
-import { DataTable } from "@/components/DataTable/DataTable";
-import { useDataTable } from "@/hooks/use-data-table";
-import { ColumnDef } from "@tanstack/react-table";
-import type { ProductWithDetails } from "@shared/schema";
 
 const formatPrice = (price: string | number) => {
   const numPrice = typeof price === "string" ? parseFloat(price) : price;

@@ -1,10 +1,8 @@
-import { Link } from "react-router-dom";
-import { Skeleton } from "@/components/ui/skeleton";
-import { Card } from "@/components/ui/card";
-import { useQuery } from "@tanstack/react-query";
-import type { Category } from "@shared/schema";
 import { useFilterStore } from "@/components/Store/useFilterStore";
+import { Card } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
 import { useEffect } from "react";
+import { Link } from "react-router-dom";
 
 export default function Categories() {
   const categories = useFilterStore((state) => state.categories);

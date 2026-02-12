@@ -1,16 +1,17 @@
-import { Link } from "react-router-dom";
-import { RotateCcw, Package, Clock, CheckCircle, XCircle, Truck, ArrowLeftRight, ArrowRight } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Skeleton } from "@/components/ui/skeleton";
 import { Separator } from "@/components/ui/separator";
-import { useAuth } from "@/lib/auth";
-import { useQuery } from "@tanstack/react-query";
-import type { ReturnRequestWithDetails } from "@shared/schema";
+import { Skeleton } from "@/components/ui/skeleton";
 import { returnStatusConfig } from "@/constants/itemStatusConfig";
-
-
+import { useAuth } from "@/lib/auth";
+import type { ReturnRequestWithDetails } from "@shared/schema";
+import { useQuery } from "@tanstack/react-query";
+import {
+  ArrowLeftRight,
+  RotateCcw
+} from "lucide-react";
+import { Link } from "react-router-dom";
 
 export default function Returns() {
   const { user } = useAuth();
@@ -84,7 +85,10 @@ export default function Returns() {
   return (
     <div className="max-w-4xl mx-auto px-4 py-8">
       <div className="flex items-center gap-4 mb-6">
-        <h1 className="font-serif text-xl font-semibold" data-testid="text-page-title">
+        <h1
+          className="font-serif text-xl font-semibold"
+          data-testid="text-page-title"
+        >
           Returns
         </h1>
         <Link to="/user/exchanges">
@@ -97,12 +101,18 @@ export default function Returns() {
 
       <div className="space-y-6">
         {returns.map((returnRequest) => {
-          const status = returnStatusConfig[returnRequest.status] || returnStatusConfig.requested;
+          const status =
+            returnStatusConfig[returnRequest.status] ||
+            returnStatusConfig.requested;
           const StatusIcon = status.icon;
           const isExchange = returnRequest.resolution === "exchange";
 
           return (
-            <Card key={returnRequest.id} className="overflow-hidden" data-testid={`card-return-${returnRequest.id}`}>
+            <Card
+              key={returnRequest.id}
+              className="overflow-hidden"
+              data-testid={`card-return-${returnRequest.id}`}
+            >
               <div className="p-4 bg-muted/50 flex flex-wrap items-center justify-between gap-4">
                 <div className="flex flex-wrap items-center gap-4 text-sm">
                   <div className="flex items-center gap-2">
@@ -118,14 +128,19 @@ export default function Returns() {
                   <Separator orientation="vertical" className="h-4" />
                   <div>
                     <span className="text-muted-foreground">Order:</span>{" "}
-                    <Link to={`/user/orders/${returnRequest.orderId}`} className="font-medium hover:text-primary">
+                    <Link
+                      to={`/user/orders/${returnRequest.orderId}`}
+                      className="font-medium hover:text-primary"
+                    >
                       #{returnRequest.orderId}
                     </Link>
                   </div>
                   <Separator orientation="vertical" className="h-4" />
                   <div>
                     <span className="text-muted-foreground">Date:</span>{" "}
-                    <span className="font-medium">{formatDate(returnRequest.createdAt)}</span>
+                    <span className="font-medium">
+                      {formatDate(returnRequest.createdAt)}
+                    </span>
                   </div>
                 </div>
                 <Badge className={status.color}>
@@ -137,9 +152,13 @@ export default function Returns() {
               <div className="p-4">
                 <div className="mb-4">
                   <p className="text-sm text-muted-foreground mb-1">Reason</p>
-                  <p className="text-sm font-medium capitalize">{returnRequest.reason.replace(/_/g, " ")}</p>
+                  <p className="text-sm font-medium capitalize">
+                    {returnRequest.reason.replace(/_/g, " ")}
+                  </p>
                   {returnRequest.reasonDetails && (
-                    <p className="text-sm text-muted-foreground mt-1">{returnRequest.reasonDetails}</p>
+                    <p className="text-sm text-muted-foreground mt-1">
+                      {returnRequest.reasonDetails}
+                    </p>
                   )}
                 </div>
 
@@ -148,25 +167,36 @@ export default function Returns() {
                     <div key={item.id} className="flex gap-4 items-center">
                       <div className="w-12 h-16 rounded-md overflow-hidden bg-muted flex-shrink-0">
                         <img
-                          src={item.orderItem.product.imageUrl || "https://images.unsplash.com/photo-1610030469983-98e550d6193c?w=100&h=150&fit=crop"}
+                          src={
+                            item.orderItem.product.imageUrl ||
+                            "https://images.unsplash.com/photo-1610030469983-98e550d6193c?w=100&h=150&fit=crop"
+                          }
                           alt={item.orderItem.product.name}
                           className="w-full h-full object-cover"
                         />
                       </div>
                       <div className="flex-1 min-w-0">
-                        <h4 className="font-medium text-sm line-clamp-1">{item.orderItem.product.name}</h4>
+                        <h4 className="font-medium text-sm line-clamp-1">
+                          {item.orderItem.product.name}
+                        </h4>
                         <p className="text-sm text-muted-foreground">
                           Qty: {item.quantity}
                           {(() => {
-                            const variant = item.orderItem.variantId && item.orderItem.product.variants?.find((v: any) => v.id === item.orderItem.variantId);
-                            return variant ? ` • Size: ${variant.size}` : '';
+                            const variant =
+                              item.orderItem.variantId &&
+                              item.orderItem.product.variants?.find(
+                                (v: any) => v.id === item.orderItem.variantId,
+                              );
+                            return variant ? ` • Size: ${variant.size}` : "";
                           })()}
                         </p>
                       </div>
                     </div>
                   ))}
                   {returnRequest.items.length > 2 && (
-                    <p className="text-sm text-muted-foreground">+{returnRequest.items.length - 2} more item(s)</p>
+                    <p className="text-sm text-muted-foreground">
+                      +{returnRequest.items.length - 2} more item(s)
+                    </p>
                   )}
                 </div>
 
@@ -177,7 +207,10 @@ export default function Returns() {
                     <span className="text-muted-foreground text-sm">
                       {isExchange ? "Exchange" : "Return"} Amount:
                     </span>{" "}
-                    <span className="font-semibold text-lg" data-testid={`text-return-amount-${returnRequest.id}`}>
+                    <span
+                      className="font-semibold text-lg"
+                      data-testid={`text-return-amount-${returnRequest.id}`}
+                    >
                       {formatPrice(returnRequest.refundAmount || "0")}
                     </span>
                   </div>
@@ -185,15 +218,22 @@ export default function Returns() {
                   {returnRequest.refund && (
                     <div className="text-right">
                       <Badge
-                        variant={returnRequest.refund.status === "completed" ? "default" :
-                          returnRequest.refund.status === "failed" ? "destructive" : "secondary"}
+                        variant={
+                          returnRequest.refund.status === "completed"
+                            ? "default"
+                            : returnRequest.refund.status === "failed"
+                              ? "destructive"
+                              : "secondary"
+                        }
                         className="mb-1"
                       >
                         Refund: {returnRequest.refund.status.replace(/_/g, " ")}
                       </Badge>
                       {returnRequest.refund.razorpayRefundId && (
                         <p className="text-xs text-muted-foreground">
-                          ID: {returnRequest.refund.razorpayRefundId.slice(0, 12)}...
+                          ID:{" "}
+                          {returnRequest.refund.razorpayRefundId.slice(0, 12)}
+                          ...
                         </p>
                       )}
                       {returnRequest.refund.failureReason && (
@@ -208,7 +248,9 @@ export default function Returns() {
                 {returnRequest.inspectionNotes && (
                   <div className="mt-4 p-3 bg-muted/50 rounded-md">
                     <p className="text-sm font-medium">Inspection Notes:</p>
-                    <p className="text-sm text-muted-foreground">{returnRequest.inspectionNotes}</p>
+                    <p className="text-sm text-muted-foreground">
+                      {returnRequest.inspectionNotes}
+                    </p>
                   </div>
                 )}
               </div>

@@ -1,25 +1,17 @@
-import { useState } from "react";
-import {
-  ArrowLeftRight,
-  User,
-  Phone,
-  Calendar,
-  Package,
-  ArrowLeft,
-  RefreshCw,
-  Eye,
-  Download,
-} from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
+import { DataTable } from "@/components/DataTable/DataTable";
 import { Badge } from "@/components/ui/badge";
-import { Skeleton } from "@/components/ui/skeleton";
+import { Button } from "@/components/ui/button";
+import { useDataTable } from "@/hooks/use-data-table";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/lib/auth";
-import { DataTable } from "@/components/DataTable/DataTable";
-import { useDataTable } from "@/hooks/use-data-table";
-import { ColumnDef } from "@tanstack/react-table";
 import type { StoreExchangeWithDetails } from "@shared/schema";
+import { ColumnDef } from "@tanstack/react-table";
+import {
+  ArrowLeftRight,
+  Eye,
+  Package,
+  RefreshCw
+} from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
 export default function StoreExchangeHistory() {

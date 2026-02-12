@@ -1,12 +1,12 @@
 
-import { Link } from "react-router-dom";
-import { Tag, Clock, ArrowRight, Sparkles } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useQuery } from "@tanstack/react-query";
 import type { SaleWithDetails } from "@shared/schema";
+import { useQuery } from "@tanstack/react-query";
+import { ArrowRight, Clock, Sparkles, Tag } from "lucide-react";
+import { Link } from "react-router-dom";
 
 export default function Sales() {
   const { data: sales, isLoading } = useQuery<SaleWithDetails[]>({

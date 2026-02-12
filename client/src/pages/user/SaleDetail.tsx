@@ -1,12 +1,12 @@
-import { useParams, Link } from "react-router-dom";
-import { ArrowLeft, Clock, Tag, ShoppingBag } from "lucide-react";
+import { ProductCard } from "@/components/product/ProductCard";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { ProductCard } from "@/components/product/ProductCard";
+import type { ProductWithDetails, SaleWithProducts } from "@shared/schema";
 import { useQuery } from "@tanstack/react-query";
-import type { SaleWithProducts, ProductWithDetails } from "@shared/schema";
+import { ArrowLeft, Clock, ShoppingBag, Tag } from "lucide-react";
+import { Link, useParams } from "react-router-dom";
 
 export default function SaleDetail() {
   const { id } = useParams<{ id: string }>();

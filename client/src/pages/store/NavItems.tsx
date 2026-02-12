@@ -1,14 +1,12 @@
 import {
-  LayoutDashboard,
-  ShoppingCart,
-  PlusCircle,
-  PackageSearch,
+  ArrowLeftRight,
   ClipboardList,
   History,
-  ArrowLeftRight,
-  Users,
-  BarChart3,
+  LayoutDashboard,
+  PackageSearch,
+  PlusCircle,
   RefreshCw,
+  ShoppingCart
 } from "lucide-react";
 
 export const StoreNavItems = [

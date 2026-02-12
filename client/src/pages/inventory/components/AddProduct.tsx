@@ -1,18 +1,17 @@
-import React, { useEffect, useState } from "react";
+import { Button } from "@/components/ui/button";
 import { toast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
-import { useQuery, useMutation } from "@tanstack/react-query";
-import { useNavigate } from "react-router-dom";
+import { Store } from "@shared/types";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { ArrowLeft } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import React, { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { ProductForm } from "./ProductForm";
 import {
     FiltersData,
     ProductFormData,
-    StoreAllocation,
-    ProductDialogProps,
+    StoreAllocation
 } from "./Types";
-import { Store } from "@shared/types";
-import { ProductForm } from "./ProductForm";
 
 export default function AddProduct() {
     const navigate = useNavigate();

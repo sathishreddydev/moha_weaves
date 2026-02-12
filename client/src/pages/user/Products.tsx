@@ -1,10 +1,10 @@
-import React, { useState, useEffect, useMemo, useCallback } from "react";
-import { useLocation, useNavigate } from "react-router-dom";
-import { Filter, SlidersHorizontal, X } from "lucide-react";
+import { ReusableDrawer } from "@/components/common/ReusableDrawer";
+import PriceRangeSlider from "@/components/product/PriceRangeSlider";
+import { ProductCard } from "@/components/product/ProductCard";
+import { useFilterStore } from "@/components/Store/useFilterStore";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Skeleton } from "@/components/ui/skeleton";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Input } from "@/components/ui/input";
 import {
   Select,
   SelectContent,
@@ -12,14 +12,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { ProductCard } from "@/components/product/ProductCard";
-import { useQuery } from "@tanstack/react-query";
+import { Skeleton } from "@/components/ui/skeleton";
 import { apiRequest } from "@/lib/queryClient";
-import type { ProductWithDetails } from "@shared/schema";
-import { useFilterStore } from "@/components/Store/useFilterStore";
 import { CheckedState } from "@radix-ui/react-checkbox";
-import PriceRangeSlider from "@/components/product/PriceRangeSlider";
-import { ReusableDrawer } from "@/components/common/ReusableDrawer";
+import type { ProductWithDetails } from "@shared/schema";
+import { useQuery } from "@tanstack/react-query";
+import { SlidersHorizontal, X } from "lucide-react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
 import NestedCheckbox, {
   NestedCheckboxOption,
   getSelectedTree,

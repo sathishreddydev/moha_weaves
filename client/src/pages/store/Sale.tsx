@@ -1,16 +1,15 @@
-import { useState, useEffect, useMemo, useCallback } from "react";
-import { useNavigate } from "react-router-dom";
-import { ShoppingCart, Plus, Minus, Trash2, Tag, RefreshCw } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Skeleton } from "@/components/ui/skeleton";
 import { DataTable } from "@/components/DataTable/DataTable";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { useDataTable } from "@/hooks/use-data-table";
-import { ColumnDef } from "@tanstack/react-table";
-import { useAuth } from "@/lib/auth";
-import { useQuery } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/lib/auth";
 import type { ProductWithDetails } from "@shared/schema";
+import { useQuery } from "@tanstack/react-query";
+import { ColumnDef } from "@tanstack/react-table";
+import { Minus, Plus, RefreshCw, ShoppingCart, Trash2 } from "lucide-react";
+import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { useStoreCart } from "./Hook/cartStore";
 
 type ShopProduct = {

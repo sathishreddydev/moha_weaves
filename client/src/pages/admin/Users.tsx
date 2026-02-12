@@ -1,11 +1,11 @@
-import { useMemo } from "react";
-import { Mail, Phone } from "lucide-react";
-import { Card, CardContent } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { DataTable } from "@/components/DataTable/DataTable";
+import { Badge } from "@/components/ui/badge";
+import { Card, CardContent } from "@/components/ui/card";
 import { useDataTable } from "@/hooks/use-data-table";
-import { ColumnDef } from "@tanstack/react-table";
 import type { User } from "@shared/schema";
+import { ColumnDef } from "@tanstack/react-table";
+import { Mail, Phone } from "lucide-react";
+import { useMemo } from "react";
 
 type SafeUser = Omit<User, "password">;
 

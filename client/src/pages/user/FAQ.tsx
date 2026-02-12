@@ -1,8 +1,8 @@
-import { useState } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Search, HelpCircle, Package, Truck, Shield, CreditCard } from "lucide-react";
+import { CreditCard, HelpCircle, Package, Search, Shield, Truck } from "lucide-react";
+import { useState } from "react";
 
 const faqData = [
   {

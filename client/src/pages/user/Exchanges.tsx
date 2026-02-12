@@ -1,13 +1,13 @@
-import { Link } from "react-router-dom";
-import { ArrowLeftRight, Package, Clock, CheckCircle, XCircle, Truck, ArrowLeft } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Skeleton } from "@/components/ui/skeleton";
 import { Separator } from "@/components/ui/separator";
+import { Skeleton } from "@/components/ui/skeleton";
 import { useAuth } from "@/lib/auth";
-import { useQuery } from "@tanstack/react-query";
 import type { OnlineExchangeWithDetails } from "@shared/schema";
+import { useQuery } from "@tanstack/react-query";
+import { ArrowLeft, ArrowLeftRight, CheckCircle, Clock, Package, Truck, XCircle } from "lucide-react";
+import { Link } from "react-router-dom";
 
 const onlineExchangeStatusConfig = {
   requested: {

@@ -1,15 +1,15 @@
-import { Link } from "react-router-dom";
-import { ArrowRight } from "lucide-react";
+import { ProductCard } from "@/components/product/ProductCard";
+import { useFilterStore } from "@/components/Store/useFilterStore";
 import { Card } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { ProductCard } from "@/components/product/ProductCard";
-import { TrendingSalesBanner } from "./TrendingSales";
-import { useQuery } from "@tanstack/react-query";
-import type { ProductWithDetails } from "@shared/schema";
-import { useFilterStore } from "@/components/Store/useFilterStore";
-import { useEffect } from "react";
-import { VisualCategoryHero } from "./common/VisualCategoryHero";
 import { apiRequest } from "@/lib/queryClient";
+import type { ProductWithDetails } from "@shared/schema";
+import { useQuery } from "@tanstack/react-query";
+import { ArrowRight } from "lucide-react";
+import { useEffect } from "react";
+import { Link } from "react-router-dom";
+import { VisualCategoryHero } from "./common/VisualCategoryHero";
+import { TrendingSalesBanner } from "./TrendingSales";
 
 export default function Home() {
   const { data: featuredProducts, isLoading: loadingFeatured } = useQuery<

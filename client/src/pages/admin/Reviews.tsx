@@ -1,4 +1,3 @@
-import { Star } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
@@ -9,10 +8,11 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { Star } from "lucide-react";
 
 import { useAuth } from "@/lib/auth";
+import type { ProductReview, ProductWithDetails, User } from "@shared/schema";
 import { useQuery } from "@tanstack/react-query";
-import type { ProductReview, User, ProductWithDetails } from "@shared/schema";
 
 type ReviewWithDetails = ProductReview & {
   user: User;

@@ -1,50 +1,36 @@
-import { useParams, Link, useNavigate } from "react-router-dom";
-import React, { useState, useEffect } from "react";
-import {
-  Heart,
-  ShoppingBag,
-  Minus,
-  Plus,
-  ArrowLeft,
-  Truck,
-  RefreshCw,
-  Shield,
-  Star,
-  ZoomIn,
-  ChevronLeft,
-  ChevronRight,
-  X,
-  Check,
-  Sparkles,
-  Eye,
-  Camera,
-  Palette,
-  ShieldCheck,
-  RotateCcw,
-} from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Separator } from "@/components/ui/separator";
-import { Skeleton } from "@/components/ui/skeleton";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { ProductSharePopover } from "@/components/common/ProductSharePopover";
+import { ProductCard } from "@/components/product/ProductCard";
+import { ProductImageGallery } from "@/components/product/ProductImageGallery";
+import { Reviews } from "@/components/product/Reviews";
+import { useCartStore } from "@/components/Store/useCartStore";
+import { useWishlistStore } from "@/components/Store/useWishlistStore";
 import {
   Accordion,
   AccordionContent,
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion";
-import { ProductCard } from "@/components/product/ProductCard";
-import { ProductImageGallery } from "@/components/product/ProductImageGallery";
-import { Reviews } from "@/components/product/Reviews";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
 import { useAuth } from "@/lib/auth";
-import { useQuery } from "@tanstack/react-query";
-import type { ProductWithDetails } from "@shared/schema";
-import { useCartStore } from "@/components/Store/useCartStore";
-import { useWishlistStore } from "@/components/Store/useWishlistStore";
-import { CartQuantity } from "./common/CartQuantity";
-import { ProductSharePopover } from "@/components/common/ProductSharePopover";
-import { cn } from "@/lib/utils";
 import { apiRequest } from "@/lib/queryClient";
+import { cn } from "@/lib/utils";
+import type { ProductWithDetails } from "@shared/schema";
+import { useQuery } from "@tanstack/react-query";
+import {
+  ArrowLeft,
+  ChevronRight,
+  Heart,
+  RotateCcw,
+  ShieldCheck,
+  ShoppingBag,
+  Star,
+  Truck
+} from "lucide-react";
+import { useEffect, useState } from "react";
+import { Link, useNavigate, useParams } from "react-router-dom";
+import { CartQuantity } from "./common/CartQuantity";
 
 export default function ProductDetail() {
   const { id } = useParams();

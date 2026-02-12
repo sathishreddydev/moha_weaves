@@ -1,8 +1,7 @@
-import React, { useState } from "react";
-import { Label } from "@/components/ui/label";
+import { CloudinaryUploader } from "@/components/CloudinaryUploader";
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
-import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
 import {
   Select,
   SelectContent,
@@ -10,13 +9,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
+import { Textarea } from "@/components/ui/textarea";
 import { toast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
-import { Button } from "@/components/ui/button";
-import { CloudinaryUploader } from "@/components/CloudinaryUploader";
-import { Upload, ImageIcon, Video, X, GripVertical } from "lucide-react";
-import { ProductFormData, StoreAllocation, FiltersData, ProductVariant } from "./Types";
 import { Category, Color, Fabric, Subcategory } from "@shared/types";
+import { GripVertical, ImageIcon, Video, X } from "lucide-react";
+import React, { useState } from "react";
+import { ProductFormData, ProductVariant, StoreAllocation } from "./Types";
 
 interface ProductFormProps {
   formData: ProductFormData;

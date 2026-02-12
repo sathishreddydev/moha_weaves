@@ -1,9 +1,8 @@
-import { useQuery } from "@tanstack/react-query";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Tag, Clock, ArrowRight } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
+import { ArrowRight, Clock, Tag } from "lucide-react";
 import { Link } from "react-router-dom";
 
 interface Sale {

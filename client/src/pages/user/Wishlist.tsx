@@ -1,12 +1,11 @@
-import { Link } from "react-router-dom";
-import { Heart, ShoppingBag, Trash2 } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
-import { Skeleton } from "@/components/ui/skeleton";
-import { useAuth } from "@/lib/auth";
 import { useCartStore } from "@/components/Store/useCartStore";
 import { useWishlistStore } from "@/components/Store/useWishlistStore";
 import { ProductCard } from "@/components/product/ProductCard";
+import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
+import { useAuth } from "@/lib/auth";
+import { Heart } from "lucide-react";
+import { Link } from "react-router-dom";
 
 export default function Wishlist() {
   const { user } = useAuth();

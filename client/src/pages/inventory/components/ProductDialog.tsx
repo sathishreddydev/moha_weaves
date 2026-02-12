@@ -1,20 +1,5 @@
-import React from "react";
 import { CloudinaryUploader } from "@/components/CloudinaryUploader";
-import { Label } from "@/components/ui/label";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
-import { Switch } from "@/components/ui/switch";
-import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
-} from "@/components/ui/select";
-import { toast } from "@/hooks/use-toast";
-import { apiRequest } from "@/lib/queryClient";
-import { Category, Subcategory, Color, Fabric } from "@shared/types";
-import { Upload, X, ImageIcon, Video } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import {
     Dialog,
     DialogContent,
@@ -23,9 +8,24 @@ import {
     DialogHeader,
     DialogTitle,
 } from "@/components/ui/dialog";
-import { useQuery, useMutation } from "@tanstack/react-query";
-import { FiltersData, ProductFormData, StoreAllocation, ProductDialogProps } from "./Types";
-import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
+import { Textarea } from "@/components/ui/textarea";
+import { toast } from "@/hooks/use-toast";
+import { apiRequest } from "@/lib/queryClient";
+import { Category, Color, Fabric, Subcategory } from "@shared/types";
+import { useMutation, useQuery } from "@tanstack/react-query";
+import { ImageIcon, Upload, Video, X } from "lucide-react";
+import React from "react";
+import { FiltersData, ProductDialogProps, ProductFormData, StoreAllocation } from "./Types";
 
 export const ProductDialog = ({
     refetch,

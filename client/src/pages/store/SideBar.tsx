@@ -1,5 +1,5 @@
-import { useNavigate, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
+import { useLocation, useNavigate } from "react-router-dom";
 import { StoreNavItems } from "./NavItems";
 
 export function StoreSidebar() {

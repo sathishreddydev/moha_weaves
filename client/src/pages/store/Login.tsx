@@ -1,8 +1,4 @@
-import { useState } from "react";
-import { Link, useNavigate, Navigate } from "react-router-dom";
-import { Eye, EyeOff, Mail, Lock, Store } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import {
   Card,
   CardContent,
@@ -11,11 +7,6 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { useAuth } from "@/lib/auth";
-import { useToast } from "@/hooks/use-toast";
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { z } from "zod";
 import {
   Form,
   FormControl,
@@ -25,6 +16,14 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { TextField } from "@/components/ui/TextField";
+import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/lib/auth";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { Eye, EyeOff, Lock, Mail, Store } from "lucide-react";
+import { useState } from "react";
+import { useForm } from "react-hook-form";
+import { Link, Navigate, useNavigate } from "react-router-dom";
+import { z } from "zod";
 
 const loginSchema = z.object({
   email: z.string().email("Please enter a valid email"),

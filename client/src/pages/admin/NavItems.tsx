@@ -1,18 +1,16 @@
 import {
+  Building2,
   LayoutDashboard,
   Package,
-  Tags,
   Palette,
-  Shirt,
-  Users,
-  UserCog,
-  Building2,
-  ShoppingCart,
-  Ticket,
-  Star,
   Settings,
-  Zap,
-  Store,
+  Shirt,
+  Star,
+  Tags,
+  Ticket,
+  UserCog,
+  Users,
+  Zap
 } from "lucide-react";
 
 export const AdminNavItems = [

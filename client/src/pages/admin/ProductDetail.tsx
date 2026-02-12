@@ -1,25 +1,19 @@
-import { useParams, Link, useNavigate } from "react-router-dom";
-import { useState } from "react";
-import {
-  ArrowLeft,
-  Edit,
-  Package,
-  DollarSign,
-  Layers,
-  Palette,
-  Tag,
-  Store,
-  TrendingUp,
-  Eye,
-  Camera,
-} from "lucide-react";
-import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Separator } from "@/components/ui/separator";
-import { useQuery } from "@tanstack/react-query";
 import type { ProductWithDetails } from "@shared/schema";
+import { useQuery } from "@tanstack/react-query";
+import {
+  ArrowLeft,
+  Camera,
+  DollarSign,
+  Layers,
+  Package,
+  Tag,
+  TrendingUp
+} from "lucide-react";
+import { Link, useNavigate, useParams } from "react-router-dom";
 
 const formatPrice = (price: string | number) => {
   const numPrice = typeof price === "string" ? parseFloat(price) : price;

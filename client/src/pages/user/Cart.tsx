@@ -1,19 +1,18 @@
-import { Link, useNavigate } from "react-router-dom";
-import {
-  Trash2,
-  Minus,
-  Plus,
-  ShoppingBag,
-  ArrowLeft,
-  ArrowRight,
-} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useAuth } from "@/lib/auth";
+import {
+  ArrowLeft,
+  ArrowRight,
+  Minus,
+  Plus,
+  ShoppingBag,
+  Trash2,
+} from "lucide-react";
+import { Link, useNavigate } from "react-router-dom";
 import { useCartStore } from "../../components/Store/useCartStore";
-import { useEffect } from "react";
 
 export default function Cart() {
   const navigate = useNavigate();

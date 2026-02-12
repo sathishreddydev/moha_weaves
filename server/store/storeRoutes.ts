@@ -79,7 +79,7 @@ export const storeRoutes = (app: Express) => {
         user.storeId,
       );
       res.json(products);
-    } catch (error) {
+    } catch {
       res.status(500).json({ message: "Failed to fetch products" });
     }
   });

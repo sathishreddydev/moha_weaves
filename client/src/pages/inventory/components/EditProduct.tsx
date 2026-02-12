@@ -1,20 +1,19 @@
-import React, { useEffect, useState, useCallback } from "react";
-import { toast } from "@/hooks/use-toast";
-import { apiRequest } from "@/lib/queryClient";
-import { useNavigate, useParams } from "react-router-dom";
-import { ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useQuery, useMutation } from "@tanstack/react-query";
+import { toast } from "@/hooks/use-toast";
+import { useAuth } from "@/lib/auth";
+import { apiRequest } from "@/lib/queryClient";
+import { ProductWithDetails, Store } from "@shared/types";
+import { useMutation, useQuery } from "@tanstack/react-query";
+import { ArrowLeft } from "lucide-react";
+import React, { useEffect, useState } from "react";
+import { useNavigate, useParams } from "react-router-dom";
+import { ProductForm } from "./ProductForm";
 import {
   FiltersData,
   ProductFormData,
-  StoreAllocation,
-  ProductDialogProps,
+  StoreAllocation
 } from "./Types";
-import { ProductForm } from "./ProductForm";
-import { ProductWithDetails, Store } from "@shared/types";
-import { useAuth } from "@/lib/auth";
 
 export default function EditProduct() {
   const { user } = useAuth();

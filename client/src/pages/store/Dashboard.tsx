@@ -1,32 +1,8 @@
-import { useState } from "react";
-import { Link } from "react-router-dom";
-import {
-  ShoppingCart,
-  Package,
-  TrendingUp,
-  Plus,
-  ClipboardList,
-  Receipt,
-  PackageSearch,
-  AlertTriangle,
-  Activity,
-  ArrowUp,
-  ArrowDown,
-  RefreshCw,
-  Eye,
-  Truck,
-  Users,
-  Clock,
-} from "lucide-react";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Skeleton } from "@/components/ui/skeleton";
 import { Progress } from "@/components/ui/progress";
-import { useAuth } from "@/lib/auth";
-import { useQuery } from "@tanstack/react-query";
-import { apiRequest } from "@/lib/queryClient";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   Table,
   TableBody,
@@ -35,12 +11,33 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useAuth } from "@/lib/auth";
+import { apiRequest } from "@/lib/queryClient";
 import type {
   ProductWithDetails,
-  StoreSaleWithItems,
   StockRequestWithDetails,
   StoreExchangeWithDetails,
+  StoreSaleWithItems,
 } from "@shared/schema";
+import { useQuery } from "@tanstack/react-query";
+import {
+  Activity,
+  AlertTriangle,
+  ArrowDown,
+  ArrowUp,
+  ClipboardList,
+  Clock,
+  Eye,
+  Package,
+  Plus,
+  Receipt,
+  RefreshCw,
+  ShoppingCart,
+  TrendingUp
+} from "lucide-react";
+import { useState } from "react";
+import { Link } from "react-router-dom";
 
 interface StoreStats {
   todaySales: number;

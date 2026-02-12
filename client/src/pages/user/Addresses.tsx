@@ -1,10 +1,3 @@
-import { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
-import { Plus, Edit, Trash2, MapPin, Check, AlertCircle } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Skeleton } from "@/components/ui/skeleton";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -15,10 +8,17 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Edit, MapPin, Plus, Trash2 } from "lucide-react";
+import { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
 
+import { useAddressStore } from "@/components/Store/useAddressesStore";
 import { useAuth } from "@/lib/auth";
 import type { UserAddress } from "@shared/schema";
-import { useAddressStore } from "@/components/Store/useAddressesStore";
 import { AddressDialog } from "./common/AddressDialog";
 
 type AddressFormData = {

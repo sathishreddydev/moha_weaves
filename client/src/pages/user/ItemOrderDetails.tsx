@@ -1,14 +1,9 @@
-import { useState } from "react";
-import { useParams, Link, useNavigate } from "react-router-dom";
-import { ArrowLeft, Package } from "lucide-react";
+import { ReusableDialog } from "@/components/common/ReusableDialog";
+import { WriteReview } from "@/components/product/WriteReview";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Skeleton } from "@/components/ui/skeleton";
-import { Separator } from "@/components/ui/separator";
-import { ReusableDialog } from "@/components/common/ReusableDialog";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import {
   Select,
   SelectContent,
@@ -16,25 +11,23 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  getItemStatusConfig,
+  returnReasons
+} from "@/constants/itemStatusConfig";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/lib/auth";
-import { useQuery, useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import type {
   OrderWithItems,
-  ItemStatusHistory,
-  ReturnRequestWithDetails,
-  Refund,
-  ProductWithDetails,
-  OnlineExchangeWithDetails,
+  ReturnRequestWithDetails
 } from "@shared/schema";
-import {
-  itemStatusConfig,
-  isItemDelivered,
-  returnReasons,
-  getItemStatusConfig,
-} from "@/constants/itemStatusConfig";
-import { WriteReview } from "@/components/product/WriteReview";
+import { useMutation, useQuery } from "@tanstack/react-query";
+import { ArrowLeft, Package } from "lucide-react";
+import { useState } from "react";
+import { Link, useNavigate, useParams } from "react-router-dom";
 
 export default function ItemOrderDetails() {
   const { orderId, itemId } = useParams<{ orderId: string; itemId: string }>();

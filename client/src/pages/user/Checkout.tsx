@@ -1,34 +1,31 @@
-import { useState, useEffect } from "react";
-import { Link, useNavigate } from "react-router-dom";
-import {
-  ArrowLeft,
-  ShoppingBag,
-  CreditCard,
-  CheckCircle,
-  MapPin,
-  Plus,
-  Check,
-  AlertCircle,
-  Tag,
-  X,
-} from "lucide-react";
+import { useAddressStore } from "@/components/Store/useAddressesStore";
+import { useCartStore } from "@/components/Store/useCartStore";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
-import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Badge } from "@/components/ui/badge";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { useAuth } from "@/lib/auth";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { apiRequest } from "@/lib/queryClient";
+import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/lib/auth";
+import { apiRequest } from "@/lib/queryClient";
+import type { Coupon } from "@shared/schema";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import {
+  ArrowLeft,
+  CreditCard,
+  MapPin,
+  Plus,
+  ShoppingBag,
+  Tag,
+  X
+} from "lucide-react";
+import { useEffect, useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
 import { z } from "zod";
-import type { CartItemWithProduct, UserAddress, Coupon } from "@shared/schema";
-import { useCartStore } from "@/components/Store/useCartStore";
-import { useAddressStore } from "@/components/Store/useAddressesStore";
 import OrderSuccess from "./OrderSuccess";
 
 const addressFormSchema = z.object({

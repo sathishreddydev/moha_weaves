@@ -1,25 +1,23 @@
-import { useEffect, useState } from "react";
+import { DataTable } from "@/components/DataTable/DataTable";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import {
-  Plus,
-  Minus,
-  Trash2,
-  ShoppingCart,
-  CreditCard,
-  Loader2,
-  ShoppingBag,
-  Tag,
-  X,
-} from "lucide-react";
 import { toast } from "@/hooks/use-toast";
-import { useNavigate } from "react-router-dom";
-import { DataTable } from "@/components/DataTable/DataTable";
-import { ColumnDef } from "@tanstack/react-table";
-import { useQueryClient } from "@tanstack/react-query";
-import { apiRequest } from "@/lib/queryClient";
-import { useStoreCart } from "./Hook/cartStore";
 import { useAuth } from "@/lib/auth";
+import { apiRequest } from "@/lib/queryClient";
+import { useQueryClient } from "@tanstack/react-query";
+import { ColumnDef } from "@tanstack/react-table";
+import {
+  CreditCard,
+  Minus,
+  Plus,
+  ShoppingBag,
+  ShoppingCart,
+  Trash2,
+  X
+} from "lucide-react";
+import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { useStoreCart } from "./Hook/cartStore";
 
 interface CartItem {
   id: string;

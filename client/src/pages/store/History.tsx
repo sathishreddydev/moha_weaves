@@ -1,20 +1,6 @@
-import { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
-import {
-  Receipt,
-  User,
-  Phone,
-  ArrowLeftRight,
-  Download,
-  Clock,
-  AlertCircle,
-  RefreshCw,
-  Eye,
-} from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
+import { DataTable } from "@/components/DataTable/DataTable";
 import { Badge } from "@/components/ui/badge";
-import { Skeleton } from "@/components/ui/skeleton";
+import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
@@ -22,22 +8,32 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { useAuth } from "@/lib/auth";
-import { useToast } from "@/hooks/use-toast";
-import { DataTable } from "@/components/DataTable/DataTable";
 import { useDataTable } from "@/hooks/use-data-table";
-import { ColumnDef } from "@tanstack/react-table";
-import { useQuery } from "@tanstack/react-query";
-import * as XLSX from "xlsx";
-import { saveAs } from "file-saver";
-import type { StoreSaleWithItems } from "@shared/schema";
-import { apiRequest } from "@/lib/queryClient";
+import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/lib/auth";
 import {
   Tooltip,
   TooltipContent,
   TooltipProvider,
   TooltipTrigger,
 } from "@radix-ui/react-tooltip";
+import type { StoreSaleWithItems } from "@shared/schema";
+import { ColumnDef } from "@tanstack/react-table";
+import { saveAs } from "file-saver";
+import {
+  AlertCircle,
+  ArrowLeftRight,
+  Clock,
+  Download,
+  Eye,
+  Phone,
+  Receipt,
+  RefreshCw,
+  User,
+} from "lucide-react";
+import { useState } from "react";
+import { useNavigate } from "react-router-dom";
+import * as XLSX from "xlsx";
 
 export default function StoreHistory() {
   const navigate = useNavigate();

@@ -1,15 +1,11 @@
-
-
-
-import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
-import { Link } from "react-router-dom";
-import { Users, Package, ShoppingCart, TrendingUp, Plus, AlertTriangle, DollarSign, PackageOpen, Activity, Settings } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useAuth } from "@/lib/auth";
+import { useQuery } from "@tanstack/react-query";
+import { Activity, Package, ShoppingCart, TrendingUp, Users } from "lucide-react";
+import { Link } from "react-router-dom";
 
 interface DashboardStats {
   totalUsers: number;
