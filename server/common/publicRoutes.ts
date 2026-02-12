@@ -24,7 +24,7 @@ export const publicRoutes = (app: Express) => {
     try {
       const categories = await publicStorage.getCategoriesWithSubcategories();
       res.json(categories);
-    } catch (error) {
+    } catch  {
       res.status(500).json({ message: "Failed to fetch categories" });
     }
   });
@@ -66,8 +66,7 @@ export const publicRoutes = (app: Express) => {
       const products = await roleBasedProductService.getProductsByRole(filters, "user");
 
       res.json(products);
-    } catch (error) {
-      console.error("products fetch error:", error);
+    } catch  {
       res.status(500).json({ message: "Failed to fetch products" });
     }
   });
@@ -80,7 +79,7 @@ export const publicRoutes = (app: Express) => {
         return res.status(404).json({ message: "product not found" });
       }
       res.json(product);
-    } catch (error) {
+    } catch  {
       res.status(500).json({ message: "Failed to fetch product" });
     }
   });
@@ -93,8 +92,7 @@ export const publicRoutes = (app: Express) => {
         return res.status(404).json({ message: "Product not found" });
       }
       res.json(product.variants || []);
-    } catch (error) {
-      console.error("Error fetching product variants:", error);
+    } catch  {
       res.status(500).json({ message: "Failed to fetch product variants" });
     }
   });
@@ -125,7 +123,7 @@ export const publicRoutes = (app: Express) => {
         stats: { averageRating, totalReviews, ratingDistribution },
       };
       res.json(response);
-    } catch (error) {
+    } catch  {
       res.status(500).json({ message: "Failed to fetch reviews" });
     }
   });
@@ -138,7 +136,7 @@ export const publicRoutes = (app: Express) => {
         return res.status(404).json({ message: "product not found" });
       }
       res.json(product);
-    } catch (error) {
+    } catch  {
       res.status(500).json({ message: "Failed to fetch product with reviews" });
     }
   });
@@ -154,8 +152,7 @@ export const publicRoutes = (app: Express) => {
         current: true,
       });
       res.json(sales);
-    } catch (error) {
-      console.error("Error fetching sales:", error);
+    } catch  {
       res.status(500).json({ message: "Failed to fetch sales" });
     }
   });
@@ -174,8 +171,7 @@ export const publicRoutes = (app: Express) => {
       }
 
       res.json(sale);
-    } catch (error) {
-      console.error("Error fetching sale:", error);
+    } catch  {
       res.status(500).json({ message: "Failed to fetch sale" });
     }
   });

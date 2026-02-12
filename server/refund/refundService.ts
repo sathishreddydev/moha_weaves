@@ -196,7 +196,6 @@ export class RefundService {
   async processRefundManually(
     refundId: string,
     status: "pending" | "initiated" | "processing" | "completed" | "failed" | "cancelled",
-    transactionId?: string
   ): Promise<Refund | undefined> {
     const [result] = await db
       .update(refunds)

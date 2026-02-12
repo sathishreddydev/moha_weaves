@@ -33,24 +33,6 @@ export default function Sales() {
       year: "numeric",
     });
   };
-
-  const calculateDiscount = (sale: SaleWithDetails, originalPrice: number) => {
-    const discountValue = parseFloat(sale.discountValue);
-    const maxDiscount = sale.maxDiscount ? parseFloat(sale.maxDiscount) : Infinity;
-    
-    switch (sale.offerType) {
-      case "percentage":
-      case "category":
-      case "flash_sale":
-        const discount = originalPrice * (discountValue / 100);
-        return Math.min(discount, maxDiscount);
-      case "flat":
-      case "product":
-        return Math.min(discountValue, originalPrice);
-      default:
-        return 0;
-    }
-  };
   
   const getDiscountBadgeText = (sale: SaleWithDetails) => {
     switch (sale.offerType) {
@@ -78,7 +60,7 @@ export default function Sales() {
           Sales & Offers
         </h1>
         <p className="text-sm text-muted-foreground max-w-2xl mx-auto mb-6">
-          Discover amazing deals on our exquisite collection of products. Limited time offers you don't want to miss!
+          Discover amazing deals on our exquisite collection of products. Limited time offers you do not want to miss!
         </p>
         <Link to="/products?sort=onSale">
           <Button size="lg" data-testid="button-shop-all-sale">

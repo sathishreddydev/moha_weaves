@@ -1,16 +1,14 @@
+import { products, productVariants } from "@shared/schema";
+import * as crypto from "crypto";
+import { eq, sql } from "drizzle-orm";
 import type { Express } from "express";
-import { storage } from "../storage";
+import { couponsService } from "server/coupons/couponsStorage";
+import { db } from "server/db";
+import { razorpay } from "server/razorpayClient";
 import { createAuthMiddleware } from "../authMiddleware";
 import { cartServices } from "../cart/cartStorage";
+import { paymentInfo } from "./createOrderService";
 import { orderService } from "./orderStorage";
-import { couponsService } from "server/coupons/couponsStorage";
-import { razorpay } from "server/razorpayClient";
-import { fetchPaymentDetails } from "../razorpayClient";
-import { createOrderTransaction, paymentInfo } from "./createOrderService";
-import * as crypto from "crypto";
-import { db } from "server/db";
-import { eq, sql } from "drizzle-orm";
-import { products, productVariants } from "@shared/schema";
 
 export const orderRoutes = (app: Express) => {
   const authUser = createAuthMiddleware(["user"]);
@@ -20,7 +18,7 @@ export const orderRoutes = (app: Express) => {
     try {
       const orders = await orderService.getOrders((req as any).user.id);
       res.json(orders);
-    } catch (error) {
+    } catch  {
       res.status(500).json({ message: "Failed to fetch orders" });
     }
   });
@@ -32,7 +30,7 @@ export const orderRoutes = (app: Express) => {
         return res.status(404).json({ message: "Order not found" });
       }
       res.json(order);
-    } catch (error) {
+    } catch  {
       res.status(500).json({ message: "Failed to fetch order" });
     }
   });
@@ -195,7 +193,7 @@ export const orderRoutes = (app: Express) => {
         .text("This is a system-generated invoice.");
 
       doc.end();
-    } catch (error) {
+    } catch  {
       res.status(500).json({ message: "Failed to generate invoice" });
     }
   });
@@ -217,7 +215,7 @@ export const orderRoutes = (app: Express) => {
         const payment = paymentInfo({ razorpayPaymentId: order.razorpayPaymentId });
 
         return res.json(payment);
-      } catch (error) {
+      } catch  {
         res.status(500).json({ message: "Failed to fetch payment details" });
       }
     },
@@ -305,8 +303,7 @@ export const orderRoutes = (app: Express) => {
       await cartServices.clearCart(userId);
 
       res.json({ orderId: order.id });
-    } catch (error) {
-      console.error("Order error:", error);
+    } catch  {
       res.status(500).json({ message: "Failed to place order" });
     }
   });

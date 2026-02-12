@@ -15,17 +15,6 @@ const MOHASIDECAR_ENDPOINT = "http://127.0.0.1:1106";
 const pendingUploads = new Map<string, { objectPath: string; expiresAt: number }>();
 const UPLOAD_TTL_MS = 15 * 60 * 1000;
 
-function cleanupExpiredUploads() {
-  const now = Date.now();
-  for (const [key, value] of Array.from(pendingUploads.entries())) {
-    if (value.expiresAt < now) {
-      pendingUploads.delete(key);
-    }
-  }
-}
-
-setInterval(cleanupExpiredUploads, 60000);
-
 export const objectStorageClient = new Storage({
   credentials: {
     audience: "moha",

@@ -26,7 +26,7 @@ export const reviewRoutes = (app: Express) => {
       }
 
       res.json(review);
-    } catch (error) {
+    } catch {
       res.status(500).json({ message: "Failed to update review status" });
     }
   });
@@ -34,7 +34,7 @@ export const reviewRoutes = (app: Express) => {
     try {
       const reviews = await reviewService.getAllReviews();
       res.json(reviews);
-    } catch (error) {
+    } catch {
       res.status(500).json({ message: "Failed to fetch reviews" });
     }
   });
@@ -87,8 +87,7 @@ export const reviewRoutes = (app: Express) => {
         stats: { averageRating, totalReviews, ratingDistribution },
       };
       res.json(response);
-    } catch (error) {
-      console.error("Error creating review:", error);
+    } catch {
       res.status(500).json({ message: "Failed to create review" });
     }
   });
@@ -102,7 +101,7 @@ export const reviewRoutes = (app: Express) => {
         req.params.productId
       );
       res.json({ canReview });
-    } catch (error) {
+    } catch {
       res.status(500).json({ message: "Failed to check review eligibility" });
     }
   });
@@ -143,8 +142,7 @@ export const reviewRoutes = (app: Express) => {
       });
 
       res.json(review);
-    } catch (error) {
-      console.error("Error creating review:", error);
+    } catch {
       res.status(500).json({ message: "Failed to create review" });
     }
   });
@@ -155,7 +153,7 @@ export const reviewRoutes = (app: Express) => {
       const user = (req as any).user;
       const reviews = await reviewService.getUserReviews(user.id);
       res.json(reviews);
-    } catch (error) {
+    } catch {
       res.status(500).json({ message: "Failed to fetch reviews" });
     }
   });

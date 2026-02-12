@@ -2,7 +2,9 @@ import { desc, eq } from "drizzle-orm";
 import { contactMessages, type ContactMessage, type InsertContactMessage } from "../../shared/schema";
 import { db } from "../db";
 
-export interface ContactMessageWithDetails extends ContactMessage {}
+export interface ContactMessageWithDetails extends ContactMessage {
+  //
+}
 
 export class ContactStorage {
   // Create a new contact message

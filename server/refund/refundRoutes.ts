@@ -46,9 +46,7 @@ export const refundRoutes = (app: Express) => {
   // Admin: Manual refund processing
   app.patch("/api/inventory/refunds/:id/process", authInventory, async (req, res) => {
     try {
-      const { status, transactionId } = req.body;
-      const user = (req as any).user;
-
+      const { status } = req.body;
       const refund = await storage.getRefund(req.params.id);
       if (!refund) {
         return res.status(404).json({ message: "Refund not found" });
@@ -63,8 +61,7 @@ export const refundRoutes = (app: Express) => {
         // Manual processing
         updated = await refundService.processRefundManually(
           req.params.id,
-          status,
-          transactionId
+          status
         );
       }
 
@@ -91,7 +88,7 @@ export const refundRoutes = (app: Express) => {
   app.get("/api/inventory/refunds/stats", authInventory, async (req, res) => {
     try {
       const allRefunds = await refundService.getRefunds();
-      
+
       const stats = {
         total: allRefunds.length,
         pending: allRefunds.filter(r => r.status === "pending").length,

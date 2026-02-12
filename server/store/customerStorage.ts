@@ -28,7 +28,7 @@ export class CustomerService implements CustomerStorage {
     return customer;
   }
 
-  async getAllCustomers(storeId: string, search?: string): Promise<any[]> {
+  async getAllCustomers(storeId: string): Promise<any[]> {
     const customers = await db
       .select()
       .from(store_customers)
@@ -43,7 +43,7 @@ export class CustomerService implements CustomerStorage {
     storeId: string,
     pointsToAdd: number,
   ): Promise<StoreCustomer> {
-    let customer = await db
+    const customer = await db
       .select()
       .from(store_customers)
       .where(eq(store_customers.phone, phone))

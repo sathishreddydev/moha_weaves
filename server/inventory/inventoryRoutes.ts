@@ -146,8 +146,7 @@ export const inventoryRoutes = (app: Express) => {
           return res.status(404).json({ message: "Request not found" });
         }
         res.json(request);
-      } catch (error) {
-        console.error("Error updating stock request status:", error);
+      } catch  {
         res.status(500).json({ message: "Failed to update request" });
       }
     },
@@ -182,8 +181,7 @@ export const inventoryRoutes = (app: Express) => {
         }
 
         res.json(updated);
-      } catch (error) {
-        console.error("Error updating tracking number:", error);
+      } catch  {
         res.status(500).json({ message: "Failed to update tracking number" });
       }
     },
@@ -197,7 +195,7 @@ export const inventoryRoutes = (app: Express) => {
         limit: limit ? parseInt(limit as string) : undefined,
       });
       res.json(orders);
-    } catch (error) {
+    } catch  {
       res.status(500).json({ message: "Failed to fetch orders" });
     }
   });
@@ -221,7 +219,7 @@ export const inventoryRoutes = (app: Express) => {
 
       const orders = await storage.getAllOrders({ status: status as string });
       res.json(orders);
-    } catch (error) {
+    } catch  {
       res.status(500).json({ message: "Failed to fetch orders" });
     }
   });
@@ -233,7 +231,7 @@ export const inventoryRoutes = (app: Express) => {
         return res.status(404).json({ message: "Order not found" });
       }
       res.json(order);
-    } catch (error) {
+    } catch  {
       res.status(500).json({ message: "Failed to fetch order" });
     }
   });
@@ -250,7 +248,7 @@ export const inventoryRoutes = (app: Express) => {
 
         const history = await storage.getItemStatusHistory(req.params.id);
         res.json(history);
-      } catch (error) {
+      } catch  {
         res.status(500).json({ message: "Failed to fetch order history" });
       }
     },
@@ -266,7 +264,7 @@ export const inventoryRoutes = (app: Express) => {
           distributionChannel: channel,
         });
         res.json(product);
-      } catch (error) {
+      } catch  {
         res.status(500).json({ message: "Failed to update distribution" });
       }
     },
@@ -283,7 +281,7 @@ export const inventoryRoutes = (app: Express) => {
           onlineStock,
         });
         res.json(product);
-      } catch (error) {
+      } catch  {
         res.status(500).json({ message: "Failed to update stock" });
       }
     },
@@ -296,7 +294,7 @@ export const inventoryRoutes = (app: Express) => {
       try {
         const distribution = await storage.getStockDistribution();
         res.json(distribution);
-      } catch (error) {
+      } catch  {
         res.status(500).json({ message: "Failed to fetch stock distribution" });
       }
     },
@@ -307,12 +305,7 @@ export const inventoryRoutes = (app: Express) => {
     try {
       const {
         search,
-        status,
-        dateFrom,
-        dateTo,
         categoryIds,
-        colorIds,
-        fabricIds,
       } = req.body;
 
       const params = parsePaginationParams(req.query);
@@ -346,7 +339,7 @@ export const inventoryRoutes = (app: Express) => {
         pageSize: params.pageSize,
         totalPages,
       });
-    } catch (error) {
+    } catch  {
       res.status(500).json({ message: "Failed to fetch products" });
     }
   });
@@ -355,7 +348,7 @@ export const inventoryRoutes = (app: Express) => {
     try {
       const stores = await storeService.getStores();
       res.json(stores);
-    } catch (error) {
+    } catch  {
       res.status(500).json({ message: "Failed to fetch stores" });
     }
   });
@@ -369,7 +362,7 @@ export const inventoryRoutes = (app: Express) => {
           req.params.id,
         );
         res.json(allocations);
-      } catch (error) {
+      } catch  {
         res.status(500).json({ message: "Failed to fetch allocations" });
       }
     },
@@ -493,8 +486,7 @@ export const inventoryRoutes = (app: Express) => {
         );
         res.json(product);
       }
-    } catch (error) {
-      console.error("Error creating product:", error);
+    } catch  {
       res.status(500).json({ message: "Failed to create product" });
     }
   });
@@ -641,8 +633,7 @@ export const inventoryRoutes = (app: Express) => {
         );
         res.json(product);
       }
-    } catch (error) {
-      console.error("Error updating product:", error);
+    } catch  {
       res.status(500).json({ message: "Failed to update product" });
     }
   });
@@ -661,7 +652,7 @@ export const inventoryRoutes = (app: Express) => {
         success: true,
         ids: deletedIds,
       });
-    } catch (error) {
+    } catch  {
       res.status(500).json({ message: "Failed to delete products" });
     }
   });
@@ -678,8 +669,7 @@ export const inventoryRoutes = (app: Express) => {
           return res.status(404).json({ message: "Product not found" });
         }
         res.json(product);
-      } catch (error) {
-        console.error("Error fetching product by SKU:", error);
+      } catch  {
         res.status(500).json({ message: "Failed to fetch product" });
       }
     },
@@ -693,8 +683,7 @@ export const inventoryRoutes = (app: Express) => {
         status: status as string | undefined,
       });
       res.json(refunds);
-    } catch (error) {
-      console.error("Error fetching refunds:", error);
+    } catch  {
       res.status(500).json({ message: "Failed to fetch refunds" });
     }
   });
@@ -705,7 +694,7 @@ export const inventoryRoutes = (app: Express) => {
     authInventory,
     async (req, res) => {
       try {
-        const { status, transactionId } = req.body;
+        const { status } = req.body;
 
         const refund = await storage.getRefund(req.params.id);
         if (!refund) {
@@ -722,13 +711,11 @@ export const inventoryRoutes = (app: Express) => {
           updated = await refundService.processRefundManually(
             req.params.id,
             status,
-            transactionId,
           );
         }
 
         res.json(updated);
-      } catch (error) {
-        console.error("Error processing refund:", error);
+      } catch  {
         res.status(500).json({ message: "Failed to process refund" });
       }
     },
@@ -743,8 +730,7 @@ export const inventoryRoutes = (app: Express) => {
         await refundService.checkRefundStatus(req.params.id);
         const updated = await storage.getRefund(req.params.id);
         res.json(updated);
-      } catch (error) {
-        console.error("Error checking refund status:", error);
+      } catch  {
         res.status(500).json({ message: "Failed to check refund status" });
       }
     },
@@ -946,8 +932,7 @@ export const inventoryRoutes = (app: Express) => {
         limit: limit ? parseInt(limit as string) : undefined,
       });
       res.json(movements);
-    } catch (error) {
-      console.error("Error fetching stock movements:", error);
+    } catch  {
       res.status(500).json({ message: "Failed to fetch stock movements" });
     }
   });
@@ -958,8 +943,7 @@ export const inventoryRoutes = (app: Express) => {
       const items = await roleBasedProductService.getProductsByRole({ limit: 10 }, "inventory");
       const lowStockItems = items.filter(item => item.totalStock <= 10);
       res.json(lowStockItems);
-    } catch (error) {
-      console.error("Error fetching low stock items:", error);
+    } catch  {
       res.status(500).json({ message: "Failed to fetch low stock items" });
     }
   });
@@ -968,8 +952,7 @@ export const inventoryRoutes = (app: Express) => {
     try {
       const overview = await storage.getInventoryOverview();
       res.json(overview);
-    } catch (error) {
-      console.error("Error fetching inventory overview:", error);
+    } catch  {
       res.status(500).json({ message: "Failed to fetch inventory overview" });
     }
   });
@@ -1445,8 +1428,7 @@ export const inventoryRoutes = (app: Express) => {
 
       const storeSales = await storeService.getAllStoreSales();
       res.json(storeSales);
-    } catch (error) {
-      console.error("Error fetching store sales:", error);
+    } catch  {
       res.status(500).json({ message: "Failed to fetch store sales" });
     }
   });
@@ -1476,8 +1458,7 @@ export const inventoryRoutes = (app: Express) => {
 
       const damage = await productDamageService.reportDamage(damageData);
       res.status(201).json(damage);
-    } catch (error) {
-      console.error("Error reporting damage:", error);
+    } catch  {
       res.status(500).json({ message: "Failed to report damage" });
     }
   });
@@ -1500,8 +1481,7 @@ export const inventoryRoutes = (app: Express) => {
       });
 
       res.json(damages);
-    } catch (error) {
-      console.error("Error fetching damages:", error);
+    } catch  {
       res.status(500).json({ message: "Failed to fetch damages" });
     }
   });
@@ -1527,8 +1507,7 @@ export const inventoryRoutes = (app: Express) => {
         });
 
         res.json(analytics);
-      } catch (error) {
-        console.error("Error fetching damage analytics:", error);
+      } catch  {
         res.status(500).json({ message: "Failed to fetch damage analytics" });
       }
     },
@@ -1544,8 +1523,7 @@ export const inventoryRoutes = (app: Express) => {
       }
 
       res.json(damage);
-    } catch (error) {
-      console.error("Error fetching damage:", error);
+    } catch  {
       res.status(500).json({ message: "Failed to fetch damage" });
     }
   });
@@ -1570,8 +1548,7 @@ export const inventoryRoutes = (app: Express) => {
         );
 
         res.json(damage);
-      } catch (error) {
-        console.error("Error updating damage status:", error);
+      } catch  {
         res.status(500).json({ message: "Failed to update damage status" });
       }
     },

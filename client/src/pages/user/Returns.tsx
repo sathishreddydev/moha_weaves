@@ -73,7 +73,7 @@ export default function Returns() {
         <RotateCcw className="h-16 w-16 mx-auto text-muted-foreground mb-4" />
         <h2 className="text-2xl font-semibold mb-2">No return requests</h2>
         <p className="text-muted-foreground mb-6">
-          You haven't made any return or exchange requests yet.
+          You have not made any return or exchange requests yet.
         </p>
         <Link to="/user/orders">
           <Button data-testid="button-view-orders">View Orders</Button>

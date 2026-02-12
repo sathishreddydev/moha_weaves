@@ -23,7 +23,7 @@ export const storeRoutes = (app: Express) => {
       }
       const stats = await storeProductsStorage.getStoreStats(user.storeId);
       res.json(stats);
-    } catch (error) {
+    } catch {
       res.status(500).json({ message: "Failed to fetch stats" });
     }
   });
@@ -36,7 +36,7 @@ export const storeRoutes = (app: Express) => {
       }
       const recentSales = await storeService.getStoreSales(user.storeId, 10);
       res.json(recentSales);
-    } catch (error) {
+    } catch {
       res.status(500).json({ message: "Failed to fetch recent sales" });
     }
   });
@@ -51,7 +51,7 @@ export const storeRoutes = (app: Express) => {
         user.storeId,
       );
       res.json(lowStockProducts);
-    } catch (error) {
+    } catch {
       res.status(500).json({ message: "Failed to fetch low stock products" });
     }
   });
@@ -64,7 +64,7 @@ export const storeRoutes = (app: Express) => {
       }
       const inventory = await storeService.getStoreInventory(user.storeId);
       res.json(inventory);
-    } catch (error) {
+    } catch {
       res.status(500).json({ message: "Failed to fetch inventory" });
     }
   });
@@ -130,10 +130,6 @@ export const storeRoutes = (app: Express) => {
       const {
         search,
         categoryIds,
-        colorIds,
-        fabricIds,
-        dateFrom,
-        dateTo,
       } = req.body;
 
       // Convert categoryIds to names for role-based service
@@ -235,7 +231,7 @@ export const storeRoutes = (app: Express) => {
         notes,
       });
       res.json(request);
-    } catch (error) {
+    } catch {
       res.status(500).json({ message: "Failed to create request" });
     }
   });

@@ -72,7 +72,7 @@ const serializeFiltersToURL = (filters: any) => {
 
   return params.toString();
 };
-export default function products() {
+export default function Products() {
   const location = useLocation();
   const navigate = useNavigate();
 

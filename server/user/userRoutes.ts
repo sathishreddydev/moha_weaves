@@ -45,7 +45,7 @@ export const userRoutes = (app: Express) => {
         discountAmount: discountAmount.toFixed(2),
         finalAmount: (orderAmount - discountAmount).toFixed(2),
       });
-    } catch (error) {
+    } catch  {
       res.status(500).json({ message: "Failed to validate coupon" });
     }
   });
@@ -62,7 +62,7 @@ export const userRoutes = (app: Express) => {
 
       const history = await storage.getItemStatusHistory(req.params.id);
       res.json(history);
-    } catch (error) {
+    } catch {
       res.status(500).json({ message: "Failed to fetch order history" });
     }
   });

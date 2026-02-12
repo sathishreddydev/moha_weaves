@@ -20,7 +20,7 @@ export const addressRoutes = (app: Express) => {
      try {
        const addresses = await addressService.getUserAddresses((req as any).user.id);
        res.json(addresses);
-     } catch (error) {
+     } catch  {
        res.status(500).json({ message: "Failed to fetch addresses" });
      }
    });
@@ -36,7 +36,7 @@ export const addressRoutes = (app: Express) => {
          userId: (req as any).user.id,
        });
        res.json(address);
-     } catch (error) {
+     } catch  {
        res.status(500).json({ message: "Failed to create address" });
      }
    });
@@ -53,7 +53,7 @@ export const addressRoutes = (app: Express) => {
        }
        const updated = await addressService.updateUserAddress(req.params.id, validation.data);
        res.json(updated);
-     } catch (error) {
+     } catch  {
        res.status(500).json({ message: "Failed to update address" });
      }
    });
@@ -65,7 +65,7 @@ export const addressRoutes = (app: Express) => {
          return res.status(404).json({ message: "Address not found" });
        }
        res.json(address);
-     } catch (error) {
+     } catch  {
        res.status(500).json({ message: "Failed to set default address" });
      }
    });
@@ -78,7 +78,7 @@ export const addressRoutes = (app: Express) => {
        }
        await addressService.deleteUserAddress(req.params.id);
        res.json({ success: true });
-     } catch (error) {
+     } catch  {
        res.status(500).json({ message: "Failed to delete address" });
      }
    });
@@ -103,7 +103,7 @@ export const addressRoutes = (app: Express) => {
            message: "Delivery not available in this area",
          });
        }
-     } catch (error) {
+     } catch  {
        res.status(500).json({ message: "Failed to check pincode" });
      }
    });

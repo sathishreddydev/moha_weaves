@@ -1,18 +1,12 @@
+import {
+  InsertOnlineExchange,
+  InsertOnlineExchangeItem,
+  onlineExchangeStatusEnum
+} from "@shared/schema";
 import type { Express, Request, Response } from "express";
 import { z } from "zod";
-import {
-  onlineExchanges,
-  onlineExchangeItems,
-  OnlineExchange,
-  InsertOnlineExchange,
-  OnlineExchangeItem,
-  InsertOnlineExchangeItem,
-  onlineExchangeStatusEnum,
-} from "@shared/schema";
-import { onlineExchangeStorage, type OnlineExchangeWithDetails } from "./onlineExchangeStorage";
 import { createAuthMiddleware } from "../authMiddleware";
-import { eq } from "drizzle-orm";
-import { db } from "../db";
+import { onlineExchangeStorage } from "./onlineExchangeStorage";
 
 export const onlineExchangeRoutes = (app: Express) => {
   const authInventory = createAuthMiddleware(["inventory", "admin"]);
@@ -161,7 +155,7 @@ export const onlineExchangeRoutes = (app: Express) => {
         return res.status(404).json({ error: "Online exchange not found" });
       }
 
-      const { id: exchangeId, ...exchangeWithoutId } = updatedExchange;
+      const {...exchangeWithoutId } = updatedExchange;
       res.json(exchangeWithoutId);
     } catch (error) {
       console.error("Error updating online exchange:", error);
@@ -264,7 +258,7 @@ export const onlineExchangeRoutes = (app: Express) => {
       }
 
       // Return exchange without ID as per our design
-      const { id: exchangeId, ...exchangeWithoutId } = updatedExchange;
+      const { ...exchangeWithoutId } = updatedExchange;
       res.json(exchangeWithoutId);
     } catch (error) {
       console.error("Error updating online exchange status:", error);

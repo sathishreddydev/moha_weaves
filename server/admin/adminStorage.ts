@@ -162,6 +162,7 @@ export class AdminRepository implements IStorage {
         const profitPerItem = sellingPrice - actualPrice;
         totalProfit += profitPerItem * order.quantity;
       } else {
+        //
       }
     }
 
@@ -173,6 +174,7 @@ export class AdminRepository implements IStorage {
         const profitPerItem = sellingPrice - actualPrice;
         totalProfit += profitPerItem * sale.quantity;
       } else {
+        //
       }
     }
 

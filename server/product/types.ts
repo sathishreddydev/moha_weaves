@@ -1,4 +1,4 @@
-import { ProductWithDetails, Product, InsertProduct } from "@shared/schema";
+import { Product, InsertProduct } from "@shared/schema";
 
 export interface IFilters {
     search?: string;

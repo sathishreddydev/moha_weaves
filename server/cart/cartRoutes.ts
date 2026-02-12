@@ -9,7 +9,7 @@ export const cartRoutes = (app: Express) => {
     try {
       const items = await cartServices.getCartItems((req as any).user.id);
       res.json(items);
-    } catch (error) {
+    } catch  {
       res.status(500).json({ message: "Failed to fetch cart" });
     }
   });
@@ -18,7 +18,7 @@ export const cartRoutes = (app: Express) => {
     try {
       const count = await cartServices.getCartCount((req as any).user.id);
       res.json({ count });
-    } catch (error) {
+    } catch  {
       res.status(500).json({ message: "Failed to fetch cart count" });
     }
   });
@@ -74,7 +74,7 @@ export const cartRoutes = (app: Express) => {
       );
 
       res.json(updatedCart);
-    } catch (error) {
+    } catch  {
       res.status(500).json({ message: "Failed to remove from cart" });
     }
   });
@@ -85,7 +85,7 @@ export const cartRoutes = (app: Express) => {
       const result = await wishlistServices.getWishlistItems(userId);
 
       res.json(result);
-    } catch (error) {
+    } catch  {
       res.status(500).json({ message: "Failed to fetch wishlist" });
     }
   });
@@ -94,7 +94,7 @@ export const cartRoutes = (app: Express) => {
     try {
       const count = await wishlistServices.getWishlistCount((req as any).user.id);
       res.json({ count });
-    } catch (error) {
+    } catch  {
       res.status(500).json({ message: "Failed to fetch wishlist count" });
     }
   });
@@ -107,7 +107,7 @@ export const cartRoutes = (app: Express) => {
       const result = await wishlistServices.addToWishlist({ userId, productId });
 
       res.json(result);
-    } catch (error) {
+    } catch  {
       res.status(500).json({ message: "Failed to add to wishlist" });
     }
   });
@@ -121,7 +121,7 @@ export const cartRoutes = (app: Express) => {
       );
 
       res.json(result);
-    } catch (error) {
+    } catch  {
       res.status(500).json({ message: "Failed to remove from wishlist" });
     }
   });

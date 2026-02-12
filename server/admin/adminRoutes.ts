@@ -157,7 +157,7 @@ export const adminRoutes = (app: Express) => {
       }
 
       const users = await userService.getUsers({ role: role as string });
-      res.json(users.map(({ password, ...u }) => u));
+      res.json(users.map(({ ...u }) => u));
     } catch (error) {
       console.error("Error fetching admin users:", error);
       const message = error instanceof Error ? error.message : "Unknown error occurred";
@@ -200,7 +200,7 @@ export const adminRoutes = (app: Express) => {
         role,
         storeId,
       });
-      const { password: _, ...safeUser } = user;
+      const {...safeUser } = user;
       res.status(201).json(safeUser);
     } catch (error) {
       console.error("Error creating admin user:", error);
@@ -252,7 +252,7 @@ export const adminRoutes = (app: Express) => {
       if (!user) {
         return res.status(404).json({ message: "User not found" });
       }
-      const { password: _, ...safeUser } = user;
+      const { ...safeUser } = user;
       res.json(safeUser);
     } catch (error) {
       console.error("Error updating admin user:", error);
@@ -295,12 +295,7 @@ export const adminRoutes = (app: Express) => {
     try {
       const {
         search,
-        status,
-        dateFrom,
-        dateTo,
         categoryIds,
-        colorIds,
-        fabricIds,
       } = req.body;
 
       const params = parsePaginationParams(req.query);
@@ -455,8 +450,7 @@ export const adminRoutes = (app: Express) => {
         const categories = await publicStorage.getCategories();
         res.json(categories);
       }
-    } catch (error) {
-      console.error("Error fetching categories:", error);
+    } catch  {
       res.status(500).json({ message: "Failed to fetch categories" });
     }
   });
@@ -490,7 +484,7 @@ export const adminRoutes = (app: Express) => {
         req.body,
       );
       res.json(category);
-    } catch (error) {
+    } catch  {
       res.status(500).json({ message: "Failed to update category" });
     }
   });
@@ -499,7 +493,7 @@ export const adminRoutes = (app: Express) => {
     try {
       await publicStorage.deleteCategory(req.params.id);
       res.json({ success: true });
-    } catch (error) {
+    } catch  {
       res.status(500).json({ message: "Failed to delete category" });
     }
   });
@@ -509,7 +503,7 @@ export const adminRoutes = (app: Express) => {
     try {
       const color = await publicStorage.createColor(req.body);
       res.json(color);
-    } catch (error) {
+    } catch  {
       res.status(500).json({ message: "Failed to create color" });
     }
   });
@@ -518,7 +512,7 @@ export const adminRoutes = (app: Express) => {
     try {
       const color = await publicStorage.updateColor(req.params.id, req.body);
       res.json(color);
-    } catch (error) {
+    } catch  {
       res.status(500).json({ message: "Failed to update color" });
     }
   });
@@ -527,7 +521,7 @@ export const adminRoutes = (app: Express) => {
     try {
       await publicStorage.deleteColor(req.params.id);
       res.json({ success: true });
-    } catch (error) {
+    } catch  {
       res.status(500).json({ message: "Failed to delete color" });
     }
   });
@@ -537,7 +531,7 @@ export const adminRoutes = (app: Express) => {
     try {
       const fabric = await publicStorage.createFabric(req.body);
       res.json(fabric);
-    } catch (error) {
+    } catch  {
       res.status(500).json({ message: "Failed to create fabric" });
     }
   });
@@ -546,7 +540,7 @@ export const adminRoutes = (app: Express) => {
     try {
       const fabric = await publicStorage.updateFabric(req.params.id, req.body);
       res.json(fabric);
-    } catch (error) {
+    } catch  {
       res.status(500).json({ message: "Failed to update fabric" });
     }
   });
@@ -555,7 +549,7 @@ export const adminRoutes = (app: Express) => {
     try {
       await publicStorage.deleteFabric(req.params.id);
       res.json({ success: true });
-    } catch (error) {
+    } catch  {
       res.status(500).json({ message: "Failed to delete fabric" });
     }
   });
@@ -565,7 +559,7 @@ export const adminRoutes = (app: Express) => {
     try {
       const stores = await storeService.getStores();
       res.json(stores);
-    } catch (error) {
+    } catch  {
       res.status(500).json({ message: "Failed to fetch stores" });
     }
   });
@@ -574,7 +568,7 @@ export const adminRoutes = (app: Express) => {
     try {
       const store = await storeService.createStore(req.body);
       res.json(store);
-    } catch (error) {
+    } catch  {
       res.status(500).json({ message: "Failed to create store" });
     }
   });
@@ -586,7 +580,7 @@ export const adminRoutes = (app: Express) => {
         return res.status(404).json({ message: "Store not found" });
       }
       res.json(store);
-    } catch (error) {
+    } catch  {
       res.status(500).json({ message: "Failed to update store" });
     }
   });
@@ -600,7 +594,7 @@ export const adminRoutes = (app: Express) => {
         return res.status(404).json({ message: "Store not found" });
       }
       res.json({ success: true });
-    } catch (error) {
+    } catch  {
       res.status(500).json({ message: "Failed to delete store" });
     }
   });
@@ -616,7 +610,7 @@ export const adminRoutes = (app: Express) => {
           active === "true" ? true : active === "false" ? false : undefined,
       });
       res.json(coupons);
-    } catch (error) {
+    } catch  {
       res.status(500).json({ message: "Failed to fetch coupons" });
     }
   });
@@ -700,8 +694,7 @@ export const adminRoutes = (app: Express) => {
       });
 
       res.json(coupon);
-    } catch (error) {
-      console.error("Error creating coupon:", error);
+    } catch  {
       res.status(500).json({ message: "Failed to create coupon" });
     }
   });
@@ -764,8 +757,7 @@ export const adminRoutes = (app: Express) => {
         return res.status(404).json({ message: "Coupon not found" });
       }
       res.json(coupon);
-    } catch (error) {
-      console.error("Error updating coupon:", error);
+    } catch  {
       res.status(500).json({ message: "Failed to update coupon" });
     }
   });
@@ -775,7 +767,7 @@ export const adminRoutes = (app: Express) => {
     try {
       await couponsService.deleteCoupon(req.params.id);
       res.json({ message: "Coupon deleted" });
-    } catch (error) {
+    } catch  {
       res.status(500).json({ message: "Failed to delete coupon" });
     }
   });
@@ -793,8 +785,7 @@ export const adminRoutes = (app: Express) => {
         categoryId: category as string,
       });
       res.json(sales);
-    } catch (error) {
-      console.error("Error fetching sales:", error);
+    } catch  {
       res.status(500).json({ message: "Failed to fetch sales" });
     }
   });
@@ -807,8 +798,7 @@ export const adminRoutes = (app: Express) => {
         return res.status(404).json({ message: "Sale not found" });
       }
       res.json(sale);
-    } catch (error) {
-      console.error("Error fetching sale:", error);
+    } catch  {
       res.status(500).json({ message: "Failed to fetch sale" });
     }
   });
@@ -834,7 +824,7 @@ export const adminRoutes = (app: Express) => {
       console.error("Error checking conflicts:", error);
       res.status(500).json({
         message: "Failed to check conflicts",
-        error: error instanceof Error ? error.message : String(error),
+        error: error instanceof Error ? error.message : String,
       });
     }
   });
@@ -973,8 +963,7 @@ export const adminRoutes = (app: Express) => {
       }
 
       res.json(sale);
-    } catch (error) {
-      console.error("Error updating sale:", error);
+    } catch  {
       res.status(500).json({ message: "Failed to update sale" });
     }
   });
@@ -984,8 +973,7 @@ export const adminRoutes = (app: Express) => {
     try {
       await salesService.deleteSale(req.params.id);
       res.json({ message: "Sale deleted" });
-    } catch (error) {
-      console.error("Error deleting sale:", error);
+    } catch  {
       res.status(500).json({ message: "Failed to delete sale" });
     }
   });
@@ -1009,8 +997,7 @@ export const adminRoutes = (app: Express) => {
       ];
 
       res.json(allSettings);
-    } catch (error) {
-      console.error("Error fetching settings:", error);
+    } catch  {
       res.status(500).json({ message: "Failed to fetch settings" });
     }
   });
@@ -1040,8 +1027,7 @@ export const adminRoutes = (app: Express) => {
         description,
         updatedAt: new Date(),
       });
-    } catch (error) {
-      console.error("Error updating setting:", error);
+    } catch  {
       res.status(500).json({ message: "Failed to update setting" });
     }
   });

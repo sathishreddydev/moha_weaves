@@ -1,4 +1,3 @@
-import { useCartStore } from "@/components/Store/useCartStore";
 import { useWishlistStore } from "@/components/Store/useWishlistStore";
 import { ProductCard } from "@/components/product/ProductCard";
 import { Button } from "@/components/ui/button";
@@ -9,26 +8,10 @@ import { Link } from "react-router-dom";
 
 export default function Wishlist() {
   const { user } = useAuth();
-  const isLoadingCart = useCartStore((state) => state.isLoadingCart);
-  const addCartItem = useCartStore((state) => state.addItem);
   const wishlistItems = useWishlistStore((state) => state.wishlist);
   const isLoadingWishlist = useWishlistStore(
     (state) => state.isLoadingWishlist
   );
-  const removeWishlistItem = useWishlistStore((state) => state.removeItem);
-  const isRemovingWishlistItem = useWishlistStore(
-    (state) => state.isRemovingItem
-  );
-  console.log(wishlistItems);
-
-  const formatPrice = (price: string | number) => {
-    const numPrice = typeof price === "string" ? parseFloat(price) : price;
-    return new Intl.NumberFormat("en-IN", {
-      style: "currency",
-      currency: "INR",
-      maximumFractionDigits: 0,
-    }).format(numPrice);
-  };
 
   if (!user) {
     return (

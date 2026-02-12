@@ -1,25 +1,24 @@
-import { storage } from "server/storage";
-import { eq, sql, and, desc } from "drizzle-orm";
-import { db } from "server/db";
 import {
   categories,
   colors,
   fabrics,
   InsertOrder,
   InsertOrderItem,
+  itemStatusHistory,
   Order,
   orderItems,
   orders,
   OrderWithItems,
   products,
-  stockMovements,
-  itemStatusHistory,
-  itemStatusEnum,
-  users,
   productVariants,
+  stockMovements,
+  users
 } from "@shared/schema";
-import { IdGenerator } from "server/utils/idGenerator";
+import { desc, eq, sql } from "drizzle-orm";
+import { db } from "server/db";
 import { returnStorage } from "server/return/returnStorage";
+import { storage } from "server/storage";
+import { IdGenerator } from "server/utils/idGenerator";
 import { paymentInfo } from "./createOrderService";
 
 export interface OrderStorage {
@@ -342,8 +341,6 @@ export class OrderRepository implements OrderStorage {
   async updateOrderStatus(
     orderId: string,
     status: string,
-    updatedBy?: string,
-    note?: string
   ): Promise<any | undefined> {
     return await db.transaction(async (tx) => {
       // Get current order status

@@ -1,7 +1,6 @@
 import { Express, Request, Response } from "express";
 import { createAuthMiddleware } from "server/authMiddleware";
 import { z } from "zod";
-import { CustomerService } from "./customerStorage";
 import { StoreRepository } from "./storeStorage";
 
 
@@ -65,7 +64,6 @@ export const checkoutSchema = z.object({
 
 export const storeCartRoutes = (app: Express) => {
   const authStore = createAuthMiddleware(["store"]);
-  const customerService = new CustomerService();
   app.get("/api/store/cart", authStore, async (req: Request, res: Response) => {
     try {
       const storeId = req.user?.storeId;
@@ -237,8 +235,8 @@ export const storeCartRoutes = (app: Express) => {
           : validatedData.discount.value
         : 0;
       
-      let loyaltyDiscountAmount = 0;
-      let pointsRedeemed = 0;
+      const loyaltyDiscountAmount = 0;
+      const pointsRedeemed = 0;
       
       // // Handle loyalty points redemption
       // if (validatedData.loyaltyDiscount && validatedData.loyaltyDiscount.pointsRedeemed > 0) {

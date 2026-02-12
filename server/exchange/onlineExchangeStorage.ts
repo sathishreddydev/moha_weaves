@@ -1,31 +1,24 @@
 import {
-  onlineExchanges,
-  onlineExchangeItems,
-  orderItems,
-  products,
   categories,
   colors,
   fabrics,
-  productVariants,
-  orders,
-  users,
-  stockMovements,
-  notifications,
-  itemStatusHistory,
-  OnlineExchange,
   InsertOnlineExchange,
-  OnlineExchangeItem,
   InsertOnlineExchangeItem,
-  onlineExchangeStatusEnum,
-  returnReasonEnum,
-  itemStatusEnum
+  notifications,
+  OnlineExchange,
+  onlineExchangeItems,
+  onlineExchanges,
+  orderItems,
+  orders,
+  products,
+  productVariants,
+  stockMovements
 } from "@shared/schema";
-import { eq, and, desc, inArray, sql } from "drizzle-orm";
-import { db } from "../db";
-import { storage } from "../storage";
-import { orderService } from "../order/orderStorage";
+import { and, desc, eq, inArray, sql } from "drizzle-orm";
 import { userService } from "../auth/authStorage";
-import { itemStatusConfig } from "@/constants/itemStatusConfig";
+import { db } from "../db";
+import { orderService } from "../order/orderStorage";
+import { storage } from "../storage";
 
 export type OnlineExchangeWithDetails = OnlineExchange & {
   order: any;
@@ -137,7 +130,7 @@ export class OnlineExchangeStorage implements IOnlineExchangeStorage {
           order: orderWithItems,
           user,
           items: items.map((item) => {
-            const { id: itemId, ...itemWithoutId } = item.online_exchange_items;
+            const { ...itemWithoutId } = item.online_exchange_items;
             return {
               ...itemWithoutId,
               orderItem: {
@@ -223,7 +216,7 @@ export class OnlineExchangeStorage implements IOnlineExchangeStorage {
       order: orderWithItems,
       user,
       items: items.map((item) => {
-        const { id: itemId, ...itemWithoutId } = item.online_exchange_items;
+        const { ...itemWithoutId } = item.online_exchange_items;
         return {
           ...itemWithoutId,
           orderItem: {

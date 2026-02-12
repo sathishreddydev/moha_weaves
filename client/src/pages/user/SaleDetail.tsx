@@ -16,7 +16,7 @@ export default function SaleDetail() {
     enabled: !!id,
   });
 
-  const { data: saleProducts, isLoading: loadingProducts } = useQuery<ProductWithDetails[]>({
+  const { data: saleProducts } = useQuery<ProductWithDetails[]>({
     queryKey: sale?.offerType === "category" && sale?.categoryId
       ? [`/api/products?category=${sale.categoryId}&onSale=true`]
       : [`/api/sales/${id}/products`],
@@ -41,29 +41,6 @@ export default function SaleDetail() {
     });
   };
 
-  const calculateDiscountedPrice = (originalPrice: number) => {
-    if (!sale) return originalPrice;
-    
-    const numPrice = typeof originalPrice === "string" ? parseFloat(originalPrice) : originalPrice;
-    const discountValue = parseFloat(sale.discountValue);
-    const maxDiscount = sale.maxDiscount ? parseFloat(sale.maxDiscount) : Infinity;
-
-    switch (sale.offerType) {
-      case "percentage":
-      case "category":
-      case "flash_sale": {
-        const discount = numPrice * (discountValue / 100);
-        return numPrice - Math.min(discount, maxDiscount);
-      }
-      case "flat":
-      case "product": {
-        return numPrice - Math.min(discountValue, numPrice);
-      }
-      default:
-        return numPrice;
-    }
-  };
-  
   const getDiscountBadgeText = () => {
     if (!sale) return "";
     

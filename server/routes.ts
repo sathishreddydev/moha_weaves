@@ -1,25 +1,25 @@
 import type { Express } from "express";
 import { type Server } from "http";
-import { storage } from "./storage";
-import { ObjectStorageService, ObjectNotFoundError } from "./objectStorage";
-import { authRoutes } from "./auth/authRoutes";
-import { adminRoutes } from "./admin/adminRoutes";
-import { cartRoutes } from "./cart/cartRoutes";
-import { orderRoutes } from "./order/orderRoutes";
-import { createAuthMiddleware } from "./authMiddleware";
 import { addressRoutes } from "./address/addressRoutes";
-import { inventoryRoutes } from "./inventory/inventoryRoutes";
-import { storeRoutes } from "./store/storeRoutes";
-import { userRoutes } from "./user/userRoutes";
+import { adminRoutes } from "./admin/adminRoutes";
+import { authRoutes } from "./auth/authRoutes";
+import { createAuthMiddleware } from "./authMiddleware";
+import { cartRoutes } from "./cart/cartRoutes";
 import { publicRoutes } from "./common/publicRoutes";
-import { salesService } from "./sales&offer/salesStorage";
+import { contactRoutes } from "./contact/contactRoutes";
+import { onlineExchangeRoutes } from "./exchange/onlineExchangeRoutes";
+import { inventoryRoutes } from "./inventory/inventoryRoutes";
+import { ObjectNotFoundError, ObjectStorageService } from "./objectStorage";
+import { orderRoutes } from "./order/orderRoutes";
 import { roleBasedProductService } from "./product/roleBasedProductService";
-import { reviewRoutes } from "./review/reviewRoutes";
 import { refundRoutes } from "./refund/refundRoutes";
 import { returnRoutes } from "./return/returnRoutes";
-import { onlineExchangeRoutes } from "./exchange/onlineExchangeRoutes";
-import { contactRoutes } from "./contact/contactRoutes";
+import { reviewRoutes } from "./review/reviewRoutes";
+import { salesService } from "./sales&offer/salesStorage";
+import { storage } from "./storage";
 import { storeCartRoutes } from "./store/StoreCartRoutes";
+import { storeRoutes } from "./store/storeRoutes";
+import { userRoutes } from "./user/userRoutes";
 
 const authAny = createAuthMiddleware(["user", "admin", "inventory", "store"]);
 
@@ -191,14 +191,11 @@ export async function registerRoutes(
 
       const userId = (req as any).user?.id;
       try {
-        const objectFile = await objectStorageService.getObjectEntityFile(
-          objectPath
-        );
         await objectStorageService.trySetObjectEntityAclPolicy(objectPath, {
           owner: userId || "system",
           visibility: "public",
         });
-      } catch (fileError) {
+      } catch {
         return res.status(400).json({
           error: "Upload not found - file may not have been uploaded",
         });
@@ -221,7 +218,7 @@ export async function registerRoutes(
         unreadOnly === "true"
       );
       res.json(notifications);
-    } catch (error) {
+    } catch {
       res.status(500).json({ message: "Failed to fetch notifications" });
     }
   });
@@ -232,7 +229,7 @@ export async function registerRoutes(
       const user = (req as any).user;
       const count = await storage.getUnreadNotificationCount(user.id);
       res.json({ count });
-    } catch (error) {
+    } catch {
       res.status(500).json({ message: "Failed to fetch notification count" });
     }
   });
@@ -245,7 +242,7 @@ export async function registerRoutes(
         return res.status(404).json({ message: "Notification not found" });
       }
       res.json(notification);
-    } catch (error) {
+    } catch {
       res.status(500).json({ message: "Failed to mark notification as read" });
     }
   });
@@ -259,7 +256,7 @@ export async function registerRoutes(
         const user = (req as any).user;
         await storage.markAllNotificationsAsRead(user.id);
         res.json({ message: "All notifications marked as read" });
-      } catch (error) {
+      } catch {
         res
           .status(500)
           .json({ message: "Failed to mark notifications as read" });

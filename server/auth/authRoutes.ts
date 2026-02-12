@@ -104,7 +104,7 @@ export const authRoutes = (app: Express) => {
           .json({ message: "Session invalidated. Please login again." });
       }
 
-      const { password, tokenVersion, ...safeUser } = user;
+      const { ...safeUser } = user;
       res.json({ user: safeUser });
     } catch (error) {
       if (error instanceof jwt.TokenExpiredError) {
@@ -149,7 +149,7 @@ export const authRoutes = (app: Express) => {
       // Issue new tokens
       await issueTokens(user, res);
 
-      const { password, tokenVersion, ...safeUser } = user;
+      const { ...safeUser } = user;
       res.json({ user: safeUser });
     } catch (error) {
       console.error("Refresh token error:", error);
@@ -178,7 +178,7 @@ export const authRoutes = (app: Express) => {
 
       await issueTokens(user, res);
 
-      const { password: _, tokenVersion, ...safeUser } = user;
+      const {  ...safeUser } = user;
       res.json({ user: safeUser });
     } catch (error) {
       console.error("Register error:", error);
@@ -211,7 +211,7 @@ export const authRoutes = (app: Express) => {
 
       await issueTokens(user, res);
 
-      const { password: _, tokenVersion, ...safeUser } = user;
+      const { ...safeUser } = user;
       res.json({ user: safeUser });
     } catch (error) {
       console.error("Login error:", error);
@@ -242,7 +242,7 @@ export const authRoutes = (app: Express) => {
       res.clearCookie("accessToken", cookieOptions);
       res.clearCookie("refreshToken", cookieOptions);
       res.json({ success: true });
-    } catch (error) {
+    } catch{
       // Still clear cookies even if revoke fails
       res.clearCookie("accessToken", cookieOptions);
       res.clearCookie("refreshToken", cookieOptions);

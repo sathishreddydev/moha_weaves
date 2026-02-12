@@ -1,17 +1,12 @@
 import {
-  InsertProductDamage,
   ProductDamage,
   productDamages,
   products,
-  users,
   stockMovements,
-  productActualPrices,
-  storeInventory,
-  stores
+  storeInventory
 } from "@shared/schema";
-import { eq, and, sql } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 import { db } from "server/db";
-import { stockMovementTypeEnum, stockMovementSourceEnum, damageSourceEnum, damageCategoryEnum, damageSeverityEnum } from "@shared/enums";
 
 export interface DamageReportData {
   productId: string;
