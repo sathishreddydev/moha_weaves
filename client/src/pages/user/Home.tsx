@@ -45,7 +45,7 @@ export default function Home() {
     if (categories.length === 0) {
       fetchFilters();
     }
-  }, []);
+  }, [categories.length, fetchFilters]);
 
   return (
     <div className="min-h-screen">

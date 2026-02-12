@@ -2,8 +2,6 @@ import { DataTable } from "@/components/DataTable/DataTable";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { useDataTable } from "@/hooks/use-data-table";
-import { useToast } from "@/hooks/use-toast";
-import { useAuth } from "@/lib/auth";
 import type { StoreExchangeWithDetails } from "@shared/schema";
 import { ColumnDef } from "@tanstack/react-table";
 import {
@@ -15,8 +13,6 @@ import {
 import { useNavigate } from "react-router-dom";
 
 export default function StoreExchangeHistory() {
-  const { user } = useAuth();
-  const { toast } = useToast();
   const navigate = useNavigate();
   const {
     data: exchanges,

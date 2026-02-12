@@ -1,14 +1,11 @@
-import { useMemo } from "react";
-import { useNavigate } from "react-router-dom";
-import { Store as StoreIcon } from "lucide-react";
-import { Card, CardContent } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { useAuth } from "@/lib/auth";
-import { useQuery } from "@tanstack/react-query";
 import { DataTable } from "@/components/DataTable/DataTable";
+import { Badge } from "@/components/ui/badge";
+import { Card, CardContent } from "@/components/ui/card";
 import { useDataTable } from "@/hooks/use-data-table";
+import type { StoreSaleWithItems } from "@shared/schema";
 import { ColumnDef } from "@tanstack/react-table";
-import type { StoreSaleWithItems, Store } from "@shared/schema";
+import { Store as StoreIcon } from "lucide-react";
+import { useMemo } from "react";
 
 const formatPrice = (price: string | number) => {
   const numPrice = typeof price === "string" ? parseFloat(price) : price;

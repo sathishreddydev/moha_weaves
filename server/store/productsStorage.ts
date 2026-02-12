@@ -5,7 +5,6 @@ import {
   products,
   stockRequests,
   storeInventory,
-  storeSaleItems,
   storeSales
 } from "@shared/tables";
 import {
@@ -17,7 +16,6 @@ import {
 import {
   and,
   eq,
-  gte,
   lte,
   sql
 } from "drizzle-orm";
@@ -101,27 +99,8 @@ export class StoreProductsStorage implements IStoreProductsStorage {
       .leftJoin(stockRequests, eq(storeInventory.storeId, stockRequests.storeId))
       .where(eq(storeInventory.storeId, storeId));
 
-    // Get top selling products and low stock products in parallel
-    const [topProductsData, lowStockProductsData] = await Promise.all([
-      db
-        .select({
-          productId: storeSaleItems.productId,
-          totalQuantity: sql<number>`sum(${storeSaleItems.quantity})::int`,
-          totalRevenue: sql<number>`sum(${storeSaleItems.quantity}::numeric * ${storeSaleItems.price}::numeric)::float`,
-        })
-        .from(storeSaleItems)
-        .innerJoin(storeSales, eq(storeSaleItems.saleId, storeSales.id))
-        .where(
-          and(
-            eq(storeSales.storeId, storeId),
-            gte(storeSales.createdAt, thisMonthStart),
-          ),
-        )
-        .groupBy(storeSaleItems.productId)
-        .orderBy(sql`sum(${storeSaleItems.quantity}) DESC`)
-        .limit(5),
-      
-      db
+    // Get low stock products
+    const lowStockProductsData = await db
         .select()
         .from(storeInventory)
         .innerJoin(products, eq(storeInventory.productId, products.id))
@@ -135,8 +114,7 @@ export class StoreProductsStorage implements IStoreProductsStorage {
           ),
         )
         .orderBy(storeInventory.quantity)
-        .limit(10)
-    ]);
+        .limit(10);
 
     // Process low stock products
     const lowStockProducts = lowStockProductsData.map((row) => ({

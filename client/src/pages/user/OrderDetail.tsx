@@ -23,7 +23,7 @@ import { getItemStatusConfig, isItemDelivered, returnReasons } from "@/constants
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/lib/auth";
 import { apiRequest, queryClient } from "@/lib/queryClient";
-import type { OnlineExchangeWithDetails, OrderWithItems, ReturnRequestWithDetails } from "@shared/schema";
+import type { OrderWithItems } from "@shared/schema";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import {
   ArrowLeft,
@@ -39,7 +39,7 @@ export default function OrderDetail() {
   const { toast } = useToast();
   const navigate = useNavigate();
 
-  const [showStatusDialog, setShowStatusDialog] = useState(false);
+  const [, setShowStatusDialog] = useState(false);
   const [showReturnDialog, setShowReturnDialog] = useState(false);
   const [returnReason, setReturnReason] = useState("");
   const [returnDescription, setReturnDescription] = useState("");
@@ -112,15 +112,7 @@ export default function OrderDetail() {
     enabled: !!user && !!id,
   });
 
-  const { data: userReturns } = useQuery<ReturnRequestWithDetails[]>({
-    queryKey: ["/api/user/returns"],
-    enabled: !!user,
-  });
 
-  const { data: userExchanges } = useQuery<OnlineExchangeWithDetails[]>({
-    queryKey: ["/api/user/online-exchanges"],
-    enabled: !!user,
-  });
 
   const createReturnMutation = useMutation({
     mutationFn: async (data: any) => {
@@ -180,7 +172,7 @@ export default function OrderDetail() {
   const handleReturnSubmit = () => {
     const orderItemById = new Map(order?.items?.map((it) => [it.id, it]) || []);
     const items = Object.entries(selectedItems)
-      .filter(([_, v]) => v.selected)
+      .filter(([, v]) => v.selected)
       .map(([orderItemId, v]) => ({
         orderItemId,
         quantity: v.quantity,
@@ -291,7 +283,7 @@ export default function OrderDetail() {
       a.click();
       a.remove();
       window.URL.revokeObjectURL(url);
-    } catch (e) {
+    } catch {
       toast({
         title: "Error",
         description: "Unable to download invoice right now",

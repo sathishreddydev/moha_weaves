@@ -90,11 +90,12 @@ export const exchangeReasons = [
   { value: "wrong_item", label: "Received wrong item" },
   { value: "not_as_described", label: "Not as described" },
   { value: "quality_issue", label: "Quality issue" },
-  { value: "size_issue", label: "Size doesn't fit" },
+  { value: "size_issue", label: "Size doesn&apos;t fit" },
   { value: "changed_mind", label: "Changed my mind" },
   // { value: "other", label: "Other reason" },
 ];
-export default function StoreExchange() {
+
+function StoreExchange() {
   const navigate = useNavigate();
   const { saleId: urlSaleId } = useParams();
   const { user } = useAuth();
@@ -119,7 +120,6 @@ export default function StoreExchange() {
   const {
     data: saleData,
     isLoading: saleLoading,
-    refetch: refetchSale,
   } = useQuery<StoreSaleWithItems>({
     queryKey: ["/api/store/sales", selectedSaleId],
     queryFn: async () => {
@@ -217,7 +217,7 @@ export default function StoreExchange() {
         try {
           const results = await apiRequest("GET", `/api/store_customers/search?q=${encodeURIComponent(saleIdInput.trim())}`);
           setSearchResults(results);
-        } catch (error) {
+        } catch {
           toast({
             title: "Search Error",
             description: "Failed to search sales",
@@ -427,178 +427,6 @@ export default function StoreExchange() {
       : returnTotal < newItemsTotal
         ? "due"
         : "even";
-
-  // Validation function to check if exchange can be completed
-  const canCompleteExchange = () => {
-    // Basic requirements
-    if (!selectedSaleId || !saleData) return false;
-    if (returnItems.length === 0) return false;
-    if (createExchangeMutation.isPending) return false;
-
-    // Check if any return item has invalid quantity
-    for (const returnItem of returnItems) {
-      if (
-        returnItem.quantity <= 0 ||
-        returnItem.quantity > returnItem.maxQuantity
-      ) {
-        return false;
-      }
-      if (parseFloat(returnItem.returnAmount) <= 0) {
-        return false;
-      }
-    }
-
-    // Check if new items have valid quantities and amounts
-    for (const newItem of newItems) {
-      if (newItem.quantity <= 0) return false;
-      if (parseFloat(newItem.lineAmount) <= 0) return false;
-
-      // Check inventory availability
-      const inventory = products?.find((p) => p.product.id === newItem.productId);
-      if (!inventory || inventory.storeStock < newItem.quantity) {
-        return false;
-      }
-    }
-
-    // Check exchange period (7 days)
-    const saleDate = new Date(saleData.createdAt);
-    const currentDate = new Date();
-    const daysSinceSale = Math.floor(
-      (currentDate.getTime() - saleDate.getTime()) / (1000 * 60 * 60 * 24),
-    );
-
-    if (daysSinceSale > 7) return false;
-
-    return true;
-  };
-
-  const validateExchange = () => {
-    if (returnItems.length === 0) {
-      toast({
-        title: "No return items",
-        description: "Select at least one item to return",
-        variant: "destructive",
-      });
-      return false;
-    }
-
-    for (const returnItem of returnItems) {
-      const saleItem = saleItems.find(
-        (item) => item.id === returnItem.saleItemId,
-      );
-      if (!saleItem) {
-        toast({
-          title: "Invalid item",
-          description: "This item does not belong to the original order",
-          variant: "destructive",
-        });
-        return false;
-      }
-
-      const saleDate = new Date(saleData?.createdAt || "");
-      const currentDate = new Date();
-      const daysSinceSale = Math.floor(
-        (currentDate.getTime() - saleDate.getTime()) / (1000 * 60 * 60 * 24),
-      );
-
-      if (daysSinceSale > 7) {
-        toast({
-          title: "Exchange period expired",
-          description: "Items can only be exchanged within 7 days of purchase",
-          variant: "destructive",
-        });
-        return false;
-      }
-
-      if (returnItem.quantity > returnItem.maxQuantity) {
-        toast({
-          title: "Invalid quantity",
-          description: `Cannot return more than ${returnItem.maxQuantity} items for ${returnItem.product.name}`,
-          variant: "destructive",
-        });
-        return false;
-      }
-
-      const returnAmount = parseFloat(returnItem.returnAmount);
-      if (returnAmount <= 0 || isNaN(returnAmount)) {
-        toast({
-          title: "Invalid return amount",
-          description: "Return amount must be greater than 0",
-          variant: "destructive",
-        });
-        return false;
-      }
-    }
-
-    const totalReturnAmount = returnItems.reduce(
-      (sum, item) => sum + parseFloat(item.returnAmount),
-      0,
-    );
-    const totalNewAmount = newItems.reduce(
-      (sum, item) => sum + parseFloat(item.lineAmount),
-      0,
-    );
-
-    if (totalReturnAmount <= 0) {
-      toast({
-        title: "Invalid exchange",
-        description: "Zero-value exchanges are not allowed",
-        variant: "destructive",
-      });
-      return false;
-    }
-
-    // New Items are truly optional - only validate if present
-    if (newItems.length > 0) {
-      for (const newItem of newItems) {
-        const inventory = products?.find((p) => p.product.id === newItem.productId);
-        if (!inventory || inventory.storeStock < newItem.quantity) {
-          toast({
-            title: "Insufficient stock",
-            description: `Only ${inventory?.storeStock || 0} units available for ${newItem.product.name}`,
-            variant: "destructive",
-          });
-          return false;
-        }
-
-        const newAmount = parseFloat(newItem.lineAmount);
-        if (newAmount <= 0 || isNaN(newAmount)) {
-          toast({
-            title: "Invalid new item amount",
-            description: "New item amount must be greater than 0",
-            variant: "destructive",
-          });
-          return false;
-        }
-      }
-    }
-
-    // Exchange Amount Validation with Mandatory New Items
-    if (totalNewAmount > totalReturnAmount) {
-      // Customer pays extra for higher value items
-      const difference = totalNewAmount - totalReturnAmount;
-      toast({
-        title: "Payment Required",
-        description: `Exchange items value (${formatPrice(totalNewAmount)}) > Returned items value (${formatPrice(totalReturnAmount)}). Customer must pay ${formatPrice(difference)}`,
-      });
-    } else if (totalNewAmount < totalReturnAmount) {
-      // NO REFUND POLICY: Customer gets better value but no cash refund
-      const difference = totalReturnAmount - totalNewAmount;
-      toast({
-        title: "No Refund Policy",
-        description: `Returned items value (${formatPrice(totalReturnAmount)}) > Exchange items value (${formatPrice(totalNewAmount)}). No refund for ${formatPrice(difference)} difference`,
-        variant: "default",
-      });
-    } else {
-      // Even exchange
-      toast({
-        title: "Even Exchange",
-        description: `Equal value exchange: ${formatPrice(totalReturnAmount)}`,
-      });
-    }
-
-    return true;
-  };
 
   const handleCompleteExchange = () => {
     if (!selectedSaleId || !saleData) {
@@ -911,7 +739,7 @@ export default function StoreExchange() {
             )}
 
             <p className="text-sm text-muted-foreground text-center">
-              Or go to Sales History and click "Exchange" on a sale
+              Or go to Sales History and click &quot;Exchange&quot; on a sale
             </p>
           </CardContent>
         </Card>
@@ -1421,3 +1249,5 @@ export default function StoreExchange() {
     </div>
   );
 }
+
+export default StoreExchange;

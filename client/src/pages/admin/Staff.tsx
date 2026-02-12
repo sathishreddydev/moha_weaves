@@ -1,3 +1,4 @@
+import React from 'react'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -502,7 +503,7 @@ export default function AdminStaff() {
           <AlertDialogHeader>
             <AlertDialogTitle>Delete Staff Member</AlertDialogTitle>
             <AlertDialogDescription>
-              Are you sure you want to delete "{staffToDelete?.name}"? This
+              Are you sure you want to delete {staffToDelete?.name}? This
               action will deactivate their account.
             </AlertDialogDescription>
           </AlertDialogHeader>

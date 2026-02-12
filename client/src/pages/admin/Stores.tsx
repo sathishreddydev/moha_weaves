@@ -37,12 +37,11 @@ import { apiRequest } from "@/lib/queryClient";
 import type { Store } from "@shared/schema";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Building2, MapPin, Pencil, Phone, Plus, Trash2 } from "lucide-react";
-import { useState } from "react";
+import React, { useState } from "react";
 
 export default function AdminStores() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  const [sidebarOpen, setSidebarOpen] = useState(false);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [editingStore, setEditingStore] = useState<Store | null>(null);
@@ -359,7 +358,7 @@ export default function AdminStores() {
           <AlertDialogHeader>
             <AlertDialogTitle>Delete Store</AlertDialogTitle>
             <AlertDialogDescription>
-              Are you sure you want to delete "{storeToDelete?.name}"? This
+              Are you sure you want to delete &quot;{storeToDelete?.name}&quot;? This
               action will deactivate the store.
             </AlertDialogDescription>
           </AlertDialogHeader>

@@ -5,7 +5,6 @@ import { useDataTable } from "@/hooks/use-data-table";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/lib/auth";
 import type { ProductWithDetails } from "@shared/schema";
-import { useQuery } from "@tanstack/react-query";
 import { ColumnDef } from "@tanstack/react-table";
 import { Minus, Plus, RefreshCw, ShoppingCart, Trash2 } from "lucide-react";
 import { useEffect, useState } from "react";
@@ -32,9 +31,8 @@ export default function StoreSale() {
   const navigate = useNavigate();
   const storeId = user?.storeId;
   
-  // Variant selection state
-  const [selectedVariants, setSelectedVariants] = useState<Record<string, string>>({});
-  
+  const [selectedVariants, _setSelectedVariants] = useState<Record<string, string>>({});
+
   const {
     items: cartItems,
     fetchCart,
@@ -43,7 +41,6 @@ export default function StoreSale() {
     deleteItem,
     loading,
     addCartLoading,
-    updateCartLoading,
     removeLoading,
     setStoreId,
   } = useStoreCart();
@@ -51,23 +48,16 @@ export default function StoreSale() {
     return (
       loading ||
       addCartLoading[productId] ||
-      updateCartLoading[productId] ||
       removeLoading[productId]
     );
   };
   useEffect(() => {
-    if (!storeId) return;
-    setStoreId(storeId);
-    if (cartItems.length === 0) fetchCart();
-  }, []);
+    if (storeId) {
+      setStoreId(storeId);
+      if (cartItems.length === 0) fetchCart();
+    }
+  }, [storeId, cartItems.length, fetchCart, setStoreId]);
 
-  const { data: filterOptions } = useQuery<{
-    categories: { id: string; name: string; subcategories?: { id: string; name: string; categoryId: string }[] }[];
-    colors: { id: string; name: string; hexCode: string }[];
-    fabrics: { id: string; name: string }[];
-  }>({
-    queryKey: ["/api/filters"],
-  });
 
   const {
     data: tableProducts,

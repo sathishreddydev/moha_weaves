@@ -104,7 +104,7 @@ export default function DamageHistory() {
   });
 
   // Get damages with filters
-  const { data: damages = [], isLoading, refetch } = useQuery<ProductDamage[]>({
+  const { data: damages = [], isLoading, refetch: _refetch } = useQuery<ProductDamage[]>({
     queryKey: ["/api/inventory/damages", filters],
     queryFn: async () => {
       const params = new URLSearchParams();

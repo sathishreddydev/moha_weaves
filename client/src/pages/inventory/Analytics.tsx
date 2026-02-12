@@ -85,7 +85,7 @@ export default function InventoryAnalytics() {
     enabled: isInventoryUser,
   });
 
-  const { data: storeSales = [] } = useQuery({
+  const { data: _storeSales = [] } = useQuery({
     queryKey: ["/api/inventory/store-sales"],
   });
 
@@ -166,16 +166,6 @@ export default function InventoryAnalytics() {
       ? ((stats?.totalStoreCleared || 0) / totalCleared) * 100
       : 0;
 
-  const pieData = [
-    { name: "Online", value: stats?.totalOnlineCleared || 0, color: "#3b82f6" },
-    { name: "Store", value: stats?.totalStoreCleared || 0, color: "#22c55e" },
-  ];
-  const topOnlineProducts = stats
-    ? getTopProducts(stats.onlineMovements, 10)
-    : [];
-  const topStoreProducts = stats
-    ? getTopProducts(stats.storeMovements, 10)
-    : [];
   const storeStats = stats ? getStoreStats(stats.storeMovements) : [];
 
   // Helper functions for new analytics
@@ -213,22 +203,6 @@ export default function InventoryAnalytics() {
     return { color: 'text-red-600', label: 'Poor' };
   };
 
-  // Prepare chart data
-  const abcChartData = abcData.reduce((acc, item) => {
-    const existing = acc.find(d => d.name === item.class);
-    if (existing) {
-      existing.value += item.revenueContribution;
-    } else {
-      acc.push({ name: item.class, value: item.revenueContribution });
-    }
-    return acc;
-  }, [] as { name: string; value: number }[]);
-
-  const abcColors = {
-    'A': '#22c55e',
-    'B': '#eab308', 
-    'C': '#ef4444'
-  };
 
   return (
     <div className="max-w-7xl mx-auto">

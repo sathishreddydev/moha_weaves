@@ -53,7 +53,7 @@ export default function Invoice() {
     fetchInvoiceData();
   }, [saleId]);
   useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
+    const handleKeyDown = (e: globalThis.KeyboardEvent) => {
       if ((e.ctrlKey || e.metaKey) && e.key === "p") {
         e.preventDefault();
         handlePrint();
@@ -536,7 +536,7 @@ export default function Invoice() {
               <li>No exchanges on customized orders.</li>
               <li>
                 Store management reserves the right to refuse exchanges that
-                don't meet policy criteria.
+                don&apos;t meet policy criteria.
               </li>
             </ul>
           </div>

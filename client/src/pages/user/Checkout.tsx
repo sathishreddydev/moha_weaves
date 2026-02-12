@@ -24,7 +24,7 @@ import {
   X
 } from "lucide-react";
 import { useEffect, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link } from "react-router-dom";
 import { z } from "zod";
 import OrderSuccess from "./OrderSuccess";
 
@@ -37,7 +37,6 @@ const addressFormSchema = z.object({
 });
 
 export default function Checkout() {
-  const navigate = useNavigate();
   const { user } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -46,7 +45,7 @@ export default function Checkout() {
   const [selectedAddressId, setSelectedAddressId] = useState<string>("");
   const [showNewAddressForm, setShowNewAddressForm] = useState(false);
   const [notes, setNotes] = useState("");
-  const [checkingPincode, setCheckingPincode] = useState(false);
+  const [, setCheckingPincode] = useState(false);
   const [couponCode, setCouponCode] = useState("");
   const [appliedCoupon, setAppliedCoupon] = useState<Coupon | null>(null);
   const [couponError, setCouponError] = useState("");

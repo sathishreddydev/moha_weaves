@@ -4,7 +4,6 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { useDataTable } from "@/hooks/use-data-table";
 import { useToast } from "@/hooks/use-toast";
-import { useAuth } from "@/lib/auth";
 import { apiRequest } from "@/lib/queryClient";
 import type { StockRequestWithDetails } from "@shared/schema";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
@@ -45,7 +44,6 @@ const statusConfig: Record<
 };
 
 export default function StoreRequests() {
-  const { user } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -55,7 +53,6 @@ export default function StoreRequests() {
     pageIndex,
     pageSize,
     isLoading,
-    isFetching,
     handlePaginationChange,
     refetch,
   } = useDataTable<StockRequestWithDetails>({

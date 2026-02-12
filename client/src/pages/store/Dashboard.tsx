@@ -69,10 +69,6 @@ interface StoreStats {
   };
 }
 
-type ShopProduct = {
-  product: ProductWithDetails;
-  storeStock: number;
-};
 
 const formatPrice = (price: number | string) => {
   const numPrice = typeof price === "string" ? parseFloat(price) : price;
@@ -177,7 +173,7 @@ export default function StoreDashboard() {
           >
             <CardHeader className="flex flex-row items-center justify-between pb-2">
               <CardTitle className="text-sm font-medium text-muted-foreground">
-                Today's Sales
+                Today&apos;s Sales
               </CardTitle>
               <ShoppingCart className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
@@ -212,7 +208,7 @@ export default function StoreDashboard() {
           >
             <CardHeader className="flex flex-row items-center justify-between pb-2">
               <CardTitle className="text-sm font-medium text-muted-foreground">
-                Today's Revenue
+                Today&apos;s Revenue
               </CardTitle>
               <TrendingUp className="h-4 w-4 text-green-500" />
             </CardHeader>

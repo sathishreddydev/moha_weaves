@@ -133,7 +133,7 @@ export default function ItemOrderDetails() {
       a.click();
       a.remove();
       window.URL.revokeObjectURL(url);
-    } catch (e) {
+    } catch {
       toast({
         title: "Error",
         description: "Unable to download invoice right now",

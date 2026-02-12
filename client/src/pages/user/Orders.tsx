@@ -52,7 +52,7 @@ export default function Orders() {
       a.click();
       a.remove();
       window.URL.revokeObjectURL(url);
-    } catch (e) {
+    } catch {
       toast({
         title: "Error",
         description: "Unable to download invoice right now",
@@ -139,7 +139,7 @@ export default function Orders() {
         return true;
       })
       .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-  }, [orders, debouncedSearch, statusFilter, timeFilter]);
+  }, [orders, debouncedSearch, statusFilter, timeFilter, isWithinTimeRange]);
 
   const tabCounts = useMemo(() => {
     if (!orders) {

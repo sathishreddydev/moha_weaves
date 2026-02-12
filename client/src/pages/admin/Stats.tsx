@@ -24,6 +24,7 @@ interface DashboardStatsProps {
 }
 
 import { Card, CardContent } from "@/components/ui/card";
+import React from "react";
 import { Link } from "react-router-dom";
 
 function StatCard({

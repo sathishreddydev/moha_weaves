@@ -13,10 +13,9 @@ import { Textarea } from "@/components/ui/textarea";
 import { itemStatusConfig } from "@/constants/itemStatusConfig";
 import { useDataTable } from "@/hooks/use-data-table";
 import { useToast } from "@/hooks/use-toast";
-import { useAuth } from "@/lib/auth";
 import { apiRequest } from "@/lib/queryClient";
 import type { ReturnRequestWithDetails } from "@shared/schema";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation } from "@tanstack/react-query";
 import { ColumnDef } from "@tanstack/react-table";
 import {
   ArrowLeftRight,
@@ -27,18 +26,6 @@ import {
 } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { useNavigate } from "react-router-dom";
-
-// Return status options
-const returnStatuses = [
-  "return_requested",
-  "return_approved",
-  "return_rejected",
-  "return_in_transit",
-  "return_received",
-  "return_inspected",
-  "return_completed",
-  "return_cancelled",
-];
 
 const getReturnStatusFlow = (currentStatus: string) => {
   const flow: Record<string, string[]> = {
@@ -91,9 +78,7 @@ const StatusBadge = ({ status }: StatusBadgeProps) => {
 
 export default function InventoryReturns() {
   const navigate = useNavigate();
-  const { user } = useAuth();
   const { toast } = useToast();
-  const queryClient = useQueryClient();
 
   const [updateDialog, setUpdateDialog] = useState<{
     open: boolean;
@@ -159,40 +144,6 @@ export default function InventoryReturns() {
     }
   };
 
-  const getNextAction = (request: ReturnRequestWithDetails) => {
-    const nextStatuses = getReturnStatusFlow(request.status);
-
-    if (nextStatuses.length === 0) return null;
-
-    if (nextStatuses.length === 1) {
-      const status = nextStatuses[0];
-      return (
-        <Button
-          size="sm"
-          onClick={() => handleStatusUpdate(request, status)}
-          disabled={updateStatusMutation.isPending}
-        >
-          {itemStatusConfig[status]?.label || status}
-        </Button>
-      );
-    }
-
-    return (
-      <div className="flex gap-2">
-        {nextStatuses.map(status => (
-          <Button
-            key={status}
-            size="sm"
-            variant={status === "return_rejected" ? "destructive" : "default"}
-            onClick={() => handleStatusUpdate(request, status)}
-            disabled={updateStatusMutation.isPending}
-          >
-            {itemStatusConfig[status]?.label || status}
-          </Button>
-        ))}
-      </div>
-    );
-  };
 
   const columns: ColumnDef<ReturnRequestWithDetails>[] = useMemo(
     () => [

@@ -14,6 +14,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Edit, MapPin, Plus, Trash2 } from "lucide-react";
 import { useEffect, useState } from "react";
+import type { FormEvent } from "react";
 import { Link } from "react-router-dom";
 
 import { useAddressStore } from "@/components/Store/useAddressesStore";
@@ -53,7 +54,6 @@ export default function Addresses() {
   const createNewAddresses = useAddressStore((state) => state.addAddress);
   const updateAddresses = useAddressStore((state) => state.updateAddress);
   const deletAddresses = useAddressStore((state) => state.deleteAddress);
-  const setDefaultAddress = useAddressStore((state) => state.setDefaultAddress);
 
   const pincodeInfo = useAddressStore((state) => state.pincodeInfo);
   const pincodeLoading = useAddressStore((state) => state.pincodeLoading);
@@ -73,7 +73,7 @@ export default function Addresses() {
     if (user?.role === "user" && addresses.length === 0) {
       getAddresses();
     }
-  }, [user]);
+  }, [user, addresses.length, getAddresses]);
 
   const handleOpenDialog = (address?: UserAddress) => {
     if (address) {
@@ -99,7 +99,7 @@ export default function Addresses() {
     setFormData(defaultFormData);
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     if (!user?.id) return;
 

@@ -56,7 +56,7 @@ export default function StoreInventoryPage() {
     if (!categories.length || !colors.length || !fabrics.length) {
       fetchFilters();
     }
-  }, [categories, colors, fabrics]);
+  }, [categories.length, colors.length, fabrics.length, fetchFilters]);
 
   const {
     data: products,

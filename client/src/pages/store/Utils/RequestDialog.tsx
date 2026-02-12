@@ -7,6 +7,7 @@ import { apiRequest, queryClient } from "@/lib/queryClient";
 import { ProductWithDetails } from "@shared/schema";
 import { useMutation } from "@tanstack/react-query";
 import { useState } from "react";
+import type { FormEvent } from "react";
 import { AdaptiveModal } from "../../../components/common/AdaptiveModal";
 
 interface RequestDialogProps {
@@ -52,7 +53,7 @@ export const RequestDialog = ({
       });
     },
   });
-  const handleSubmitRequest = (e: React.FormEvent) => {
+  const handleSubmitRequest = (e: FormEvent) => {
     e.preventDefault();
     if (!productId) {
       toast({ title: "Error", description: "Please select a product" });

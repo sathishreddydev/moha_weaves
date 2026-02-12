@@ -3171,7 +3171,7 @@ export class DatabaseStorage implements IStorage {
 
     let cumulativeRevenue = 0;
 
-    const abcData = salesData.map((item, index) => {
+    const abcData = salesData.map((item) => {
 
       const revenue = Number(item.revenue);
 
@@ -3514,9 +3514,9 @@ export class DatabaseStorage implements IStorage {
 
       const peakMonths = Array.from(monthlyAverages.entries())
 
-        .filter(([_, avg]) => avg > avgMonthly * 1.2)
+        .filter(([, avg]) => avg > avgMonthly * 1.2)
 
-        .map(([month, _]) => month);
+        .map(([month]) => month);
 
 
 

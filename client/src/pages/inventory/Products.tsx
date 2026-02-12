@@ -1,28 +1,7 @@
-import { useState, useMemo, useRef } from "react";
-import { Link, useNavigate } from "react-router-dom";
-import {
-  Plus,
-  Edit,
-  Trash2,
-  Eye,
-  Upload,
-  X,
-  Video,
-  Image as ImageIcon,
-  Printer,
-  Download,
-  AlertTriangle,
-  ChevronDown,
-  Package,
-  Store as StoreIcon,
-  MapPin,
-} from "lucide-react";
-import Barcode from "react-barcode";
-import * as XLSX from "xlsx";
-import { saveAs } from "file-saver";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
+import { DataTable } from "@/components/DataTable/DataTable";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
 import {
   Dialog,
   DialogContent,
@@ -31,30 +10,31 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Label } from "@/components/ui/label";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
-import { Switch } from "@/components/ui/switch";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { useAuth } from "@/lib/auth";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { apiRequest } from "@/lib/queryClient";
-import { useToast } from "@/hooks/use-toast";
-import { DataTable } from "@/components/DataTable/DataTable";
 import { useDataTable } from "@/hooks/use-data-table";
-import { ColumnDef } from "@tanstack/react-table";
+import { useToast } from "@/hooks/use-toast";
+import { apiRequest } from "@/lib/queryClient";
 import type {
-  ProductWithDetails,
-  Store,
+  ProductWithDetails
 } from "@shared/schema";
+import { useMutation } from "@tanstack/react-query";
+import { ColumnDef } from "@tanstack/react-table";
+import { saveAs } from "file-saver";
+import {
+  AlertTriangle,
+  Download,
+  Edit,
+  Eye,
+  MapPin,
+  Package,
+  Plus,
+  Printer,
+  Store as StoreIcon,
+  Trash2
+} from "lucide-react";
+import { useMemo, useRef, useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
+import * as XLSX from "xlsx";
 import { ProductPrintDetails } from "./ProductPrintDetails";
-import { ProductFormData, StoreAllocation } from "./components/Types";
 
 
 const formatPrice = (price: string | number) => {

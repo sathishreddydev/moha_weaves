@@ -9,8 +9,6 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { useDataTable } from "@/hooks/use-data-table";
-import { useToast } from "@/hooks/use-toast";
-import { useAuth } from "@/lib/auth";
 import {
   Tooltip,
   TooltipContent,
@@ -37,8 +35,6 @@ import * as XLSX from "xlsx";
 
 export default function StoreHistory() {
   const navigate = useNavigate();
-  const { user } = useAuth();
-  const { toast } = useToast();
   const [selectedSale, setSelectedSale] = useState<StoreSaleWithItems | null>(
     null,
   );
@@ -108,7 +104,7 @@ export default function StoreHistory() {
     XLSX.utils.book_append_sheet(wb, ws, "Sales History");
 
     const excelBuffer = XLSX.write(wb, { bookType: "xlsx", type: "array" });
-    const data = new Blob([excelBuffer], {
+    const data = new globalThis.Blob([excelBuffer], {
       type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
     });
 

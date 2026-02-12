@@ -1,23 +1,20 @@
-import React, { useState, useMemo } from 'react';
-import { useNavigate } from "react-router-dom";
-import {
-  Package,
-  ChevronDown,
-  ChevronUp,
-  Calendar,
-  User,
-  ExternalLink,
-} from 'lucide-react';
-import { useAuth } from "@/lib/auth";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { apiRequest } from "@/lib/queryClient";
-import { useToast } from "@/hooks/use-toast";
 import { DataTable } from "@/components/DataTable/DataTable";
-import { useDataTable } from "@/hooks/use-data-table";
-import type { OrderWithItems } from "@shared/schema";
-import { itemStatusConfig } from "@/constants/itemStatusConfig";
-import { ColumnDef } from "@tanstack/react-table";
 import { Button } from "@/components/ui/button";
+import { itemStatusConfig } from "@/constants/itemStatusConfig";
+import { useDataTable } from "@/hooks/use-data-table";
+import { useToast } from "@/hooks/use-toast";
+import { apiRequest } from "@/lib/queryClient";
+import type { OrderWithItems } from "@shared/schema";
+import { useMutation } from "@tanstack/react-query";
+import { ColumnDef } from "@tanstack/react-table";
+import {
+  Calendar,
+  ExternalLink,
+  Package,
+  User
+} from 'lucide-react';
+import { useMemo } from 'react';
+import { useNavigate } from "react-router-dom";
 
 // Status options provided by user
 const itemStatuses = [
@@ -28,16 +25,6 @@ const itemStatuses = [
   "delivered",
 ];
 
-const getItemStatusFlow = (currentStatus: string) => {
-  const flow: Record<string, string[]> = {
-    pending: ["confirmed"],
-    confirmed: ["processing"],
-    processing: ["shipped"],
-    shipped: ["delivered"],
-    delivered: [],
-  };
-  return flow[currentStatus] || [];
-};
 
 const formatPrice = (price: string | number) => {
   const numPrice = typeof price === "string" ? parseFloat(price) : price;
@@ -76,9 +63,7 @@ const StatusBadge = ({ status }: StatusBadgeProps) => {
 
 export default function InventoryOrders() {
   const navigate = useNavigate();
-  const { user } = useAuth();
   const { toast } = useToast();
-  const queryClient = useQueryClient();
   
   const {
     data: orders,
