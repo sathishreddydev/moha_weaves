@@ -1,7 +1,7 @@
-import { Refund, InsertRefund, refunds, orders, returnRequests } from "@shared/schema";
-import { eq, and } from "drizzle-orm";
+import { orders, Refund, refunds } from "@shared/schema";
+import { and, eq } from "drizzle-orm";
 import { db } from "../db";
-import { createRefund, getRefundStatus, fetchPaymentDetails } from "../razorpayClient";
+import { createRefund, getRefundStatus } from "../razorpayClient";
 import { storage } from "../storage";
 
 export interface RefundProcessingOptions {

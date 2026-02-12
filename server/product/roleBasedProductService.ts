@@ -103,7 +103,7 @@ export class RoleBasedProductService {
   }
 
 
-  private async getVariantsForProducts(productIds: string[]) {
+  private async getVariantsForProducts(productIds: string[], userRole: UserRole = "admin") {
     if (!productIds.length) return new Map();
 
     const rows = await db
@@ -143,12 +143,19 @@ export class RoleBasedProductService {
       if (!existing) {
         existing = {
           ...row.variant,
-          storeAllocations: [],
+          storeAllocations: userRole === "user" ? undefined : [],
         };
+        
+        // Hide onlineStock for store role
+        if (userRole === "store") {
+          delete existing.onlineStock;
+        }
+        
         variants.push(existing);
       }
 
-      if (row.storeId) {
+      // Only add store allocations if role is not "user"
+      if (row.storeId && userRole !== "user") {
         existing.storeAllocations.push({
           storeId: row.storeId,
           storeName: row.storeName ?? "Unknown",
@@ -265,7 +272,7 @@ export class RoleBasedProductService {
 
 
     const variantMap = await this.getVariantsForProducts(
-      results.map(p => p.id)
+      results.map(p => p.id),role
     );
     const storeAllocationMap =
       await this.getStoreAllocationsForProducts(
@@ -295,7 +302,7 @@ export class RoleBasedProductService {
       return {
         ...product,
         variants: variantMap.get(product.id) ?? [],
-        storeAllocations: storeAllocationMap.get(product.id) ?? [],
+        storeAllocations: role === "user" ? undefined : storeAllocationMap.get(product.id) ?? [],
         activeSale: sale ?? null,
         discountedPrice,
       };
