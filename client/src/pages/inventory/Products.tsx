@@ -13,9 +13,7 @@ import {
 import { useDataTable } from "@/hooks/use-data-table";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
-import type {
-  ProductWithDetails
-} from "@shared/schema";
+import type { ProductWithDetails } from "@shared/schema";
 import { useMutation } from "@tanstack/react-query";
 import { ColumnDef } from "@tanstack/react-table";
 import { saveAs } from "file-saver";
@@ -29,13 +27,12 @@ import {
   Plus,
   Printer,
   Store as StoreIcon,
-  Trash2
+  Trash2,
 } from "lucide-react";
 import { useMemo, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import * as XLSX from "xlsx";
 import { ProductPrintDetails } from "./ProductPrintDetails";
-
 
 const formatPrice = (price: string | number) => {
   const numPrice = typeof price === "string" ? parseFloat(price) : price;
@@ -46,29 +43,39 @@ const formatPrice = (price: string | number) => {
   }).format(numPrice);
 };
 
-const ProductAccordionContent = ({ product }: { product: ProductWithDetails }) => {
+const ProductAccordionContent = ({
+  product,
+}: {
+  product: ProductWithDetails;
+}) => {
   const hasVariants = product.variants && product.variants.length > 0;
 
   return (
-    <div className="space-y-6 p-4">
+    <div className="space-y-4 p-3 text-xs">
       {/* Product Details */}
       <div>
-        <h3 className="text-lg font-semibold mb-3 flex items-center gap-2">
-          <Package className="h-5 w-5" />
+        <h3 className="text-sm font-semibold mb-2 flex items-center gap-2">
+          <Package className="h-4 w-4" />
           Product Details
         </h3>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
           <div>
-            <span className="text-sm text-muted-foreground">SKU:</span>
-            <p className="font-medium">{product.sku || "N/A"}</p>
+            <span className="text-xs text-muted-foreground">SKU:</span>
+            <p className="font-medium text-xs">{product.sku || "N/A"}</p>
           </div>
           <div>
-            <span className="text-sm text-muted-foreground">Description:</span>
-            <p className="font-medium">{product.description || "No description"}</p>
+            <span className="text-xs text-muted-foreground">Description:</span>
+            <p className="font-medium text-xs">
+              {product.description || "No description"}
+            </p>
           </div>
           <div>
-            <span className="text-sm text-muted-foreground">Distribution Channel:</span>
-            <p className="font-medium capitalize">{product.distributionChannel}</p>
+            <span className="text-xs text-muted-foreground">
+              Distribution Channel:
+            </span>
+            <p className="font-medium text-xs capitalize">
+              {product.distributionChannel}
+            </p>
           </div>
         </div>
       </div>
@@ -76,66 +83,95 @@ const ProductAccordionContent = ({ product }: { product: ProductWithDetails }) =
       {/* Show Variants if they exist */}
       {hasVariants ? (
         <div>
-          <h3 className="text-lg font-semibold mb-3 flex items-center gap-2">
-            <Package className="h-5 w-5" />
+          <h3 className="text-sm font-semibold mb-2 flex items-center gap-2">
+            <Package className="h-4 w-4" />
             Variants ({product.variants!.length})
           </h3>
-          <div className="space-y-3">
+          <div className="space-y-2">
             {product.variants!.map((variant) => (
-              <Card key={variant.id} className="p-4">
-                <div className="flex justify-between items-start mb-3">
+              <Card key={variant.id} className="p-3">
+                <div className="flex justify-between items-start mb-2">
                   <div>
-                    <h4 className="font-medium">Size: {variant.size}</h4>
-                    <p className="text-sm text-muted-foreground">SKU: {variant.sku}</p>
+                    <h4 className="font-medium text-xs">
+                      Size: {variant.size}
+                    </h4>
+                    <p className="text-xs text-muted-foreground">
+                      SKU: {variant.sku}
+                    </p>
                   </div>
                   <div className="text-right">
-                    <Badge variant={variant.isActive ? "default" : "secondary"}>
+                    <Badge
+                      variant={variant.isActive ? "default" : "secondary"}
+                      className="text-xs"
+                    >
                       {variant.isActive ? "Active" : "Inactive"}
                     </Badge>
                   </div>
                 </div>
-                
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-xs">
                   <div>
-                    <span className="text-muted-foreground">Stock:</span>
-                    <p className="font-medium">{variant.stockQuantity}</p>
+                    <span className="text-muted-foreground text-xs">
+                      Stock:
+                    </span>
+                    <p className="font-medium text-xs">
+                      {variant.stockQuantity}
+                    </p>
                   </div>
                   <div>
-                    <span className="text-muted-foreground">Online Stock:</span>
-                    <p className="font-medium">{variant.onlineStock}</p>
+                    <span className="text-muted-foreground text-xs">
+                      Online Stock:
+                    </span>
+                    <p className="font-medium text-xs">{variant.onlineStock}</p>
                   </div>
                   {variant.price && (
                     <div>
-                      <span className="text-muted-foreground">Price:</span>
-                      <p className="font-medium">{formatPrice(variant.price)}</p>
+                      <span className="text-muted-foreground text-xs">
+                        Price:
+                      </span>
+                      <p className="font-medium text-xs">
+                        {formatPrice(variant.price)}
+                      </p>
                     </div>
                   )}
                   {variant.actualPrice && (
                     <div>
-                      <span className="text-muted-foreground">Actual Price:</span>
-                      <p className="font-medium">{formatPrice(variant.actualPrice)}</p>
+                      <span className="text-muted-foreground text-xs">
+                        Actual Price:
+                      </span>
+                      <p className="font-medium text-xs">
+                        {formatPrice(variant.actualPrice)}
+                      </p>
                     </div>
                   )}
                 </div>
 
                 {/* Variant Store Allocations */}
-                {variant.storeAllocations && variant.storeAllocations.length > 0 && (
-                  <div className="mt-3 pt-3 border-t">
-                    <h5 className="text-sm font-medium mb-2 flex items-center gap-1">
-                      <StoreIcon className="h-4 w-4" />
-                      Store Allocations
-                    </h5>
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
-                      {variant.storeAllocations.map((allocation) => (
-                        <div key={allocation.storeId} className="flex items-center gap-2 text-sm bg-muted/50 p-2 rounded">
-                          <MapPin className="h-3 w-3 text-muted-foreground" />
-                          <span className="font-medium">{allocation.storeName}:</span>
-                          <span>{allocation.quantity} units</span>
-                        </div>
-                      ))}
+                {variant.storeAllocations &&
+                  variant.storeAllocations.length > 0 && (
+                    <div className="mt-2 pt-2 border-t">
+                      <h5 className="text-xs font-medium mb-2 flex items-center gap-1">
+                        <StoreIcon className="h-3 w-3" />
+                        Store Allocations
+                      </h5>
+                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
+                        {variant.storeAllocations.map((allocation) => (
+                          <div
+                            key={allocation.storeId}
+                            className="flex items-center gap-2 text-xs bg-muted/50 p-2 rounded"
+                          >
+                            <MapPin className="h-3 w-3 text-muted-foreground" />
+                            <span className="font-medium text-xs">
+                              {allocation.storeName}:
+                            </span>
+                            <span className="text-xs">
+                              {allocation.quantity} units
+                            </span>
+                          </div>
+                        ))}
+                      </div>
                     </div>
-                  </div>
-                )}
+                  )}
               </Card>
             ))}
           </div>
@@ -145,33 +181,41 @@ const ProductAccordionContent = ({ product }: { product: ProductWithDetails }) =
         <>
           {/* Stock Details */}
           <div>
-            <h3 className="text-lg font-semibold mb-3 flex items-center gap-2">
-              <Package className="h-5 w-5" />
+            <h3 className="text-sm font-semibold mb-2 flex items-center gap-2">
+              <Package className="h-4 w-4" />
               Stock Details
             </h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-              <Card className="p-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
+              <Card className="p-3">
                 <div className="text-center">
-                  <h4 className="text-2xl font-bold text-primary">{product.totalStock}</h4>
-                  <p className="text-sm text-muted-foreground">Total Stock</p>
+                  <h4 className="text-lg font-bold text-primary">
+                    {product.totalStock}
+                  </h4>
+                  <p className="text-xs text-muted-foreground">Total Stock</p>
                 </div>
               </Card>
-              <Card className="p-4">
+              <Card className="p-3">
                 <div className="text-center">
-                  <h4 className="text-2xl font-bold text-green-600">{product.onlineStock}</h4>
-                  <p className="text-sm text-muted-foreground">Online Stock</p>
+                  <h4 className="text-lg font-bold text-green-600">
+                    {product.onlineStock}
+                  </h4>
+                  <p className="text-xs text-muted-foreground">Online Stock</p>
                 </div>
               </Card>
-              <Card className="p-4">
+              <Card className="p-3">
                 <div className="text-center">
-                  <h4 className="text-2xl font-bold text-orange-600">{product.totalStock - product.onlineStock}</h4>
-                  <p className="text-sm text-muted-foreground">Offline Stock</p>
+                  <h4 className="text-lg font-bold text-orange-600">
+                    {product.totalStock - product.onlineStock}
+                  </h4>
+                  <p className="text-xs text-muted-foreground">Offline Stock</p>
                 </div>
               </Card>
-              <Card className="p-4">
+              <Card className="p-3">
                 <div className="text-center">
-                  <h4 className="text-2xl font-bold">{formatPrice(product.price)}</h4>
-                  <p className="text-sm text-muted-foreground">Price</p>
+                  <h4 className="text-lg font-bold">
+                    {formatPrice(product.price)}
+                  </h4>
+                  <p className="text-xs text-muted-foreground">Price</p>
                 </div>
               </Card>
             </div>
@@ -180,8 +224,8 @@ const ProductAccordionContent = ({ product }: { product: ProductWithDetails }) =
           {/* Store Allocations for main product */}
           {product.storeAllocations && product.storeAllocations.length > 0 && (
             <div>
-              <h3 className="text-lg font-semibold mb-3 flex items-center gap-2">
-                <StoreIcon className="h-5 w-5" />
+              <h3 className="text-sm font-semibold mb-2 flex items-center gap-2">
+                <StoreIcon className="h-4 w-4" />
                 Store Locations ({product.storeAllocations.length})
               </h3>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
@@ -190,8 +234,12 @@ const ProductAccordionContent = ({ product }: { product: ProductWithDetails }) =
                     <div className="flex items-center gap-2">
                       <MapPin className="h-4 w-4 text-muted-foreground" />
                       <div>
-                        <h4 className="font-medium">{allocation.storeName}</h4>
-                        <p className="text-sm text-muted-foreground">{allocation.quantity} units</p>
+                        <h4 className="font-medium text-xs">
+                          {allocation.storeName}
+                        </h4>
+                        <p className="text-xs text-muted-foreground">
+                          {allocation.quantity} units
+                        </p>
                       </div>
                     </div>
                   </Card>
@@ -203,12 +251,16 @@ const ProductAccordionContent = ({ product }: { product: ProductWithDetails }) =
       )}
 
       {/* Additional Info */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm text-muted-foreground">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs text-muted-foreground">
         <div>
-          <span>Created: {new Date(product.createdAt).toLocaleDateString()}</span>
+          <span>
+            Created: {new Date(product.createdAt).toLocaleDateString()}
+          </span>
         </div>
         <div>
-          <span>Last Updated: {new Date(product.updatedAt).toLocaleDateString()}</span>
+          <span>
+            Last Updated: {new Date(product.updatedAt).toLocaleDateString()}
+          </span>
         </div>
       </div>
     </div>
@@ -242,10 +294,11 @@ export default function InventoryProducts() {
     initialPageSize: 10,
   });
 
-
   const deleteMutation = useMutation({
     mutationFn: async (ids: string[]) => {
-      const res = await apiRequest("DELETE", "/api/inventory/products", { ids });
+      const res = await apiRequest("DELETE", "/api/inventory/products", {
+        ids,
+      });
       return res.ids as string[];
     },
     onSuccess: (deletedIds) => {
@@ -270,7 +323,6 @@ export default function InventoryProducts() {
       });
     },
   });
-
 
   const handlePrintBarcode = (product: ProductWithDetails) => {
     setPrintingProduct(product);
@@ -450,27 +502,21 @@ export default function InventoryProducts() {
       },
       {
         accessorKey: "name",
-        header: "Name",
+        header: "Product",
         cell: ({ row }) => (
           <div className="max-w-[200px]">
-            <span className="font-medium line-clamp-1">
-              {row.original.name}
-            </span>
+            <div className="font-medium line-clamp-1">{row.original.name}</div>
+            <div
+              className={`font-mono text-xs ${row.original.isActive ? "text-green-600" : "text-red-600"}`}
+            >
+              {row.original.sku || "-"}
+            </div>
             {row.original.isFeatured && (
-              <Badge variant="secondary" className="ml-2 text-xs">
+              <Badge variant="secondary" className="ml-2 text-xs mt-1">
                 Featured
               </Badge>
             )}
           </div>
-        ),
-      },
-      {
-        accessorKey: "sku",
-        header: "SKU",
-        cell: ({ row }) => (
-          <span className="text-muted-foreground font-mono text-sm">
-            {row.original.sku || "-"}
-          </span>
         ),
       },
       {
@@ -501,11 +547,7 @@ export default function InventoryProducts() {
             <span
               className={row.original.totalStock < 10 ? "text-destructive" : ""}
             >
-              {row.original.totalStock} total
-            </span>
-            <br />
-            <span className="text-muted-foreground">
-              {row.original.onlineStock} online
+              {row.original.totalStock}
             </span>
           </div>
         ),
@@ -519,45 +561,7 @@ export default function InventoryProducts() {
           </Badge>
         ),
       },
-      {
-        accessorKey: "isActive",
-        header: "Status",
-        cell: ({ row }) => (
-          <Badge variant={row.original.isActive ? "default" : "secondary"}>
-            {row.original.isActive ? "Active" : "Inactive"}
-          </Badge>
-        ),
-      },
-      {
-        id: "print",
-        header: "Print",
-        cell: ({ row }) => (
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => handlePrintBarcode(row.original)}
-            data-testid={`button-print-${row.original.id}`}
-            title="Print with Barcode"
-          >
-            <Printer className="h-4 w-4" />
-          </Button>
-        ),
-      },
-      {
-        id: "reportDamage",
-        header: "Report Damage",
-        cell: ({ row }) => (
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => navigate(`/inventory/damage-report/${row.original.sku}`)}
-            data-testid={`button-report-damage-${row.original.id}`}
-            title="Report Damage"
-          >
-            <AlertTriangle className="h-4 w-4 text-orange-500" />
-          </Button>
-        ),
-      },
+
       {
         id: "actions",
         header: "Actions",
@@ -575,11 +579,33 @@ export default function InventoryProducts() {
             <Button
               variant="ghost"
               size="icon"
-              onClick={() => navigate(`/inventory/products/editProduct/${row.original.sku}`)}
+              onClick={() => handlePrintBarcode(row.original)}
+              data-testid={`button-print-${row.original.id}`}
+              title="Print with Barcode"
+            >
+              <Printer className="h-4 w-4" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() =>
+                navigate(`/inventory/products/editProduct/${row.original.sku}`)
+              }
               data-testid={`button-edit-${row.original.id}`}
             >
               <Edit className="h-4 w-4" />
             </Button>
+             <Button
+            variant="ghost"
+            size="icon"
+            onClick={() =>
+              navigate(`/inventory/damage-report/${row.original.sku}`)
+            }
+            data-testid={`button-report-damage-${row.original.id}`}
+            title="Report Damage"
+          >
+            <AlertTriangle className="h-4 w-4 text-orange-500" />
+          </Button>
             <Button
               variant="ghost"
               size="icon"
@@ -646,7 +672,12 @@ export default function InventoryProducts() {
               <Download className="h-4 w-4 mr-2" />
               Download Excel
             </Button>
-            <Button onClick={()=>{navigate('/inventory/products/addProduct')}} data-testid="button-add-product">
+            <Button
+              onClick={() => {
+                navigate("/inventory/products/addProduct");
+              }}
+              data-testid="button-add-product"
+            >
               <Plus className="h-4 w-4 mr-2" />
               Add product
             </Button>
@@ -664,8 +695,11 @@ export default function InventoryProducts() {
           searchPlaceholder="Search products..."
           emptyMessage="No products found"
           accordion={true}
-          accordionContent={(product) => <ProductAccordionContent product={product} />}
+          accordionContent={(product) => (
+            <ProductAccordionContent product={product} />
+          )}
           accordionPosition="inline"
+          className="[&_table]:text-xs [&_th]:h-8 [&_th]:px-2 [&_td]:px-2 [&_td]:py-1"
         />
       </div>
 

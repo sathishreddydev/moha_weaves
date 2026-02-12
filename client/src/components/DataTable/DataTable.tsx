@@ -66,6 +66,7 @@ export interface DataTableProps<TData, TValue> {
   isLoading?: boolean;
   searchPlaceholder?: string;
   emptyMessage?: string;
+  className?: string;
 
   accordion?: boolean;
   accordionContent?: (row: TData) => React.ReactNode;
@@ -87,6 +88,7 @@ export function DataTable<TData, TValue>({
   isLoading = false,
   searchPlaceholder = "Search...",
   emptyMessage = "No results found.",
+  className,
   accordion = false,
   accordionContent,
   accordionPosition = "below",
@@ -280,7 +282,7 @@ export function DataTable<TData, TValue>({
       )}
 
       <div className="rounded-md border">
-        <Table>
+        <Table className={className}>
           <TableHeader>
             {table.getHeaderGroups().map((headerGroup) => (
               <TableRow key={headerGroup.id}>

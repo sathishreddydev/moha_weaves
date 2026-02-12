@@ -1,27 +1,32 @@
 import { Button } from "@/components/ui/button";
+
 import { Skeleton } from "@/components/ui/skeleton";
+
 import { toast } from "@/hooks/use-toast";
+
 import { apiRequest } from "@/lib/queryClient";
+
 import { ProductWithDetails, Store } from "@shared/types";
-import { useMutation, useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ArrowLeft } from "lucide-react";
 import React, { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { ProductForm } from "./ProductForm";
-import {
-  FiltersData,
-  ProductFormData,
-  StoreAllocation
-} from "./Types";
+import { FiltersData, ProductFormData, StoreAllocation } from "./Types";
 
 export default function EditProduct() {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
+
   const { sku } = useParams();
+
   const [editingProduct, setEditingProduct] =
     useState<ProductWithDetails | null>(null);
+
   const [storeAllocations, setStoreAllocations] = useState<StoreAllocation[]>(
     [],
   );
+
   const [formData, setFormData] = useState<ProductFormData>({
     name: "",
     description: "",
@@ -43,11 +48,14 @@ export default function EditProduct() {
     hasVariants: false,
     variants: [],
   });
+
   const {
     data: productBySku,
     isLoading: productBySkuLoading,
+    refetch: refetchProductBySku,
   } = useQuery({
     queryKey: ["/api/inventory/product-by-sku", sku],
+
     queryFn: async () => {
       if (!sku) return null;
       const response = await apiRequest(
@@ -58,15 +66,15 @@ export default function EditProduct() {
     },
   });
 
-  const { data: stores } = useQuery<Store[]>({
+  const { data: stores,refetch:refetchStores } = useQuery<Store[]>({
     queryKey: ["/api/inventory/stores"],
   });
 
-  const { data: filtersData } = useQuery<FiltersData>({
+  const { data: filtersData,refetch:refetchFiltersData } = useQuery<FiltersData>({
     queryKey: ["/api/inventory/filters"],
   });
 
-  const { data: productAllocations } = useQuery({
+  const { data: productAllocations,refetch:refetchProductAllocations } = useQuery({
     queryKey: ["/api/inventory/products", productBySku?.id, "allocations"],
     queryFn: async () => {
       if (!productBySku?.id) return null;
@@ -76,6 +84,7 @@ export default function EditProduct() {
       );
       return response;
     },
+
     enabled: !!productBySku?.id,
   });
 
@@ -90,12 +99,12 @@ export default function EditProduct() {
       setEditingProduct(product);
 
       // Handle images: combine imageUrl and images array, remove duplicates
+
       let allImages = product.images || [];
+
       if (product.imageUrl && !allImages.includes(product.imageUrl)) {
         allImages = [product.imageUrl, ...allImages];
       }
-
-  
 
       const newFormData = {
         name: product.name,
@@ -114,38 +123,52 @@ export default function EditProduct() {
         distributionChannel: product.distributionChannel,
         isFeatured: product.isFeatured,
         isActive: product.isActive,
+
         // New variant fields
-hasVariants: !!product?.variants?.length,
+
+        hasVariants: !!product?.variants?.length,
+
         variants: product.variants,
       };
+
       setFormData(newFormData);
 
       // For simple products, set store allocations
+
       // For variant products, store allocations are handled per variant
-      const allocs = product.hasVariants 
+
+      const allocs = product.hasVariants
         ? stores?.map((s) => ({
             storeId: s.id,
+
             storeName: s.name,
+
             quantity: 0, // Start with 0 for variant products
           })) || []
         : stores?.map((s) => {
             const existing = productAllocations.find(
               (a: StoreAllocation) => a.storeId === s.id,
             );
+
             return {
               storeId: s.id,
+
               storeName: s.name,
+
               quantity: existing?.quantity || 0,
             };
           }) || [];
+
       setStoreAllocations(allocs);
     }
   }, [productBySku, stores, productAllocations]);
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
 
     const totalAllocated = storeAllocations.reduce(
       (sum, a) => sum + a.quantity,
+
       0,
     );
 
@@ -153,23 +176,30 @@ hasVariants: !!product?.variants?.length,
       if (totalAllocated !== formData.totalStock) {
         toast({
           title: "Allocation Error",
+
           description: `Store allocations (${totalAllocated}) must equal total stock (${formData.totalStock})`,
+
           variant: "destructive",
         });
+
         return;
       }
     } else if (formData.distributionChannel === "both") {
       if (totalAllocated + formData.onlineStock !== formData.totalStock) {
         toast({
           title: "Allocation Error",
+
           description: `Online (${formData.onlineStock}) + Store allocations (${totalAllocated}) must equal total stock (${formData.totalStock})`,
+
           variant: "destructive",
         });
+
         return;
       }
     }
 
     // Set first image as main image
+
     const submissionData = {
       ...formData,
       imageUrl: formData.images.length > 0 ? formData.images[0] : "",
@@ -208,35 +238,52 @@ hasVariants: !!product?.variants?.length,
             })),
         },
       );
+
       return response;
     },
+
     onSuccess: () => {
       toast({ title: "Success", description: "product updated successfully" });
+      refetchProductBySku()
+      refetchFiltersData()
+      refetchProductAllocations()
+      refetchStores()
+      queryClient.invalidateQueries({ queryKey: ["/api/inventory/getProducts"] });
       navigate("/inventory/products");
     },
+
     onError: (error: Error) => {
       toast({
         title: "Error",
+
         description: error.message || "Failed to update product",
+
         variant: "destructive",
       });
     },
   });
+
   return (
     <div className="space-y-6">
       {productBySkuLoading ? (
         <div className="space-y-4">
           <div className="flex items-center gap-4">
             <Skeleton className="h-10 w-10" />
+
             <div className="space-y-2">
               <Skeleton className="h-8 w-48" />
+
               <Skeleton className="h-4 w-96" />
             </div>
           </div>
+
           <div className="space-y-6">
             <Skeleton className="h-20 w-full" />
+
             <Skeleton className="h-20 w-full" />
+
             <Skeleton className="h-20 w-full" />
+
             <Skeleton className="h-20 w-full" />
           </div>
         </div>
@@ -251,15 +298,18 @@ hasVariants: !!product?.variants?.length,
             >
               <ArrowLeft className="h-4 w-4" />
             </Button>
+
             <div>
               <h1 className="text-xl font-semibold tracking-tight">
                 Edit Product
               </h1>
+
               <p className="text-sm text-muted-foreground">
                 Update product information and inventory allocations
               </p>
             </div>
           </div>
+
           <ProductForm
             formData={formData}
             setFormData={setFormData}

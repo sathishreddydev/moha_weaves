@@ -2,7 +2,7 @@ import { Button } from "@/components/ui/button";
 import { toast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { Store } from "@shared/types";
-import { useMutation, useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ArrowLeft } from "lucide-react";
 import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
@@ -15,6 +15,7 @@ import {
 
 export default function AddProduct() {
     const navigate = useNavigate();
+    const queryClient = useQueryClient();
     const [storeAllocations, setStoreAllocations] = useState<StoreAllocation[]>(
         [],
     );
@@ -184,6 +185,7 @@ export default function AddProduct() {
         },
         onSuccess: () => {
             toast({ title: "Success", description: "product created successfully" });
+            queryClient.invalidateQueries({ queryKey: ["/api/inventory/getProducts"] });
             navigate("/inventory/products");
         },
         onError: (error: Error) => {
