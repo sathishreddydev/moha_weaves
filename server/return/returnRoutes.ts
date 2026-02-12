@@ -1,13 +1,13 @@
-import type { Express, Request, Response } from "express";
-import { returnStorage } from "./returnStorage";
-import { createAuthMiddleware } from "../authMiddleware";
 import {
-  InsertReturnRequest,
   InsertReturnItem,
-  returnStatusEnum,
+  InsertReturnRequest,
   returnReasonEnum,
-  returnResolutionEnum
+  returnResolutionEnum,
+  returnStatusEnum
 } from "@shared/schema";
+import type { Express, Request, Response } from "express";
+import { createAuthMiddleware } from "../authMiddleware";
+import { returnStorage } from "./returnStorage";
 
 export const returnRoutes = (app: Express) => {
   const authInventory = createAuthMiddleware(["inventory", "admin"]);

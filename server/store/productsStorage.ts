@@ -1,16 +1,12 @@
 import {
-  storeInventory,
-  products,
   categories,
-  subcategories,
   colors,
   fabrics,
-  sales,
-  saleProducts,
+  products,
   stockRequests,
-  stores,
+  storeInventory,
   storeSaleItems,
-  storeSales,
+  storeSales
 } from "@shared/tables";
 import {
   ProductWithDetails,
@@ -19,16 +15,11 @@ import {
   StoreSaleWithItems,
 } from "@shared/types";
 import {
+  and,
   eq,
-  or,
-  ilike,
   gte,
   lte,
-  and,
-  desc,
-  sql,
-  inArray,
-  lt,
+  sql
 } from "drizzle-orm";
 import { db } from "server/db";
 interface IStoreProductsStorage {

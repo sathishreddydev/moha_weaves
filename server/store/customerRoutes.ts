@@ -1,5 +1,5 @@
-import { z } from "zod";
 import type { Express, Request, Response } from "express";
+import { z } from "zod";
 import { createAuthMiddleware } from "../authMiddleware";
 import { CustomerService } from "./customerStorage";
 

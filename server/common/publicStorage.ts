@@ -1,16 +1,15 @@
 import {
   Category,
-  InsertCategory,
-  Subcategory,
-  InsertSubcategory,
   Color,
-  InsertColor,
   Fabric,
+  InsertCategory,
+  InsertColor,
   InsertFabric,
+  Subcategory,
   categories,
-  subcategories,
   colors,
   fabrics,
+  subcategories
 } from "@shared/schema";
 import { eq } from "drizzle-orm";
 import { db } from "server/db";

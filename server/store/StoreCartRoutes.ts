@@ -1,8 +1,8 @@
-import { z } from "zod";
 import { Express, Request, Response } from "express";
-import { StoreRepository } from "./storeStorage";
 import { createAuthMiddleware } from "server/authMiddleware";
+import { z } from "zod";
 import { CustomerService } from "./customerStorage";
+import { StoreRepository } from "./storeStorage";
 
 
 const cartItemSchema = z.object({

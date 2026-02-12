@@ -1,8 +1,8 @@
 import type { Express } from "express";
-import { storage } from "../storage";
-import { createAuthMiddleware } from "../authMiddleware";
-import { orderService } from "server/order/orderStorage";
 import { couponsService } from "server/coupons/couponsStorage";
+import { orderService } from "server/order/orderStorage";
+import { createAuthMiddleware } from "../authMiddleware";
+import { storage } from "../storage";
 
 const authUser = createAuthMiddleware(["user"]);
 export const userRoutes = (app: Express) => {

@@ -1,17 +1,16 @@
-import type { Express, Request, Response } from "express";
-import { storage } from "../storage";
-import { publicStorage } from "../common/publicStorage";
+import type { Express } from "express";
+import { ProductFilters, roleBasedProductService } from "server/product/roleBasedProductService";
 import { createAuthMiddleware } from "../authMiddleware";
+import { publicStorage } from "../common/publicStorage";
 import {
-  parsePaginationParams,
   createPaginatedResponse,
   getOffset,
+  parsePaginationParams,
 } from "../paginationHelper";
-import { storeService } from "./storeStorage";
+import { storage } from "../storage";
 import { customerRoutes } from "./customerRoutes";
 import { storeProductsStorage } from "./productsStorage";
-import { productService } from "server/product/productStorage";
-import { roleBasedProductService, ProductFilters } from "server/product/roleBasedProductService";
+import { storeService } from "./storeStorage";
 
 export const storeRoutes = (app: Express) => {
   const authStore = createAuthMiddleware(["store"]);

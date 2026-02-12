@@ -1,12 +1,12 @@
+import {
+  InsertStore,
+  Store,
+  storeExchanges,
+  stores,
+  storeSales
+} from "@shared/schema";
 import { eq, sql } from "drizzle-orm";
 import { db } from "server/db";
-import { 
-  Store, 
-  stores, 
-  InsertStore, 
-  storeSales, 
-  storeExchanges 
-} from "@shared/schema";
 
 export class StoreManagement {
   async getStores(): Promise<Store[]> {

@@ -1,20 +1,19 @@
 import {
-  productReviews,
-  users,
-  ProductReview,
   InsertProductReview,
-  ProductWithReviews,
+  ProductReview,
   ProductWithDetails,
+  ProductWithReviews,
   categories,
   colors,
   fabrics,
   orderItems,
   orders,
+  productReviews,
   products,
+  users,
 } from "@shared/schema";
-import { eq, desc, and } from "drizzle-orm";
+import { and, desc, eq } from "drizzle-orm";
 import { db } from "server/db";
-import { productService } from "server/product/productStorage";
 import { roleBasedProductService } from "server/product/roleBasedProductService";
 
 export type ReviewWithUser = Omit<

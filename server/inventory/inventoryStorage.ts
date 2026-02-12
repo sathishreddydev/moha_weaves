@@ -1,4 +1,4 @@
-import { InsertProduct, Product, storeInventory, stores, productActualPrices, products, productVariants, variantStoreInventory } from "@shared/schema";
+import { InsertProduct, Product, productActualPrices, products, productVariants, storeInventory, stores, variantStoreInventory } from "@shared/schema";
 import { and, eq } from "drizzle-orm";
 import { db } from "server/db";
 import { productService } from "server/product/productStorage";

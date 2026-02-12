@@ -1,6 +1,6 @@
+import { desc, eq } from "drizzle-orm";
+import { contactMessages, type ContactMessage, type InsertContactMessage } from "../../shared/schema";
 import { db } from "../db";
-import { contactMessages, type InsertContactMessage, type ContactMessage } from "../../shared/schema";
-import { eq, desc } from "drizzle-orm";
 
 export interface ContactMessageWithDetails extends ContactMessage {}
 

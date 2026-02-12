@@ -1,4 +1,4 @@
-import type { Express} from "express";
+import type { Express } from "express";
 import { z } from "zod";
 import { createAuthMiddleware } from "../authMiddleware";
 import { addressService } from "./addressStorage";

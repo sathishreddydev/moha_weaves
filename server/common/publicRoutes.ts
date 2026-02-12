@@ -1,10 +1,8 @@
 import type { Express } from "express";
-import { publicStorage } from "./publicStorage";
-import { storage } from "../storage";
-import { productService } from "../product/productStorage";
-import { roleBasedProductService, ProductFilters } from "../product/roleBasedProductService";
-import { salesService } from "server/sales&offer/salesStorage";
 import { reviewService } from "server/review/reviewStorage";
+import { salesService } from "server/sales&offer/salesStorage";
+import { ProductFilters, roleBasedProductService } from "../product/roleBasedProductService";
+import { publicStorage } from "./publicStorage";
 
 export const publicRoutes = (app: Express) => {
   app.get("/api/filters", async (req, res) => {
@@ -90,8 +88,11 @@ export const publicRoutes = (app: Express) => {
   // Get product variants by parent ID
   app.get("/api/products/:parentId/variants", async (req, res) => {
     try {
-      const variants = await roleBasedProductService.getProductVariantsByParentId(req.params.parentId, "user");
-      res.json(variants);
+      const product = await roleBasedProductService.getProductByRole(req.params.parentId, "user");
+      if (!product) {
+        return res.status(404).json({ message: "Product not found" });
+      }
+      res.json(product.variants || []);
     } catch (error) {
       console.error("Error fetching product variants:", error);
       res.status(500).json({ message: "Failed to fetch product variants" });

@@ -1,6 +1,6 @@
+import { store_customers } from "@shared/schema";
+import { eq } from "drizzle-orm";
 import { db } from "../db";
-import { and, desc, eq, sql, gte, gt } from "drizzle-orm";
-import { store_customers, storeSales } from "@shared/schema";
 
 export interface StoreCustomer {
   id: string;

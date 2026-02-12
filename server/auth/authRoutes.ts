@@ -1,7 +1,7 @@
-import type { Express, Request, Response } from "express";
 import bcrypt from "bcryptjs";
-import jwt from "jsonwebtoken";
 import crypto from "crypto";
+import type { Express, Request, Response } from "express";
+import jwt from "jsonwebtoken";
 import { createAuthMiddleware } from "../authMiddleware";
 import { userService } from "./authStorage";
 

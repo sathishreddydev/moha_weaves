@@ -1,6 +1,6 @@
 import type { Express, Request, Response } from "express";
-import { contactStorage } from "./contactStorage";
 import { insertContactMessageSchema } from "../../shared/schema";
+import { contactStorage } from "./contactStorage";
 
 export function contactRoutes(app: Express) {
   // Public route - submit contact form

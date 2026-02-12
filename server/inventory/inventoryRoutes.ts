@@ -1,21 +1,19 @@
-import type { Express } from "express";
-import { storage } from "../storage";
-import { refundService } from "../refund/refundService";
-import { createAuthMiddleware } from "../authMiddleware";
-import { parsePaginationParams } from "../paginationHelper";
-import { orderService } from "../order/orderStorage";
-import { storeService } from "server/store/storeStorage";
-import { inventoryService } from "./inventoryStorage";
-import { productService } from "server/product/productStorage";
-import { roleBasedProductService, ProductFilters } from "server/product/roleBasedProductService";
-import { publicStorage } from "../common/publicStorage";
-import { productBaseSchema, trackingNumberSchema } from "./schema";
-import { productDamageService } from "./productDamageService";
-import { insertProductDamageSchema } from "@shared/schema";
-import { z } from "zod";
-import { db } from "../db";
-import { products } from "@shared/schema";
+import { insertProductDamageSchema, products } from "@shared/schema";
 import { eq } from "drizzle-orm";
+import type { Express } from "express";
+import { productService } from "server/product/productStorage";
+import { ProductFilters, roleBasedProductService } from "server/product/roleBasedProductService";
+import { storeService } from "server/store/storeStorage";
+import { createAuthMiddleware } from "../authMiddleware";
+import { publicStorage } from "../common/publicStorage";
+import { db } from "../db";
+import { orderService } from "../order/orderStorage";
+import { parsePaginationParams } from "../paginationHelper";
+import { refundService } from "../refund/refundService";
+import { storage } from "../storage";
+import { inventoryService } from "./inventoryStorage";
+import { productDamageService } from "./productDamageService";
+import { productBaseSchema, trackingNumberSchema } from "./schema";
 
 const productWithAllocationsSchema = productBaseSchema.refine(
   (data) => {

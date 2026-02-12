@@ -1,12 +1,12 @@
 import {
-  CouponWithUsage,
+  Coupon,
   coupons,
   couponUsage,
-  Coupon,
-  InsertCoupon,
   CouponUsage,
+  CouponWithUsage,
+  InsertCoupon,
 } from "@shared/schema";
-import { eq, and, desc, sql } from "drizzle-orm";
+import { and, desc, eq, sql } from "drizzle-orm";
 import { db } from "server/db";
 
 export interface ICouponsRepository {

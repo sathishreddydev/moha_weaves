@@ -1,25 +1,23 @@
 import {
-  returnRequests,
-  returnItems,
-  orderItems,
-  products,
   categories,
   colors,
   fabrics,
+  InsertReturnItem,
+  InsertReturnRequest,
+  orderItems,
+  products,
   productVariants,
   refunds,
-  orders,
-  itemStatusHistory,
-  stockMovements,
-  InsertReturnRequest,
-  InsertReturnItem,
+  returnItems,
   ReturnRequest,
+  returnRequests,
+  stockMovements
 } from "@shared/schema";
-import { eq, and, desc, inArray, sql } from "drizzle-orm";
+import { and, desc, eq, inArray, sql } from "drizzle-orm";
+import { storage } from "server/storage";
+import { userService } from "../auth/authStorage";
 import { db } from "../db";
 import { orderService } from "../order/orderStorage";
-import { userService } from "../auth/authStorage";
-import { storage } from "server/storage";
 import { refundService } from "../refund/refundService";
 
 export type ReturnRequestWithDetails = ReturnRequest & {

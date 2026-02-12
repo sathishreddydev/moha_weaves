@@ -1,14 +1,13 @@
 import {
-  SaleWithProducts,
-  sales,
-  saleProducts,
   InsertSale,
   Sale,
+  SaleWithProducts,
   categories,
-  subcategories,
-  offerTypeEnum,
+  saleProducts,
+  sales,
+  subcategories
 } from "@shared/schema";
-import { eq, lte, gte, and, desc, sql } from "drizzle-orm";
+import { and, desc, eq, gte, lte, sql } from "drizzle-orm";
 import { db } from "server/db";
 
 export interface SalesStorage {

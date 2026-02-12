@@ -1,4 +1,4 @@
-import { UserAddress, userAddresses, InsertUserAddress } from "@shared/schema";
+import { InsertUserAddress, UserAddress, userAddresses } from "@shared/schema";
 import { and, desc, eq } from "drizzle-orm";
 import { db } from "server/db";
 
