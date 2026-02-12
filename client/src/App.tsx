@@ -1,3 +1,4 @@
+import React from 'react'
 import { lazy, Suspense } from "react";
 import { Routes, Route, useLocation, Navigate } from "react-router-dom";
 import { queryClient } from "./lib/queryClient";
@@ -114,7 +115,7 @@ function UserLayout({ children }: { children: React.ReactNode }) {
 
 function Router() {
   const location = useLocation();
-  const { user, isLoading } = useAuth();
+  const { isLoading } = useAuth();
 
   const isAuthPage = [
     "/user/login",

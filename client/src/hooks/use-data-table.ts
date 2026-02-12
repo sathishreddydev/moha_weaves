@@ -37,7 +37,6 @@ export interface UseDataTableOptions<T> {
 export function useDataTable<T>({
   queryKey,
   initialPageSize = 10,
-  buildUrl,
   method = "POST",
 }: UseDataTableOptions<T>) {
   const queryClient = useQueryClient();

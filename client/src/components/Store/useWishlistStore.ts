@@ -16,7 +16,7 @@ interface WishlistState {
   clearWishlist: () => void;
 }
 
-export const useWishlistStore = create<WishlistState>((set, get) => ({
+export const useWishlistStore = create<WishlistState>((set) => ({
   wishlist: [],
   count: 0,
   isLoadingWishlist: false,

@@ -66,6 +66,8 @@ export default [
         HTMLSpanElement: 'readonly',
         HTMLParagraphElement: 'readonly',
         HTMLHeadingElement: 'readonly',
+        KeyboardEvent: 'readonly',
+
       },
     },
     plugins: {

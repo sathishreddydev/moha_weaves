@@ -126,11 +126,8 @@ interface PieProps {
 
 export const Pie: React.FC<PieProps> = ({ 
   data = [], 
-  cx = "50%", 
-  cy = "50%", 
   outerRadius = 80, 
   dataKey = "value", 
-  labelLine = false,
   label,
   children
 }) => {
@@ -186,4 +183,4 @@ interface CellProps {
   fill?: string
 }
 
-export const Cell: React.FC<CellProps> = ({ fill }) => null
+export const Cell: React.FC<CellProps> = () => null

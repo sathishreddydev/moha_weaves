@@ -91,7 +91,7 @@ export default function AdminSales() {
     enabled: !!user && user.role === "admin",
   });
 
-  const { data: productsData, refetch: refetchProducts } = useQuery({
+  const { data: productsData, } = useQuery({
     queryKey: ["/api/admin/getProducts"],
     queryFn: async () => {
       const response = await apiRequest("POST", "/api/admin/getProducts", {});
@@ -256,7 +256,7 @@ export default function AdminSales() {
       } else {
         setConflictWarning("");
       }
-    } catch (error) {
+    } catch {
       // Don't show error for conflict check failures
       setConflictWarning("");
     }
