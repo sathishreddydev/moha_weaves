@@ -1,18 +1,14 @@
 import {
-  LayoutDashboard,
-  Shirt,
-  Warehouse,
+  ArrowLeftRight,
   BarChart3,
   ClipboardList,
-  Truck,
-  RotateCcw,
-  ArrowLeftRight,
-  TrendingUp,
-  Store,
   CreditCard,
-  AlertTriangle,
   FileText,
-  Package,
+  LayoutDashboard,
+  RotateCcw,
+  Shirt,
+  Store,
+  Truck
 } from "lucide-react";
 
 export const NavItems = [

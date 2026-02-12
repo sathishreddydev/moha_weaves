@@ -7,6 +7,7 @@ import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { Clock, Loader2, Mail, MapPin, Phone } from "lucide-react";
 import { useState } from "react";
+import type { ChangeEvent, FormEvent } from "react";
 
 export default function ContactUs() {
   const [formData, setFormData] = useState({
@@ -19,7 +20,7 @@ export default function ContactUs() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { toast } = useToast();
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+  const handleInputChange = (e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
     setFormData(prev => ({
       ...prev,
@@ -27,12 +28,12 @@ export default function ContactUs() {
     }));
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
 
     try {
-      const result = await apiRequest("POST", "/api/contact", formData);
+      await apiRequest("POST", "/api/contact", formData);
 
       // Success
       toast({
@@ -66,8 +67,8 @@ export default function ContactUs() {
         <div className="text-center mb-12">
           <h1 className="text-4xl font-bold text-gray-900 mb-4">Contact Us</h1>
           <p className="text-lg text-gray-600 max-w-2xl mx-auto">
-            We'd love to hear from you. Whether you have a question about our products, 
-            need help with an order, or just want to share your feedback, we're here to help.
+            We&apos;d love to hear from you. Whether you have a question about our products, 
+            need help with an order, or just want to share your feedback, we&apos;re here to help.
           </p>
         </div>
 
@@ -83,7 +84,7 @@ export default function ContactUs() {
               </CardHeader>
               <CardContent>
                 <p className="text-gray-600">support@mohaweaves.com</p>
-                <p className="text-sm text-gray-500 mt-2">We'll respond within 24 hours</p>
+                <p className="text-sm text-gray-500 mt-2">We&apos;ll respond within 24 hours</p>
               </CardContent>
             </Card>
 

@@ -29,7 +29,6 @@ export default function StockDistribution() {
     pageSize,
     isLoading,
     handlePaginationChange,
-    refetch,
   } = useDataTable<ProductWithDetails>({
     queryKey: "/api/inventory/getProducts",
     initialPageSize: 10,

@@ -65,14 +65,6 @@ export default function Exchanges() {
     enabled: !!user,
   });
 
-  const formatPrice = (price: string | number) => {
-    const numPrice = typeof price === "string" ? parseFloat(price) : price;
-    return new Intl.NumberFormat("en-IN", {
-      style: "currency",
-      currency: "INR",
-      maximumFractionDigits: 0,
-    }).format(numPrice);
-  };
 
 const formatDate = (date: string | Date) => {
   return new Date(date).toLocaleDateString("en-IN", {
@@ -116,7 +108,7 @@ const formatDate = (date: string | Date) => {
         <ArrowLeftRight className="h-16 w-16 mx-auto text-muted-foreground mb-4" />
         <h2 className="text-2xl font-semibold mb-2">No exchange requests</h2>
         <p className="text-muted-foreground mb-6">
-          You haven't made any exchange requests yet.
+          You haven&apos;t made any exchange requests yet.
         </p>
         <Link to="/user/orders">
           <Button data-testid="button-view-orders">View Orders</Button>

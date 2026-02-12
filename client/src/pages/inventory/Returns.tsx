@@ -1,24 +1,4 @@
-import React, { useState, useMemo } from 'react';
-import { useNavigate } from "react-router-dom";
-import {
-  Package,
-  ChevronDown,
-  ChevronUp,
-  Calendar,
-  User,
-  ExternalLink,
-  RotateCcw,
-  ArrowLeftRight,
-} from 'lucide-react';
-import { useAuth } from "@/lib/auth";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { apiRequest } from "@/lib/queryClient";
-import { useToast } from "@/hooks/use-toast";
 import { DataTable } from "@/components/DataTable/DataTable";
-import { useDataTable } from "@/hooks/use-data-table";
-import type { ReturnRequestWithDetails } from "@shared/schema";
-import { itemStatusConfig } from "@/constants/itemStatusConfig";
-import { ColumnDef } from "@tanstack/react-table";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -28,8 +8,25 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { itemStatusConfig } from "@/constants/itemStatusConfig";
+import { useDataTable } from "@/hooks/use-data-table";
+import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/lib/auth";
+import { apiRequest } from "@/lib/queryClient";
+import type { ReturnRequestWithDetails } from "@shared/schema";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { ColumnDef } from "@tanstack/react-table";
+import {
+  ArrowLeftRight,
+  Calendar,
+  ExternalLink,
+  RotateCcw,
+  User
+} from 'lucide-react';
+import { useMemo, useState } from 'react';
+import { useNavigate } from "react-router-dom";
 
 // Return status options
 const returnStatuses = [

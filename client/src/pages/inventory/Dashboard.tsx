@@ -1,8 +1,6 @@
-import { Link } from "react-router-dom";
-import { AlertTriangle, Edit, Truck, ClipboardList } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   Table,
@@ -12,22 +10,16 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { useAuth } from "@/lib/auth";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/lib/auth";
 import type {
-  ProductWithDetails,
   Order,
+  ProductWithDetails,
   StockRequestWithDetails,
 } from "@shared/schema";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { AlertTriangle, ClipboardList, Truck } from "lucide-react";
+import { Link } from "react-router-dom";
 
 export default function InventoryDashboard() {
   const { user } = useAuth();

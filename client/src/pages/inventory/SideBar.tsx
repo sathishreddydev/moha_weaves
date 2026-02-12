@@ -1,10 +1,8 @@
 import { useNavigate, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { useAuth } from "@/lib/auth";
 import { NavItems } from "./NavItems";
 
 export function InventorySidebar() {
-  const { logout } = useAuth();
   const navigate = useNavigate();
   const location = useLocation(); 
 

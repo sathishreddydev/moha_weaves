@@ -616,7 +616,7 @@ export default function InventoryProducts() {
         ),
       },
     ],
-    [selectedRows, products],
+    [selectedRows, products, handleRowSelect, handleSelectAll, navigate],
   );
 
   return (

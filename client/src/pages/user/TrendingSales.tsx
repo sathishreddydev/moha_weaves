@@ -69,7 +69,7 @@ export function TrendingSalesBanner() {
               className="text-muted-foreground
                text-xs"
             >
-              Don't miss out on our exclusive deals
+              Do not miss out on our exclusive deals
             </p>
           </div>
 

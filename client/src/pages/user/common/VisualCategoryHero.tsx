@@ -1,3 +1,4 @@
+import React from "react";
 import { ArrowUpRight, ArrowDown } from "lucide-react";
 import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";

@@ -1,19 +1,18 @@
 // InventoryHeader.tsx
 
-import { LogOut, User } from "lucide-react";
-import { useAuth } from "@/lib/auth";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
-  DropdownMenuTrigger,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
+  DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { useIsMobile } from "@/hooks/use-mobile";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
-import { Menu } from "lucide-react";
+import { useIsMobile } from "@/hooks/use-mobile";
+import { useAuth } from "@/lib/auth";
+import { LogOut, Menu, User } from "lucide-react";
 import { useState } from "react";
 import { InventorySidebar } from "./SideBar";
 

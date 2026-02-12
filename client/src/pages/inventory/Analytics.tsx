@@ -1,6 +1,5 @@
-import { Globe, Store, Package, TrendingUp, TrendingDown, BarChart3, Calendar } from "lucide-react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   Table,
@@ -13,7 +12,7 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAuth } from "@/lib/auth";
 import { useQuery } from "@tanstack/react-query";
-import { format } from "date-fns";
+import { BarChart3, Calendar, Globe, Package, Store, TrendingDown, TrendingUp } from "lucide-react";
 
 interface StockMovementStats {
   totalOnlineCleared: number;

@@ -161,7 +161,7 @@ export default function FAQ() {
 
         {searchTerm && filteredFAQ.length === 0 && (
           <div className="text-center py-12">
-            <p className="text-gray-500">No results found for "{searchTerm}"</p>
+            <p className="text-gray-500">No results found for &quot;{searchTerm}&quot;</p>
             <p className="text-sm text-gray-400 mt-2">Try different keywords or browse the categories below.</p>
           </div>
         )}
@@ -202,7 +202,7 @@ export default function FAQ() {
             <div className="text-center">
               <h3 className="text-xl font-semibold mb-4">Still have questions?</h3>
               <p className="text-gray-600 mb-6">
-                Can't find the answer you're looking for? Our customer support team is here to help.
+                Can&apos;t find the answer you&apos;re looking for? Our customer support team is here to help.
               </p>
               <div className="flex flex-col sm:flex-row gap-4 justify-center">
                 <a href="/contact">

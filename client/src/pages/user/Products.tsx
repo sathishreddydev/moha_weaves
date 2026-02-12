@@ -25,6 +25,126 @@ import NestedCheckbox, {
   getSelectedTree,
 } from "./common/NestedCheckbox";
 
+const FilterSection = ({ title, children }: { title: string; children: React.ReactNode }) => (
+  <div className="space-y-1">
+    <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+      {title}
+    </h3>
+    <div>{children}</div>
+  </div>
+);
+
+const FilterItem: React.FC<FilterItemProps> = ({
+  id,
+  checked,
+  onChange,
+  label,
+}) => (
+  <label
+    htmlFor={id}
+    className="flex items-center gap-3 px-2 py-1.5 cursor-pointer"
+  >
+    <Checkbox id={id} checked={checked} onCheckedChange={onChange} />
+    <span className="text-xs leading-snug">{label}</span>
+  </label>
+);
+
+const FilterContent = ({
+  hasActiveFilters,
+  clearFilters,
+  categoryOptions,
+  selectedCategoryValues,
+  handleCategoryChange,
+  colors,
+  fabrics,
+  filters,
+  updateFilter,
+}: {
+  hasActiveFilters: boolean;
+  clearFilters: () => void;
+  categoryOptions: NestedCheckboxOption[];
+  selectedCategoryValues: Set<string>;
+  handleCategoryChange: (values: Set<string>) => void;
+  colors: any[];
+  fabrics: any[];
+  filters: any;
+  updateFilter: (key: string, value: any, checked?: boolean) => void;
+}) => {
+  return (
+    <div className="space-y-6 pb-8 pt-4">
+      <div className="flex items-center justify-between">
+        <span className="flex items-center gap-1 text-base font-semibold">
+          Filters
+        </span>
+
+        {hasActiveFilters && (
+          <span onClick={clearFilters} className="text-xs cursor-pointer">
+            Reset
+          </span>
+        )}
+      </div>
+
+      <div className="space-y-6">
+        <FilterSection title="Categories">
+          <NestedCheckbox
+            options={categoryOptions}
+            selectedValues={selectedCategoryValues}
+            onChange={handleCategoryChange}
+          />
+        </FilterSection>
+
+        <FilterSection title="Colors">
+          {colors?.map((color) => (
+            <FilterItem
+              key={color.id}
+              id={`color-${color.id}`}
+              checked={filters.color.includes(color.name)}
+              onChange={(checked) =>
+                updateFilter("color", color.name, checked === true)
+              }
+              label={
+                <span className="flex items-center gap-1">
+                  {color.name.charAt(0).toUpperCase() + color.name.slice(1)}
+                  <span
+                    className="h-2 w-5 rounded-lg border"
+                    style={{ backgroundColor: color.hexCode }}
+                  />
+                </span>
+              }
+            />
+          ))}
+        </FilterSection>
+
+        <FilterSection title="Fabrics">
+          {fabrics?.map((fab) => (
+            <FilterItem
+              key={fab.id}
+              id={`fab-${fab.id}`}
+              checked={filters.fabric.includes(fab.name)}
+              onChange={(checked) =>
+                updateFilter("fabric", fab.name, checked === true)
+              }
+              label={fab.name}
+            />
+          ))}
+        </FilterSection>
+
+        <FilterSection title="Price Range">
+          <PriceRangeSlider
+            min={0}
+            max={100000}
+            step={500}
+            value={[filters.priceRange.min, filters.priceRange.max]}
+            onChange={({ min, max }) =>
+              updateFilter("priceRange", { min, max })
+            }
+          />
+        </FilterSection>
+      </div>
+    </div>
+  );
+};
+
 type FilterItemProps = {
   id: string;
   checked: boolean;
@@ -285,7 +405,7 @@ export default function Products() {
         minPrice: filters.priceRange.min,
         maxPrice: filters.priceRange.max,
       };
-      
+
       const response = await apiRequest("POST", "/api/getProducts", apiFilters);
       return response;
     },
@@ -370,110 +490,22 @@ export default function Products() {
     }
   }, []);
 
-  const FilterSection = ({ title, children }: any) => (
-    <div className="space-y-1">
-      <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-        {title}
-      </h3>
-      <div>{children}</div>
-    </div>
-  );
-
-  const FilterItem: React.FC<FilterItemProps> = ({
-    id,
-    checked,
-    onChange,
-    label,
-  }) => (
-    <label
-      htmlFor={id}
-      className="flex items-center gap-3 px-2 py-1.5 cursor-pointer"
-    >
-      <Checkbox id={id} checked={checked} onCheckedChange={onChange} />
-      <span className="text-xs leading-snug">{label}</span>
-    </label>
-  );
-
-  const FilterContent = () => (
-    <div className="space-y-6 pb-8 pt-4">
-      <div className="flex items-center justify-between">
-        <span className="flex items-center gap-1 text-base font-semibold">
-          Filters
-        </span>
-
-        {hasActiveFilters && (
-          <span onClick={clearFilters} className="text-xs cursor-pointer">
-            Reset
-          </span>
-        )}
-      </div>
-
-      <div className="space-y-6">
-        <FilterSection title="Categories">
-          <NestedCheckbox
-            options={categoryOptions}
-            selectedValues={selectedCategoryValues}
-            onChange={handleCategoryChange}
-          />
-        </FilterSection>
-
-        <FilterSection title="Colors">
-          {colors?.map((color) => (
-            <FilterItem
-              key={color.id}
-              id={`color-${color.id}`}
-              checked={filters.color.includes(color.name)}
-              onChange={(checked) =>
-                updateFilter("color", color.name, checked === true)
-              }
-              label={
-                <span className="flex items-center gap-1">
-                  {color.name.charAt(0).toUpperCase() + color.name.slice(1)}
-                  <span
-                    className="h-2 w-5 rounded-lg border"
-                    style={{ backgroundColor: color.hexCode }}
-                  />
-                </span>
-              }
-            />
-          ))}
-        </FilterSection>
-
-        <FilterSection title="Fabrics">
-          {fabrics?.map((fab) => (
-            <FilterItem
-              key={fab.id}
-              id={`fab-${fab.id}`}
-              checked={filters.fabric.includes(fab.name)}
-              onChange={(checked) =>
-                updateFilter("fabric", fab.name, checked === true)
-              }
-              label={fab.name}
-            />
-          ))}
-        </FilterSection>
-
-        <FilterSection title="Price Range">
-          <PriceRangeSlider
-            min={0}
-            max={100000}
-            step={500}
-            value={[filters.priceRange.min, filters.priceRange.max]}
-            onChange={({ min, max }) =>
-              updateFilter("priceRange", { min, max })
-            }
-          />
-        </FilterSection>
-      </div>
-    </div>
-  );
-
   return (
     <div className="max-w-7xl mx-auto">
       <div className="flex">
         <aside className="hidden lg:block w-64 flex-shrink-0 pb-8 pl-6 border-r border-gray-200">
           <div className="sticky top-16 pr-4 pt-4">
-            <FilterContent />
+            <FilterContent
+              hasActiveFilters={hasActiveFilters}
+              clearFilters={clearFilters}
+              categoryOptions={categoryOptions}
+              selectedCategoryValues={selectedCategoryValues}
+              handleCategoryChange={handleCategoryChange}
+              colors={colors}
+              fabrics={fabrics}
+              filters={filters}
+              updateFilter={updateFilter}
+            />
           </div>
         </aside>
 
@@ -558,7 +590,17 @@ export default function Products() {
             open={mobileFiltersOpen}
             onOpenChange={setMobileFiltersOpen}
           >
-            <FilterContent />
+            <FilterContent
+              hasActiveFilters={hasActiveFilters}
+              clearFilters={clearFilters}
+              categoryOptions={categoryOptions}
+              selectedCategoryValues={selectedCategoryValues}
+              handleCategoryChange={handleCategoryChange}
+              colors={colors}
+              fabrics={fabrics}
+              filters={filters}
+              updateFilter={updateFilter}
+            />
           </ReusableDrawer>
           {isLoading ? (
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 px-6">
