@@ -1,3 +1,4 @@
+import React from "react";
 import { useAddressStore } from "@/components/Store/useAddressesStore";
 import { useCartStore } from "@/components/Store/useCartStore";
 import { Badge } from "@/components/ui/badge";
@@ -156,7 +157,6 @@ export default function Checkout() {
       return;
     }
 
-    let pincodeData;
     try {
       setCheckingPincode(true);
       const pincodeData = await apiRequest("GET", `/api/pincodes/${pincode}/check`);
@@ -190,7 +190,9 @@ export default function Checkout() {
         city: "",
         pincode: "",
       });
-    } catch (err: any) {}
+    } catch {
+      //
+    }
   };
 
   const openRazorpayCheckout = (params: {
@@ -243,7 +245,7 @@ export default function Checkout() {
 
     const rzp = new (window as any).Razorpay(options);
 
-    rzp.on("payment.failed", function (response: any) {
+    rzp.on("payment.failed", function () {
       toast({
         title: "Payment Failed",
         description: "Transaction was cancelled or failed",

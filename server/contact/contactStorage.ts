@@ -2,9 +2,7 @@ import { desc, eq } from "drizzle-orm";
 import { contactMessages, type ContactMessage, type InsertContactMessage } from "../../shared/schema";
 import { db } from "../db";
 
-export interface ContactMessageWithDetails extends ContactMessage {
-  //
-}
+
 
 export class ContactStorage {
   // Create a new contact message
@@ -27,7 +25,7 @@ export class ContactStorage {
   }
 
   // Get all contact messages (for admin)
-  async getAllContactMessages(): Promise<ContactMessageWithDetails[]> {
+  async getAllContactMessages(): Promise<any[]> {
     try {
       const messages = await db
         .select()
@@ -88,7 +86,7 @@ export class ContactStorage {
   }
 
   // Get contact messages by status
-  async getContactMessagesByStatus(status: string): Promise<ContactMessageWithDetails[]> {
+  async getContactMessagesByStatus(status: string): Promise<any[]> {
     try {
       const messages = await db
         .select()

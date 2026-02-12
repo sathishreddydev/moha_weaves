@@ -1,7 +1,7 @@
-import "dotenv/config";
-import express, { type Request, Response, NextFunction } from "express";
-import { createServer } from "http";
 import cookieParser from "cookie-parser";
+import "dotenv/config";
+import express, { type Request, Response } from "express";
+import { createServer } from "http";
 import { registerRoutes } from "./routes";
 import { serveStatic } from "./static";
 
@@ -75,7 +75,7 @@ async function bootstrap() {
   await registerRoutes(httpServer, app);
 
   app.use(
-    (err: any, _req: Request, res: Response, _next: NextFunction) => {
+    (err: any, _req: Request, res: Response) => {
       const status = err?.status || err?.statusCode || 500;
       const message = err?.message || "Internal Server Error";
 

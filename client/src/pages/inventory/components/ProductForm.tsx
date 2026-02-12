@@ -91,7 +91,7 @@ export const ProductForm = ({
 
   // Variant management functions
   const getSelectedCategory = () => {
-    return categories.find(cat => cat.id === formData.categoryId);
+    return categories.find((cat) => cat.id === formData.categoryId);
   };
 
   const getCategorySizes = () => {
@@ -103,86 +103,97 @@ export const ProductForm = ({
     if (enabled && getCategorySizes().length === 0) {
       toast({
         title: "Cannot Enable Variants",
-        description: "No sizes available for this category. Please select a category with sizes first.",
-        variant: "destructive"
+        description:
+          "No sizes available for this category. Please select a category with sizes first.",
+        variant: "destructive",
       });
       return;
     }
 
-    setFormData(prev => ({
+    setFormData((prev) => ({
       ...prev,
       hasVariants: enabled,
-      variants: enabled 
-        ? (editingProduct && prev.variants.length > 0 
-            ? prev.variants // Keep existing variants when editing
-            : getCategorySizes().map(size => ({
-                sku: '', // Backend will generate
-                size,
-                stockQuantity: 0,
-                onlineStock: 0,
-                storeAllocations: storeAllocations.map(store => ({
-                  storeId: store.storeId,
-                  storeName: store.storeName,
-                  quantity: 0
-                })),
-                isActive: true
-              }))
-          )
-        : []
+      variants: enabled
+        ? editingProduct && prev.variants.length > 0
+          ? prev.variants // Keep existing variants when editing
+          : getCategorySizes().map((size) => ({
+              sku: "", // Backend will generate
+              size,
+              stockQuantity: 0,
+              onlineStock: 0,
+              storeAllocations: storeAllocations.map((store) => ({
+                storeId: store.storeId,
+                storeName: store.storeName,
+                quantity: 0,
+              })),
+              isActive: true,
+            }))
+        : [],
     }));
   };
 
-  const updateVariant = (index: number, field: keyof ProductVariant, value: any) => {
-    setFormData(prev => ({
+  const updateVariant = (
+    index: number,
+    field: keyof ProductVariant,
+    value: any,
+  ) => {
+    setFormData((prev) => ({
       ...prev,
-      variants: prev.variants.map((variant, i) => 
-        i === index ? { ...variant, [field]: value } : variant
-      )
+      variants: prev.variants.map((variant, i) =>
+        i === index ? { ...variant, [field]: value } : variant,
+      ),
     }));
   };
 
-  const updateVariantStoreAllocation = (variantIndex: number, storeId: string, quantity: number) => {
-    setFormData(prev => ({
+  const updateVariantStoreAllocation = (
+    variantIndex: number,
+    storeId: string,
+    quantity: number,
+  ) => {
+    setFormData((prev) => ({
       ...prev,
-      variants: prev.variants.map((variant, i) => 
-        i === variantIndex 
+      variants: prev.variants.map((variant, i) =>
+        i === variantIndex
           ? {
               ...variant,
-              storeAllocations: variant.storeAllocations.map(alloc =>
-                alloc.storeId === storeId 
+              storeAllocations: variant.storeAllocations.map((alloc) =>
+                alloc.storeId === storeId
                   ? { ...alloc, quantity: Math.max(0, quantity) }
-                  : alloc
-              )
+                  : alloc,
+              ),
             }
-          : variant
-      )
+          : variant,
+      ),
     }));
   };
 
   const addVariant = (size: string) => {
-    const existingVariant = formData.variants.find(v => v.size === size);
+    const existingVariant = formData.variants.find((v) => v.size === size);
     if (!existingVariant) {
-      setFormData(prev => ({
+      setFormData((prev) => ({
         ...prev,
-        variants: [...prev.variants, {
-          sku: '', // Backend will generate
-          size,
-          stockQuantity: 0,
-          onlineStock: 0,
-          storeAllocations: storeAllocations.map(store => ({
-            ...store,
-            quantity: 0
-          })),
-          isActive: true
-        }]
+        variants: [
+          ...prev.variants,
+          {
+            sku: "", // Backend will generate
+            size,
+            stockQuantity: 0,
+            onlineStock: 0,
+            storeAllocations: storeAllocations.map((store) => ({
+              ...store,
+              quantity: 0,
+            })),
+            isActive: true,
+          },
+        ],
       }));
     }
   };
 
   const removeVariant = (index: number) => {
-    setFormData(prev => ({
+    setFormData((prev) => ({
       ...prev,
-      variants: prev.variants.filter((_, i) => i !== index)
+      variants: prev.variants.filter((_, i) => i !== index),
     }));
   };
 
@@ -192,66 +203,44 @@ export const ProductForm = ({
       return {
         totalStock: formData.totalStock,
         onlineStock: formData.onlineStock,
-        storeAllocations: storeAllocations
+        storeAllocations: storeAllocations,
       };
     }
 
     // Calculate from variants
-    const totalStock = formData.variants.reduce((sum, v) => sum + v.stockQuantity, 0);
-    const onlineStock = formData.variants.reduce((sum, v) => sum + v.onlineStock, 0);
-    
+    const totalStock = formData.variants.reduce(
+      (sum, v) => sum + v.stockQuantity,
+      0,
+    );
+    const onlineStock = formData.variants.reduce(
+      (sum, v) => sum + v.onlineStock,
+      0,
+    );
+
     // Aggregate store allocations across variants
     const storeAllocationsMap = new Map<string, number>();
-    formData.variants.forEach(variant => {
-      variant.storeAllocations.forEach(alloc => {
+    formData.variants.forEach((variant) => {
+      variant.storeAllocations.forEach((alloc) => {
         const current = storeAllocationsMap.get(alloc.storeId) || 0;
         storeAllocationsMap.set(alloc.storeId, current + alloc.quantity);
       });
     });
-    
-    const aggregatedStoreAllocations: StoreAllocation[] = Array.from(storeAllocationsMap.entries()).map(([storeId, quantity]) => ({
+
+    const aggregatedStoreAllocations: StoreAllocation[] = Array.from(
+      storeAllocationsMap.entries(),
+    ).map(([storeId, quantity]) => ({
       storeId,
-      storeName: storeAllocations.find((s: StoreAllocation) => s.storeId === storeId)?.storeName || '',
-      quantity
+      storeName:
+        storeAllocations.find((s: StoreAllocation) => s.storeId === storeId)
+          ?.storeName || "",
+      quantity,
     }));
 
-    return { totalStock, onlineStock, storeAllocations: aggregatedStoreAllocations };
-  };
-
-  const validateVariantStocks = (): boolean => {
-    if (!formData.hasVariants) return true;
-    
-    const issues: string[] = [];
-    
-    formData.variants.forEach((variant) => {
-        const variantStoreTotal = variant.storeAllocations.reduce((sum, a) => sum + a.quantity, 0);
-        const variantExpectedTotal = variant.stockQuantity;
-        const variantOnlinePlusStore = variant.onlineStock + variantStoreTotal;
-        
-        // Check if store allocations + online stock equals total stock
-        if (variantOnlinePlusStore !== variantExpectedTotal) {
-            issues.push(`Size ${variant.size}: Online (${variant.onlineStock}) + Store allocations (${variantStoreTotal}) = ${variantOnlinePlusStore} but Total stock is ${variantExpectedTotal}`);
-        }
-
-        // Check distribution channel constraints
-        if (formData.distributionChannel === "online" && variantStoreTotal > 0) {
-            issues.push(`Size ${variant.size}: Distribution channel is 'Online Only' but has store allocations (${variantStoreTotal})`);
-        }
-        if (formData.distributionChannel === "shop" && variant.onlineStock > 0) {
-            issues.push(`Size ${variant.size}: Distribution channel is 'Shop Only' but has online stock (${variant.onlineStock})`);
-        }
-    });
-    
-    if (issues.length > 0) {
-        toast({
-            title: "Stock Validation Error",
-            description: issues.join(", "),
-            variant: "destructive"
-        });
-        return false;
-    }
-    
-    return true;
+    return {
+      totalStock,
+      onlineStock,
+      storeAllocations: aggregatedStoreAllocations,
+    };
   };
 
   const totalStoreAllocated = storeAllocations.reduce(
@@ -498,7 +487,6 @@ export const ProductForm = ({
                   )}
                 </div>
               )}
-            
             </div>
           )}
 
@@ -508,7 +496,7 @@ export const ProductForm = ({
               <h3 className="text-base font-semibold border-b pb-2">
                 Product Variants (Sizes)
               </h3>
-              
+
               {/* Enable Variants Toggle */}
               <div className="flex items-center gap-3">
                 <Switch
@@ -526,17 +514,29 @@ export const ProductForm = ({
                 <div className="space-y-4">
                   {/* Available Sizes */}
                   <div>
-                    <Label className="text-sm font-medium">Available Sizes</Label>
+                    <Label className="text-sm font-medium">
+                      Available Sizes
+                    </Label>
                     <div className="flex flex-wrap gap-2 mt-2">
                       {getCategorySizes().map((size) => {
-                        const hasVariant = formData.variants.some(v => v.size === size);
+                        const hasVariant = formData.variants.some(
+                          (v) => v.size === size,
+                        );
                         return (
                           <Button
                             key={size}
                             type="button"
                             variant={hasVariant ? "default" : "outline"}
                             size="sm"
-                            onClick={() => hasVariant ? removeVariant(formData.variants.findIndex(v => v.size === size)) : addVariant(size)}
+                            onClick={() =>
+                              hasVariant
+                                ? removeVariant(
+                                    formData.variants.findIndex(
+                                      (v) => v.size === size,
+                                    ),
+                                  )
+                                : addVariant(size)
+                            }
                           >
                             {size}
                             {hasVariant && <X className="h-3 w-3 ml-1" />}
@@ -549,15 +549,24 @@ export const ProductForm = ({
                   {/* Variants List */}
                   {formData.variants.length > 0 && (
                     <div className="space-y-3">
-                      <Label className="text-sm font-medium">Variant Details</Label>
+                      <Label className="text-sm font-medium">
+                        Variant Details
+                      </Label>
                       {formData.variants.map((variant, index) => (
-                        <div key={index} className="border rounded-lg p-4 space-y-3">
+                        <div
+                          key={index}
+                          className="border rounded-lg p-4 space-y-3"
+                        >
                           <div className="flex items-center justify-between">
-                            <h4 className="font-medium">Size: {variant.size}</h4>
+                            <h4 className="font-medium">
+                              Size: {variant.size}
+                            </h4>
                             <div className="flex items-center gap-2">
                               <Switch
                                 checked={variant.isActive}
-                                onCheckedChange={(checked) => updateVariant(index, 'isActive', checked)}
+                                onCheckedChange={(checked) =>
+                                  updateVariant(index, "isActive", checked)
+                                }
                               />
                               <Label className="text-xs">Active</Label>
                             </div>
@@ -567,8 +576,10 @@ export const ProductForm = ({
                             <div>
                               <Label>SKU</Label>
                               <Input
-                                value={variant.sku || 'Auto-generated'}
-                                onChange={(e) => updateVariant(index, 'sku', e.target.value)}
+                                value={variant.sku || "Auto-generated"}
+                                onChange={(e) =>
+                                  updateVariant(index, "sku", e.target.value)
+                                }
                                 placeholder="Auto-generated by backend"
                                 disabled
                                 className="bg-muted"
@@ -578,14 +589,22 @@ export const ProductForm = ({
 
                           {/* Variant Stock Management */}
                           <div className="space-y-3">
-                            <Label className="text-sm font-medium">Stock Management</Label>
+                            <Label className="text-sm font-medium">
+                              Stock Management
+                            </Label>
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                               <div>
                                 <Label>Total Stock</Label>
                                 <Input
                                   type="number"
                                   value={variant.stockQuantity}
-                                  onChange={(e) => updateVariant(index, 'stockQuantity', parseInt(e.target.value) || 0)}
+                                  onChange={(e) =>
+                                    updateVariant(
+                                      index,
+                                      "stockQuantity",
+                                      parseInt(e.target.value) || 0,
+                                    )
+                                  }
                                 />
                               </div>
                               <div>
@@ -593,28 +612,48 @@ export const ProductForm = ({
                                 <Input
                                   type="number"
                                   value={variant.onlineStock}
-                                  onChange={(e) => updateVariant(index, 'onlineStock', parseInt(e.target.value) || 0)}
+                                  onChange={(e) =>
+                                    updateVariant(
+                                      index,
+                                      "onlineStock",
+                                      parseInt(e.target.value) || 0,
+                                    )
+                                  }
                                 />
                               </div>
                             </div>
 
                             {/* Variant Store Allocations */}
-                            {formData.distributionChannel !== "online" && variant.storeAllocations && (
-                              <div className="space-y-2">
-                                <Label className="text-sm font-medium">Store Allocations</Label>
-                                {variant.storeAllocations.map((alloc) => (
-                                  <div key={alloc.storeId} className="flex items-center justify-between p-2 bg-gray-50 rounded">
-                                    <span className="text-sm">{alloc.storeName}</span>
-                                    <Input
-                                      type="number"
-                                      className="w-20"
-                                      value={alloc.quantity}
-                                      onChange={(e) => updateVariantStoreAllocation(index, alloc.storeId, parseInt(e.target.value) || 0)}
-                                    />
-                                  </div>
-                                ))}
-                              </div>
-                            )}
+                            {formData.distributionChannel !== "online" &&
+                              variant.storeAllocations && (
+                                <div className="space-y-2">
+                                  <Label className="text-sm font-medium">
+                                    Store Allocations
+                                  </Label>
+                                  {variant.storeAllocations.map((alloc) => (
+                                    <div
+                                      key={alloc.storeId}
+                                      className="flex items-center justify-between p-2 bg-gray-50 rounded"
+                                    >
+                                      <span className="text-sm">
+                                        {alloc.storeName}
+                                      </span>
+                                      <Input
+                                        type="number"
+                                        className="w-20"
+                                        value={alloc.quantity}
+                                        onChange={(e) =>
+                                          updateVariantStoreAllocation(
+                                            index,
+                                            alloc.storeId,
+                                            parseInt(e.target.value) || 0,
+                                          )
+                                        }
+                                      />
+                                    </div>
+                                  ))}
+                                </div>
+                              )}
                           </div>
                         </div>
                       ))}
@@ -628,31 +667,49 @@ export const ProductForm = ({
           {/* Stock Summary for Variants */}
           {formData.hasVariants && (
             <div className="space-y-4 border p-4 rounded-lg bg-blue-50">
-              <h3 className="text-base font-semibold border-b pb-2">Stock Summary (Calculated)</h3>
+              <h3 className="text-base font-semibold border-b pb-2">
+                Stock Summary (Calculated)
+              </h3>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div>
                   <Label className="text-sm font-medium">Total Stock</Label>
-                  <p className="text-lg font-bold">{calculateStockTotals().totalStock}</p>
+                  <p className="text-lg font-bold">
+                    {calculateStockTotals().totalStock}
+                  </p>
                 </div>
                 <div>
                   <Label className="text-sm font-medium">Online Stock</Label>
-                  <p className="text-lg font-bold">{calculateStockTotals().onlineStock}</p>
+                  <p className="text-lg font-bold">
+                    {calculateStockTotals().onlineStock}
+                  </p>
                 </div>
                 <div>
                   <Label className="text-sm font-medium">Store Stock</Label>
                   <p className="text-lg font-bold">
-                    {calculateStockTotals().storeAllocations.reduce((sum, a) => sum + a.quantity, 0)}
+                    {calculateStockTotals().storeAllocations.reduce(
+                      (sum, a) => sum + a.quantity,
+                      0,
+                    )}
                   </p>
                 </div>
               </div>
               {/* Store-wise breakdown */}
               <div className="mt-4">
-                <Label className="text-sm font-medium">Store-wise Breakdown</Label>
+                <Label className="text-sm font-medium">
+                  Store-wise Breakdown
+                </Label>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mt-2">
                   {calculateStockTotals().storeAllocations.map((alloc) => (
-                    <div key={alloc.storeId} className="flex justify-between p-2 bg-white rounded border">
-                      <span className="text-sm font-medium">{alloc.storeName}</span>
-                      <span className="text-sm font-bold">{alloc.quantity}</span>
+                    <div
+                      key={alloc.storeId}
+                      className="flex justify-between p-2 bg-white rounded border"
+                    >
+                      <span className="text-sm font-medium">
+                        {alloc.storeName}
+                      </span>
+                      <span className="text-sm font-bold">
+                        {alloc.quantity}
+                      </span>
                     </div>
                   ))}
                 </div>
@@ -874,41 +931,52 @@ export const ProductForm = ({
                     value={formData.categoryId}
                     onValueChange={(value) => {
                       if (value !== "") {
-                        const newCategory = categories.find(cat => cat.id === value);
+                        const newCategory = categories.find(
+                          (cat) => cat.id === value,
+                        );
                         const newSizes = newCategory?.sizes || [];
-                        
+
                         setFormData((prev) => {
                           const updatedData = { ...prev, categoryId: value };
-                          
+
                           // Handle variants when category changes
                           if (prev.hasVariants) {
                             if (newSizes.length === 0) {
                               // New category has no sizes, disable variants
                               updatedData.hasVariants = false;
                               updatedData.variants = [];
-                            } else if (editingProduct && prev.variants.length > 0) {
+                            } else if (
+                              editingProduct &&
+                              prev.variants.length > 0
+                            ) {
                               // Editing: keep existing variants but update sizes if needed
-                              updatedData.variants = prev.variants.map(variant => ({
-                                ...variant,
-                                size: newSizes.includes(variant.size) ? variant.size : newSizes[0] // Fallback to first available size
-                              }));
+                              updatedData.variants = prev.variants.map(
+                                (variant) => ({
+                                  ...variant,
+                                  size: newSizes.includes(variant.size)
+                                    ? variant.size
+                                    : newSizes[0], // Fallback to first available size
+                                }),
+                              );
                             } else {
                               // Creating new variants
-                              updatedData.variants = newSizes.map(size => ({
-                                sku: '',
+                              updatedData.variants = newSizes.map((size) => ({
+                                sku: "",
                                 size,
                                 stockQuantity: 0,
                                 onlineStock: 0,
-                                storeAllocations: storeAllocations.map(store => ({
-                                  storeId: store.storeId,
-                                  storeName: store.storeName,
-                                  quantity: 0
-                                })),
-                                isActive: true
+                                storeAllocations: storeAllocations.map(
+                                  (store) => ({
+                                    storeId: store.storeId,
+                                    storeName: store.storeName,
+                                    quantity: 0,
+                                  }),
+                                ),
+                                isActive: true,
                               }));
                             }
                           }
-                          
+
                           return updatedData;
                         });
                       }
@@ -1028,12 +1096,12 @@ export const ProductForm = ({
                   <Label htmlFor="channel">Distribution Channel</Label>
                   <Select
                     value={formData.distributionChannel}
-                    onValueChange={(value: "shop" | "online" | "both") =>{
+                    onValueChange={(value: "shop" | "online" | "both") => {
                       setFormData((prev) => ({
                         ...prev,
                         distributionChannel: value,
-                      }))}
-                    }
+                      }));
+                    }}
                   >
                     <SelectTrigger
                       data-testid="select-channel"

@@ -13,10 +13,9 @@ import { Textarea } from "@/components/ui/textarea";
 import { itemStatusConfig } from "@/constants/itemStatusConfig";
 import { useDataTable } from "@/hooks/use-data-table";
 import { useToast } from "@/hooks/use-toast";
-import { useAuth } from "@/lib/auth";
 import { apiRequest } from "@/lib/queryClient";
 import type { OnlineExchangeWithDetails } from "@shared/schema";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation } from "@tanstack/react-query";
 import { ColumnDef } from "@tanstack/react-table";
 import {
   ArrowLeft,
@@ -28,21 +27,7 @@ import {
 import { useMemo, useState } from 'react';
 import { useNavigate } from "react-router-dom";
 
-// Exchange status options
-const exchangeStatuses = [
-  "exchange_requested",
-  "exchange_approved",
-  "exchange_processing", 
-  "exchange_pickup_scheduled",
-  "exchange_picked_up",
-  "exchange_in_transit",
-  "exchange_received",
-  "exchange_inspected",
-  "exchange_shipped",
-  "exchange_delivered",
-  "exchange_completed",
-  "exchange_cancelled",
-];
+
 
 const getExchangeStatusFlow = (currentStatus: string) => {
   const flow: Record<string, string[]> = {
@@ -99,9 +84,7 @@ const StatusBadge = ({ status }: StatusBadgeProps) => {
 
 export default function InventoryExchanges() {
   const navigate = useNavigate();
-  const { user } = useAuth();
   const { toast } = useToast();
-  const queryClient = useQueryClient();
   
   const [updateDialog, setUpdateDialog] = useState<{
     open: boolean;

@@ -85,9 +85,6 @@ export default function InventoryAnalytics() {
     enabled: isInventoryUser,
   });
 
-  const { data: _storeSales = [] } = useQuery({
-    queryKey: ["/api/inventory/store-sales"],
-  });
 
   // Advanced Analytics Queries
   const { data: turnoverResponse = { data: [], summary: {}, filters: {} }, isLoading: turnoverLoading } = useQuery<{data: InventoryTurnover[], summary: any, filters: any}>({
@@ -110,29 +107,6 @@ export default function InventoryAnalytics() {
   const abcData = abcResponse.data || [];
   const seasonalData = seasonalResponse.data || [];
 
-  // Aggregate top products by quantity cleared
-  const getTopProducts = (movements: any[], limit = 10) => {
-    const productMap = new Map<string, { name: string; quantity: number }>();
-
-    movements.forEach((movement) => {
-      const existing = productMap.get(movement.productId);
-      if (existing) {
-        existing.quantity += movement.quantity;
-      } else {
-        productMap.set(movement.productId, {
-          name: movement.productName,
-          quantity: movement.quantity,
-        });
-      }
-    });
-
-    return Array.from(productMap.entries())
-      .map(([id, data]) => ({ id, ...data }))
-      .sort((a, b) => b.quantity - a.quantity)
-      .slice(0, limit);
-  };
-
-  // Aggregate movements by store
   const getStoreStats = (movements: any[]) => {
     const storeMap = new Map<string, { name: string; quantity: number }>();
 

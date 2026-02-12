@@ -1,14 +1,13 @@
-import { useState } from "react";
-import { Star } from "lucide-react";
+import { AdaptiveModal } from "@/components/common/AdaptiveModal";
 import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/lib/auth";
-import { useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
-import { AdaptiveModal } from "@/components/common/AdaptiveModal";
 import { ProductWithDetails } from "@shared/schema";
+import { useMutation } from "@tanstack/react-query";
+import { Star } from "lucide-react";
+import { useState } from "react";
 
 interface ReviewsProps {
   product: ProductWithDetails;

@@ -33,20 +33,15 @@ import {
 } from "@/components/ui/table";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
-import { useAuth } from "@/lib/auth";
 import { apiRequest } from "@/lib/queryClient";
 import type { Fabric } from "@shared/schema";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Edit, Plus, Trash2 } from "lucide-react";
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
 
 export default function AdminFabrics() {
-  const navigate = useNavigate();
-  const { user, logout } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  const [sidebarOpen, setSidebarOpen] = useState(false);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [fabricToDelete, setFabricToDelete] = useState<Fabric | null>(null);
@@ -124,10 +119,6 @@ export default function AdminFabrics() {
     },
   });
 
-  const handleLogout = async () => {
-    await logout();
-    navigate("/admin/login");
-  };
 
   const handleOpenCreate = () => {
     setEditingFabric(null);

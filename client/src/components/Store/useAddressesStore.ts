@@ -36,7 +36,7 @@ interface AddressStore {
   checkPincode: (pincode: string) => Promise<void>;
 }
 
-export const useAddressStore = create<AddressStore>((set, get) => ({
+export const useAddressStore = create<AddressStore>((set) => ({
   addresses: [],
 
   fetchLoading: false,

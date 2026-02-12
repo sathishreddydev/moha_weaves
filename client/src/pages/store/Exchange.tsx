@@ -85,7 +85,7 @@ interface SaleItemWithAvailable {
   };
   availableQuantity: number;
 }
-export const exchangeReasons = [
+const exchangeReasons = [
   { value: "defective", label: "Product is defective" },
   { value: "wrong_item", label: "Received wrong item" },
   { value: "not_as_described", label: "Not as described" },

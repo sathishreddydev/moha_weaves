@@ -11,7 +11,7 @@ import { useAuth } from "@/lib/auth";
 import { apiRequest } from "@/lib/queryClient";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { AlertTriangle, Loader2, Package } from "lucide-react";
-import { useEffect, useState } from "react";
+import React,{ useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 
 const damageSources = [

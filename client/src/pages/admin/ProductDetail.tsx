@@ -13,7 +13,7 @@ import {
   Tag,
   TrendingUp
 } from "lucide-react";
-import { Link, useNavigate, useParams } from "react-router-dom";
+import { Link, useParams } from "react-router-dom";
 
 const formatPrice = (price: string | number) => {
   const numPrice = typeof price === "string" ? parseFloat(price) : price;
@@ -26,7 +26,6 @@ const formatPrice = (price: string | number) => {
 
 export default function AdminProductDetail() {
   const { id } = useParams();
-  const navigate = useNavigate();
 
   const { data: product, isLoading } = useQuery<ProductWithDetails>({
     queryKey: ["/api/admin/products", id],

@@ -1,26 +1,4 @@
-import { Link, useNavigate } from "react-router-dom";
-import {
-  Heart,
-  ShoppingBag,
-  User,
-  Menu,
-  Search,
-  X,
-  LogOut,
-  LayoutDashboard,
-  MapPin,
-  Package,
-  RotateCcw,
-} from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Separator } from "@/components/ui/separator";
-import {
-  Sheet,
-  SheetContent,
-  SheetTrigger,
-  SheetClose,
-} from "@/components/ui/sheet";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -28,11 +6,28 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  Sheet,
+  SheetClose,
+  SheetContent,
+  SheetTrigger,
+} from "@/components/ui/sheet";
 import { useAuth } from "@/lib/auth";
+import {
+  Heart,
+  LayoutDashboard,
+  LogOut,
+  MapPin,
+  Menu,
+  Package,
+  RotateCcw,
+  ShoppingBag,
+  User
+} from "lucide-react";
 import { useEffect, useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
 import { useCartStore } from "../Store/useCartStore";
 import { useWishlistStore } from "../Store/useWishlistStore";
-import { TextField } from "../ui/TextField";
 
 const navLinks = [
   { href: "/", label: "Home" },

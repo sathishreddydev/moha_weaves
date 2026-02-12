@@ -23,55 +23,25 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
-import { useAuth } from "@/lib/auth";
 import { apiRequest } from "@/lib/queryClient";
 import type { Category, Subcategory } from "@shared/schema";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ColumnDef } from "@tanstack/react-table";
 import {
-  Building2,
   Edit,
-  LayoutDashboard,
-  Package,
-  Palette,
   Plus,
-  Settings,
-  Shirt,
-  ShoppingCart,
-  Star,
   Tags,
-  Ticket,
   Trash2,
-  Upload,
-  UserCog,
-  Users
+  Upload
 } from "lucide-react";
-import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import React, { useState } from 'react';
 
 const PREDEFINED_SIZES = ["XS", "S", "M", "L", "XL", "2XL", "3XL"];
 
-const navItems = [
-  { icon: LayoutDashboard, label: "Dashboard", href: "/admin/dashboard" },
-  { icon: Package, label: "products", href: "/admin/products" },
-  { icon: Tags, label: "Categories", href: "/admin/categories" },
-  { icon: Palette, label: "Colors", href: "/admin/colors" },
-  { icon: Shirt, label: "Fabrics", href: "/admin/fabrics" },
-  { icon: Users, label: "Users", href: "/admin/users" },
-  { icon: UserCog, label: "Staff", href: "/admin/staff" },
-  { icon: Building2, label: "Stores", href: "/admin/stores" },
-  { icon: ShoppingCart, label: "Orders", href: "/admin/orders" },
-  { icon: Ticket, label: "Coupons", href: "/admin/coupons" },
-  { icon: Star, label: "Reviews", href: "/admin/reviews" },
-  { icon: Settings, label: "Settings", href: "/admin/settings" },
-];
 
 export default function AdminCategories() {
-  const navigate = useNavigate();
-  const { user, logout } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  const [sidebarOpen, setSidebarOpen] = useState(false);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [categoryToDelete, setCategoryToDelete] = useState<Category | null>(null);
@@ -217,11 +187,6 @@ export default function AdminCategories() {
       });
     },
   });
-
-  const handleLogout = async () => {
-    await logout();
-    navigate("/admin/login");
-  };
 
   const handleOpenCreate = () => {
     setEditingCategory(null);

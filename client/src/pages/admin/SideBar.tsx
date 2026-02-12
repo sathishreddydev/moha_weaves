@@ -1,10 +1,8 @@
 import { Button } from "@/components/ui/button";
-import { useAuth } from "@/lib/auth";
 import { useLocation, useNavigate } from "react-router-dom";
 import { AdminNavItems } from "./NavItems";
 
 export function AdminSidebar() {
-  const { logout } = useAuth();
   const navigate = useNavigate();
   const location = useLocation(); 
 

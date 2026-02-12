@@ -28,7 +28,7 @@ export const useWishlistStore = create<WishlistState>((set, get) => ({
     try {
       const data = await apiRequest("GET", "/api/user/wishlist");
       set({ wishlist: data.wishlist, count: data.count });
-    } catch (err) {
+    } catch  {
       toast({
         title: "Error",
         description: "Failed to fetch wishlist.",
@@ -45,7 +45,7 @@ export const useWishlistStore = create<WishlistState>((set, get) => ({
       const data = await apiRequest("POST", "/api/user/wishlist", { productId });
       set({ wishlist: data.wishlist, count: data.count });
       toast({ title: "Added", description: "Item added to wishlist." });
-    } catch (err) {
+    } catch  {
       toast({
         title: "Error",
         description: "Failed to add item.",
@@ -69,7 +69,7 @@ export const useWishlistStore = create<WishlistState>((set, get) => ({
         })
       );
       toast({ title: "Removed", description: "Item removed from wishlist." });
-    } catch (err) {
+    } catch  {
       toast({
         title: "Error",
         description: "Failed to remove item.",

@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from "react";
+import { AnimatePresence, motion } from "framer-motion";
 import { ChevronLeft, ChevronRight } from "lucide-react";
-import { motion, AnimatePresence } from "framer-motion";
+import { useState } from "react";
 
 const sizes = ["w-10 h-15", "w-20 h-25", "w-64 h-80"];
 interface Iprops {

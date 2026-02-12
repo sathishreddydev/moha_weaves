@@ -39,7 +39,6 @@ import type { SaleWithDetails } from "@shared/schema";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Calendar, DollarSign, Edit, Percent, Plus, Tag, Trash2, Zap } from "lucide-react";
 import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
 
 interface SaleFormData {
   name: string;
@@ -60,7 +59,6 @@ interface SaleFormData {
 }
 
 export default function AdminSales() {
-  const navigate = useNavigate();
   const { user } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();

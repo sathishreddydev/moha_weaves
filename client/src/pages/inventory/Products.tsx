@@ -409,7 +409,7 @@ export default function InventoryProducts() {
     () => [
       {
         id: "select",
-        header: ({ table }) => {
+        header: () => {
           const allOnPage = products.map((s) => s.id);
           const allSelected =
             allOnPage.length > 0 &&

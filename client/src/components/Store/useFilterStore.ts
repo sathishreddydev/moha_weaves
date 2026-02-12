@@ -1,7 +1,7 @@
-import { create } from "zustand";
-import { produce } from "immer";
-import { Category, Color, Fabric, Subcategory, CategoryWithSubcategories } from "@shared/schema";
 import { apiRequest } from "@/lib/queryClient";
+import { CategoryWithSubcategories, Color, Fabric } from "@shared/schema";
+import { produce } from "immer";
+import { create } from "zustand";
 
 type FilterState = {
   categories: CategoryWithSubcategories[];

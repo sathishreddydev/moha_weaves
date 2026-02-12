@@ -1,4 +1,3 @@
-import React from "react";
 import { DataTable } from "@/components/DataTable/DataTable";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -16,7 +15,7 @@ import {
   Trash2,
   X
 } from "lucide-react";
-import { useEffect, useState } from "react";
+import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useStoreCart } from "./Hook/cartStore";
 
@@ -94,10 +93,7 @@ export default function Cart() {
 
   const [discount, setDiscount] = useState<Discount | null>(null);
   const [couponCode, setCouponCode] = useState("");
-  const [taxRules] = useState<TaxRule[]>([
-    { name: "GST", rate: 18, type: "percentage" },
-    { name: "Service Charge", rate: 10, type: "percentage" },
-  ]);
+
   const [paymentMode, setPaymentMode] = useState<"cash" | "card" | "upi">(
     "cash",
   );
@@ -185,14 +181,6 @@ export default function Cart() {
     }
   };
 
-  const removeDiscount = () => {
-    setDiscount(null);
-    toast({
-      title: "Discount Removed",
-      description: "Discount has been removed from cart",
-    });
-  };
-
   const subtotal = cartItems.reduce((sum, item) => sum + item.lineAmount, 0);
   const discountAmount = discount
     ? discount.type === "percentage"
@@ -207,14 +195,6 @@ export default function Cart() {
       ? Math.min(loyaltyData.redeemableValue, discountedSubtotal)
       : 0;
   const finalDiscountedSubtotal = subtotal - discountAmount;
-  const taxAmount = taxRules.reduce((sum, tax) => {
-    return (
-      sum +
-      (tax.type === "percentage"
-        ? (tax.rate / 100) * finalDiscountedSubtotal
-        : tax.rate)
-    );
-  }, 0);
 
   const totalAmount = finalDiscountedSubtotal;
 

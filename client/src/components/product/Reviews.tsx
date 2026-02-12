@@ -1,16 +1,7 @@
-import { useState } from "react";
-import { Star, ThumbsUp, User } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
-import { Textarea } from "@/components/ui/textarea";
-import { Progress } from "@/components/ui/progress";
-import { Separator } from "@/components/ui/separator";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { useToast } from "@/hooks/use-toast";
-import { useAuth } from "@/lib/auth";
-import { useQuery, useMutation } from "@tanstack/react-query";
-import { apiRequest, queryClient } from "@/lib/queryClient";
-import { ProductReview } from "@shared/schema";
+import { Card } from "@/components/ui/card";
+import { Progress } from "@/components/ui/progress";
+import { Star, ThumbsUp, User } from "lucide-react";
 
 interface ReviewsProps {
   reviewsData: {
@@ -34,30 +25,6 @@ export function Reviews({ reviewsData, reviewLoading }: ReviewsProps) {
       month: "short",
       year: "numeric",
     });
-  };
-
-  const renderStars = (value: number, interactive = false) => {
-    return (
-      <div className="flex gap-0.5">
-        {[1, 2, 3, 4, 5].map((star) => (
-          <button
-            key={star}
-            type="button"
-            disabled={true}
-            className="cursor-default"
-            data-testid={interactive ? `star-rating-${star}` : undefined}
-          >
-            <Star
-              className={`h-5 w-5 ${
-                star <= (value)
-                  ? "fill-yellow-400 text-yellow-400"
-                  : "text-muted-foreground"
-              }`}
-            />
-          </button>
-        ))}
-      </div>
-    );
   };
 
   const ratingDistribution = reviewStats?.ratingDistribution || {};

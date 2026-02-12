@@ -10,22 +10,18 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/lib/auth";
 import type {
   Order,
   ProductWithDetails,
   StockRequestWithDetails,
 } from "@shared/schema";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { AlertTriangle, ClipboardList, Truck } from "lucide-react";
 import { Link } from "react-router-dom";
 
 export default function InventoryDashboard() {
   const { user } = useAuth();
-  const { toast } = useToast();
-  const queryClient = useQueryClient();
-
   const isInventoryUser = !!user && (user.role === "inventory" || user.role === "admin");
 
   const { data: lowStockItems, isLoading: loadingStock } = useQuery<

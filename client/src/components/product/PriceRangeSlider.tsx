@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import React,{ useEffect, useState } from "react";
 import * as SliderPrimitive from "@radix-ui/react-slider";
 
 interface PriceRangeSliderProps {

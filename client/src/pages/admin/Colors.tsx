@@ -1,3 +1,4 @@
+import React from 'react'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -32,51 +33,20 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { useToast } from "@/hooks/use-toast";
-import { useAuth } from "@/lib/auth";
 import { apiRequest } from "@/lib/queryClient";
 import type { Color } from "@shared/schema";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
-  Building2,
   Edit,
-  LayoutDashboard,
-  Package,
-  Palette,
   Plus,
-  Settings,
-  Shirt,
-  ShoppingCart,
-  Star,
-  Tags,
-  Ticket,
-  Trash2,
-  UserCog,
-  Users
+  Trash2
 } from "lucide-react";
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
 
-const navItems = [
-  { icon: LayoutDashboard, label: "Dashboard", href: "/admin/dashboard" },
-  { icon: Package, label: "products", href: "/admin/products" },
-  { icon: Tags, label: "Categories", href: "/admin/categories" },
-  { icon: Palette, label: "Colors", href: "/admin/colors" },
-  { icon: Shirt, label: "Fabrics", href: "/admin/fabrics" },
-  { icon: Users, label: "Users", href: "/admin/users" },
-  { icon: UserCog, label: "Staff", href: "/admin/staff" },
-  { icon: Building2, label: "Stores", href: "/admin/stores" },
-  { icon: ShoppingCart, label: "Orders", href: "/admin/orders" },
-  { icon: Ticket, label: "Coupons", href: "/admin/coupons" },
-  { icon: Star, label: "Reviews", href: "/admin/reviews" },
-  { icon: Settings, label: "Settings", href: "/admin/settings" },
-];
 
 export default function AdminColors() {
-  const navigate = useNavigate();
-  const { user, logout } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  const [sidebarOpen, setSidebarOpen] = useState(false);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [colorToDelete, setColorToDelete] = useState<Color | null>(null);
@@ -154,10 +124,6 @@ export default function AdminColors() {
     },
   });
 
-  const handleLogout = async () => {
-    await logout();
-    navigate("/admin/login");
-  };
 
   const handleOpenCreate = () => {
     setEditingColor(null);

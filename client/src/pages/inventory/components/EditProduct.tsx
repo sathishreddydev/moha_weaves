@@ -1,7 +1,6 @@
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "@/hooks/use-toast";
-import { useAuth } from "@/lib/auth";
 import { apiRequest } from "@/lib/queryClient";
 import { ProductWithDetails, Store } from "@shared/types";
 import { useMutation, useQuery } from "@tanstack/react-query";
@@ -16,7 +15,6 @@ import {
 } from "./Types";
 
 export default function EditProduct() {
-  const { user } = useAuth();
   const navigate = useNavigate();
   const { sku } = useParams();
   const [editingProduct, setEditingProduct] =
@@ -48,7 +46,6 @@ export default function EditProduct() {
   const {
     data: productBySku,
     isLoading: productBySkuLoading,
-    error: productBySkuError,
   } = useQuery({
     queryKey: ["/api/inventory/product-by-sku", sku],
     queryFn: async () => {

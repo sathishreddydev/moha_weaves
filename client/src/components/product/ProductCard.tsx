@@ -9,7 +9,7 @@ import type { ProductWithDetails } from "@shared/schema";
 import { useAuth } from "@/lib/auth";
 import { useCartStore } from "../Store/useCartStore";
 import { useWishlistStore } from "../Store/useWishlistStore";
-
+import React from 'react'
 interface ProductCardProps {
   product: ProductWithDetails;
 }
