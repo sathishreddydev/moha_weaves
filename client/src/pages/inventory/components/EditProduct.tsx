@@ -29,24 +29,48 @@ export default function EditProduct() {
 
   const [formData, setFormData] = useState<ProductFormData>({
     name: "",
+
     description: "",
+
     price: "",
+
     actualPrice: "",
+
     categoryId: "",
+
     subcategoryId: "",
+
     colorId: "",
+
     fabricId: "",
+
     imageUrl: "",
+
     images: [],
+
     videoUrl: "",
+
     totalStock: 0,
+
     onlineStock: 0,
+
     distributionChannel: "both",
+
     isFeatured: false,
+
     isActive: true,
+
     // New variant fields
+
     hasVariants: false,
+
     variants: [],
+    // SEO fields
+    seoTitle: "",
+    seoDescription: "",
+    seoKeywords: "",
+    metaTags: "",
+    urlSlug: "",
   });
 
   const {
@@ -129,6 +153,12 @@ export default function EditProduct() {
         hasVariants: !!product?.variants?.length,
 
         variants: product.variants,
+        // SEO fields
+        seoTitle: product.seoTitle || "",
+        seoDescription: product.seoDescription || "",
+        seoKeywords: product.seoKeywords || "",
+        metaTags: product.metaTags || "",
+        urlSlug: product.urlSlug || "",
       };
 
       setFormData(newFormData);
@@ -236,6 +266,14 @@ export default function EditProduct() {
               storeId: a.storeId,
               quantity: a.quantity,
             })),
+          // Add SEO data nested as expected by backend
+          seoData: {
+            seoTitle: data.seoTitle,
+            seoDescription: data.seoDescription,
+            seoKeywords: data.seoKeywords,
+            metaTags: data.metaTags,
+            urlSlug: data.urlSlug,
+          }
         },
       );
 

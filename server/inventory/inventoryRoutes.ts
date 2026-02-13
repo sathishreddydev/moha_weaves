@@ -377,7 +377,7 @@ export const inventoryRoutes = (app: Express) => {
         });
       }
 
-      const { storeAllocations, actualPrice, variants, ...productData } = validation.data;
+      const { storeAllocations, actualPrice, variants, seoData, ...productData } = validation.data;
 
       // Handle variant products
       if (productData.hasVariants && variants && variants.length > 0) {
@@ -438,6 +438,7 @@ export const inventoryRoutes = (app: Express) => {
           variants,
           aggregatedStoreAllocations,
           actualPrice,
+          seoData
         );
         res.json(product);
         return;
@@ -450,6 +451,7 @@ export const inventoryRoutes = (app: Express) => {
           productData,
           [],
           actualPrice,
+          seoData
         );
         res.json(product);
       } else if (productData.distributionChannel === "shop") {
@@ -468,6 +470,7 @@ export const inventoryRoutes = (app: Express) => {
           productData,
           allocations,
           actualPrice,
+          seoData
         );
         res.json(product);
       } else {
@@ -483,6 +486,7 @@ export const inventoryRoutes = (app: Express) => {
           productData,
           allocations,
           actualPrice,
+          seoData
         );
         res.json(product);
       }
@@ -504,7 +508,7 @@ export const inventoryRoutes = (app: Express) => {
         });
       }
 
-      const { storeAllocations, actualPrice, variants, ...productData } = validation.data;
+      const { storeAllocations, actualPrice, variants, seoData, ...productData } = validation.data;
       const allocations = storeAllocations || [];
 
       // Handle variant products
@@ -567,6 +571,7 @@ export const inventoryRoutes = (app: Express) => {
           variants,
           aggregatedStoreAllocations,
           actualPrice,
+          seoData
         );
         res.json(product);
         return;
@@ -580,6 +585,7 @@ export const inventoryRoutes = (app: Express) => {
           productData,
           [],
           actualPrice,
+          seoData
         );
         res.json(product);
       } else if (productData.distributionChannel === "shop") {
@@ -601,6 +607,7 @@ export const inventoryRoutes = (app: Express) => {
           productData,
           allocations,
           actualPrice,
+          seoData
         );
         res.json(product);
       } else if (productData.distributionChannel === "both") {
@@ -622,6 +629,7 @@ export const inventoryRoutes = (app: Express) => {
           productData,
           allocations,
           actualPrice,
+          seoData
         );
         res.json(product);
       } else {
@@ -630,6 +638,7 @@ export const inventoryRoutes = (app: Express) => {
           productData,
           allocations,
           actualPrice,
+          seoData
         );
         res.json(product);
       }

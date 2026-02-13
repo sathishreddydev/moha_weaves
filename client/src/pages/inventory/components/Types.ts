@@ -39,6 +39,12 @@ export interface ProductFormData {
     // New variant fields
     hasVariants: boolean;
     variants: ProductVariant[];
+    // SEO fields
+    seoTitle: string;
+    seoDescription: string;
+    seoKeywords: string;
+    metaTags: string;
+    urlSlug: string;
 }
 
 export interface StoreAllocation {

@@ -3,31 +3,60 @@ import { and, eq } from "drizzle-orm";
 import { db } from "server/db";
 import { productService } from "server/product/productStorage";
 import { storeService } from "server/store/storeStorage";
+import { createOrUpdateProductSEO } from "../product/productSeoService";
 
 interface IStorage {
   createProductWithAllocations(
     product: InsertProduct,
     storeAllocations: { storeId: string; quantity: number }[],
-    actualPrice?: string
+    actualPrice?: string,
+    seoData?: {
+      seoTitle?: string;
+      seoDescription?: string;
+      seoKeywords?: string;
+      metaTags?: string;
+      urlSlug?: string;
+    }
   ): Promise<Product>;
   createProductWithVariants(
     product: InsertProduct,
     variants: any[],
     storeAllocations: { storeId: string; quantity: number }[],
-    actualPrice?: string
+    actualPrice?: string,
+    seoData?: {
+      seoTitle?: string;
+      seoDescription?: string;
+      seoKeywords?: string;
+      metaTags?: string;
+      urlSlug?: string;
+    }
   ): Promise<Product>;
   updateProductWithVariants(
     id: string,
     data: Partial<InsertProduct>,
     variants: any[],
     storeAllocations: { storeId: string; quantity: number }[],
-    actualPrice?: string
+    actualPrice?: string,
+    seoData?: {
+      seoTitle?: string;
+      seoDescription?: string;
+      seoKeywords?: string;
+      metaTags?: string;
+      urlSlug?: string;
+    }
   ): Promise<Product | undefined>;
   updateProductWithAllocations(
     id: string,
     data: Partial<InsertProduct>,
     storeAllocations: { storeId: string; quantity: number }[],
-    actualPrice?: string
+    actualPrice?: string,
+    seoData?: {
+      seoTitle?: string;
+      seoDescription?: string;
+      seoKeywords?: string;
+      metaTags?: string;
+      urlSlug?: string;
+    }
   ): Promise<Product | undefined>;
   getProductAllocations(
     productId: string
@@ -40,7 +69,14 @@ export class InventoryRepository implements IStorage {
     data: Partial<InsertProduct>,
     variants: any[],
     storeAllocations: { storeId: string; quantity: number }[],
-    actualPrice?: string
+    actualPrice?: string,
+    seoData?: {
+      seoTitle?: string;
+      seoDescription?: string;
+      seoKeywords?: string;
+      metaTags?: string;
+      urlSlug?: string;
+    }
   ): Promise<Product | undefined> {
     return await db.transaction(async (tx) => {
       // Update the main product
@@ -199,6 +235,14 @@ export class InventoryRepository implements IStorage {
         });
       }
 
+      // Handle SEO data if provided
+      if (seoData) {
+        await createOrUpdateProductSEO({
+          productId: updatedProduct.id,
+          ...seoData
+        });
+      }
+
       return updatedProduct;
     });
   }
@@ -207,7 +251,14 @@ export class InventoryRepository implements IStorage {
     product: InsertProduct,
     variants: any[],
     storeAllocations: { storeId: string; quantity: number }[],
-    actualPrice?: string
+    actualPrice?: string,
+    seoData?: {
+      seoTitle?: string;
+      seoDescription?: string;
+      seoKeywords?: string;
+      metaTags?: string;
+      urlSlug?: string;
+    }
   ): Promise<Product> {
     return await db.transaction(async (tx) => {
       // Create the main product
@@ -271,6 +322,14 @@ export class InventoryRepository implements IStorage {
         });
       }
 
+      // Handle SEO data if provided
+      if (seoData) {
+        await createOrUpdateProductSEO({
+          productId: createdProduct.id,
+          ...seoData
+        });
+      }
+
       return createdProduct;
     });
   }
@@ -278,7 +337,14 @@ export class InventoryRepository implements IStorage {
   async createProductWithAllocations(
     product: InsertProduct,
     storeAllocations: { storeId: string; quantity: number }[],
-    actualPrice?: string
+    actualPrice?: string,
+    seoData?: {
+      seoTitle?: string;
+      seoDescription?: string;
+      seoKeywords?: string;
+      metaTags?: string;
+      urlSlug?: string;
+    }
   ): Promise<Product> {
     return await db.transaction(async (tx) => {
       const createdProduct = await productService.createProduct(product);
@@ -303,6 +369,14 @@ export class InventoryRepository implements IStorage {
         });
       }
 
+      // Handle SEO data if provided
+      if (seoData) {
+        await createOrUpdateProductSEO({
+          productId: createdProduct.id,
+          ...seoData
+        });
+      }
+
       return createdProduct;
     });
   }
@@ -311,7 +385,14 @@ export class InventoryRepository implements IStorage {
     id: string,
     data: Partial<InsertProduct>,
     storeAllocations: { storeId: string; quantity: number }[],
-    actualPrice?: string
+    actualPrice?: string,
+    seoData?: {
+      seoTitle?: string;
+      seoDescription?: string;
+      seoKeywords?: string;
+      metaTags?: string;
+      urlSlug?: string;
+    }
   ): Promise<Product | undefined> {
     return await db.transaction(async (tx) => {
       // Update product within transaction for atomicity
@@ -376,6 +457,14 @@ export class InventoryRepository implements IStorage {
             updatedAt: new Date(),
           });
         }
+      }
+
+      // Handle SEO data if provided
+      if (seoData) {
+        await createOrUpdateProductSEO({
+          productId: id,
+          ...seoData
+        });
       }
 
       return updatedProduct;

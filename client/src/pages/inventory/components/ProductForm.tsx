@@ -1414,6 +1414,97 @@ export const ProductForm = ({
               </div>
             </div>
 
+            {/* SEO Section */}
+            <div className="space-y-4">
+              <h3 className="text-sm font-semibold border-b pb-2">
+                SEO Optimization
+              </h3>
+              <div className="space-y-4">
+                <div>
+                  <Label htmlFor="seoTitle" className="text-xs">SEO Title</Label>
+                  <Input
+                    id="seoTitle"
+                    value={formData.seoTitle}
+                    onChange={(e) =>
+                      setFormData((prev) => ({ ...prev, seoTitle: e.target.value }))
+                    }
+                    placeholder="Enter SEO title (max 60 characters)"
+                    maxLength={60}
+                    className="w-full text-sm"
+                  />
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Recommended: 50-60 characters for optimal display in search results
+                  </p>
+                </div>
+                
+                <div>
+                  <Label htmlFor="seoDescription" className="text-xs">SEO Description</Label>
+                  <Textarea
+                    id="seoDescription"
+                    value={formData.seoDescription}
+                    onChange={(e) =>
+                      setFormData((prev) => ({ ...prev, seoDescription: e.target.value }))
+                    }
+                    placeholder="Enter SEO description (max 160 characters)"
+                    maxLength={160}
+                    className="w-full text-sm"
+                    rows={3}
+                  />
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Recommended: 150-160 characters for optimal display in search results
+                  </p>
+                </div>
+
+                <div>
+                  <Label htmlFor="seoKeywords" className="text-xs">SEO Keywords</Label>
+                  <Input
+                    id="seoKeywords"
+                    value={formData.seoKeywords}
+                    onChange={(e) =>
+                      setFormData((prev) => ({ ...prev, seoKeywords: e.target.value }))
+                    }
+                    placeholder="Enter keywords separated by commas"
+                    className="w-full text-sm"
+                  />
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Separate multiple keywords with commas (e.g., cotton shirt, casual wear, summer collection)
+                  </p>
+                </div>
+
+                <div>
+                  <Label htmlFor="metaTags" className="text-xs">Meta Tags</Label>
+                  <Input
+                    id="metaTags"
+                    value={formData.metaTags}
+                    onChange={(e) =>
+                      setFormData((prev) => ({ ...prev, metaTags: e.target.value }))
+                    }
+                    placeholder="Enter meta tags separated by commas"
+                    className="w-full text-sm"
+                  />
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Additional meta tags for search engines (e.g., brand, category, material)
+                  </p>
+                </div>
+
+                <div>
+                  <Label htmlFor="urlSlug" className="text-xs">URL Slug</Label>
+                  <Input
+                    id="urlSlug"
+                    value={formData.urlSlug}
+                    onChange={(e) =>
+                      setFormData((prev) => ({ ...prev, urlSlug: e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '-') }))
+                    }
+                    placeholder="product-url-slug"
+                    className="w-full text-sm"
+                  />
+                  <p className="text-xs text-muted-foreground mt-1">
+                    URL-friendly version of the product name (auto-generated from product name if empty)
+                  </p>
+                </div>
+              </div>
+            </div>
+
             {/* Submit Button */}
             <div className="pt-4">
               <Button

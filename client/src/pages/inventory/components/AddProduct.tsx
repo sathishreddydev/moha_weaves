@@ -39,6 +39,12 @@ export default function AddProduct() {
         // New variant fields
         hasVariants: false,
         variants: [],
+        // SEO fields
+        seoTitle: "",
+        seoDescription: "",
+        seoKeywords: "",
+        metaTags: "",
+        urlSlug: "",
     });
 
     const { data: filtersData } = useQuery<FiltersData>({
@@ -179,7 +185,15 @@ export default function AddProduct() {
                 // Add calculated totals for both simple and variant products
                 totalStock: stockTotals.totalStock,
                 onlineStock: stockTotals.onlineStock,
-                storeAllocations: stockTotals.storeAllocations
+                storeAllocations: stockTotals.storeAllocations,
+                // Add SEO data nested as expected by backend
+                seoData: {
+                    seoTitle: data.formData.seoTitle,
+                    seoDescription: data.formData.seoDescription,
+                    seoKeywords: data.formData.seoKeywords,
+                    metaTags: data.formData.metaTags,
+                    urlSlug: data.formData.urlSlug,
+                }
             });
             return response;
         },

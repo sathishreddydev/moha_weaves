@@ -583,6 +583,23 @@ export const saleProducts = pgTable("sale_products", {
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
+// Product SEO data (separate table for better SEO management)
+export const productSeo = pgTable("product_seo", {
+  id: varchar("id")
+    .primaryKey()
+    .default(sql`gen_random_uuid()`),
+  productId: varchar("product_id")
+    .references(() => products.id)
+    .notNull(),
+  seoTitle: varchar("seo_title", { length: 60 }),
+  seoDescription: varchar("seo_description", { length: 160 }),
+  seoKeywords: text("seo_keywords"),
+  metaTags: text("meta_tags"),
+  urlSlug: varchar("url_slug", { length: 255 }),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
 // Coupon usage tracking
 export const couponUsage = pgTable("coupon_usage", {
   id: varchar("id")

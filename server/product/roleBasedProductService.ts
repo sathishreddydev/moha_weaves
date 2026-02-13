@@ -12,6 +12,7 @@ import {
   storeInventory,
   stores,
   productActualPrices,
+  productSeo,
 } from "@shared/schema";
 
 import {
@@ -226,6 +227,7 @@ export class RoleBasedProductService {
         color: colors,
         fabric: fabrics,
         actualPrice: productActualPrices.actualPrice,
+        seo: productSeo,
       })
       .from(products)
       .leftJoin(categories, eq(products.categoryId, categories.id))
@@ -235,6 +237,10 @@ export class RoleBasedProductService {
       .leftJoin(
         productActualPrices,
         eq(products.id, productActualPrices.productId)
+      )
+      .leftJoin(
+        productSeo,
+        eq(products.id, productSeo.productId)
       )
       .where(and(...conditions))
       .orderBy(orderBy)
@@ -252,6 +258,12 @@ export class RoleBasedProductService {
           color: row.color,
           fabric: row.fabric,
           actualPrice: row.actualPrice ?? null,
+          // Add SEO data
+          seoTitle: row.seo?.seoTitle || null,
+          seoDescription: row.seo?.seoDescription || null,
+          seoKeywords: row.seo?.seoKeywords || null,
+          metaTags: row.seo?.metaTags || null,
+          urlSlug: row.seo?.urlSlug || null,
         });
       }
     }

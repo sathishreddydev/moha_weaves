@@ -79,6 +79,16 @@ export const productBaseSchema = z.object({
   hasVariants: z.boolean().default(false),
   variants: z.array(productVariantSchema).optional().default([]),
   storeAllocations: z.array(storeAllocationSchema).optional().default([]),
+  // SEO fields
+  seoData: z.object({
+    seoTitle: z.string().max(60, "SEO title must be 60 characters or less").optional(),
+    seoDescription: z.string().max(160, "SEO description must be 160 characters or less").optional(),
+    seoKeywords: z.string().max(500, "SEO keywords must be 500 characters or less").optional(),
+    metaTags: z.string().max(500, "Meta tags must be 500 characters or less").optional(),
+    urlSlug: z.string().max(255, "URL slug must be 255 characters or less")
+      .regex(/^[a-z0-9-]+$/, "URL slug can only contain lowercase letters, numbers, and hyphens")
+      .optional(),
+  }).optional(),
 });
 
 export const trackingNumberSchema = z.object({
@@ -93,4 +103,16 @@ export const trackingNumberSchema = z.object({
 export const productUpdateSchema = productBaseSchema.partial().extend({
   variants: z.array(productVariantSchema).optional().default([]),
   storeAllocations: z.array(storeAllocationSchema).optional().default([]),
+});
+
+// SEO Schema for separate table
+export const productSeoSchema = z.object({
+  productId: z.string().min(1, "Product ID is required"),
+  seoTitle: z.string().max(60, "SEO title must be 60 characters or less").optional(),
+  seoDescription: z.string().max(160, "SEO description must be 160 characters or less").optional(),
+  seoKeywords: z.string().max(500, "SEO keywords must be 500 characters or less").optional(),
+  metaTags: z.string().max(500, "Meta tags must be 500 characters or less").optional(),
+  urlSlug: z.string().max(255, "URL slug must be 255 characters or less")
+    .regex(/^[a-z0-9-]+$/, "URL slug can only contain lowercase letters, numbers, and hyphens")
+    .optional(),
 });
