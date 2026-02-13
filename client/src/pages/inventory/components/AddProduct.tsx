@@ -1,17 +1,14 @@
 import { Button } from "@/components/ui/button";
 import { toast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
-import { Store } from "@shared/types";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useNavigate } from "react-router-dom";
 import { ArrowLeft } from "lucide-react";
 import React, { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { ProductFormData, StoreAllocation, FiltersData } from "./Types";
+import { calculateStockTotals, validateVariantStockConsistency, validateSimpleStockConsistency } from "./stockCalculations";
 import { ProductForm } from "./ProductForm";
-import {
-    FiltersData,
-    ProductFormData,
-    StoreAllocation
-} from "./Types";
+import { Store } from "@shared/types";
 
 export default function AddProduct() {
     const navigate = useNavigate();
@@ -69,26 +66,7 @@ export default function AddProduct() {
 
         // Validate variant stocks if variants are enabled
         if (formData.hasVariants) {
-            const issues: string[] = [];
-            
-            formData.variants.forEach((variant) => {
-                const variantStoreTotal = variant.storeAllocations.reduce((sum, a) => sum + a.quantity, 0);
-                const variantExpectedTotal = variant.stockQuantity;
-                const variantOnlinePlusStore = variant.onlineStock + variantStoreTotal;
-                
-                // Check if store allocations + online stock equals total stock
-                if (variantOnlinePlusStore !== variantExpectedTotal) {
-                    issues.push(`Size ${variant.size}: Online (${variant.onlineStock}) + Store allocations (${variantStoreTotal}) = ${variantOnlinePlusStore} but Total stock is ${variantExpectedTotal}`);
-                }
-
-                // Check distribution channel constraints
-                if (formData.distributionChannel === "online" && variantStoreTotal > 0) {
-                    issues.push(`Size ${variant.size}: Distribution channel is 'Online Only' but has store allocations (${variantStoreTotal})`);
-                }
-                if (formData.distributionChannel === "shop" && variant.onlineStock > 0) {
-                    issues.push(`Size ${variant.size}: Distribution channel is 'Shop Only' but has online stock (${variant.onlineStock})`);
-                }
-            });
+            const issues = validateVariantStockConsistency(formData.variants, formData.distributionChannel);
             
             if (issues.length > 0) {
                 toast({
@@ -99,30 +77,21 @@ export default function AddProduct() {
                 return;
             }
         } else {
-            // Simple product validation (only for non-variant products)
-            const totalAllocated = storeAllocations.reduce(
-                (sum, a) => sum + a.quantity,
-                0,
+            // Simple product validation
+            const issues = validateSimpleStockConsistency(
+                formData.totalStock,
+                formData.onlineStock,
+                storeAllocations,
+                formData.distributionChannel
             );
-
-            if (formData.distributionChannel === "shop") {
-                if (totalAllocated !== formData.totalStock) {
-                    toast({
-                        title: "Allocation Error",
-                        description: `Store allocations (${totalAllocated}) must equal total stock (${formData.totalStock})`,
-                        variant: "destructive",
-                    });
-                    return;
-                }
-            } else if (formData.distributionChannel === "both") {
-                if (totalAllocated + formData.onlineStock !== formData.totalStock) {
-                    toast({
-                        title: "Allocation Error",
-                        description: `Online (${formData.onlineStock}) + Store allocations (${totalAllocated}) must equal total stock (${formData.totalStock})`,
-                        variant: "destructive",
-                    });
-                    return;
-                }
+            
+            if (issues.length > 0) {
+                toast({
+                    title: "Stock Validation Error",
+                    description: issues.join(", "),
+                    variant: "destructive",
+                });
+                return;
             }
         }
 
@@ -141,43 +110,16 @@ export default function AddProduct() {
         }) => {
             console.log(data.formData);
             
-            // Use the same calculation logic as ProductForm
-            const stockTotals = data.formData.hasVariants 
-                ? (() => {
-                    const totalStock = data.formData.variants.reduce((sum, v) => sum + v.stockQuantity, 0);
-                    const onlineStock = data.formData.variants.reduce((sum, v) => sum + v.onlineStock, 0);
-                    
-                    // Aggregate store allocations across variants
-                    const storeAllocationsMap = new Map<string, {quantity: number, storeName: string}>();
-                    data.formData.variants.forEach(variant => {
-                        variant.storeAllocations.forEach(alloc => {
-                            const current = storeAllocationsMap.get(alloc.storeId) || {quantity: 0, storeName: alloc.storeName};
-                            storeAllocationsMap.set(alloc.storeId, {
-                                quantity: current.quantity + alloc.quantity,
-                                storeName: alloc.storeName
-                            });
-                        });
-                    });
-                    
-                    const storeAllocations = Array.from(storeAllocationsMap.entries()).map(([storeId, data]) => ({
-                        storeId,
-                        storeName: data.storeName,
-                        quantity: data.quantity
-                    }));
-
-                    return { totalStock, onlineStock, storeAllocations };
-                })()
-                : {
-                    totalStock: data.formData.totalStock,
-                    onlineStock: data.formData.onlineStock,
-                    storeAllocations: data.allocations
-                        .filter((a) => a.quantity > 0)
-                        .map((a) => ({
-                            storeId: a.storeId,
-                            storeName: a.storeName,
-                            quantity: a.quantity,
-                        }))
-                };
+            // Use unified stock calculation utility
+            const stockTotals = calculateStockTotals(
+                data.formData.hasVariants,
+                data.formData.variants,
+                data.formData.totalStock,
+                data.formData.onlineStock,
+                data.formData.hasVariants 
+                    ? [] // For variants, store allocations come from variants
+                    : data.allocations.filter((a) => a.quantity > 0)
+            );
 
             const response = await apiRequest("POST", "/api/inventory/products", {
                 ...data.formData,
@@ -208,6 +150,10 @@ export default function AddProduct() {
                 description: error.message || "Failed to create product",
                 variant: "destructive",
             });
+        },
+        onSettled: () => {
+            // Reset submitting state regardless of success or error
+            // This will be handled by the parent component
         },
     });
 

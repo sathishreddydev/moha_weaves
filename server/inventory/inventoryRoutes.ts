@@ -423,6 +423,7 @@ export const inventoryRoutes = (app: Express) => {
         
         const aggregatedStoreAllocations = Array.from(storeAllocationsMap.entries()).map(([storeId, data]) => ({
           storeId,
+          storeName: data.storeName,
           quantity: data.quantity
         }));
 
@@ -496,9 +497,7 @@ export const inventoryRoutes = (app: Express) => {
   });
 
   app.patch("/api/inventory/products/:id", authInventory, async (req, res) => {
-    try {
-      console.log("Update request body:", JSON.stringify(req.body, null, 2));
-      
+    try {      
       const validation = productUpdateSchema.safeParse(req.body);
       if (!validation.success) {
         console.log("Validation errors:", validation.error.errors);
@@ -555,6 +554,7 @@ export const inventoryRoutes = (app: Express) => {
         
         const aggregatedStoreAllocations = Array.from(storeAllocationsMap.entries()).map(([storeId, data]) => ({
           storeId,
+          storeName: data.storeName,
           quantity: data.quantity
         }));
 

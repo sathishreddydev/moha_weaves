@@ -15,8 +15,9 @@ import { toast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { Category, Color, Fabric, Subcategory } from "@shared/types";
 import { GripVertical, ImageIcon, Video, X } from "lucide-react";
-import React, { useState } from "react";
+import React, { useState, useCallback, useMemo, useEffect, useRef } from "react";
 import { ProductFormData, ProductVariant, StoreAllocation } from "./Types";
+import { calculateStockTotals, validateVariantStockConsistency, validateSimpleStockConsistency } from "./stockCalculations";
 
 interface ProductFormProps {
   formData: ProductFormData;
@@ -51,183 +52,305 @@ export const ProductForm = ({
 }: ProductFormProps) => {
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  
+  // Refs for debouncing
+  const validationTimeoutRef = useRef<NodeJS.Timeout>();
+  const pendingValidationsRef = useRef<Map<string, string>>(new Map());
 
-  // Validation functions
-  const validateField = (field: string, value: any) => {
+  // Debounced validation function
+  const debouncedValidation = useCallback((field: string, value: any, delay: number = 300) => {
+    // Clear existing timeout for this field
+    if (validationTimeoutRef.current) {
+      clearTimeout(validationTimeoutRef.current);
+    }
+    
+    // Store the validation request
+    pendingValidationsRef.current.set(field, value);
+    
+    // Set new timeout
+    validationTimeoutRef.current = setTimeout(() => {
+      const currentValue = pendingValidationsRef.current.get(field);
+      if (currentValue !== undefined) {
+        validateField(field, currentValue);
+        pendingValidationsRef.current.delete(field);
+      }
+    }, delay);
+  }, []);
+
+  // Cleanup function
+  useEffect(() => {
+    return () => {
+      if (validationTimeoutRef.current) {
+        clearTimeout(validationTimeoutRef.current);
+      }
+    };
+  }, []);
+
+  // Reset submitting state when mutations complete
+  useEffect(() => {
+    if (!createMutation?.isPending && !updateMutation?.isPending) {
+      setIsSubmitting(false);
+    }
+  }, [createMutation?.isPending, updateMutation?.isPending]);
+
+  // Memoized validation functions
+  const validateField = useCallback((field: string, value: any) => {
     let error = '';
     
     switch (field) {
       case 'name':
         if (!value || value.trim().length < 2) {
-          error = 'Product name must be at least 2 characters';
+          error = 'Product name must be at least 2 characters (e.g., "Cotton Shirt")';
         } else if (value.trim().length > 100) {
-          error = 'Product name must be less than 100 characters';
+          error = 'Product name is too long. Please keep it under 100 characters';
         } else if (!/^[a-zA-Z0-9\s\-]+$/.test(value.trim())) {
-          error = 'Product name can only contain letters, numbers, spaces, and hyphens';
+          error = 'Product name can only contain letters, numbers, spaces, and hyphens. Remove special characters';
         }
         break;
       case 'price':
         const price = parseFloat(value);
         if (!value || isNaN(price) || price < 0) {
-          error = 'Selling price must be a positive number';
+          error = 'Please enter a valid positive price (e.g., 299.99)';
         } else if (price > 999999) {
-          error = 'Price cannot exceed 999,999';
+          error = 'Price is too high. Maximum allowed price is ₹9,99,999';
         }
         break;
       case 'actualPrice':
         const actualPrice = parseFloat(value);
         if (!value || isNaN(actualPrice) || actualPrice < 0) {
-          error = 'Actual price must be a positive number';
+          error = 'Please enter a valid positive cost price (e.g., 199.99)';
         } else if (actualPrice > 999999) {
-          error = 'Price cannot exceed 999,999';
+          error = 'Cost price is too high. Maximum allowed is ₹9,99,999';
         }
         break;
       case 'totalStock':
         const totalStock = parseInt(value);
         if (isNaN(totalStock) || totalStock < 0) {
-          error = 'Total stock must be a non-negative number';
+          error = 'Please enter a valid stock quantity (e.g., 50)';
         } else if (totalStock > 99999) {
-          error = 'Stock cannot exceed 99,999';
+          error = 'Stock quantity is too high. Maximum allowed is 99,999 units';
         }
         break;
       case 'onlineStock':
         const onlineStock = parseInt(value);
         if (isNaN(onlineStock) || onlineStock < 0) {
-          error = 'Online stock must be a non-negative number';
+          error = 'Please enter a valid online stock quantity (e.g., 25)';
         } else if (onlineStock > 99999) {
-          error = 'Stock cannot exceed 99,999';
+          error = 'Online stock is too high. Maximum allowed is 99,999 units';
         }
         break;
       case 'categoryId':
         if (!value) {
-          error = 'Category is required';
+          error = 'Please select a category from the dropdown list';
         }
         break;
       case 'colorId':
         if (!value) {
-          error = 'Color is required';
+          error = 'Please select a color from the dropdown list';
         }
         break;
       case 'fabricId':
         if (!value) {
-          error = 'Fabric is required';
+          error = 'Please select a fabric type from the dropdown list';
         }
         break;
       case 'subcategoryId':
         if (!value || value === "") {
-          error = 'Subcategory is required';
+          error = 'Please select a subcategory from the dropdown list';
         }
         break;
       case 'images':
         if (!value || value.length === 0) {
-          error = 'At least one image is required';
+          error = 'Please upload at least one product image using the upload button';
+        }
+        break;
+      case 'seoTitle':
+        if (value && value.length > 60) {
+          error = 'SEO title is too long. Please shorten to 60 characters or less for better search results';
+        }
+        break;
+      case 'seoDescription':
+        if (value && value.length > 160) {
+          error = 'SEO description is too long. Please shorten to 160 characters or less for better search results';
+        }
+        break;
+      case 'seoKeywords':
+        if (value && value.length > 500) {
+          error = 'SEO keywords are too long. Please keep under 500 characters';
+        }
+        break;
+      case 'metaTags':
+        if (value && value.length > 500) {
+          error = 'Meta tags are too long. Please keep under 500 characters';
+        }
+        break;
+      case 'urlSlug':
+        if (value && value.length > 255) {
+          error = 'URL slug is too long. Please keep under 255 characters';
+        } else if (value && !/^[a-z0-9-]+$/.test(value)) {
+          error = 'URL slug can only contain lowercase letters, numbers, and hyphens. Remove spaces and special characters';
         }
         break;
     }
     
     setErrors(prev => ({ ...prev, [field]: error }));
     return !error;
-  };
+  }, []);
+
+  // Memoized category functions
+  const getSelectedCategory = useCallback(() => {
+    return categories.find((cat) => cat.id === formData.categoryId);
+  }, [categories, formData.categoryId]);
+
+  const getCategorySizes = useCallback(() => {
+    const category = getSelectedCategory();
+    return category?.sizes || [];
+  }, [getSelectedCategory]);
+
+  // Unified stock calculations using shared utility
+  const stockTotals = useMemo(() => {
+    return calculateStockTotals(
+      formData.hasVariants,
+      formData.variants,
+      formData.totalStock,
+      formData.onlineStock,
+      storeAllocations
+    );
+  }, [formData.hasVariants, formData.variants, formData.totalStock, formData.onlineStock, storeAllocations]);
+
+  // Memoized remaining allocation calculation
+  const remainingToAllocate = useMemo(() => {
+    const totalStoreAllocated = stockTotals.storeAllocations.reduce(
+      (sum, a) => sum + a.quantity,
+      0,
+    );
+    return formData.distributionChannel === "shop"
+      ? stockTotals.totalStock - totalStoreAllocated
+      : stockTotals.totalStock - stockTotals.onlineStock - totalStoreAllocated;
+  }, [formData.distributionChannel, stockTotals.totalStock, stockTotals.onlineStock, stockTotals.storeAllocations]);
 
   const validateForm = () => {
     const newErrors: Record<string, string> = {};
     
     // Basic field validations
     if (!formData.name || formData.name.trim().length < 2) {
-      newErrors.name = 'Product name must be at least 2 characters';
+      newErrors.name = 'Product name must be at least 2 characters (e.g., "Cotton Shirt")';
     }
     if (!formData.categoryId) {
-      newErrors.categoryId = 'Category is required';
+      newErrors.categoryId = 'Please select a category from the dropdown list';
     }
     if (!formData.colorId) {
-      newErrors.colorId = 'Color is required';
+      newErrors.colorId = 'Please select a color from the dropdown list';
     }
     if (!formData.fabricId) {
-      newErrors.fabricId = 'Fabric is required';
+      newErrors.fabricId = 'Please select a fabric type from the dropdown list';
     }
     if (!formData.subcategoryId || formData.subcategoryId === "") {
-      newErrors.subcategoryId = 'Subcategory is required';
+      newErrors.subcategoryId = 'Please select a subcategory from the dropdown list';
     }
     if (!formData.images || formData.images.length === 0) {
-      newErrors.images = 'At least one image is required';
+      newErrors.images = 'Please upload at least one product image using the upload button';
+    }
+    
+    // SEO field validations
+    if (formData.seoTitle && formData.seoTitle.length > 60) {
+      newErrors.seoTitle = 'SEO title must be 60 characters or less';
+    }
+    if (formData.seoDescription && formData.seoDescription.length > 160) {
+      newErrors.seoDescription = 'SEO description must be 160 characters or less';
+    }
+    if (formData.seoKeywords && formData.seoKeywords.length > 500) {
+      newErrors.seoKeywords = 'SEO keywords must be 500 characters or less';
+    }
+    if (formData.metaTags && formData.metaTags.length > 500) {
+      newErrors.metaTags = 'Meta tags must be 500 characters or less';
+    }
+    if (formData.urlSlug && formData.urlSlug.length > 255) {
+      newErrors.urlSlug = 'URL slug must be 255 characters or less';
+    } else if (formData.urlSlug && !/^[a-z0-9-]+$/.test(formData.urlSlug)) {
+      newErrors.urlSlug = 'URL slug can only contain lowercase letters, numbers, and hyphens';
     }
     
     const price = parseFloat(formData.price);
     if (!formData.price || isNaN(price) || price < 0) {
-      newErrors.price = 'Selling price must be a positive number';
+      newErrors.price = 'Please enter a valid positive price (e.g., 299.99)';
     }
     
     const actualPrice = parseFloat(formData.actualPrice);
     if (!formData.actualPrice || isNaN(actualPrice) || actualPrice < 0) {
-      newErrors.actualPrice = 'Actual price must be a positive number';
+      newErrors.actualPrice = 'Please enter a valid positive cost price (e.g., 199.99)';
     }
     
-    // Price relationship validation
+        // Price relationship validation
     if (price && actualPrice && price < actualPrice) {
-      newErrors.price = 'Selling price must be greater than or equal to actual price';
-    }
-    
-    // Stock validation for non-variant products
-    if (!formData.hasVariants) {
-      const totalStock = parseInt(formData.totalStock.toString());
-      const onlineStock = parseInt(formData.onlineStock.toString());
-      
-      if (isNaN(totalStock) || totalStock < 0) {
-        newErrors.totalStock = 'Total stock must be a non-negative number';
-      }
-      if (isNaN(onlineStock) || onlineStock < 0) {
-        newErrors.onlineStock = 'Online stock must be a non-negative number';
-      }
+      newErrors.price = 'Selling price (₹' + price + ') cannot be less than cost price (₹' + actualPrice + '). Please adjust pricing';
     }
     
     // Variant validation
     if (formData.hasVariants) {
+      const variantIssues = validateVariantStockConsistency(formData.variants, formData.distributionChannel);
+      if (variantIssues.length > 0) {
+        variantIssues.forEach(issue => {
+          // Parse the issue to set specific field errors
+          if (issue.includes('Online') && issue.includes('Store allocations')) {
+            const sizeMatch = issue.match(/Size ([^:]+):/);
+            if (sizeMatch) {
+              const size = sizeMatch[1];
+              const variantIndex = formData.variants.findIndex(v => v.size === size);
+              if (variantIndex !== -1) {
+                newErrors[`variants.${variantIndex}.allocations`] = issue;
+              }
+            }
+          }
+        });
+      }
+      
+      // Validate individual variant fields
       formData.variants.forEach((variant, index) => {
         const stockQuantity = parseInt(variant.stockQuantity.toString());
         const onlineStock = parseInt(variant.onlineStock.toString());
         
         if (isNaN(stockQuantity) || stockQuantity < 0) {
-          newErrors[`variants.${index}.stockQuantity`] = 'Stock must be a non-negative number';
+          newErrors[`variants.${index}.stockQuantity`] = 'Please enter a valid stock quantity for this size';
         }
         if (isNaN(onlineStock) || onlineStock < 0) {
-          newErrors[`variants.${index}.onlineStock`] = 'Online stock must be a non-negative number';
-        }
-        
-        // Validate variant store allocations
-        const variantStoreTotal = variant.storeAllocations.reduce((sum, a) => sum + a.quantity, 0);
-        const variantExpectedTotal = stockQuantity;
-        const variantOnlinePlusStore = onlineStock + variantStoreTotal;
-        
-        if (variantOnlinePlusStore !== variantExpectedTotal) {
-          newErrors[`variants.${index}.allocations`] = `Online (${onlineStock}) + Store allocations (${variantStoreTotal}) must equal total stock (${variantExpectedTotal})`;
-        }
-        
-        // Check distribution channel constraints
-        if (formData.distributionChannel === "online" && variantStoreTotal > 0) {
-          newErrors[`variants.${index}.channel`] = `Distribution channel is 'Online Only' but has store allocations (${variantStoreTotal})`;
-        }
-        if (formData.distributionChannel === "shop" && onlineStock > 0) {
-          newErrors[`variants.${index}.channel`] = `Distribution channel is 'Shop Only' but has online stock (${onlineStock})`;
+          newErrors[`variants.${index}.onlineStock`] = 'Please enter a valid online stock quantity for this size';
         }
       });
+    } else {
+      // Simple product validation
+      const simpleIssues = validateSimpleStockConsistency(
+        formData.totalStock,
+        formData.onlineStock,
+        storeAllocations,
+        formData.distributionChannel
+      );
+      if (simpleIssues.length > 0) {
+        simpleIssues.forEach(issue => {
+          if (issue.includes('Store allocations')) {
+            newErrors.allocations = issue;
+          }
+        });
+      }
+      
+      const totalStock = parseInt(formData.totalStock.toString());
+      const onlineStock = parseInt(formData.onlineStock.toString());
+      
+      if (isNaN(totalStock) || totalStock < 0) {
+        newErrors.totalStock = 'Please enter a valid stock quantity (e.g., 50)';
+      }
+      if (isNaN(onlineStock) || onlineStock < 0) {
+        newErrors.onlineStock = 'Please enter a valid online stock quantity (e.g., 25)';
+      }
     }
     
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
 
-  const updateStoreAllocation = (storeId: string, quantity: number) => {
-    const validQuantity = Math.max(0, parseInt(quantity.toString()) || 0);
-    setStoreAllocations((prev) =>
-      prev.map((a) =>
-        a.storeId === storeId ? { ...a, quantity: validQuantity } : a,
-      ),
-    );
-  };
-
   const handleDragStart = (e: React.DragEvent, index: number) => {
     setDraggedIndex(index);
-    e.dataTransfer.effectAllowed = "move";
   };
 
   const handleDragOver = (e: React.DragEvent) => {
@@ -253,16 +376,6 @@ export const ProductForm = ({
 
   const handleDragEnd = () => {
     setDraggedIndex(null);
-  };
-
-  // Variant management functions
-  const getSelectedCategory = () => {
-    return categories.find((cat) => cat.id === formData.categoryId);
-  };
-
-  const getCategorySizes = () => {
-    const category = getSelectedCategory();
-    return category?.sizes || [];
   };
 
   const handleVariantsToggle = (enabled: boolean) => {
@@ -341,6 +454,20 @@ export const ProductForm = ({
     }));
   };
 
+  const updateStoreAllocation = (
+    storeId: string,
+    quantity: number,
+  ) => {
+    const validQuantity = Math.max(0, parseInt(quantity.toString()) || 0);
+    setStoreAllocations((prev) =>
+      prev.map((alloc) =>
+        alloc.storeId === storeId
+          ? { ...alloc, quantity: validQuantity }
+          : alloc,
+      ),
+    );
+  };
+
   const addVariant = (size: string) => {
     const existingVariant = formData.variants.find((v) => v.size === size);
     if (!existingVariant) {
@@ -371,66 +498,14 @@ export const ProductForm = ({
     }));
   };
 
-  // Stock calculation functions for variants
-  const calculateStockTotals = () => {
-    if (!formData.hasVariants || formData.variants.length === 0) {
-      return {
-        totalStock: formData.totalStock,
-        onlineStock: formData.onlineStock,
-        storeAllocations: storeAllocations,
-      };
-    }
-
-    // Calculate from variants
-    const totalStock = formData.variants.reduce(
-      (sum, v) => sum + v.stockQuantity,
-      0,
-    );
-    const onlineStock = formData.variants.reduce(
-      (sum, v) => sum + v.onlineStock,
-      0,
-    );
-
-    // Aggregate store allocations across variants
-    const storeAllocationsMap = new Map<string, number>();
-    formData.variants.forEach((variant) => {
-      variant.storeAllocations.forEach((alloc) => {
-        const current = storeAllocationsMap.get(alloc.storeId) || 0;
-        storeAllocationsMap.set(alloc.storeId, current + alloc.quantity);
-      });
-    });
-
-    const aggregatedStoreAllocations: StoreAllocation[] = Array.from(
-      storeAllocationsMap.entries(),
-    ).map(([storeId, quantity]) => ({
-      storeId,
-      storeName:
-        storeAllocations.find((s: StoreAllocation) => s.storeId === storeId)
-          ?.storeName || "",
-      quantity,
-    }));
-
-    return {
-      totalStock,
-      onlineStock,
-      storeAllocations: aggregatedStoreAllocations,
-    };
-  };
-
-  const totalStoreAllocated = storeAllocations.reduce(
-    (sum, a) => sum + a.quantity,
-    0,
-  );
-  const remainingToAllocate =
-    formData.distributionChannel === "shop"
-      ? formData.totalStock - totalStoreAllocated
-      : formData.totalStock - formData.onlineStock - totalStoreAllocated;
-
   const validateAndSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     
+    setIsSubmitting(true);
+    
     // Validate form before submission
     if (!validateForm()) {
+      setIsSubmitting(false);
       toast({
         title: "Validation Error",
         description: "Please fix all errors before submitting",
@@ -460,7 +535,7 @@ export const ProductForm = ({
                   value={formData.name}
                   onChange={(e) => {
                     setFormData((prev) => ({ ...prev, name: e.target.value }));
-                    validateField('name', e.target.value);
+                    debouncedValidation('name', e.target.value);
                   }}
                   required
                   data-testid="input-name"
@@ -504,7 +579,7 @@ export const ProductForm = ({
                       ...prev,
                       actualPrice: e.target.value,
                     }));
-                    validateField('actualPrice', e.target.value);
+                    debouncedValidation('actualPrice', e.target.value);
                   }}
                   required
                   data-testid="input-actual-price"
@@ -522,7 +597,7 @@ export const ProductForm = ({
                   value={formData.price}
                   onChange={(e) => {
                     setFormData((prev) => ({ ...prev, price: e.target.value }));
-                    validateField('price', e.target.value);
+                    debouncedValidation('price', e.target.value);
                   }}
                   required
                   data-testid="input-price"
@@ -553,7 +628,7 @@ export const ProductForm = ({
                       ...prev,
                       totalStock: parseInt(e.target.value) || 0,
                     }));
-                    validateField('totalStock', e.target.value);
+                    debouncedValidation('totalStock', e.target.value);
                   }}
                   data-testid="input-total-stock"
                   className={`w-full text-sm ${errors.totalStock ? 'border-red-500' : ''}`}
@@ -588,7 +663,7 @@ export const ProductForm = ({
                           ...prev,
                           onlineStock: parseInt(e.target.value) || 0,
                         }));
-                        validateField('onlineStock', e.target.value);
+                        debouncedValidation('onlineStock', e.target.value);
                       }}
                       data-testid="input-online-stock"
                       className={`w-full text-sm ${errors.onlineStock ? 'border-red-500' : ''}`}
@@ -914,19 +989,19 @@ export const ProductForm = ({
                 <div>
                   <Label className="text-sm font-medium">Total Stock</Label>
                   <p className="text-lg font-bold">
-                    {calculateStockTotals().totalStock}
+                    {stockTotals.totalStock}
                   </p>
                 </div>
                 <div>
                   <Label className="text-sm font-medium">Online Stock</Label>
                   <p className="text-lg font-bold">
-                    {calculateStockTotals().onlineStock}
+                    {stockTotals.onlineStock}
                   </p>
                 </div>
                 <div>
                   <Label className="text-sm font-medium">Store Stock</Label>
                   <p className="text-lg font-bold">
-                    {calculateStockTotals().storeAllocations.reduce(
+                    {stockTotals.storeAllocations.reduce(
                       (sum, a) => sum + a.quantity,
                       0,
                     )}
@@ -939,7 +1014,7 @@ export const ProductForm = ({
                   Store-wise Breakdown
                 </Label>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mt-2">
-                  {calculateStockTotals().storeAllocations.map((alloc) => (
+                  {stockTotals.storeAllocations.map((alloc) => (
                     <div
                       key={alloc.storeId}
                       className="flex justify-between p-2 bg-white rounded border"
@@ -1425,13 +1500,17 @@ export const ProductForm = ({
                   <Input
                     id="seoTitle"
                     value={formData.seoTitle}
-                    onChange={(e) =>
-                      setFormData((prev) => ({ ...prev, seoTitle: e.target.value }))
-                    }
+                    onChange={(e) => {
+                      setFormData((prev) => ({ ...prev, seoTitle: e.target.value }));
+                      debouncedValidation('seoTitle', e.target.value);
+                    }}
                     placeholder="Enter SEO title (max 60 characters)"
                     maxLength={60}
-                    className="w-full text-sm"
+                    className={`w-full text-sm ${errors.seoTitle ? 'border-red-500' : ''}`}
                   />
+                  {errors.seoTitle && (
+                    <p className="text-xs text-red-500 mt-1">{errors.seoTitle}</p>
+                  )}
                   <p className="text-xs text-muted-foreground mt-1">
                     Recommended: 50-60 characters for optimal display in search results
                   </p>
@@ -1442,14 +1521,18 @@ export const ProductForm = ({
                   <Textarea
                     id="seoDescription"
                     value={formData.seoDescription}
-                    onChange={(e) =>
-                      setFormData((prev) => ({ ...prev, seoDescription: e.target.value }))
-                    }
+                    onChange={(e) => {
+                      setFormData((prev) => ({ ...prev, seoDescription: e.target.value }));
+                      debouncedValidation('seoDescription', e.target.value);
+                    }}
                     placeholder="Enter SEO description (max 160 characters)"
                     maxLength={160}
-                    className="w-full text-sm"
+                    className={`w-full text-sm ${errors.seoDescription ? 'border-red-500' : ''}`}
                     rows={3}
                   />
+                  {errors.seoDescription && (
+                    <p className="text-xs text-red-500 mt-1">{errors.seoDescription}</p>
+                  )}
                   <p className="text-xs text-muted-foreground mt-1">
                     Recommended: 150-160 characters for optimal display in search results
                   </p>
@@ -1460,12 +1543,16 @@ export const ProductForm = ({
                   <Input
                     id="seoKeywords"
                     value={formData.seoKeywords}
-                    onChange={(e) =>
-                      setFormData((prev) => ({ ...prev, seoKeywords: e.target.value }))
-                    }
+                    onChange={(e) => {
+                      setFormData((prev) => ({ ...prev, seoKeywords: e.target.value }));
+                      debouncedValidation('seoKeywords', e.target.value);
+                    }}
                     placeholder="Enter keywords separated by commas"
-                    className="w-full text-sm"
+                    className={`w-full text-sm ${errors.seoKeywords ? 'border-red-500' : ''}`}
                   />
+                  {errors.seoKeywords && (
+                    <p className="text-xs text-red-500 mt-1">{errors.seoKeywords}</p>
+                  )}
                   <p className="text-xs text-muted-foreground mt-1">
                     Separate multiple keywords with commas (e.g., cotton shirt, casual wear, summer collection)
                   </p>
@@ -1476,12 +1563,16 @@ export const ProductForm = ({
                   <Input
                     id="metaTags"
                     value={formData.metaTags}
-                    onChange={(e) =>
-                      setFormData((prev) => ({ ...prev, metaTags: e.target.value }))
-                    }
+                    onChange={(e) => {
+                      setFormData((prev) => ({ ...prev, metaTags: e.target.value }));
+                      debouncedValidation('metaTags', e.target.value);
+                    }}
                     placeholder="Enter meta tags separated by commas"
-                    className="w-full text-sm"
+                    className={`w-full text-sm ${errors.metaTags ? 'border-red-500' : ''}`}
                   />
+                  {errors.metaTags && (
+                    <p className="text-xs text-red-500 mt-1">{errors.metaTags}</p>
+                  )}
                   <p className="text-xs text-muted-foreground mt-1">
                     Additional meta tags for search engines (e.g., brand, category, material)
                   </p>
@@ -1492,12 +1583,17 @@ export const ProductForm = ({
                   <Input
                     id="urlSlug"
                     value={formData.urlSlug}
-                    onChange={(e) =>
-                      setFormData((prev) => ({ ...prev, urlSlug: e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '-') }))
-                    }
+                    onChange={(e) => {
+                      const sanitizedValue = e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '-');
+                      setFormData((prev) => ({ ...prev, urlSlug: sanitizedValue }));
+                      debouncedValidation('urlSlug', sanitizedValue);
+                    }}
                     placeholder="product-url-slug"
-                    className="w-full text-sm"
+                    className={`w-full text-sm ${errors.urlSlug ? 'border-red-500' : ''}`}
                   />
+                  {errors.urlSlug && (
+                    <p className="text-xs text-red-500 mt-1">{errors.urlSlug}</p>
+                  )}
                   <p className="text-xs text-muted-foreground mt-1">
                     URL-friendly version of the product name (auto-generated from product name if empty)
                   </p>
@@ -1510,13 +1606,13 @@ export const ProductForm = ({
               <Button
                 type="submit"
                 disabled={
-                  createMutation?.isPending || updateMutation?.isPending
+                  isSubmitting || createMutation?.isPending || updateMutation?.isPending
                 }
                 data-testid="button-submit"
                 size="lg"
                 className="w-full"
               >
-                {createMutation?.isPending || updateMutation?.isPending
+                {isSubmitting || createMutation?.isPending || updateMutation?.isPending
                   ? "Saving..."
                   : editingProduct
                     ? "Update Product"

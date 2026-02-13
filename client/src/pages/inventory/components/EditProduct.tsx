@@ -1,11 +1,8 @@
 import { Button } from "@/components/ui/button";
 
 import { Skeleton } from "@/components/ui/skeleton";
-
 import { toast } from "@/hooks/use-toast";
-
 import { apiRequest } from "@/lib/queryClient";
-
 import { ProductWithDetails, Store } from "@shared/types";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ArrowLeft } from "lucide-react";
@@ -13,6 +10,7 @@ import React, { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { ProductForm } from "./ProductForm";
 import { FiltersData, ProductFormData, StoreAllocation } from "./Types";
+import { validateVariantStockConsistency, validateSimpleStockConsistency, calculateStockTotals } from "./stockCalculations";
 
 export default function EditProduct() {
   const navigate = useNavigate();
@@ -196,40 +194,48 @@ export default function EditProduct() {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
 
-    const totalAllocated = storeAllocations.reduce(
-      (sum, a) => sum + a.quantity,
+    // Validate images - at least one image is required
+    if (!formData.images || formData.images.length === 0) {
+      toast({
+        title: "Validation Error",
+        description: "At least one image is required",
+        variant: "destructive",
+      });
+      return;
+    }
 
-      0,
-    );
-
-    if (formData.distributionChannel === "shop") {
-      if (totalAllocated !== formData.totalStock) {
+    // Validate variant stocks if variants are enabled
+    if (formData.hasVariants) {
+      const issues = validateVariantStockConsistency(formData.variants, formData.distributionChannel);
+      
+      if (issues.length > 0) {
         toast({
-          title: "Allocation Error",
-
-          description: `Store allocations (${totalAllocated}) must equal total stock (${formData.totalStock})`,
-
+          title: "Stock Validation Error",
+          description: issues.join(", "),
           variant: "destructive",
         });
-
         return;
       }
-    } else if (formData.distributionChannel === "both") {
-      if (totalAllocated + formData.onlineStock !== formData.totalStock) {
+    } else {
+      // Simple product validation
+      const issues = validateSimpleStockConsistency(
+        formData.totalStock,
+        formData.onlineStock,
+        storeAllocations,
+        formData.distributionChannel
+      );
+      
+      if (issues.length > 0) {
         toast({
-          title: "Allocation Error",
-
-          description: `Online (${formData.onlineStock}) + Store allocations (${totalAllocated}) must equal total stock (${formData.totalStock})`,
-
+          title: "Stock Validation Error",
+          description: issues.join(", "),
           variant: "destructive",
         });
-
         return;
       }
     }
 
     // Set first image as main image
-
     const submissionData = {
       ...formData,
       imageUrl: formData.images.length > 0 ? formData.images[0] : "",
@@ -254,18 +260,27 @@ export default function EditProduct() {
       data: ProductFormData;
       allocations: StoreAllocation[];
     }) => {
+      // Use unified stock calculation for consistency
+      const stockTotals = calculateStockTotals(
+        data.hasVariants,
+        data.variants,
+        data.totalStock,
+        data.onlineStock,
+        data.hasVariants 
+          ? [] // For variants, store allocations come from variants
+          : allocations.filter((a) => a.quantity > 0)
+      );
+
       const response = await apiRequest(
         "PATCH",
         `/api/inventory/products/${id}`,
         {
           ...data,
           price: data.price,
-          storeAllocations: allocations
-            .filter((a) => a.quantity > 0)
-            .map((a) => ({
-              storeId: a.storeId,
-              quantity: a.quantity,
-            })),
+          // Add calculated totals for both simple and variant products
+          totalStock: stockTotals.totalStock,
+          onlineStock: stockTotals.onlineStock,
+          storeAllocations: stockTotals.storeAllocations,
           // Add SEO data nested as expected by backend
           seoData: {
             seoTitle: data.seoTitle,
