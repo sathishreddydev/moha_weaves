@@ -831,6 +831,7 @@ export const productDamages = pgTable("product_damages", {
   recoveryValue: decimal("recovery_value", { precision: 10, scale: 2 }),
   disposalMethod: text("disposal_method"),
   notes: text("notes"),
+  imageUrls: text("image_urls").array(), // Array of image URLs for damage evidence
   allocationType: varchar("allocation_type"), // "online", "store", "total"
   storeId: varchar("store_id").references(() => stores.id), // Store ID for store allocations
   status: varchar("status").notNull().default("pending"),

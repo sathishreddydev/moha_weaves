@@ -28,6 +28,7 @@ interface ProductDamage {
   recoveryValue?: string;
   disposalMethod?: string;
   notes?: string;
+  imageUrls?: string[]; // Array of image URLs for damage evidence
   status: string;
   createdAt: string;
   updatedAt: string;
@@ -217,6 +218,40 @@ export default function DamageHistory() {
             {row.getValue("reason")}
           </div>
         ),
+      },
+      {
+        accessorKey: "imageUrls",
+        header: "Evidence",
+        cell: ({ row }) => {
+          const imageUrls = row.getValue("imageUrls") as string[] || [];
+          if (imageUrls.length === 0) {
+            return <span className="text-muted-foreground text-sm">No images</span>;
+          }
+          
+          return (
+            <div className="flex items-center gap-2">
+              <div className="flex -space-x-2">
+                {imageUrls.slice(0, 3).map((url, index) => (
+                  <div
+                    key={index}
+                    className="w-8 h-8 rounded-full overflow-hidden border-2 border-background"
+                  >
+                    <img
+                      src={url}
+                      alt={`Evidence ${index + 1}`}
+                      className="w-full h-full object-cover"
+                    />
+                  </div>
+                ))}
+              </div>
+              {imageUrls.length > 3 && (
+                <span className="text-xs text-muted-foreground">
+                  +{imageUrls.length - 3} more
+                </span>
+              )}
+            </div>
+          );
+        },
       },
     ],
     [],

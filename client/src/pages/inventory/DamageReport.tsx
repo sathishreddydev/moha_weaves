@@ -2,6 +2,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { CloudinaryUploader } from "@/components/CloudinaryUploader";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -10,7 +11,7 @@ import { toast } from "@/hooks/use-toast";
 import { useAuth } from "@/lib/auth";
 import { apiRequest } from "@/lib/queryClient";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { AlertTriangle, Loader2, Package } from "lucide-react";
+import { AlertTriangle, Loader2, Package, Camera, X, Upload, Image as ImageIcon } from "lucide-react";
 import React,{ useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 
@@ -65,8 +66,8 @@ export default function DamageReport() {
   });
 
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
-
   const [selectedVariant, setSelectedVariant] = useState<any>(null);
+  const [imageUrls, setImageUrls] = useState<string[]>([]);
 
   // Validation functions
   const validateNumericInput = (value: string, fieldName: string) => {
@@ -205,6 +206,7 @@ export default function DamageReport() {
       });
       setSelectedVariant(null);
       setFormErrors({});
+      setImageUrls([]); // Clear uploaded images
       
       // Navigate to damage history page
       navigate("/inventory/damage-history");
@@ -366,6 +368,7 @@ export default function DamageReport() {
       disposalMethod: formData.disposalMethod || undefined,
       notes: formData.notes || undefined,
       allocationType: formData.allocationType || undefined,
+      imageUrls: imageUrls, // Add uploaded image URLs
     };
 
     reportDamageMutation.mutate(damageData);
@@ -756,6 +759,57 @@ export default function DamageReport() {
                   disabled={!formData.productId}
                   required
                 />
+              </div>
+
+              {/* Damage Evidence Photos */}
+              <div className="space-y-4">
+                <h3 className="text-lg font-medium">Damage Evidence Photos (Optional)</h3>
+                
+                <CloudinaryUploader
+                  maxNumberOfFiles={5}
+                  maxFileSize={5 * 1024 * 1024} // 5MB
+                  fileType="image"
+                  onComplete={(urls) => setImageUrls(urls)}
+                  buttonClassName="w-full"
+                >
+                  <Camera className="mr-2 h-4 w-4" />
+                  Upload Damage Photos (Max 5)
+                </CloudinaryUploader>
+
+                {/* Uploaded Images Display */}
+                {imageUrls.length > 0 && (
+                  <div className="space-y-2">
+                    <h4 className="text-sm font-medium">Uploaded Evidence ({imageUrls.length})</h4>
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                      {imageUrls.map((url, index) => (
+                        <div key={index} className="relative group">
+                          <div className="aspect-square rounded-lg overflow-hidden border">
+                            <img
+                              src={url}
+                              alt={`Damage evidence ${index + 1}`}
+                              className="w-full h-full object-cover"
+                            />
+                          </div>
+                          <Button
+                            type="button"
+                            variant="destructive"
+                            size="sm"
+                            className="absolute top-2 right-2 h-6 w-6 p-0 opacity-0 group-hover:opacity-100 transition-opacity"
+                            onClick={() => {
+                              setImageUrls(prev => prev.filter((_, i) => i !== index));
+                              toast({
+                                title: "Image Removed",
+                                description: "Evidence photo has been removed",
+                              });
+                            }}
+                          >
+                            <X className="h-3 w-3" />
+                          </Button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
 
               {/* Financial Information */}

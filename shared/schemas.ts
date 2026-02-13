@@ -195,6 +195,7 @@ export const insertProductDamageSchema = createInsertSchema(tables.productDamage
     costValue: z.string().optional(),
     recoveryValue: z.string().optional(),
     notes: z.string().optional(),
+    imageUrls: z.array(z.string()).optional(), // Array of image URLs for damage evidence
     allocationType: z.enum(["online", "store", "both"]).optional(),
     storeId: z.string().optional(),
     variantId: z.string().optional(),

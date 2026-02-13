@@ -26,6 +26,7 @@ export interface DamageReportData {
   recoveryValue?: string;
   disposalMethod?: string | null;
   notes?: string;
+  imageUrls?: string[]; // Array of image URLs for damage evidence
   allocationType?: "online" | "store" | "both";
 }
 
@@ -455,6 +456,7 @@ export class ProductDamageService {
             recoveryValue: data.recoveryValue,
             disposalMethod: data.disposalMethod,
             notes: data.notes,
+            imageUrls: data.imageUrls || [], // Add image URLs for damage evidence
             allocationType: data.allocationType || "both",
             status: "pending",
             createdAt: new Date(),
@@ -712,6 +714,7 @@ export class ProductDamageService {
           recoveryValue: productDamages.recoveryValue,
           disposalMethod: productDamages.disposalMethod,
           notes: productDamages.notes,
+          imageUrls: productDamages.imageUrls,
           status: productDamages.status,
           allocationType: productDamages.allocationType,
           storeId: productDamages.storeId,
