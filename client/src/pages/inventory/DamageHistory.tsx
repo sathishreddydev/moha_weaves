@@ -7,11 +7,12 @@ import { useAuth } from "@/lib/auth";
 import { apiRequest } from "@/lib/queryClient";
 import { useQuery } from "@tanstack/react-query";
 import { format } from "date-fns";
-import { AlertTriangle, Calendar, Download, Filter, Package } from "lucide-react";
+import { AlertTriangle, Calendar, Download, Package, Eye } from "lucide-react";
 import { ColumnDef } from "@tanstack/react-table";
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
+import { FilterItem } from "@/components/Type/type";
+import { transformOptions } from "./components/common";
 
-// Type definitions
 interface ProductDamage {
   id: string;
   productId: string;
@@ -49,13 +50,6 @@ interface DamageAnalytics {
   recentDamages: ProductDamage[];
 }
 
-interface Product {
-  id: string;
-  name: string;
-  sku: string;
-  totalStock: number;
-}
-
 const damageSources = [
   { value: "store", label: "In-Store" },
   { value: "warehouse", label: "Warehouse" },
@@ -81,12 +75,6 @@ const damageSeverities = [
   { value: "total_loss", label: "Total Loss" },
 ];
 
-const statusColors: Record<string, string> = {
-  pending: "bg-yellow-100 text-yellow-800",
-  approved: "bg-green-100 text-green-800",
-  rejected: "bg-red-100 text-red-800",
-};
-
 const severityColors: Record<string, string> = {
   minor: "bg-blue-100 text-blue-800",
   major: "bg-orange-100 text-orange-800",
@@ -96,6 +84,28 @@ const severityColors: Record<string, string> = {
 export default function DamageHistory() {
   const { user } = useAuth();
 
+  // Custom filters for damage history
+  const damageFilters: FilterItem[] = [
+    {
+      key: "category",
+      label: "Category",
+      placeholder: "Filter by category",
+      tree: transformOptions(damageCategories),
+    },
+    {
+      key: "severity",
+      label: "Severity",
+      placeholder: "Filter by severity",
+      tree: transformOptions(damageSeverities),
+    },
+    {
+      key: "source",
+      label: "Source",
+      placeholder: "Filter by source",
+      tree: transformOptions(damageSources),
+    },
+  ];
+
   const {
     data: damages,
     totalCount,
@@ -103,18 +113,19 @@ export default function DamageHistory() {
     pageSize,
     isLoading,
     handlePaginationChange,
-    refetch,
   } = useDataTable<ProductDamage>({
     queryKey: "/api/inventory/getDamages",
     initialPageSize: 10,
   });
 
-
   // Get analytics
   const { data: analytics } = useQuery<DamageAnalytics>({
     queryKey: ["/api/inventory/damage-analytics"],
     queryFn: async () => {
-      const response = await apiRequest("GET", "/api/inventory/damage-analytics");
+      const response = await apiRequest(
+        "GET",
+        "/api/inventory/damage-analytics",
+      );
       return response;
     },
     enabled: !!user && (user.role === "inventory" || user.role === "admin"),
@@ -138,14 +149,16 @@ export default function DamageHistory() {
         cell: ({ row }) => (
           <div className="flex items-center gap-2">
             <Package className="h-4 w-4 text-muted-foreground" />
-            <span className="font-mono text-sm">{row.getValue("productId")}</span>
+            <span className="font-mono text-sm">
+              {row.getValue("productId")}
+            </span>
           </div>
         ),
       },
       {
         accessorKey: "variantId",
         header: "Variant",
-        cell: ({ row }) => (
+        cell: ({ row }) =>
           row.getValue("variantId") ? (
             <Badge variant="secondary" className="text-xs">
               <Package className="h-3 w-3 mr-1" />
@@ -153,15 +166,15 @@ export default function DamageHistory() {
             </Badge>
           ) : (
             <span className="text-muted-foreground text-sm">Product</span>
-          )
-        ),
+          ),
       },
       {
         accessorKey: "source",
         header: "Source",
         cell: ({ row }) => (
           <Badge variant="outline">
-            {damageSources.find(s => s.value === row.getValue("source"))?.label || row.getValue("source")}
+            {damageSources.find((s) => s.value === row.getValue("source"))
+              ?.label || row.getValue("source")}
           </Badge>
         ),
       },
@@ -170,7 +183,9 @@ export default function DamageHistory() {
         header: "Category",
         cell: ({ row }) => (
           <Badge variant="outline">
-            {damageCategories.find(c => c.value === row.getValue("damageCategory"))?.label || row.getValue("damageCategory")}
+            {damageCategories.find(
+              (c) => c.value === row.getValue("damageCategory"),
+            )?.label || row.getValue("damageCategory")}
           </Badge>
         ),
       },
@@ -181,7 +196,8 @@ export default function DamageHistory() {
           const severity = row.getValue("damageSeverity") as string;
           return (
             <Badge className={severityColors[severity] || ""}>
-              {damageSeverities.find(s => s.value === severity)?.label || severity}
+              {damageSeverities.find((s) => s.value === severity)?.label ||
+                severity}
             </Badge>
           );
         },
@@ -202,26 +218,78 @@ export default function DamageHistory() {
           </div>
         ),
       },
-      {
-        accessorKey: "status",
-        header: "Status",
-        cell: ({ row }) => {
-          const status = row.getValue("status") as string;
-          return (
-            <Badge className={statusColors[status] || ""}>
-              {status}
-            </Badge>
-          );
-        },
-      },
     ],
-    []
+    [],
   );
 
   const exportData = () => {
-    // Export functionality can be added here
-    console.log("Export data");
+    if (!damages || damages.length === 0) {
+      alert("No data to export");
+      return;
+    }
+
+    // Create CSV content
+    const headers = [
+      "Date",
+      "Product ID",
+      "Variant",
+      "Source",
+      "Category",
+      "Severity",
+      "Quantity",
+      "Reason",
+      "Status",
+      "Cost Value",
+      "Recovery Value",
+      "Net Loss",
+      "Reported By",
+    ];
+
+    const csvData = damages.map((damage: ProductDamage) => [
+      format(new Date(damage.createdAt), "yyyy-MM-dd"),
+      damage.productId,
+      damage.variantId ? `Variant: ${damage.variantId}` : "Product",
+      damageSources.find((s) => s.value === damage.source)?.label ||
+        damage.source,
+      damageCategories.find((c) => c.value === damage.damageCategory)?.label ||
+        damage.damageCategory,
+      damageSeverities.find((s) => s.value === damage.damageSeverity)?.label ||
+        damage.damageSeverity,
+      damage.quantity.toString(),
+      `"${damage.reason.replace(/"/g, '""')}"`, // Escape quotes in reason
+      damage.status,
+      damage.costValue || "0",
+      damage.recoveryValue || "0",
+      (
+        (Number(damage.costValue) || 0) - (Number(damage.recoveryValue) || 0)
+      ).toString(),
+      damage.reportedBy,
+    ]);
+
+    // Convert to CSV string
+    const csvContent = [
+      headers.join(","),
+      ...csvData.map((row) => row.join(",")),
+    ].join("\n");
+
+    // Create blob and download
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const link = document.createElement("a");
+    const url = URL.createObjectURL(blob);
+
+    link.setAttribute("href", url);
+    link.setAttribute(
+      "download",
+      `damage-history-${format(new Date(), "yyyy-MM-dd")}.csv`,
+    );
+    link.style.visibility = "hidden";
+
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
   };
+
+
 
   return (
     <div className="max-w-7xl mx-auto p-6">
@@ -243,7 +311,9 @@ export default function DamageHistory() {
             <AlertTriangle className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{analytics?.totalDamages || 0}</div>
+            <div className="text-2xl font-bold">
+              {analytics?.totalDamages || 0}
+            </div>
           </CardContent>
         </Card>
         <Card>
@@ -251,7 +321,9 @@ export default function DamageHistory() {
             <CardTitle className="text-sm font-medium">Total Cost</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">₹{analytics?.totalCost?.toLocaleString() || 0}</div>
+            <div className="text-2xl font-bold">
+              ₹{analytics?.totalCost?.toLocaleString() || 0}
+            </div>
           </CardContent>
         </Card>
         <Card>
@@ -259,7 +331,9 @@ export default function DamageHistory() {
             <CardTitle className="text-sm font-medium">Recovered</CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">₹{analytics?.totalRecovered?.toLocaleString() || 0}</div>
+            <div className="text-2xl font-bold">
+              ₹{analytics?.totalRecovered?.toLocaleString() || 0}
+            </div>
           </CardContent>
         </Card>
         <Card>
@@ -268,7 +342,10 @@ export default function DamageHistory() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-red-600">
-              ₹{((analytics?.totalCost || 0) - (analytics?.totalRecovered || 0)).toLocaleString()}
+              ₹
+              {(
+                (analytics?.totalCost || 0) - (analytics?.totalRecovered || 0)
+              ).toLocaleString()}
             </div>
           </CardContent>
         </Card>
@@ -294,6 +371,7 @@ export default function DamageHistory() {
             isLoading={isLoading}
             searchPlaceholder="Search damage records..."
             emptyMessage="No damage records found"
+            filters={damageFilters}
           />
         </CardContent>
       </Card>

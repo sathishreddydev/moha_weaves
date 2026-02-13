@@ -7,17 +7,13 @@ export type DateRangeFilter = {
 
 export type FiltersState = {
   search: string;
-  categoryIds: string[];
-  colorIds: string[];
-  fabricIds: string[];
   dateRange: DateRangeFilter | null;
+  [key: string]: string[] | string | DateRangeFilter | null;
 };
 
 type FilterStore = FiltersState & {
   setSearch: (search: string) => void;
-  setCategoryIds: (ids: string[]) => void;
-  setColorIds: (ids: string[]) => void;
-  setFabricIds: (ids: string[]) => void;
+  setFilter: (key: string, values: string[]) => void;
   setDateRange: (range: DateRangeFilter | null) => void;
 
   resetFilters: () => void;
@@ -26,9 +22,6 @@ type FilterStore = FiltersState & {
 
 const initialState: FiltersState = {
   search: "",
-  categoryIds: [],
-  colorIds: [],
-  fabricIds: [],
   dateRange: null,
 };
 
@@ -37,9 +30,7 @@ export const useDataTableFilterStore = create<FilterStore>()(
     ...initialState,
 
     setSearch: (search) => set({ search }),
-    setCategoryIds: (categoryIds) => set({ categoryIds }),
-    setColorIds: (colorIds) => set({ colorIds }),
-    setFabricIds: (fabricIds) => set({ fabricIds }),
+    setFilter: (key, values) => set((state) => ({ ...state, [key]: values })),
     setDateRange: (dateRange) => set({ dateRange }),
 
     resetFilters: () => set({ ...initialState }),
@@ -48,9 +39,9 @@ export const useDataTableFilterStore = create<FilterStore>()(
       const state = get();
       return (
         state.search !== "" ||
-        state.categoryIds.length > 0 ||
-        state.colorIds.length > 0 ||
-        state.fabricIds.length > 0 ||
+        Object.entries(state).some(([key, value]) => 
+          key !== 'search' && key !== 'dateRange' && Array.isArray(value) && value.length > 0
+        ) ||
         Boolean(state.dateRange?.from || state.dateRange?.to)
       );
     },

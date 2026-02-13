@@ -98,13 +98,14 @@ export function DataTable<TData, TValue>({
 }: DataTableProps<TData, TValue>) {
   const {
     search,
-    setSearch,
     dateRange,
+    setSearch,
     setDateRange,
     resetFilters,
     hasActiveFilters,
+    setFilter,
+    ...dynamicFilters
   } = useDataTableFilterStore();
-
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [sorting, setSorting] = useState<SortingState>([]);
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
@@ -267,6 +268,26 @@ export function DataTable<TData, TValue>({
               />
             </Badge>
           )}
+
+          {/* Display dynamic filters */}
+          {Object.entries(dynamicFilters).map(([key, values]) => {
+            if (Array.isArray(values) && values.length > 0) {
+              const filterConfig = filters?.find(f => f.key === key);
+              const label = filterConfig?.label || key;
+              return (
+                <Badge key={key} variant="secondary" className="gap-1">
+                  {label}: {values.length} selected
+                  <X
+                    className="h-3 w-3 cursor-pointer"
+                    onClick={() => {
+                      setFilter(key, []);
+                    }}
+                  />
+                </Badge>
+              );
+            }
+            return null;
+          })}
 
           <Button
             variant="ghost"

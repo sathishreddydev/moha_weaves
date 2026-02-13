@@ -7,13 +7,9 @@ export interface TableParams {
   page: number;
   pageSize: number;
   search?: string;
-
-  categoryIds?: string[];
-  colorIds?: string[];
-  fabricIds?: string[];
-
   dateFrom?: string;
   dateTo?: string;
+  [key: string]: any;
 }
 
 export interface PaginatedResponse<T> {
@@ -44,24 +40,19 @@ export function useDataTable<T>({
   const [pageIndex, setPageIndex] = useState(0);
   const [pageSize, setPageSize] = useState(initialPageSize);
 
-  const { search, categoryIds, colorIds, fabricIds, dateRange } =
+  const { search, dateRange, ...dynamicFilters } =
     useDataTableFilterStore();
 
   const params: TableParams = useMemo(
     () => ({
       page: pageIndex + 1,
       pageSize,
-
       search: search || undefined,
-
-      categoryIds: categoryIds.length ? categoryIds : undefined,
-      colorIds: colorIds.length ? colorIds : undefined,
-      fabricIds: fabricIds.length ? fabricIds : undefined,
-
       dateFrom: dateRange?.from?.toISOString(),
       dateTo: dateRange?.to?.toISOString(),
+      ...dynamicFilters,
     }),
-    [pageIndex, pageSize, search, categoryIds, colorIds, fabricIds, dateRange],
+    [pageIndex, pageSize, search, dateRange, dynamicFilters],
   );
   const queryParams = useMemo(
     () => ({
@@ -74,19 +65,20 @@ export function useDataTable<T>({
   const requestBody = useMemo(
     () => ({
       ...(search && { search }),
-
-      ...(categoryIds.length && { categoryIds }),
-      ...(colorIds.length && { colorIds }),
-      ...(fabricIds.length && { fabricIds }),
-
       ...(dateRange?.from && {
         dateFrom: dateRange.from.toISOString(),
       }),
       ...(dateRange?.to && {
         dateTo: dateRange.to.toISOString(),
       }),
+      ...Object.entries(dynamicFilters).reduce((acc, [key, value]) => {
+        if (Array.isArray(value) && value.length > 0) {
+          acc[key] = value;
+        }
+        return acc;
+      }, {} as Record<string, any>),
     }),
-    [search, categoryIds, colorIds, fabricIds, dateRange],
+    [search, dateRange, dynamicFilters],
   );
 
   const url = useMemo(() => {

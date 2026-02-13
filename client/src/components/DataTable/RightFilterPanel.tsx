@@ -25,26 +25,18 @@ export function RightFilterPanel({ open, onOpenChange, filters }: Props) {
 
     const initial: TempFilters = {};
     filters.forEach(({ key }) => {
-      initial[key] = store[key as keyof typeof store] as string[];
+      initial[key] = (store[key as keyof typeof store] as string[]) || [];
     });
 
     setTempFilters(initial);
-  }, [open]);
+  }, [open, filters, store]);
 
   const handleApply = () => {
     if (!filters) return;
     
     filters.forEach(({ key }) => {
-      switch (key) {
-        case "categoryIds":
-          store.setCategoryIds(tempFilters[key]);
-          break;
-        case "colorIds":
-          store.setColorIds(tempFilters[key]);
-          break;
-        default:
-          break;
-      }
+      const values = tempFilters[key as string] || [];
+      store.setFilter(key, values);
     });
 
     onOpenChange(false);
