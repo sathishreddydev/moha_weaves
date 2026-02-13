@@ -197,6 +197,7 @@ export const insertProductDamageSchema = createInsertSchema(tables.productDamage
     notes: z.string().optional(),
     allocationType: z.enum(["online", "store", "both"]).optional(),
     storeId: z.string().optional(),
+    variantId: z.string().optional(),
   });
 
 // Type exports for frontend

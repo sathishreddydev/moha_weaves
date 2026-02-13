@@ -49,6 +49,7 @@ export default function DamageReport() {
 
   const [formData, setFormData] = useState({
     productId: "",
+    variantId: "",
     source: "",
     damageCategory: "",
     damageSeverity: "",
@@ -61,16 +62,18 @@ export default function DamageReport() {
     stockReductions: {} as StockReductions,
   });
 
+  const [selectedVariant, setSelectedVariant] = useState<any>(null);
+
   // Get specific product by ID when SKU is provided, otherwise get all products
-  const { data: products = [], isLoading: productsLoading, error: productsError } = useQuery({
-    queryKey: ["/api/inventory/getProducts"],
-    queryFn: async () => {
-      const response = await apiRequest("POST", "/api/inventory/getProducts", { page: 1, pageSize: 10 });
-      return response;
-    },
-    enabled: !!user && (user.role === "inventory" || user.role === "admin") && !sku,
-    retry: 2,
-  });
+  // const { data: products = [], isLoading: productsLoading, error: productsError } = useQuery({
+  //   queryKey: ["/api/inventory/getProducts"],
+  //   queryFn: async () => {
+  //     const response = await apiRequest("POST", "/api/inventory/getProducts", { page: 1, pageSize: 10 });
+  //     return response;
+  //   },
+  //   enabled: !!user && (user.role === "inventory" || user.role === "admin") && !sku,
+  //   retry: 2,
+  // });
 
   // Get specific product by SKU when SKU is provided
   const { data: productBySku, isLoading: productBySkuLoading, error: productBySkuError } = useQuery({
@@ -89,6 +92,7 @@ export default function DamageReport() {
     if (sku && productBySku) {
       setFormData({
         productId: productBySku.id,
+        variantId: "",
         source: "",
         damageCategory: "",
         damageSeverity: "",
@@ -102,6 +106,28 @@ export default function DamageReport() {
       });
     }
   }, [sku, productBySku]);
+
+
+  // Update selected variant when form data changes
+  useEffect(() => {
+    if (productBySku && formData.variantId) {
+      const variant = productBySku.variants?.find((v: any) => v.id === formData.variantId);
+      setSelectedVariant(variant);
+    } else {
+      setSelectedVariant(null);
+    }
+  }, [formData.variantId, productBySku]);
+
+  // Reset variant when product changes
+  useEffect(() => {
+    setSelectedVariant(null);
+    setFormData(prev => ({ 
+      ...prev, 
+      variantId: "", 
+      allocationType: "", 
+      stockReductions: {} as StockReductions 
+    }));
+  }, [formData.productId]);
 
   // Report damage mutation
   const reportDamageMutation = useMutation({
@@ -117,6 +143,7 @@ export default function DamageReport() {
       // Reset form after successful submission
       setFormData({
         productId: "",
+        variantId: "",
         source: "",
         damageCategory: "",
         damageSeverity: "",
@@ -173,6 +200,16 @@ export default function DamageReport() {
       return;
     }
 
+    // Variant validation - required if product has variants
+    if (productBySku?.variants?.length > 0 && !formData.variantId) {
+      toast({
+        title: "Validation Error",
+        description: "Please select a product variant",
+        variant: "destructive",
+      });
+      return;
+    }
+
     // Validate stock reductions
     const stockReductions = formData.stockReductions;
     const totalReductions = Object.values(stockReductions).reduce((sum, qty) => sum + (parseInt(qty) || 0), 0);
@@ -181,17 +218,6 @@ export default function DamageReport() {
       toast({
         title: "Validation Error",
         description: "Please enter damage quantity for at least one allocation",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    // Stock validation before submission
-    const selectedProduct = products.find((p: any) => p.id === formData.productId);
-    if (!selectedProduct) {
-      toast({
-        title: "Error",
-        description: "Selected product not found",
         variant: "destructive",
       });
       return;
@@ -206,10 +232,13 @@ export default function DamageReport() {
       let stockType = "";
 
       if (allocationId === "online") {
-        maxStock = selectedProduct.onlineStock || 0;
+        maxStock = selectedVariant ? (selectedVariant.onlineStock || 0) : (productBySku.onlineStock || 0);
         stockType = "online";
       } else {
-        const storeAllocation = selectedProduct.storeAllocations?.find((s: any) => s.storeId === allocationId);
+        const storeAllocation = selectedVariant 
+          ? selectedVariant.storeAllocations?.find((s: any) => s.storeId === allocationId)
+          : productBySku.storeAllocations?.find((s: any) => s.storeId === allocationId);
+        
         if (!storeAllocation) {
           toast({
             title: "Error",
@@ -234,6 +263,7 @@ export default function DamageReport() {
 
     const damageData = {
       productId: formData.productId,
+      variantId: formData.variantId || undefined,
       source: formData.source,
       stockReductions: stockReductions,
       damageCategory: formData.damageCategory,
@@ -249,10 +279,8 @@ export default function DamageReport() {
     reportDamageMutation.mutate(damageData);
   };
 
-  const selectedProduct = sku ? productBySku : products.find((p: any) => p.id === formData.productId);
-
   return (
-    <div className="max-w-4xl mx-auto p-6">
+    <div className="max-w-4xl mx-auto">
       <div className="mb-8">
         <h1 className="text-2xl font-semibold flex items-center gap-2">
           <AlertTriangle className="h-6 w-6 text-orange-500" />
@@ -263,18 +291,9 @@ export default function DamageReport() {
         </p>
       </div>
 
-      {/* Error State */}
-      {(productsError || productBySkuError) && (
-        <Alert className="mb-6">
-          <AlertTriangle className="h-4 w-4" />
-          <AlertDescription>
-            {sku ? "Failed to load product. Please check the SKU and try again." : "Failed to load products. Please refresh the page and try again."}
-          </AlertDescription>
-        </Alert>
-      )}
 
       {/* Loading State */}
-      {(productsLoading || productBySkuLoading) ? (
+      {(productBySkuLoading) ? (
         <Card>
           <CardContent className="p-6">
             <div className="flex items-center justify-center py-8">
@@ -283,7 +302,7 @@ export default function DamageReport() {
             </div>
           </CardContent>
         </Card>
-      ) : !sku && products.length === 0 ? (
+      ) : !sku ? (
         <Card>
           <CardContent className="p-6">
             <div className="text-center py-8">
@@ -319,11 +338,11 @@ export default function DamageReport() {
                 <Label htmlFor="productId">Product *</Label>
                 {sku ? (
                   <div className="p-3 bg-muted rounded-md">
-                    {selectedProduct ? (
+                    {productBySku ? (
                       <div className="flex items-center gap-2">
                         <Package className="h-4 w-4" />
-                        <span className="font-medium">{selectedProduct.name}</span>
-                        <Badge variant="outline">SKU: {selectedProduct.sku}</Badge>
+                        <span className="font-medium">{productBySku.name}</span>
+                        <Badge variant="outline">SKU: {productBySku.sku}</Badge>
                       </div>
                     ) : (
                       <div className="text-muted-foreground">
@@ -332,28 +351,36 @@ export default function DamageReport() {
                     )}
                   </div>
                 ) : (
+                  <></>
+                )}
+              </div>
+
+              {/* Variant Selection - Only show if product has variants */}
+              {productBySku?.variants?.length > 0 && (
+                <div className="space-y-2">
+                  <Label htmlFor="variantId">Product Variant *</Label>
                   <Select
-                    value={formData.productId}
-                    onValueChange={(value) => setFormData({ ...formData, productId: value, allocationType: "", stockReductions: {} as StockReductions })}
-                    disabled={productsLoading}
+                    value={formData.variantId}
+                    onValueChange={(value) => setFormData({ ...formData, variantId: value, allocationType: "", stockReductions: {} as StockReductions })}
+                    disabled={!formData.productId}
                   >
                     <SelectTrigger>
-                      <SelectValue placeholder={productsLoading ? "Loading products..." : "Select product"} />
+                      <SelectValue placeholder={formData.productId ? "Select variant" : "Select product first"} />
                     </SelectTrigger>
                     <SelectContent>
-                      {products.map((product: any) => (
-                        <SelectItem key={product.id} value={product.id}>
+                      {productBySku.variants.map((variant: any) => (
+                        <SelectItem key={variant.id} value={variant.id}>
                           <div className="flex items-center gap-2">
-                            <Package className="h-4 w-4" />
-                            <span>{product.name}</span>
-                            <Badge variant="outline">SKU: {product.sku}</Badge>
+                            <span>Size: {variant.size}</span>
+                            <Badge variant="outline">Online: {variant.onlineStock || 0}</Badge>
+                            <Badge variant="outline">Total: {variant.stockQuantity || 0}</Badge>
                           </div>
                         </SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
-                )}
-              </div>
+                </div>
+              )}
 
               {/* Damage Details */}
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -440,7 +467,7 @@ export default function DamageReport() {
                 </div>
 
                 {/* Dynamic Stock Input Fields */}
-                {selectedProduct && formData.allocationType && (
+                {productBySku && formData.allocationType && (
                   <div className="space-y-4">
                     <h4 className="text-md font-medium">Enter Damage Quantities</h4>
 
@@ -466,7 +493,7 @@ export default function DamageReport() {
                             className={
                               (() => {
                                 const qty = parseInt(formData.stockReductions?.online) || 0;
-                                const maxStock = selectedProduct.onlineStock || 0;
+                                const maxStock = selectedVariant ? (selectedVariant.onlineStock || 0) : (productBySku.onlineStock || 0);
                                 return qty > maxStock ? "border-red-500 focus:border-red-500" : "";
                               })()
                             }
@@ -475,7 +502,10 @@ export default function DamageReport() {
                         <div className="space-y-2">
                           <Label>Available Online Stock</Label>
                           <div className="p-2 bg-gray-50 rounded border">
-                            <p className="text-sm font-medium">{selectedProduct.onlineStock || 0} units</p>
+                            <p className="text-sm font-medium">
+                              {selectedVariant ? (selectedVariant.onlineStock || 0) : (productBySku.onlineStock || 0)} units
+                              {selectedVariant && <span className="text-xs text-gray-500 ml-2">(Variant: {selectedVariant.size})</span>}
+                            </p>
                           </div>
                         </div>
                       </div>
@@ -483,7 +513,7 @@ export default function DamageReport() {
 
                     {/* Store Stock Inputs */}
                     {(formData.allocationType === "store" || formData.allocationType === "both") &&
-                      selectedProduct.storeAllocations?.map((store: any) => (
+                      productBySku.storeAllocations?.map((store: any) => (
                         <div key={store.storeId} className="grid grid-cols-1 md:grid-cols-2 gap-4">
                           <div className="space-y-2">
                             <Label htmlFor={store.storeId}>{store.storeName}</Label>
@@ -504,7 +534,10 @@ export default function DamageReport() {
                               className={
                                 (() => {
                                   const qty = parseInt(formData.stockReductions?.[store.storeId]) || 0;
-                                  const maxStock = store.quantity || 0;
+                                  // For variants, check variant store allocation, otherwise check product store allocation
+                                  const maxStock = selectedVariant 
+                                    ? (selectedVariant.storeAllocations?.find((s: any) => s.storeId === store.storeId)?.quantity || 0)
+                                    : (store.quantity || 0);
                                   return qty > maxStock ? "border-red-500 focus:border-red-500" : "";
                                 })()
                               }
@@ -513,7 +546,12 @@ export default function DamageReport() {
                           <div className="space-y-2">
                             <Label>Available Stock</Label>
                             <div className="p-2 bg-gray-50 rounded border">
-                              <p className="text-sm font-medium">{store.quantity || 0} units</p>
+                              <p className="text-sm font-medium">
+                                {selectedVariant 
+                                  ? (selectedVariant.storeAllocations?.find((s: any) => s.storeId === store.storeId)?.quantity || 0)
+                                  : (store.quantity || 0)} units
+                                {selectedVariant && <span className="text-xs text-gray-500 ml-2">(Variant: {selectedVariant.size})</span>}
+                              </p>
                             </div>
                           </div>
                         </div>
@@ -527,7 +565,7 @@ export default function DamageReport() {
                       // Online stock validation
                       if ((formData.allocationType === "online" || formData.allocationType === "both") && formData.stockReductions?.online) {
                         const qty = parseInt(formData.stockReductions.online) || 0;
-                        const maxStock = selectedProduct.onlineStock || 0;
+                        const maxStock = selectedVariant ? (selectedVariant.onlineStock || 0) : (productBySku.onlineStock || 0);
                         if (qty > maxStock) {
                           alerts.push({
                             type: "online",
@@ -538,7 +576,10 @@ export default function DamageReport() {
 
                       // Store stock validation
                       if (formData.allocationType === "store" || formData.allocationType === "both") {
-                        selectedProduct.storeAllocations?.forEach((store: any) => {
+                        const stockSource = selectedVariant || productBySku;
+                        const allocations = selectedVariant ? selectedVariant.storeAllocations : productBySku.storeAllocations;
+                        
+                        allocations?.forEach((store: any) => {
                           const qty = parseInt(formData.stockReductions?.[store.storeId]) || 0;
                           const maxStock = store.quantity || 0;
                           if (qty > maxStock) {

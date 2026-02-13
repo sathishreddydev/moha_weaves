@@ -816,6 +816,8 @@ export const productDamages = pgTable("product_damages", {
   productId: varchar("product_id")
     .references(() => products.id)
     .notNull(),
+  variantId: varchar("variant_id")
+    .references(() => productVariants.id),
   source: enums.damageSourceEnum("source").notNull(), // "store", "online_return", "warehouse", "shipping", "manufacturing"
   quantity: integer("quantity").notNull(),
   damageCategory: enums.damageCategoryEnum("damage_category").notNull(),

@@ -41,9 +41,9 @@ export const inventoryRoutes = (app: Express) => {
     } catch (error) {
       console.error("Error fetching inventory filters:", error);
       const message = error instanceof Error ? error.message : "Unknown error occurred";
-      res.status(500).json({ 
-        message: "Failed to fetch filters", 
-        error: process.env.NODE_ENV === "development" ? message : undefined 
+      res.status(500).json({
+        message: "Failed to fetch filters",
+        error: process.env.NODE_ENV === "development" ? message : undefined
       });
     }
   });
@@ -58,9 +58,9 @@ export const inventoryRoutes = (app: Express) => {
     } catch (error) {
       console.error("Error fetching stock requests:", error);
       const message = error instanceof Error ? error.message : "Unknown error occurred";
-      res.status(500).json({ 
-        message: "Failed to fetch requests", 
-        error: process.env.NODE_ENV === "development" ? message : undefined 
+      res.status(500).json({
+        message: "Failed to fetch requests",
+        error: process.env.NODE_ENV === "development" ? message : undefined
       });
     }
   });
@@ -104,7 +104,7 @@ export const inventoryRoutes = (app: Express) => {
             // Update stock atomically
             await tx
               .update(products)
-              .set({ 
+              .set({
                 totalStock: product.totalStock - stockRequest.quantity,
                 updatedAt: new Date()
               })
@@ -123,7 +123,7 @@ export const inventoryRoutes = (app: Express) => {
             (req as any).user.id,
             rejectionReason,
           );
-          
+
           if (!updatedRequest) {
             return res.status(404).json({ message: "Request not found" });
           }
@@ -146,7 +146,7 @@ export const inventoryRoutes = (app: Express) => {
           return res.status(404).json({ message: "Request not found" });
         }
         res.json(request);
-      } catch  {
+      } catch {
         res.status(500).json({ message: "Failed to update request" });
       }
     },
@@ -181,7 +181,7 @@ export const inventoryRoutes = (app: Express) => {
         }
 
         res.json(updated);
-      } catch  {
+      } catch {
         res.status(500).json({ message: "Failed to update tracking number" });
       }
     },
@@ -195,7 +195,7 @@ export const inventoryRoutes = (app: Express) => {
         limit: limit ? parseInt(limit as string) : undefined,
       });
       res.json(orders);
-    } catch  {
+    } catch {
       res.status(500).json({ message: "Failed to fetch orders" });
     }
   });
@@ -219,7 +219,7 @@ export const inventoryRoutes = (app: Express) => {
 
       const orders = await storage.getAllOrders({ status: status as string });
       res.json(orders);
-    } catch  {
+    } catch {
       res.status(500).json({ message: "Failed to fetch orders" });
     }
   });
@@ -231,7 +231,7 @@ export const inventoryRoutes = (app: Express) => {
         return res.status(404).json({ message: "Order not found" });
       }
       res.json(order);
-    } catch  {
+    } catch {
       res.status(500).json({ message: "Failed to fetch order" });
     }
   });
@@ -248,7 +248,7 @@ export const inventoryRoutes = (app: Express) => {
 
         const history = await storage.getItemStatusHistory(req.params.id);
         res.json(history);
-      } catch  {
+      } catch {
         res.status(500).json({ message: "Failed to fetch order history" });
       }
     },
@@ -264,7 +264,7 @@ export const inventoryRoutes = (app: Express) => {
           distributionChannel: channel,
         });
         res.json(product);
-      } catch  {
+      } catch {
         res.status(500).json({ message: "Failed to update distribution" });
       }
     },
@@ -281,7 +281,7 @@ export const inventoryRoutes = (app: Express) => {
           onlineStock,
         });
         res.json(product);
-      } catch  {
+      } catch {
         res.status(500).json({ message: "Failed to update stock" });
       }
     },
@@ -294,7 +294,7 @@ export const inventoryRoutes = (app: Express) => {
       try {
         const distribution = await storage.getStockDistribution();
         res.json(distribution);
-      } catch  {
+      } catch {
         res.status(500).json({ message: "Failed to fetch stock distribution" });
       }
     },
@@ -339,7 +339,7 @@ export const inventoryRoutes = (app: Express) => {
         pageSize: params.pageSize,
         totalPages,
       });
-    } catch  {
+    } catch {
       res.status(500).json({ message: "Failed to fetch products" });
     }
   });
@@ -348,7 +348,7 @@ export const inventoryRoutes = (app: Express) => {
     try {
       const stores = await storeService.getStores();
       res.json(stores);
-    } catch  {
+    } catch {
       res.status(500).json({ message: "Failed to fetch stores" });
     }
   });
@@ -362,7 +362,7 @@ export const inventoryRoutes = (app: Express) => {
           req.params.id,
         );
         res.json(allocations);
-      } catch  {
+      } catch {
         res.status(500).json({ message: "Failed to fetch allocations" });
       }
     },
@@ -385,7 +385,7 @@ export const inventoryRoutes = (app: Express) => {
         for (const variant of variants) {
           const storeTotal = variant.storeAllocations?.reduce((sum, a) => sum + a.quantity, 0) || 0;
           const onlinePlusStore = variant.onlineStock + storeTotal;
-          
+
           if (onlinePlusStore !== variant.stockQuantity) {
             return res.status(400).json({
               message: `Variant ${variant.size}: Online (${variant.onlineStock}) + Store allocations (${storeTotal}) must equal total stock (${variant.stockQuantity})`,
@@ -408,19 +408,19 @@ export const inventoryRoutes = (app: Express) => {
         // Calculate aggregated totals from variants
         const totalStock = variants.reduce((sum, v) => sum + v.stockQuantity, 0);
         const onlineStock = variants.reduce((sum, v) => sum + v.onlineStock, 0);
-        
+
         // Aggregate store allocations across variants
-        const storeAllocationsMap = new Map<string, {quantity: number, storeName: string}>();
+        const storeAllocationsMap = new Map<string, { quantity: number, storeName: string }>();
         variants.forEach(variant => {
           variant.storeAllocations?.forEach(alloc => {
-            const current = storeAllocationsMap.get(alloc.storeId) || {quantity: 0, storeName: ''};
+            const current = storeAllocationsMap.get(alloc.storeId) || { quantity: 0, storeName: '' };
             storeAllocationsMap.set(alloc.storeId, {
               quantity: current.quantity + alloc.quantity,
               storeName: current.storeName || `Store ${alloc.storeId}` // Fallback name
             });
           });
         });
-        
+
         const aggregatedStoreAllocations = Array.from(storeAllocationsMap.entries()).map(([storeId, data]) => ({
           storeId,
           storeName: data.storeName,
@@ -491,13 +491,13 @@ export const inventoryRoutes = (app: Express) => {
         );
         res.json(product);
       }
-    } catch  {
+    } catch {
       res.status(500).json({ message: "Failed to create product" });
     }
   });
 
   app.patch("/api/inventory/products/:id", authInventory, async (req, res) => {
-    try {      
+    try {
       const validation = productUpdateSchema.safeParse(req.body);
       if (!validation.success) {
         console.log("Validation errors:", validation.error.errors);
@@ -516,7 +516,7 @@ export const inventoryRoutes = (app: Express) => {
         for (const variant of variants) {
           const storeTotal = variant.storeAllocations?.reduce((sum, a) => sum + a.quantity, 0) || 0;
           const onlinePlusStore = variant.onlineStock + storeTotal;
-          
+
           if (onlinePlusStore !== variant.stockQuantity) {
             return res.status(400).json({
               message: `Variant ${variant.size}: Online (${variant.onlineStock}) + Store allocations (${storeTotal}) must equal total stock (${variant.stockQuantity})`,
@@ -539,19 +539,19 @@ export const inventoryRoutes = (app: Express) => {
         // Calculate aggregated totals from variants
         const totalStock = variants.reduce((sum, v) => sum + v.stockQuantity, 0);
         const onlineStock = variants.reduce((sum, v) => sum + v.onlineStock, 0);
-        
+
         // Aggregate store allocations across variants
-        const storeAllocationsMap = new Map<string, {quantity: number, storeName: string}>();
+        const storeAllocationsMap = new Map<string, { quantity: number, storeName: string }>();
         variants.forEach(variant => {
           variant.storeAllocations?.forEach(alloc => {
-            const current = storeAllocationsMap.get(alloc.storeId) || {quantity: 0, storeName: ''};
+            const current = storeAllocationsMap.get(alloc.storeId) || { quantity: 0, storeName: '' };
             storeAllocationsMap.set(alloc.storeId, {
               quantity: current.quantity + alloc.quantity,
               storeName: current.storeName || `Store ${alloc.storeId}`
             });
           });
         });
-        
+
         const aggregatedStoreAllocations = Array.from(storeAllocationsMap.entries()).map(([storeId, data]) => ({
           storeId,
           storeName: data.storeName,
@@ -642,7 +642,7 @@ export const inventoryRoutes = (app: Express) => {
         );
         res.json(product);
       }
-    } catch  {
+    } catch {
       res.status(500).json({ message: "Failed to update product" });
     }
   });
@@ -661,7 +661,7 @@ export const inventoryRoutes = (app: Express) => {
         success: true,
         ids: deletedIds,
       });
-    } catch  {
+    } catch {
       res.status(500).json({ message: "Failed to delete products" });
     }
   });
@@ -678,7 +678,7 @@ export const inventoryRoutes = (app: Express) => {
           return res.status(404).json({ message: "Product not found" });
         }
         res.json(product);
-      } catch  {
+      } catch {
         res.status(500).json({ message: "Failed to fetch product" });
       }
     },
@@ -692,7 +692,7 @@ export const inventoryRoutes = (app: Express) => {
         status: status as string | undefined,
       });
       res.json(refunds);
-    } catch  {
+    } catch {
       res.status(500).json({ message: "Failed to fetch refunds" });
     }
   });
@@ -724,7 +724,7 @@ export const inventoryRoutes = (app: Express) => {
         }
 
         res.json(updated);
-      } catch  {
+      } catch {
         res.status(500).json({ message: "Failed to process refund" });
       }
     },
@@ -739,7 +739,7 @@ export const inventoryRoutes = (app: Express) => {
         await refundService.checkRefundStatus(req.params.id);
         const updated = await storage.getRefund(req.params.id);
         res.json(updated);
-      } catch  {
+      } catch {
         res.status(500).json({ message: "Failed to check refund status" });
       }
     },
@@ -941,7 +941,7 @@ export const inventoryRoutes = (app: Express) => {
         limit: limit ? parseInt(limit as string) : undefined,
       });
       res.json(movements);
-    } catch  {
+    } catch {
       res.status(500).json({ message: "Failed to fetch stock movements" });
     }
   });
@@ -952,7 +952,7 @@ export const inventoryRoutes = (app: Express) => {
       const items = await roleBasedProductService.getProductsByRole({ limit: 10 }, "inventory");
       const lowStockItems = items.filter(item => item.totalStock <= 10);
       res.json(lowStockItems);
-    } catch  {
+    } catch {
       res.status(500).json({ message: "Failed to fetch low stock items" });
     }
   });
@@ -961,7 +961,7 @@ export const inventoryRoutes = (app: Express) => {
     try {
       const overview = await storage.getInventoryOverview();
       res.json(overview);
-    } catch  {
+    } catch {
       res.status(500).json({ message: "Failed to fetch inventory overview" });
     }
   });
@@ -1018,9 +1018,9 @@ export const inventoryRoutes = (app: Express) => {
           averageTurnover:
             filteredData.length > 0
               ? filteredData.reduce(
-                  (sum, item) => sum + item.turnoverRatio,
-                  0,
-                ) / filteredData.length
+                (sum, item) => sum + item.turnoverRatio,
+                0,
+              ) / filteredData.length
               : 0,
           highPerformers: filteredData.filter((item) => item.turnoverRatio >= 4)
             .length,
@@ -1125,9 +1125,9 @@ export const inventoryRoutes = (app: Express) => {
           averageRevenuePerProduct:
             filteredData.length > 0
               ? filteredData.reduce(
-                  (sum, item) => sum + item.revenueContribution,
-                  0,
-                ) / filteredData.length
+                (sum, item) => sum + item.revenueContribution,
+                0,
+              ) / filteredData.length
               : 0,
         };
 
@@ -1242,9 +1242,9 @@ export const inventoryRoutes = (app: Express) => {
           averageSeasonality:
             filteredData.length > 0
               ? filteredData.reduce(
-                  (sum, item) => sum + item.seasonalityIndex,
-                  0,
-                ) / filteredData.length
+                (sum, item) => sum + item.seasonalityIndex,
+                0,
+              ) / filteredData.length
               : 0,
           highlySeasonal: filteredData.filter(
             (item) => item.seasonalityIndex > 30,
@@ -1301,7 +1301,7 @@ export const inventoryRoutes = (app: Express) => {
             averageTurnover:
               turnover.length > 0
                 ? turnover.reduce((sum, item) => sum + item.turnoverRatio, 0) /
-                  turnover.length
+                turnover.length
                 : 0,
             highPerformers: turnover.filter((item) => item.turnoverRatio >= 4)
               .length,
@@ -1345,59 +1345,59 @@ export const inventoryRoutes = (app: Express) => {
             averageSeasonality:
               seasonalTrends.length > 0
                 ? seasonalTrends.reduce(
-                    (sum, item) => sum + item.seasonalityIndex,
-                    0,
-                  ) / seasonalTrends.length
+                  (sum, item) => sum + item.seasonalityIndex,
+                  0,
+                ) / seasonalTrends.length
                 : 0,
           },
           insights: {
             criticalIssues: [
               ...(turnover.filter((item) => item.turnoverRatio < 1).length > 0
                 ? [
-                    {
-                      type: "low_turnover",
-                      count: turnover.filter((item) => item.turnoverRatio < 1)
-                        .length,
-                      description: "Products with very low turnover ratio",
-                    },
-                  ]
+                  {
+                    type: "low_turnover",
+                    count: turnover.filter((item) => item.turnoverRatio < 1)
+                      .length,
+                    description: "Products with very low turnover ratio",
+                  },
+                ]
                 : []),
               ...(turnover.filter((item) => item.daysOfSupply > 365).length > 0
                 ? [
-                    {
-                      type: "excess_stock",
-                      count: turnover.filter((item) => item.daysOfSupply > 365)
-                        .length,
-                      description: "Products with over 1 year of supply",
-                    },
-                  ]
+                  {
+                    type: "excess_stock",
+                    count: turnover.filter((item) => item.daysOfSupply > 365)
+                      .length,
+                    description: "Products with over 1 year of supply",
+                  },
+                ]
                 : []),
             ],
             opportunities: [
               ...(seasonalTrends.filter((item) => item.trend === "increasing")
                 .length > 0
                 ? [
-                    {
-                      type: "growing_products",
-                      count: seasonalTrends.filter(
-                        (item) => item.trend === "increasing",
-                      ).length,
-                      description: "Products with increasing demand",
-                    },
-                  ]
+                  {
+                    type: "growing_products",
+                    count: seasonalTrends.filter(
+                      (item) => item.trend === "increasing",
+                    ).length,
+                    description: "Products with increasing demand",
+                  },
+                ]
                 : []),
               ...(abcAnalysis.filter(
                 (item) => item.class === "A" && item.currentStock < 5,
               ).length > 0
                 ? [
-                    {
-                      type: "high_value_low_stock",
-                      count: abcAnalysis.filter(
-                        (item) => item.class === "A" && item.currentStock < 5,
-                      ).length,
-                      description: "High-value products with low stock",
-                    },
-                  ]
+                  {
+                    type: "high_value_low_stock",
+                    count: abcAnalysis.filter(
+                      (item) => item.class === "A" && item.currentStock < 5,
+                    ).length,
+                    description: "High-value products with low stock",
+                  },
+                ]
                 : []),
             ],
           },
@@ -1437,7 +1437,7 @@ export const inventoryRoutes = (app: Express) => {
 
       const storeSales = await storeService.getAllStoreSales();
       res.json(storeSales);
-    } catch  {
+    } catch {
       res.status(500).json({ message: "Failed to fetch store sales" });
     }
   });
@@ -1452,6 +1452,7 @@ export const inventoryRoutes = (app: Express) => {
       // Add the user reporting the damage and filter to only include expected fields
       const damageData = {
         productId: validatedData.productId,
+        variantId: validatedData.variantId,
         source: validatedData.source,
         stockReductions: validatedData.stockReductions,
         damageCategory: validatedData.damageCategory,
@@ -1467,17 +1468,17 @@ export const inventoryRoutes = (app: Express) => {
 
       const damage = await productDamageService.reportDamage(damageData);
       res.status(201).json(damage);
-    } catch  {
+    } catch {
       res.status(500).json({ message: "Failed to report damage" });
     }
   });
 
   // Get all damages with filters
-  app.get("/api/inventory/damages", authInventory, async (req, res) => {
+  app.post("/api/inventory/getDamages", authInventory, async (req, res) => {
     try {
-      const { productId, source, status, limit } = req.query;
-
-      const damages = await productDamageService.getDamages({
+      const { productId, source, status } = req.body;
+      const params = parsePaginationParams(req.query);
+      const result = await productDamageService.getDamages({
         productId: productId as string,
         source: source as
           | "store"
@@ -1486,11 +1487,24 @@ export const inventoryRoutes = (app: Express) => {
           | "shipping"
           | "manufacturing",
         status: status as string,
-        limit: limit ? parseInt(limit as string) : undefined,
+        limit: params.pageSize,
+        offset: (params.page - 1) * params.pageSize,
       });
 
-      res.json(damages);
-    } catch  {
+      const paginatedResponse = {
+        data: result.data,
+        total: result.total,
+        page: params.page,
+        pageSize: params.pageSize,
+        totalPages: Math.ceil(result.total / params.pageSize),
+      };
+
+      return res.json(paginatedResponse);
+
+
+
+
+    } catch {
       res.status(500).json({ message: "Failed to fetch damages" });
     }
   });
@@ -1516,7 +1530,7 @@ export const inventoryRoutes = (app: Express) => {
         });
 
         res.json(analytics);
-      } catch  {
+      } catch {
         res.status(500).json({ message: "Failed to fetch damage analytics" });
       }
     },
@@ -1532,7 +1546,7 @@ export const inventoryRoutes = (app: Express) => {
       }
 
       res.json(damage);
-    } catch  {
+    } catch {
       res.status(500).json({ message: "Failed to fetch damage" });
     }
   });
@@ -1557,9 +1571,10 @@ export const inventoryRoutes = (app: Express) => {
         );
 
         res.json(damage);
-      } catch  {
+      } catch {
         res.status(500).json({ message: "Failed to update damage status" });
       }
     },
   );
+
 };
