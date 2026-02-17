@@ -122,16 +122,10 @@ export default function StoreExchangeHistory() {
         const exchange = row.original;
         const balance = parseFloat(exchange.balanceAmount);
 
-        if (exchange.balanceDirection === "refund_to_customer") {
-          return (
-            <Badge className="text-green-600 border-green-600">
-              Refund {formatPrice(balance)}
-            </Badge>
-          );
-        } else if (exchange.balanceDirection === "due_from_customer") {
+        if (exchange.balanceDirection === "due_from_customer") {
           return (
             <Badge className="text-orange-600 border-orange-600">
-              Due {formatPrice(balance)}
+              Paid {formatPrice(balance)}
             </Badge>
           );
         } else {
@@ -155,12 +149,16 @@ export default function StoreExchangeHistory() {
       ),
     },
     {
-      accessorKey: "reason",
-      header: "Reason",
+      accessorKey: "returnItems",
+      header: "Reasons",
       cell: ({ row }) => (
-        <span className="text-sm text-muted-foreground max-w-32 truncate">
-          {row.original.reason || "Not specified"}
-        </span>
+        <div className="text-sm text-muted-foreground max-w-48">
+          {row.original.returnItems?.map((item: any, idx: number) => (
+            <div key={idx} className="truncate">
+              {item.product?.name}: {item.exchangeType === "damage" ? "Damage" : "Normal"} - {item.specificReason}
+            </div>
+          )) || "Not specified"}
+        </div>
       ),
     },
     {
@@ -272,10 +270,8 @@ export default function StoreExchangeHistory() {
             <div className="mt-2 p-2 bg-muted rounded">
               <p className="text-sm font-medium">
                 {exchange.balanceDirection === "due_from_customer"
-                  ? `Customer pays: ${formatPrice(exchange.balanceAmount)}`
-                  : exchange.balanceDirection === "refund_to_customer"
-                    ? `Refund to customer: ${formatPrice(exchange.balanceAmount)}`
-                    : "Even Exchange"}
+                  ? `Customer paid: ${formatPrice(exchange.balanceAmount)}`
+                  : "Even Exchange"}
               </p>
             </div>
           )}

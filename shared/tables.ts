@@ -400,7 +400,6 @@ export const returnRequests = pgTable("return_requests", {
     .references(() => users.id)
     .notNull(),
   status: enums.returnStatusEnum("status").notNull().default("return_requested"),
-  reason: enums.returnReasonEnum("reason").notNull(),
   reasonDetails: text("reason_details"),
   resolution: enums.returnResolutionEnum("resolution").notNull().default("refund"),
   refundAmount: decimal("refund_amount", { precision: 10, scale: 2 }),
@@ -744,7 +743,6 @@ export const storeExchanges = pgTable("store_exchanges", {
     .notNull(),
   customerName: text("customer_name"),
   customerPhone: text("customer_phone"),
-  reason: text("reason"),
   notes: text("notes"),
   returnAmount: decimal("return_amount", { precision: 10, scale: 2 })
     .notNull()
@@ -779,6 +777,9 @@ export const storeExchangeReturnItems = pgTable("store_exchange_return_items", {
   quantity: integer("quantity").notNull(),
   unitPrice: decimal("unit_price", { precision: 10, scale: 2 }).notNull(),
   returnAmount: decimal("return_amount", { precision: 10, scale: 2 }).notNull(),
+  exchangeType: varchar("exchange_type", { length: 50 }).notNull().default("normal"),
+  specificReason: varchar("specific_reason", { length: 100 }).notNull().default("changed_mind"),
+  damageImages: text("damage_images").default("[]"),
 });
 
 // Store exchange new items - new items being given in the exchange

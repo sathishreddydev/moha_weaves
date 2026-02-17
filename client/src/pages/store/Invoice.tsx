@@ -295,9 +295,14 @@ export default function Invoice() {
                           <p className="text-xs text-slate-600">
                             Date: {formatDate(exchange.createdAt)}
                           </p>
-                          <p className="text-xs text-slate-600">
-                            Reason: {exchange.reason || "Not specified"}
-                          </p>
+                          <div className="text-xs text-slate-600">
+                            <p className="font-medium">Exchange Reasons:</p>
+                            {exchange.returnItems?.map((item: any, idx: number) => (
+                              <div key={idx} className="ml-2">
+                                {item.product?.name}: {item.exchangeType === "damage" ? "Damage" : "Normal"} - {item.specificReason}
+                              </div>
+                            ))}
+                          </div>
                         </div>
                         <div className="text-right">
                           <p className="text-xs text-slate-600">

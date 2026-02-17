@@ -1,6 +1,7 @@
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { CloudinaryUploader } from "@/components/CloudinaryUploader";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -22,6 +23,7 @@ import {
   AlertCircle,
   ArrowLeftRight,
   ArrowRight,
+  Camera,
   Check,
   Clock,
   Minus,
@@ -54,6 +56,9 @@ interface ReturnItem {
   maxQuantity: number;
   unitPrice: string;
   returnAmount: string;
+  exchangeType: string;
+  specificReason: string;
+  damageImages: string[];
 }
 
 interface NewCartItem {
@@ -85,15 +90,33 @@ interface SaleItemWithAvailable {
   };
   availableQuantity: number;
 }
-const exchangeReasons = [
-  { value: "defective", label: "Product is defective" },
-  { value: "wrong_item", label: "Received wrong item" },
+const exchangeTypes = [
+  { value: "normal", label: "Normal Exchange" },
+  { value: "damage", label: "Damage" },
+];
+
+const normalExchangeReasons = [
+  { value: "size_issue", label: "Size doesn't fit" },
+  { value: "changed_mind", label: "Changed my mind" },
+  { value: "wrong_item", label: "Wrong item" },
   { value: "not_as_described", label: "Not as described" },
   { value: "quality_issue", label: "Quality issue" },
-  { value: "size_issue", label: "Size doesn&apos;t fit" },
-  { value: "changed_mind", label: "Changed my mind" },
-  // { value: "other", label: "Other reason" },
 ];
+
+const damageReasons = [
+  { value: "defective", label: "Defective product" },
+  { value: "damaged_packaging", label: "Damaged packaging" },
+  { value: "manufacturing_defect", label: "Manufacturing defect" },
+  { value: "shipping_damage", label: "Shipping damage" },
+  { value: "scratches_broken", label: "Scratches/Broken" },
+];
+
+const getSpecificReasons = (exchangeType: string) => {
+  if (exchangeType === "damage") {
+    return damageReasons;
+  }
+  return normalExchangeReasons;
+};
 
 function StoreExchange() {
   const navigate = useNavigate();
@@ -111,7 +134,6 @@ function StoreExchange() {
   const [returnItems, setReturnItems] = useState<ReturnItem[]>([]);
   const [newItems, setNewItems] = useState<NewCartItem[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
-  const [reason, setReason] = useState("changed_mind");
   const [notes, setNotes] = useState("");
   const [customerName, setCustomerName] = useState("");
   const [customerPhone, setCustomerPhone] = useState("");
@@ -165,7 +187,6 @@ function StoreExchange() {
         unitPrice: string;
         lineAmount: string;
       }[];
-      reason: string;
       notes: string;
       customerName: string;
       customerPhone: string;
@@ -270,19 +291,25 @@ function StoreExchange() {
     if (existing) {
       if (existing.quantity < saleItem.availableQuantity) {
         setReturnItems((prev) =>
-          prev.map((item) =>
-            item.saleItemId === saleItem.id
-              ? {
-                  ...item,
-                  quantity: item.quantity + 1,
-                  variantId: saleItem.variantId,
-                  returnAmount: (
-                    (item.quantity + 1) *
-                    parseFloat(item.unitPrice)
-                  ).toString(),
-                }
-              : item,
-          ),
+          prev.map((item) => {
+            if (item.saleItemId !== saleItem.id) return item;
+            const newQty = item.quantity + 1;
+            if (newQty > item.maxQuantity) {
+              toast({
+                title: "Limit reached",
+                description: "Cannot return more than available quantity",
+              });
+              return item;
+            }
+            return {
+              ...item,
+              quantity: newQty,
+              returnAmount: (newQty * parseFloat(item.unitPrice)).toString(),
+              exchangeType: item.exchangeType || "normal",
+              specificReason: item.specificReason || "changed_mind",
+              damageImages: item.damageImages || [],
+            };
+          }),
         );
       } else {
         toast({
@@ -308,6 +335,9 @@ function StoreExchange() {
             saleItem.product.activeSale && saleItem.product.discountedPrice
               ? saleItem.product.discountedPrice.toString()
               : saleItem.price,
+          exchangeType: "normal",
+          specificReason: "changed_mind",
+          damageImages: [],
         },
       ]);
     }
@@ -341,6 +371,36 @@ function StoreExchange() {
   const removeReturnItem = (saleItemId: string) => {
     setReturnItems((prev) =>
       prev.filter((item) => item.saleItemId !== saleItemId),
+    );
+  };
+
+  const updateItemExchangeType = (saleItemId: string, exchangeType: string) => {
+    setReturnItems((prev) =>
+      prev.map((item) =>
+        item.saleItemId === saleItemId
+          ? { ...item, exchangeType, specificReason: "" }
+          : item,
+      ),
+    );
+  };
+
+  const updateItemSpecificReason = (saleItemId: string, specificReason: string) => {
+    setReturnItems((prev) =>
+      prev.map((item) =>
+        item.saleItemId === saleItemId
+          ? { ...item, specificReason }
+          : item,
+      ),
+    );
+  };
+
+  const updateItemDamageImages = (saleItemId: string, damageImages: string[]) => {
+    setReturnItems((prev) =>
+      prev.map((item) =>
+        item.saleItemId === saleItemId
+          ? { ...item, damageImages }
+          : item,
+      ),
     );
   };
   const addNewItem = (product: ShopProduct, variantId?: string) => {
@@ -508,10 +568,10 @@ function StoreExchange() {
   );
   const balanceAmount = Math.abs(returnTotal - newItemsTotal);
   const balanceDirection =
-    returnTotal > newItemsTotal
-      ? "refund"
-      : returnTotal < newItemsTotal
-        ? "due"
+    returnTotal < newItemsTotal
+      ? "due"
+      : returnTotal > newItemsTotal
+        ? "add_more"
         : "even";
 
   const handleCompleteExchange = () => {
@@ -695,6 +755,9 @@ function StoreExchange() {
         quantity: item.quantity,
         unitPrice: item.unitPrice,
         returnAmount: item.returnAmount,
+        exchangeType: item.exchangeType,
+        specificReason: item.specificReason,
+        damageImages: JSON.stringify(item.damageImages),
       })),
       newItems: newItems.map((item) => ({
         productId: item.productId,
@@ -703,7 +766,6 @@ function StoreExchange() {
         unitPrice: item.unitPrice,
         lineAmount: item.lineAmount,
       })),
-      reason,
       notes,
       customerName,
       customerPhone,
@@ -1081,6 +1143,72 @@ function StoreExchange() {
                             <p className="text-xs text-muted-foreground">
                               {formatPrice(item.unitPrice)} each
                             </p>
+                            <div className="flex gap-2 mt-1">
+                              <Select
+                                value={item.exchangeType}
+                                onValueChange={(value) =>
+                                  updateItemExchangeType(item.saleItemId, value)
+                                }
+                              >
+                                <SelectTrigger className="h-6 text-xs">
+                                  <SelectValue placeholder="Type" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {exchangeTypes.map((type) => (
+                                    <SelectItem key={type.value} value={type.value}>
+                                      {type.label}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                              <Select
+                                value={item.specificReason}
+                                onValueChange={(value) =>
+                                  updateItemSpecificReason(item.saleItemId, value)
+                                }
+                              >
+                                <SelectTrigger className="h-6 text-xs">
+                                  <SelectValue placeholder="Reason" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {getSpecificReasons(item.exchangeType).map((reason) => (
+                                    <SelectItem key={reason.value} value={reason.value}>
+                                      {reason.label}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            </div>
+                            {item.exchangeType === "damage" && (
+                              <div className="mt-2">
+                                <p className="text-xs font-medium mb-1">Damage Photos:</p>
+                                <CloudinaryUploader
+                                  maxNumberOfFiles={3}
+                                  maxFileSize={5 * 1024 * 1024}
+                                  fileType="image"
+                                  onComplete={(urls) =>
+                                    updateItemDamageImages(item.saleItemId, urls)
+                                  }
+                                  buttonVariant="outline"
+                                  buttonClassName="h-6 text-xs px-2"
+                                >
+                                  <Camera className="h-3 w-3 mr-1" />
+                                  Upload Photos
+                                </CloudinaryUploader>
+                                {item.damageImages.length > 0 && (
+                                  <div className="flex gap-1 mt-1">
+                                    {item.damageImages.map((url, index) => (
+                                      <img
+                                        key={index}
+                                        src={url}
+                                        alt={`Damage ${index + 1}`}
+                                        className="w-8 h-8 rounded object-cover border"
+                                      />
+                                    ))}
+                                  </div>
+                                )}
+                              </div>
+                            )}
                           </div>
                           <div className="flex items-center gap-2">
                             <Button
@@ -1410,17 +1538,15 @@ function StoreExchange() {
                     <span>Balance</span>
                     <span
                       className={
-                        balanceDirection === "refund"
-                          ? "text-red-600"
-                          : balanceDirection === "due"
-                            ? "text-green-600"
-                            : "text-muted-foreground"
+                        balanceDirection === "due"
+                          ? "text-green-600"
+                          : "text-muted-foreground"
                       }
                     >
-                      {balanceDirection === "refund" &&
-                        `Refund ${formatPrice(balanceAmount)}`}
                       {balanceDirection === "due" &&
                         `Customer Pays ${formatPrice(balanceAmount)}`}
+                      {balanceDirection === "add_more" &&
+                        `Add ${formatPrice(returnTotal - newItemsTotal)}`}
                       {balanceDirection === "even" && "Even Exchange"}
                     </span>
                   </div>
@@ -1452,21 +1578,6 @@ function StoreExchange() {
                     placeholder="+91 XXXXX XXXXX"
                     readOnly
                   />
-                </div>
-                <div>
-                  <Label>Reason for Exchange</Label>
-                  <Select value={reason} onValueChange={setReason}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select a reason" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {exchangeReasons.map((reason) => (
-                        <SelectItem key={reason.value} value={reason.value}>
-                          {reason.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
                 </div>
                 <div>
                   <Label htmlFor="notes">Additional Notes</Label>

@@ -150,6 +150,7 @@ export const stockMovementTypeEnum = pgEnum("stock_movement_type", [
   "restock",
   "transfer",
   "adjustment",
+  "exchange",
 ]);
 
 export const transferStatusEnum = pgEnum("transfer_status", [

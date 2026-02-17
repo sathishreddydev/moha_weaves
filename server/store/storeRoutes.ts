@@ -437,7 +437,6 @@ export const storeRoutes = (app: Express) => {
           originalSaleId,
           returnItems,
           newItems,
-          reason,
           notes,
           customerName,
           customerPhone,

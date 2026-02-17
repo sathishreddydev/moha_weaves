@@ -123,6 +123,9 @@ export interface StoreStorage {
         quantity: number;
         unitPrice: string;
         returnAmount: string;
+        exchangeType: string;
+        specificReason: string;
+        damageImages: string;
       }[];
       newItems?: {
         productId: string;
@@ -704,6 +707,7 @@ export class StoreRepository implements StoreStorage {
         return {
           ...item,
           product: product || null,
+          damageImages: JSON.parse(item.damageImages || "[]"),
         };
       }),
       newItems: newItems.map((item) => {
@@ -731,6 +735,7 @@ export class StoreRepository implements StoreStorage {
         const returnRecords = returnItemsData.map((item) => ({
           ...item,
           exchangeId: createdExchange.id,
+          damageImages: JSON.stringify(item.damageImages || []),
         }));
         await tx.insert(storeExchangeReturnItems).values(returnRecords);
 
@@ -792,11 +797,11 @@ export class StoreRepository implements StoreStorage {
             productId: item.productId,
             variantId: originalSaleItem?.variantId,
             quantity: item.quantity,
-            movementType: "return",
+            movementType: item.exchangeType === "damage" ? "adjustment" : "exchange",
             source: "store",
             orderRefId: createdExchange.id,
             storeId: exchange.storeId,
-            notes: "Exchange return - item returned to store",
+            notes: `Exchange ${item.exchangeType} - ${item.specificReason}`,
           });
         }
       }
@@ -858,6 +863,9 @@ export class StoreRepository implements StoreStorage {
         quantity: number;
         unitPrice: string;
         returnAmount: string;
+        exchangeType: string;
+        specificReason: string;
+        damageImages: string;
       }[];
       newItems?: {
         productId: string;
@@ -865,7 +873,6 @@ export class StoreRepository implements StoreStorage {
         unitPrice: string;
         lineAmount: string;
       }[];
-      reason?: string;
       notes?: string;
       customerName?: string;
       customerPhone?: string;
@@ -938,6 +945,24 @@ export class StoreRepository implements StoreStorage {
       const returnAmount = parseFloat(returnItem.returnAmount);
       if (returnAmount <= 0 || isNaN(returnAmount)) {
         throw new Error("Return amount must be greater than 0");
+      }
+
+      // Validate exchange type and specific reason
+      if (!returnItem.exchangeType || !returnItem.specificReason) {
+        throw new Error("Exchange type and specific reason are required for each return item");
+      }
+
+      const validExchangeTypes = ["normal", "damage"];
+      if (!validExchangeTypes.includes(returnItem.exchangeType)) {
+        throw new Error(`Invalid exchange type: ${returnItem.exchangeType}`);
+      }
+
+      // For damage exchanges, require at least one damage image
+      if (returnItem.exchangeType === "damage") {
+        const damageImages = JSON.parse(returnItem.damageImages || "[]");
+        if (!damageImages || damageImages.length === 0) {
+          throw new Error("At least one damage photo is required for damage exchanges");
+        }
       }
     }
 
@@ -1030,7 +1055,6 @@ export class StoreRepository implements StoreStorage {
         processedBy,
         customerName: data.customerName,
         customerPhone: data.customerPhone,
-        reason: data.reason,
         notes: data.notes,
         returnAmount: returnAmount.toString(),
         newItemsAmount: newItemsAmount.toString(),
