@@ -34,8 +34,7 @@ import {
 import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 
-type ShopProduct = {
-  product: ProductWithDetails & {
+type ShopProduct = ProductWithDetails & {
     activeSale?: {
       id: string;
       name: string;
@@ -45,12 +44,12 @@ type ShopProduct = {
     } | null;
     discountedPrice?: number;
   };
-  storeStock: number;
-};
+
 
 interface ReturnItem {
   saleItemId: string;
   productId: string;
+  variantId?: string;
   product: ProductWithDetails;
   quantity: number;
   maxQuantity: number;
@@ -60,6 +59,7 @@ interface ReturnItem {
 
 interface NewCartItem {
   productId: string;
+  variantId?: string;
   product: ProductWithDetails;
   quantity: number;
   maxQuantity: number;
@@ -70,6 +70,7 @@ interface NewCartItem {
 interface SaleItemWithAvailable {
   id: string;
   productId: string;
+  variantId?: string;
   quantity: number;
   returnedQuantity: number;
   price: string;
@@ -215,7 +216,7 @@ function StoreExchange() {
         setIsSearching(true);
         setShowSearchResults(true);
         try {
-          const results = await apiRequest("GET", `/api/store_customers/search?q=${encodeURIComponent(saleIdInput.trim())}`);
+          const results = await apiRequest("GET", `/api/store/sales/search?query=${encodeURIComponent(saleIdInput.trim())}`);
           setSearchResults(results);
         } catch {
           toast({
@@ -259,8 +260,8 @@ function StoreExchange() {
     );
     if (existing) {
       if (existing.quantity < saleItem.availableQuantity) {
-        setReturnItems(
-          returnItems.map((item) =>
+        setReturnItems((prev) =>
+          prev.map((item) =>
             item.saleItemId === saleItem.id
               ? {
                   ...item,
@@ -280,11 +281,12 @@ function StoreExchange() {
         });
       }
     } else {
-      setReturnItems([
-        ...returnItems,
+      setReturnItems((prev) => [
+        ...prev,
         {
           saleItemId: saleItem.id,
           productId: saleItem.productId,
+          variantId: saleItem.variantId,
           product: saleItem.product,
           quantity: 1,
           maxQuantity: saleItem.availableQuantity,
@@ -302,8 +304,8 @@ function StoreExchange() {
   };
 
   const updateReturnQuantity = (saleItemId: string, delta: number) => {
-    setReturnItems(
-      returnItems
+    setReturnItems((prev) =>
+      prev
         .map((item) => {
           if (item.saleItemId !== saleItemId) return item;
           const newQty = item.quantity + delta;
@@ -326,13 +328,12 @@ function StoreExchange() {
   };
 
   const removeReturnItem = (saleItemId: string) => {
-    setReturnItems(
-      returnItems.filter((item) => item.saleItemId !== saleItemId),
+    setReturnItems((prev) =>
+      prev.filter((item) => item.saleItemId !== saleItemId),
     );
   };
-
   const addNewItem = (product: ShopProduct) => {
-    if (product.storeStock === 0) {
+    if (product.totalStock === 0) {
       toast({
         title: "Out of stock",
         description: "This product is not available",
@@ -340,12 +341,12 @@ function StoreExchange() {
       });
       return;
     }
-    const existing = newItems.find((item) => item.productId === product.product.id);
+    const existing = newItems.find((item) => item.productId === product.id);
     if (existing) {
-      if (existing.quantity < product.storeStock) {
-        setNewItems(
-          newItems.map((item) =>
-            item.productId === product.product.id
+      if (existing.quantity < product.totalStock) {
+        setNewItems((prev) =>
+          prev.map((item) =>
+            item.productId === product.id
               ? {
                   ...item,
                   quantity: item.quantity + 1,
@@ -364,29 +365,29 @@ function StoreExchange() {
         });
       }
     } else {
-      setNewItems([
-        ...newItems,
+      setNewItems((prev) => [
+        ...prev,
         {
-          productId: product.product.id,
-          product: product.product,
+          productId: product.id,
+          product: product,
           quantity: 1,
-          maxQuantity: product.storeStock,
+          maxQuantity: product.totalStock,
           unitPrice:
-            product.product.activeSale && product.product.discountedPrice
-              ? product.product.discountedPrice.toString()
-              : product.product.price,
+            product.activeSale && product.discountedPrice
+              ? product.discountedPrice.toString()
+              : product.price,
           lineAmount:
-            product.product.activeSale && product.product.discountedPrice
-              ? product.product.discountedPrice.toString()
-              : product.product.price,
+            product.activeSale && product.discountedPrice
+              ? product.discountedPrice.toString()
+              : product.price,
         },
       ]);
     }
   };
 
   const updateNewItemQuantity = (productId: string, delta: number) => {
-    setNewItems(
-      newItems
+    setNewItems((prev) =>
+      prev
         .map((item) => {
           if (item.productId !== productId) return item;
           const newQty = item.quantity + delta;
@@ -409,7 +410,7 @@ function StoreExchange() {
   };
 
   const removeNewItem = (productId: string) => {
-    setNewItems(newItems.filter((item) => item.productId !== productId));
+    setNewItems((prev) => prev.filter((item) => item.productId !== productId));
   };
 
   const returnTotal = returnItems.reduce(
@@ -505,11 +506,11 @@ function StoreExchange() {
         return;
       }
 
-      const inventory = products?.find((p) => p.product.id === newItem.productId);
-      if (!inventory || inventory.storeStock < newItem.quantity) {
+      const inventory = products?.find((p) => p.id === newItem.productId);
+      if (!inventory || inventory.totalStock < newItem.quantity) {
         toast({
           title: "Insufficient Stock",
-          description: `Only ${inventory?.storeStock || 0} units available for ${newItem.product.name}`,
+          description: `Only ${inventory?.totalStock || 0} units available for ${newItem.product.name}`,
           variant: "destructive",
         });
         return;
@@ -589,10 +590,10 @@ function StoreExchange() {
 
   const filteredProducts = products?.filter(
     (item) =>
-      item.storeStock > 0 &&
-      (item.product.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        item.product.sku?.toLowerCase().includes(searchQuery.toLowerCase())),
-  );
+      item.totalStock > 0 &&
+      (item.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        item.sku?.toLowerCase().includes(searchQuery.toLowerCase())),
+  ) || [];
 
   return (
     <div className="max-w-6xl mx-auto">
@@ -655,7 +656,7 @@ function StoreExchange() {
                     <p className="text-sm font-medium text-muted-foreground">
                       Found {searchResults.length} sales
                     </p>
-                    {searchResults.map((sale) => {
+                    {searchResults.map((sale:any) => {
                       const eligibility = sale.eligibilityData;
                       const isEligible = eligibility?.eligible !== false;
                       const isDisabled = eligibility && !eligibility.eligible;
@@ -833,6 +834,11 @@ function StoreExchange() {
                             <p className="font-medium text-sm line-clamp-1">
                               {item.product.name}
                             </p>
+                            {item?.variantId && (
+                              <p className="text-xs text-muted-foreground">
+                                Size: {item.product?.variants?.find((v: any) => v.id === item.variantId)?.size || `ID: ${item.variantId}`}
+                              </p>
+                            )}
                             <p className="text-sm text-primary font-semibold">
                               {item.product.activeSale &&
                               item.product.discountedPrice ? (
@@ -896,6 +902,11 @@ function StoreExchange() {
                             <p className="font-medium text-sm line-clamp-1">
                               {item.product.name}
                             </p>
+                            {item?.variantId && (
+                              <p className="text-xs text-muted-foreground">
+                                Size: {item.product?.variants?.find((v: any) => v.id === item.variantId)?.size || `ID: ${item.variantId}`}
+                              </p>
+                            )}
                             <p className="text-xs text-muted-foreground">
                               {formatPrice(item.unitPrice)} each
                             </p>
@@ -984,76 +995,79 @@ function StoreExchange() {
                         <Skeleton key={i} className="h-16" />
                       ))}
                     </div>
-                  ) : (
+                  ) : filteredProducts && filteredProducts.length > 0 ? (
                     <div className="space-y-2 max-h-[200px] overflow-y-auto">
-                      {filteredProducts && filteredProducts.length > 0 ? (
-                        filteredProducts.map((item) => {
-                          const inNew = newItems.find(
-                            (c) => c.productId === item.product.id,
-                          );
+                      {filteredProducts.map((item) => {
+                        const inNew = newItems.find(
+                          (c) => c.productId === item.id,
+                        );
 
-                          return (
-                            <div
-                              key={item.product.id}
-                              className="flex items-center justify-between p-3 rounded-lg border hover-elevate cursor-pointer"
-                              onClick={() => addNewItem(item)}
-                            >
-                              <div className="flex items-center gap-3">
-                                <img
-                                  src={
-                                    item.product.imageUrl ||
-                                    "https://images.unsplash.com/photo-1610030469983-98e550d6193c?w=50"
-                                  }
-                                  alt=""
-                                  className="w-10 h-12 rounded object-cover"
-                                />
-                                <div>
-                                  <p className="font-medium text-sm line-clamp-1">
-                                    {item.product.name}
-                                  </p>
-                                  <p className="text-sm text-primary font-semibold">
-                                    {item.product.activeSale &&
-                                    item.product.discountedPrice ? (
-                                      <div className="flex items-center gap-2">
-                                        <span>
-                                          {formatPrice(
-                                            item.product.discountedPrice,
-                                          )}
-                                        </span>
-                                        <span className="text-xs text-muted-foreground line-through">
-                                          {formatPrice(item.product.price)}
-                                        </span>
-                                      </div>
-                                    ) : (
+                        return (
+                          <div
+                            key={item.id}
+                            className="flex items-center justify-between p-3 rounded-lg border hover-elevate cursor-pointer"
+                            onClick={() => addNewItem(item)}
+                          >
+                            <div className="flex items-center gap-3">
+                              <img
+                                src={
+                                  item.imageUrl ||
+                                  "https://images.unsplash.com/photo-1610030469983-98e550d6193c?w=50"
+                                }
+                                alt=""
+                                className="w-10 h-12 rounded object-cover"
+                              />
+                              <div>
+                                <p className="font-medium text-sm line-clamp-1">
+                                  {item.name}
+                                </p>
+                                
+                                <p className="text-sm text-primary font-semibold">
+                                  {item.activeSale &&
+                                  item.discountedPrice ? (
+                                    <div className="flex items-center gap-2">
                                       <span>
-                                        {formatPrice(item.product.price)}
+                                        {formatPrice(
+                                          item.discountedPrice,
+                                        )}
                                       </span>
-                                    )}
-                                  </p>
-                                  <Badge
-                                    variant="secondary"
-                                    className="text-xs"
-                                  >
-                                    {item.storeStock} in stock
-                                  </Badge>
-                                </div>
+                                      <span className="text-xs text-muted-foreground line-through">
+                                        {formatPrice(item.price)}
+                                      </span>
+                                    </div>
+                                  ) : (
+                                    <span>
+                                      {formatPrice(item.price)}
+                                    </span>
+                                  )}
+                                </p>
+                                <Badge
+                                  variant="secondary"
+                                  className="text-xs"
+                                >
+                                  {item.totalStock} in stock
+                                </Badge>
                               </div>
-                              <Button variant="ghost" size="icon">
-                                {inNew ? (
-                                  <Check className="h-4 w-4 text-green-500" />
-                                ) : (
-                                  <Plus className="h-4 w-4" />
-                                )}
-                              </Button>
                             </div>
-                          );
-                        })
-                      ) : (
-                        <p className="text-sm text-muted-foreground text-center py-4">
-                          No products found
-                        </p>
-                      )}
+                            <Button variant="ghost" size="icon">
+                              {inNew ? (
+                                <Check className="h-4 w-4 text-green-500" />
+                              ) : (
+                                <Plus className="h-4 w-4" />
+                              )}
+                            </Button>
+                          </div>
+                        );
+                      })}
                     </div>
+                  ) : searchQuery ? (
+                    <p className="text-sm text-muted-foreground text-center py-4">
+                      No products found matching "{searchQuery}"
+                    </p>
+                  ) : (
+                    <p className="text-sm text-muted-foreground text-center py-4">
+                      No products available
+                    </p>
                   )}
 
                   {newItems.length > 0 && (

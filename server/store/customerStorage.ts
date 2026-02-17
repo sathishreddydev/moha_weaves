@@ -14,7 +14,6 @@ export interface StoreCustomer {
 
 export interface CustomerStorage {
   getCustomerByPhone(phone: string): Promise<any | undefined>;
-  getAllCustomers(storeId: string, search?: string): Promise<any[]>;
   addOrCreateCustomerLoyalty(name: string, phone: string, storeId: string, pointsToAdd: number): Promise<StoreCustomer>;
 }
 
@@ -26,26 +25,6 @@ export class CustomerService implements CustomerStorage {
       .where(eq(store_customers.phone, phone));
 
     return customer;
-  }
-
-  async getAllCustomers(storeId: string, search?: string): Promise<any[]> {
-    let conditions = [eq(store_customers.storeId, storeId)];
-    
-    if (search) {
-      conditions.push(
-        or(
-          ilike(store_customers.name, `%${search}%`),
-          ilike(store_customers.phone, `%${search}%`)
-        )!
-      );
-    }
-    
-    const customers = await db
-      .select()
-      .from(store_customers)
-      .where(and(...conditions));
-    
-    return customers;
   }
 
   async addOrCreateCustomerLoyalty(

@@ -328,7 +328,7 @@ export class StoreRepository implements StoreStorage {
               eq(variantStoreInventory.variantId, item.variantId),
             ),
           );
-        
+
         await db
           .update(storeInventory)
           .set({ quantity: sql`${storeInventory.quantity} - ${item.quantity}` })
@@ -404,7 +404,7 @@ export class StoreRepository implements StoreStorage {
 
     // Get product IDs for role-based service
     const productIds = items.map(item => item.productId);
-    
+
     // Use roleBasedProductService to get products with full details
     const products = await roleBasedProductService.getProductsByRole(
       { ids: productIds, storeId: sale.store_sales.storeId },
@@ -669,47 +669,50 @@ export class StoreRepository implements StoreStorage {
       exchange.store_exchanges.originalSaleId,
     );
 
-    const returnItemsList = await db
+    // Get return items with product IDs
+    const returnItems = await db
       .select()
       .from(storeExchangeReturnItems)
-      .leftJoin(products, eq(storeExchangeReturnItems.productId, products.id))
-      .leftJoin(categories, eq(products.categoryId, categories.id))
-      .leftJoin(colors, eq(products.colorId, colors.id))
-      .leftJoin(fabrics, eq(products.fabricId, fabrics.id))
       .where(eq(storeExchangeReturnItems.exchangeId, id));
 
-    const newItemsList = await db
+    const newItems = await db
       .select()
       .from(storeExchangeNewItems)
-      .leftJoin(products, eq(storeExchangeNewItems.productId, products.id))
-      .leftJoin(categories, eq(products.categoryId, categories.id))
-      .leftJoin(colors, eq(products.colorId, colors.id))
-      .leftJoin(fabrics, eq(products.fabricId, fabrics.id))
       .where(eq(storeExchangeNewItems.exchangeId, id));
+
+    const returnProductIds = returnItems.map(item => item.productId);
+    const newProductIds = newItems.map(item => item.productId);
+    const allProductIds = [...new Set([...returnProductIds, ...newProductIds])];
+
+    const products = await roleBasedProductService.getProductsByRole(
+      { ids: allProductIds, storeId: exchange.store_exchanges.storeId },
+      "store"
+    );
+
+    const formattedProducts = formatProductsByStore(products, exchange.store_exchanges.storeId);
+    const productMap = new Map(
+      formattedProducts.map(product => [product.id, product])
+    );
 
     return {
       ...exchange.store_exchanges,
       store: exchange.stores!,
       originalSale: originalSale!,
       processor: exchange.users!,
-      returnItems: returnItemsList.map((item) => ({
-        ...item.store_exchange_return_items,
-        product: {
-          ...item.products!,
-          category: item.categories,
-          color: item.colors,
-          fabric: item.fabrics,
-        },
-      })),
-      newItems: newItemsList.map((item) => ({
-        ...item.store_exchange_new_items,
-        product: {
-          ...item.products!,
-          category: item.categories,
-          color: item.colors,
-          fabric: item.fabrics,
-        },
-      })),
+      returnItems: returnItems.map((item) => {
+        const product = productMap.get(item.productId);
+        return {
+          ...item,
+          product: product || null,
+        };
+      }),
+      newItems: newItems.map((item) => {
+        const product = productMap.get(item.productId);
+        return {
+          ...item,
+          product: product || null,
+        };
+      }),
     };
   }
 
@@ -1087,7 +1090,7 @@ export class StoreRepository implements StoreStorage {
       const returnProductIds = returnItems.map(item => item.productId);
       const newProductIds = newItems.map(item => item.productId);
       const allProductIds = [...new Set([...returnProductIds, ...newProductIds])];
-      
+
       // Use role-based service to get product details (50-60% faster queries)
       const products = await roleBasedProductService.getProductsByRole(
         { ids: allProductIds, storeId },
@@ -1145,7 +1148,7 @@ export class StoreRepository implements StoreStorage {
 
     // Extract unique product IDs
     const productIds = [...new Set(inventoryItems.map(item => item.productId))];
-    
+
     // Use role-based service to get product details (50-60% faster queries)
     const products = await roleBasedProductService.getProductsByRole(
       { ids: productIds, storeId },
@@ -1232,20 +1235,19 @@ export class StoreRepository implements StoreStorage {
       }
 
       return {
-        product: {
-          ...product,
-          activeSale: applicableSale
-            ? {
-              id: applicableSale.id,
-              name: applicableSale.name,
-              offerType: applicableSale.offerType,
-              discountValue: applicableSale.discountValue,
-              maxDiscount: applicableSale.maxDiscount || undefined,
-            }
-            : null,
-          discountedPrice: applicableSale ? discountedPrice : undefined,
-        },
-        totalStock: inventoryItem.quantity,
+
+        ...product,
+        activeSale: applicableSale
+          ? {
+            id: applicableSale.id,
+            name: applicableSale.name,
+            offerType: applicableSale.offerType,
+            discountValue: applicableSale.discountValue,
+            maxDiscount: applicableSale.maxDiscount || undefined,
+          }
+          : null,
+        discountedPrice: applicableSale ? discountedPrice : undefined,
+
       };
     }).filter(item => item !== null); // Remove null entries
   }
@@ -1295,33 +1297,23 @@ export class StoreRepository implements StoreStorage {
     const salesList = await query;
     const result: StoreSaleWithItems[] = [];
 
-    // Load active sales data
-    const now = new Date();
-    const activeSales = await db
-      .select()
-      .from(sales)
-      .where(
-        and(
-          eq(sales.isActive, true),
-          lte(sales.validFrom, now),
-          gte(sales.validUntil, now),
-        ),
-      );
-
-    // Fetch sale product mappings
-    const saleProductMappings = await db.select().from(saleProducts);
-
     for (const row of salesList) {
-      const items = await db
+      const saleItems = await db
         .select()
         .from(storeSaleItems)
-        .innerJoin(products, eq(storeSaleItems.productId, products.id))
-        .leftJoin(categories, eq(products.categoryId, categories.id))
-        .leftJoin(colors, eq(products.colorId, colors.id))
-        .leftJoin(fabrics, eq(products.fabricId, fabrics.id))
         .where(eq(storeSaleItems.saleId, row.store_sales.id));
 
-      // Get eligibility data for this sale
+      const productIds = [...new Set(saleItems.map(item => item.productId))];
+      const products = await roleBasedProductService.getProductsByRole(
+        { ids: productIds, storeId },
+        "store"
+      );
+
+      const formattedProducts = formatProductsByStore(products, storeId);
+      const productMap = new Map(
+        formattedProducts.map(product => [product.id, product])
+      );
+
       const eligibilityData = await this.checkStoreSaleExchangeEligibility(
         row.store_sales.id,
         storeId,
@@ -1331,78 +1323,13 @@ export class StoreRepository implements StoreStorage {
         ...row.store_sales,
         store: row.stores,
         eligibilityData,
-        items: items.map((itemRow) => {
-          const product = itemRow.products;
-
-          // Find applicable sale (same logic as cart)
-          let applicableSale = null;
-          const productSaleMapping = saleProductMappings.find(
-            (sp) => sp.productId === product.id,
-          );
-          if (productSaleMapping) {
-            applicableSale = activeSales.find(
-              (s) => s.id === productSaleMapping.saleId,
-            );
-          }
-          // Only exclude category pricing when THIS product is explicitly mapped to a different sale
-          if (!applicableSale && product.categoryId) {
-            applicableSale = activeSales.find(
-              (s) =>
-                s.categoryId === product.categoryId &&
-                !saleProductMappings.some(
-                  (sp) => sp.saleId === s.id && sp.productId === product.id,
-                ),
-            );
-          }
-
-          // Calculate discounted price
-          let discountedPrice = parseFloat(product.price);
-          if (applicableSale) {
-            const originalPrice = discountedPrice;
-            if (
-              applicableSale.offerType === "percentage" ||
-              applicableSale.offerType === "category" ||
-              applicableSale.offerType === "flash_sale"
-            ) {
-              const discount =
-                originalPrice *
-                (parseFloat(applicableSale.discountValue) / 100);
-              const maxDiscount = applicableSale.maxDiscount
-                ? parseFloat(applicableSale.maxDiscount)
-                : originalPrice;
-              discountedPrice =
-                originalPrice - Math.min(discount, maxDiscount, originalPrice);
-            } else if (
-              applicableSale.offerType === "flat" ||
-              applicableSale.offerType === "product"
-            ) {
-              const flatDiscount = Math.min(
-                parseFloat(applicableSale.discountValue),
-                originalPrice,
-              );
-              discountedPrice = originalPrice - flatDiscount;
-            }
-            discountedPrice = Math.max(0, discountedPrice);
-          }
-
+        items: saleItems.map((item) => {
+          const product = productMap.get(item.productId);
           return {
-            ...itemRow.store_sale_items,
-            product: {
-              ...itemRow.products,
-              category: itemRow.categories,
-              color: itemRow.colors,
-              fabric: itemRow.fabrics,
-              activeSale: applicableSale
-                ? {
-                  id: applicableSale.id,
-                  name: applicableSale.name,
-                  offerType: applicableSale.offerType,
-                  discountValue: applicableSale.discountValue,
-                  maxDiscount: applicableSale.maxDiscount || undefined,
-                }
-                : null,
-              discountedPrice: applicableSale ? discountedPrice : undefined,
-            },
+            ...item,
+            product: product ? {
+              ...product,
+            } : null,
           };
         }),
       });

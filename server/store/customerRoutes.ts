@@ -14,31 +14,6 @@ const redeemLoyaltyPointsSchema = z.object({
 export const customerRoutes = (app: Express) => {
   const authStore = createAuthMiddleware(["store"]);
 
-  // Search customers
-  app.get(
-    "/api/store_customers/search",
-    authStore,
-    async (req: Request, res: Response) => {
-      try {
-        const user = (req as any).user;
-        if (!user.storeId) {
-          return res.status(400).json({ error: "No store assigned" });
-        }
-
-        const { q } = req.query;
-        const customers = await customerService.getAllCustomers(
-          user.storeId,
-          q as string
-        );
-
-        res.json(customers);
-      } catch (error) {
-        console.error("Error searching customers:", error);
-        res.status(500).json({ error: "Failed to search customers" });
-      }
-    },
-  );
-
 
   // Get customer loyalty points by phone
   app.get(

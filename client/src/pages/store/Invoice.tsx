@@ -248,9 +248,14 @@ export default function Invoice() {
                           </span>
                         </td>
                         <td className="py-3 px-2">
-                          <span className="text-slate-600 text-xs">
-                            {item.product?.name || "Product"}
-                          </span>
+                          <div className="text-slate-600 text-xs">
+                            <div>{item.product?.name || "Product"}</div>
+                            {item.variantId && (
+                              <div className="text-slate-500 text-[10px] mt-1">
+                                Size: {item.product?.variants?.find((v: any) => v.id === item.variantId)?.size || `ID: ${item.variantId}`}
+                              </div>
+                            )}
+                          </div>
                         </td>
                         <td className="py-3 px-2 text-center">
                           <span className="w-8 text-center text-xs">
@@ -339,9 +344,14 @@ export default function Invoice() {
                                           </span>
                                         </td>
                                         <td className="py-3 px-2">
-                                          <span className="text-slate-600 text-xs">
-                                            {item.product?.name || "Product"}
-                                          </span>
+                                          <div className="text-slate-600 text-xs">
+                                            <div>{item.product?.name || "Product"}</div>
+                                            {item.variantId && (
+                                              <div className="text-slate-500 text-[10px] mt-1">
+                                                Size: {item.product?.variants?.find((v: any) => v.id === item.variantId)?.size || `ID: ${item.variantId}`}
+                                              </div>
+                                            )}
+                                          </div>
                                         </td>
                                         <td className="py-3 px-2 text-center">
                                           <span className="w-8 text-center text-xs">
@@ -407,9 +417,14 @@ export default function Invoice() {
                                         </span>
                                       </td>
                                       <td className="py-3 px-2">
-                                        <span className="text-slate-600 text-xs">
-                                          {item.product?.name || "Product"}
-                                        </span>
+                                        <div className="text-slate-600 text-xs">
+                                          <div>{item.product?.name || "Product"}</div>
+                                          {item.variantId && (
+                                            <div className="text-slate-500 text-[10px] mt-1">
+                                              Size: {item.product?.variants?.find((v: any) => v.id === item.variantId)?.size || `ID: ${item.variantId}`}
+                                            </div>
+                                          )}
+                                        </div>
                                       </td>
                                       <td className="py-3 px-2 text-center">
                                         <span className="w-8 text-center text-xs">
