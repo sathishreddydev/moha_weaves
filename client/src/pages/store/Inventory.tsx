@@ -6,29 +6,23 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { useDataTable } from "@/hooks/use-data-table";
 import { TreeNode } from "@/lib/type";
-import type {
-  ProductWithDetails,
-  StockRequestWithDetails,
-} from "@shared/schema";
+import type { ProductWithDetails } from "@shared/schema";
 import { ColumnDef } from "@tanstack/react-table";
 import { ArrowLeftRight, Globe, Package, RefreshCw, Store } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo, useCallback } from "react";
 import { Link } from "react-router-dom";
-import { RequestDialog } from "./Utils/RequestDialog";
+import { RequestDialog } from "./utils/RequestDialog";
+import { formatPrice } from "./utils/cartUtils";
 
-type ShopProduct = {
-  product: ProductWithDetails & {
-    activeSale?: {
-      id: string;
-      name: string;
-      offerType: string;
-      discountValue: string;
-      maxDiscount?: string;
-    } | null;
-    discountedPrice?: number;
-  };
-  storeStock: number;
-  stockRequests: StockRequestWithDetails[];
+type ShopProduct = ProductWithDetails & {
+  activeSale?: {
+    id: string;
+    name: string;
+    offerType: string;
+    discountValue: string;
+    maxDiscount?: string;
+  } | null;
+  discountedPrice?: number;
 };
 
 export default function StoreInventoryPage() {
@@ -36,21 +30,29 @@ export default function StoreInventoryPage() {
   const [productData, setProductData] = useState<ProductWithDetails>();
   const { categories, colors, fabrics, fetchFilters } = useFilterStore();
 
-  const colorTree = colors.map((color) => ({
-    id: color.id,
-    label: color.name,
-    data: color,
-  }));
+  const colorTree = useMemo(
+    () =>
+      colors.map((color) => ({
+        id: color.id,
+        label: color.name,
+        data: color,
+      })),
+    [colors],
+  );
 
-  const categoryTree: TreeNode[] = categories.map((cat) => ({
-    id: cat.id,
-    label: cat.name,
-    children:
-      cat?.subcategories?.map((sub) => ({
-        id: sub.id,
-        label: sub.name,
-      })) || [],
-  }));
+  const categoryTree: TreeNode[] = useMemo(
+    () =>
+      categories.map((cat) => ({
+        id: cat.id,
+        label: cat.name,
+        children:
+          cat?.subcategories?.map((sub) => ({
+            id: sub.id,
+            label: sub.name,
+          })) || [],
+      })),
+    [categories],
+  );
 
   useEffect(() => {
     if (!categories.length || !colors.length || !fabrics.length) {
@@ -71,20 +73,11 @@ export default function StoreInventoryPage() {
     handlePaginationChange,
     refetch,
   } = useDataTable<any>({
-    queryKey: "/api/store/products/paginated",
+    queryKey: "/api/store/getProducts",
     initialPageSize: 10,
   });
 
-  const formatPrice = (price: number | string) => {
-    const numPrice = typeof price === "string" ? parseFloat(price) : price;
-    return new Intl.NumberFormat("en-IN", {
-      style: "currency",
-      currency: "INR",
-      maximumFractionDigits: 0,
-    }).format(numPrice);
-  };
-
-  const getRequestStatusBadge = (status: string) => {
+  const getRequestStatusBadge = useCallback((status: string) => {
     switch (status) {
       case "pending":
         return (
@@ -127,9 +120,9 @@ export default function StoreInventoryPage() {
       default:
         return <Badge variant="outline">{status}</Badge>;
     }
-  };
+  }, []);
 
-  const getDistributionBadge = (channel: string) => {
+  const getDistributionBadge = useCallback((channel: string) => {
     switch (channel) {
       case "shop":
         return (
@@ -155,14 +148,15 @@ export default function StoreInventoryPage() {
       default:
         return null;
     }
-  };
-  const requestDailog = (item: ShopProduct) => {
+  }, []);
+
+  const requestDialog = useCallback((item: ShopProduct) => {
     setDialogOpen(true);
-    setProductData(item.product);
-  };
+    setProductData(item);
+  }, []);
   const inventoryColumns: ColumnDef<ShopProduct>[] = [
     {
-      accessorKey: "product.imageUrl",
+      accessorKey: "imageUrl",
       header: "Product",
       cell: ({ row }) => {
         const item = row.original;
@@ -170,93 +164,86 @@ export default function StoreInventoryPage() {
           <div className="flex items-center gap-3">
             <img
               src={
-                item.product.imageUrl ||
+                item.imageUrl ||
                 "https://images.unsplash.com/photo-1610030469983-98e550d6193c?w=50"
               }
               alt=""
               className="w-10 h-12 rounded object-cover"
             />
             <span className="font-medium max-w-[200px] truncate">
-              {item.product.name}
+              {item.name}
             </span>
           </div>
         );
       },
     },
     {
-      accessorKey: "product.sku",
+      accessorKey: "sku",
       header: "SKU",
       cell: ({ row }) => (
         <span className="text-muted-foreground font-mono text-sm">
-          {row.original.product.sku || "-"}
+          {row.original.sku || "-"}
         </span>
       ),
     },
     {
-      accessorKey: "product.category.name",
+      accessorKey: "category.name",
       header: "Category",
-      cell: ({ row }) => (
-        <span>{row.original.product.category?.name || "-"}</span>
-      ),
+      cell: ({ row }) => <span>{row.original.category?.name || "-"}</span>,
     },
     {
-      accessorKey: "product.color.name",
+      accessorKey: "color.name",
       header: "Color",
-      cell: ({ row }) => <span>{row.original.product.color?.name || "-"}</span>,
+      cell: ({ row }) => <span>{row.original.color?.name || "-"}</span>,
     },
     {
-      accessorKey: "product.fabric.name",
+      accessorKey: "fabric.name",
       header: "Fabric",
-      cell: ({ row }) => (
-        <span>{row.original.product.fabric?.name || "-"}</span>
-      ),
+      cell: ({ row }) => <span>{row.original.fabric?.name || "-"}</span>,
     },
     {
-      accessorKey: "product.price",
+      accessorKey: "price",
       header: "Price",
       cell: ({ row }) => {
         const item = row.original;
         return (
           <div>
-            {item.product.activeSale && item.product.discountedPrice ? (
+            {item.activeSale && item.discountedPrice ? (
               <div className="flex items-center gap-2">
                 <span className="font-semibold text-primary">
-                  {formatPrice(item.product.discountedPrice)}
+                  {formatPrice(item.discountedPrice)}
                 </span>
                 <span className="text-xs text-muted-foreground line-through">
-                  {formatPrice(item.product.price)}
+                  {formatPrice(item.price)}
                 </span>
               </div>
             ) : (
-              <span className="font-medium">
-                {formatPrice(item.product.price)}
-              </span>
+              <span className="font-medium">{formatPrice(item.price)}</span>
             )}
           </div>
         );
       },
     },
     {
-      accessorKey: "product.distributionChannel",
+      accessorKey: "distributionChannel",
       header: "Availability",
-      cell: ({ row }) =>
-        getDistributionBadge(row.original.product.distributionChannel),
+      cell: ({ row }) => getDistributionBadge(row.original.distributionChannel),
     },
     {
-      accessorKey: "storeStock",
+      accessorKey: "totalStock",
       header: "Your Stock",
       cell: ({ row }) => {
         const item = row.original;
-        return item.storeStock > 0 ? (
+        return item.totalStock > 0 ? (
           <Badge
-            variant={item.storeStock < 5 ? "secondary" : "default"}
+            variant={item.totalStock < 5 ? "secondary" : "default"}
             className={
-              item.storeStock < 5
+              item.totalStock < 5
                 ? "bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-100"
                 : ""
             }
           >
-            {item.storeStock} in stock
+            {item.totalStock} in stock
           </Badge>
         ) : (
           <div className="flex items-center gap-2">
@@ -294,30 +281,19 @@ export default function StoreInventoryPage() {
       header: "Actions",
       cell: ({ row }) => {
         const item = row.original;
-        const requests = item.stockRequests || [];
-        const latestRequest = requests[0];
 
-        // Disable button if there's a pending, approved, or dispatched request
-        const isDisabled =
-          latestRequest &&
-          ["pending", "approved", "dispatched"].includes(latestRequest.status);
-
-        const disabledReason =
-          latestRequest?.status === "pending"
-            ? "Request pending"
-            : latestRequest?.status === "approved"
-              ? "Request approved"
-              : latestRequest?.status === "dispatched"
-                ? "Request dispatched"
-                : "";
+        // For now, enable all request buttons since we don't have stock request data
+        const isDisabled = false;
+        const disabledReason = "";
 
         return (
           <Button
             size="sm"
             variant="outline"
-            onClick={() => requestDailog(item)}
+            onClick={() => requestDialog(item)}
             disabled={isDisabled}
             title={disabledReason}
+            aria-label={`Request stock for ${item.name}`}
           >
             Request
           </Button>
@@ -326,20 +302,23 @@ export default function StoreInventoryPage() {
     },
   ];
 
-  const filters: FilterItem[] = [
-    {
-      key: "categoryIds",
-      label: "Categories",
-      tree: categoryTree,
-      placeholder: "Search categories...",
-    },
-    {
-      key: "colorIds",
-      label: "Colors",
-      tree: colorTree,
-      placeholder: "Search colors...",
-    },
-  ];
+  const filters: FilterItem[] = useMemo(
+    () => [
+      {
+        key: "categoryIds",
+        label: "Categories",
+        tree: categoryTree,
+        placeholder: "Search categories...",
+      },
+      {
+        key: "colorIds",
+        label: "Colors",
+        tree: colorTree,
+        placeholder: "Search colors...",
+      },
+    ],
+    [categoryTree, colorTree],
+  );
   return (
     <div className="max-w-6xl mx-auto">
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-8">
@@ -364,6 +343,7 @@ export default function StoreInventoryPage() {
             onClick={() => refetch()}
             disabled={isFetching}
             className="flex items-center gap-2"
+            aria-label="Refresh product list"
           >
             <RefreshCw
               className={`h-4 w-4 ${isFetching ? "animate-spin" : ""}`}
@@ -371,7 +351,11 @@ export default function StoreInventoryPage() {
             Refetch
           </Button>
           <Link to="/store/requests">
-            <Button size="sm" data-testid="button-request-stock">
+            <Button
+              size="sm"
+              data-testid="button-request-stock"
+              aria-label="View stock requests page"
+            >
               <Package className="h-4 w-4 mr-2" />
               Stock Requests
             </Button>

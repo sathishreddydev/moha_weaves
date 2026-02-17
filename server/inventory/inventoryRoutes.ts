@@ -14,6 +14,7 @@ import { storage } from "../storage";
 import { inventoryService } from "./inventoryStorage";
 import { productDamageService } from "./productDamageService";
 import { productBaseSchema, trackingNumberSchema } from "./schema";
+import { stockRequestService } from "server/store/stockRequestStorage";
 
 const productWithAllocationsSchema = productBaseSchema.refine(
   (data) => {
@@ -51,7 +52,7 @@ export const inventoryRoutes = (app: Express) => {
   app.get("/api/inventory/requests", authInventory, async (req, res) => {
     try {
       const { status } = req.query;
-      const requests = await storage.getStockRequests({
+      const requests = await stockRequestService.getStockRequests({
         status: status as string,
       });
       res.json(requests);
@@ -77,7 +78,7 @@ export const inventoryRoutes = (app: Express) => {
 
         // Get the request details to check stock before approval
         if (status === "approved") {
-          const stockRequest = await storage.getStockRequest(req.params.id);
+          const stockRequest = await stockRequestService.getStockRequest(req.params.id);
 
           if (!stockRequest) {
             return res.status(404).json({ message: "Request not found" });
@@ -117,7 +118,7 @@ export const inventoryRoutes = (app: Express) => {
             updateData.notes = rejectionReason;
           }
 
-          const updatedRequest = await storage.updateStockRequestStatus(
+          const updatedRequest = await stockRequestService.updateStockRequestStatus(
             req.params.id,
             status,
             (req as any).user.id,
@@ -136,7 +137,7 @@ export const inventoryRoutes = (app: Express) => {
           updateData.notes = rejectionReason;
         }
 
-        const request = await storage.updateStockRequestStatus(
+        const request = await stockRequestService.updateStockRequestStatus(
           req.params.id,
           status,
           (req as any).user.id,

@@ -3,19 +3,35 @@ import axios from "axios";
 import { produce } from "immer";
 import { toast } from "@/hooks/use-toast";
 
-interface CartItem {
+export interface CartItem {
   id: string;
   productId: string;
   variantId?: string;
   quantity: number;
-  unitPrice: number;
+  unitPrice: string | number;  // Accept both string and number from backend
   lineAmount: number;
-  storeStock: number;
+  totalStock: number;
   product: {
     id: string;
     name: string;
     code: string;
     image: string;
+    price?: string;
+    activeSale?: {
+      id: string;
+      name: string;
+      offerType: string;
+      discountValue: string;
+      maxDiscount?: string;
+    } | null;
+    discountedPrice?: number;
+    variants?: {
+      id: string;
+      size: string;
+      sku?: string;
+      price?: string;
+      stockQuantity: number;
+    }[];
   };
 }
 
@@ -33,7 +49,7 @@ interface StoreCartState {
   fetchCart: () => Promise<void>;
   addItem: (productId: string, quantity: number, unitPrice: number, variantId?: string) => Promise<void>;
   updateItems: (items: CartItem[], productId: string) => Promise<void>;
-  deleteItem: (productId: string) => Promise<void>;
+  deleteItem: (productId: string, variantId?: string) => Promise<void>;
   clearCart: () => void;
 }
 
@@ -76,7 +92,12 @@ export const useStoreCart = create<StoreCartState>((set, get) => ({
       addCartLoading: { ...state.addCartLoading, [productId]: true },
     }));
     try {
-      const res = await axios.post(`/api/store/cart`, { productId, quantity, unitPrice, variantId });
+      const res = await axios.post(`/api/store/cart`, { 
+        productId, 
+        quantity, 
+        unitPrice: typeof unitPrice === 'string' ? parseFloat(unitPrice) : unitPrice, 
+        variantId 
+      });
       set({ items: res.data.items || [] });
 
       toast({
@@ -109,19 +130,54 @@ export const useStoreCart = create<StoreCartState>((set, get) => ({
     }));
 
     try {
-      const res = await axios.put(`/api/store/cart`, { items });
+      // Convert unitPrice to number for backend compatibility
+      const sanitizedItems = items.map(item => {
+        const cleanItem = {
+          ...item,
+          unitPrice: typeof item.unitPrice === 'string' ? parseFloat(item.unitPrice) : item.unitPrice
+        };
+        
+        // Remove variantId if it's null or undefined - backend expects it to be omitted
+        if (!cleanItem.variantId) {
+          delete cleanItem.variantId;
+        }
+        
+        return cleanItem;
+      });
+      
+      const res = await axios.put(`/api/store/cart`, { items: sanitizedItems });
       const updatedItems = res.data.items || [];
 
       set(produce((state: StoreCartState) => {
+        // Create a map of updated items for quick lookup
+        const updatedItemsMap = new Map(
+          updatedItems.map((item: CartItem) => [
+            `${item.productId}_${item.variantId || 'no-variant'}`, 
+            item
+          ])
+        );
+
+        // Update existing items or add new ones
+        state.items = state.items.map((existingItem: CartItem) => {
+          const key = `${existingItem.productId}_${existingItem.variantId || 'no-variant'}`;
+          const updatedItem = updatedItemsMap.get(key) as CartItem | undefined;
+          return updatedItem || existingItem;
+        });
+
+        // Add any completely new items
+        const existingKeys = new Set(
+          state.items.map((item: CartItem) => `${item.productId}_${item.variantId || 'no-variant'}`)
+        );
+        
         updatedItems.forEach((updatedItem: CartItem) => {
-          const existingItem = state.items.find(i => i.productId === updatedItem.productId);
-          if (existingItem) {
-            existingItem.quantity = updatedItem.quantity;
-            existingItem.unitPrice = updatedItem.unitPrice;
-            existingItem.lineAmount = updatedItem.lineAmount;
-          } else {
+          const key = `${updatedItem.productId}_${updatedItem.variantId || 'no-variant'}`;
+          if (!existingKeys.has(key)) {
             state.items.push(updatedItem);
           }
+        });
+
+        // Clear loading states
+        updatedItems.forEach((updatedItem: CartItem) => {
           state.itemLoading[updatedItem.productId] = false;
         });
       }));
@@ -152,15 +208,15 @@ export const useStoreCart = create<StoreCartState>((set, get) => ({
     }
   },
 
-  deleteItem: async (productId) => {
+  deleteItem: async (productId, variantId?: string) => {
     const { storeId } = get();
     if (!storeId) return;
 
     set((state) => ({
-      addCartLoading: { ...state.removeLoading, [productId]: true },
+      removeLoading: { ...state.removeLoading, [productId]: true },
     }));
     try {
-      await axios.delete(`/api/store/cart/${productId}`);
+      await axios.delete(`/api/store/cart/${productId}${variantId ? `/${variantId}` : ''}`);
       await get().fetchCart();
 
       toast({
@@ -172,11 +228,11 @@ export const useStoreCart = create<StoreCartState>((set, get) => ({
 
       toast({
         title: "Failed to remove item",
-        description: "Please try again.",
+        description: "Failed to remove item from cart",
       });
     } finally {
       set((state) => ({
-        addCartLoading: { ...state.removeLoading, [productId]: false },
+        removeLoading: { ...state.removeLoading, [productId]: false },
       }));
     }
   },

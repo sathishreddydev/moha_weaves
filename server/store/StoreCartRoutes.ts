@@ -11,7 +11,7 @@ const cartItemSchema = z.object({
   quantity: z.number().min(1),
   unitPrice: z.number().min(0),
   lineAmount: z.number().min(0),
-  storeStock: z.number().min(0),
+  totalStock: z.number().min(0),
 });
 
 export const addToCartSchema = z.object({
@@ -143,15 +143,40 @@ export const storeCartRoutes = (app: Express) => {
         inventoryData.map((inv: any) => [inv.productId, inv])
       );
 
+      // Get variant inventory for variant items
+      const variantIds = validatedData.items
+        .filter(item => item.quantity !== undefined && item.variantId)
+        .map(item => item.variantId) as string[];
+
+      let variantInventoryData: any[] = [];
+      if (variantIds.length > 0) {
+        variantInventoryData = await storeRepo.getStoreVariantInventoryItems(storeId, variantIds);
+      }
+      const variantInventoryMap = new Map(
+        variantInventoryData.map((inv: any) => [inv.variantId, inv])
+      );
+
       for (const item of validatedData.items) {
         if (item.quantity === undefined) continue;
 
-        const inventory = inventoryMap.get(item.productId);
-        if (!inventory || (inventory as any).quantity < item.quantity) {
-          return res.status(400).json({
-            error: "Insufficient stock",
-            message: `Only ${(inventory as any)?.quantity || 0} items available for item ${item.productId}`
-          });
+        if (item.variantId) {
+          // Check variant-level stock
+          const variantInventory = variantInventoryMap.get(item.variantId);
+          if (!variantInventory || (variantInventory as any).quantity < item.quantity) {
+            return res.status(400).json({
+              error: "Insufficient stock",
+              message: `Only ${(variantInventory as any)?.quantity || 0} items available for variant ${item.variantId}`
+            });
+          }
+        } else {
+          // Check product-level stock
+          const inventory = inventoryMap.get(item.productId);
+          if (!inventory || (inventory as any).quantity < item.quantity) {
+            return res.status(400).json({
+              error: "Insufficient stock",
+              message: `Only ${(inventory as any)?.quantity || 0} items available for item ${item.productId}`
+            });
+          }
         }
       }
 
@@ -166,19 +191,19 @@ export const storeCartRoutes = (app: Express) => {
     }
   });
 
-  app.delete("/api/store/cart/:productId", authStore, async (req: Request, res: Response) => {
+  app.delete("/api/store/cart/:productId/:variantId?", authStore, async (req: Request, res: Response) => {
     try {
       const storeId = req.user?.storeId;
       if (!storeId) return res.status(401).json({ error: "Store not authenticated" });
 
-      const { productId } = req.params;
+      const { productId, variantId } = req.params;
       const storeRepo = new StoreRepository();
 
-      await storeRepo.deleteFromStoreCart(storeId, productId);
+      await storeRepo.deleteFromStoreCart(storeId, productId, variantId);
 
       res.json({ message: "Item removed from cart successfully" });
     } catch (error) {
-      console.error("Error removing item from cart:", error);
+      console.error("Error removing item:", error);
       res.status(500).json({ error: "Failed to remove item from cart" });
     }
   });

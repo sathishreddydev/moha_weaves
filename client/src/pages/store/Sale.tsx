@@ -7,22 +7,30 @@ import { useAuth } from "@/lib/auth";
 import type { ProductWithDetails } from "@shared/schema";
 import { ColumnDef } from "@tanstack/react-table";
 import { Minus, Plus, RefreshCw, ShoppingCart, Trash2 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { useStoreCart } from "./Hook/cartStore";
+import { 
+  formatPrice, 
+  calculateVariantPrice, 
+  findCartItem, 
+  getCartItemByVariant, 
+  getAvailableStock,
+  updateCartItemQuantity,
+  isOutOfStock,
+  getStockDisplayText,
+  hasItemsInCart
+} from "@/pages/store/utils/cartUtils";
 
-type ShopProduct = {
-  product: ProductWithDetails & {
-    activeSale?: {
-      id: string;
-      name: string;
-      offerType: string;
-      discountValue: string;
-      maxDiscount?: string;
-    } | null;
-    discountedPrice?: number;
-  };
-  storeStock: number;
+type ShopProduct = ProductWithDetails & {
+  activeSale?: {
+    id: string;
+    name: string;
+    offerType: string;
+    discountValue: string;
+    maxDiscount?: string;
+  } | null;
+  discountedPrice?: number;
 };
 
 export default function StoreSale() {
@@ -30,9 +38,8 @@ export default function StoreSale() {
   const { toast } = useToast();
   const navigate = useNavigate();
   const storeId = user?.storeId;
-  
-  const [selectedVariants, _setSelectedVariants] = useState<Record<string, string>>({});
 
+  
   const {
     items: cartItems,
     fetchCart,
@@ -45,11 +52,7 @@ export default function StoreSale() {
     setStoreId,
   } = useStoreCart();
   const disabledBtn = (productId: string) => {
-    return (
-      loading ||
-      addCartLoading[productId] ||
-      removeLoading[productId]
-    );
+    return loading || addCartLoading[productId] || removeLoading[productId];
   };
   useEffect(() => {
     if (storeId) {
@@ -57,7 +60,6 @@ export default function StoreSale() {
       if (cartItems.length === 0) fetchCart();
     }
   }, [storeId, cartItems.length, fetchCart, setStoreId]);
-
 
   const {
     data: tableProducts,
@@ -73,16 +75,8 @@ export default function StoreSale() {
     initialPageSize: 10,
   });
 
-  const formatPrice = (price: number | string) => {
-    const numPrice = typeof price === "string" ? parseFloat(price) : price;
-    return new Intl.NumberFormat("en-IN", {
-      style: "currency",
-      currency: "INR",
-      maximumFractionDigits: 0,
-    }).format(numPrice);
-  };
-
-  const addToCart = (product: ShopProduct) => {
+  
+  const addToCart = useCallback((product: ShopProduct, variantId?: string, quantity: number = 1) => {
     if (!storeId) {
       toast({
         title: "Error",
@@ -92,55 +86,34 @@ export default function StoreSale() {
       return;
     }
 
-    const existing = cartItems.find(
-      (item) => item.productId === product.product.id && 
-      (product.product.variants && product.product.variants.length > 0 ? item.variantId === selectedVariants[product.product.id] : true)
-    );
-    const selectedVariant = product.product.variants?.find(v => v.id === selectedVariants[product.product.id]);
-    const price = selectedVariant ? parseFloat(selectedVariant.price || '0') : 
-      (product.product.activeSale && product.product.discountedPrice
-        ? product.product.discountedPrice
-        : parseFloat(product.product.price));
+    const actualVariantId = variantId || undefined;
+    const existing = findCartItem(cartItems, product.id, actualVariantId);
+    const { unitPrice } = calculateVariantPrice(product, actualVariantId, quantity);
+    const availableStock = getAvailableStock(product, actualVariantId);
 
-    if (existing) {
-      if (existing.quantity < product.storeStock) {
-        addItem(product.product.id, 1, price, selectedVariants[product.product.id]);
-      } else {
-        toast({
-          title: "Limit reached",
-          description: "Cannot add more than available stock",
-        });
-      }
+    if (existing && existing.quantity < availableStock) {
+      addItem(product.id, quantity, unitPrice, actualVariantId);
+    } else if (!existing) {
+      addItem(product.id, quantity, unitPrice, actualVariantId);
     } else {
-      addItem(product.product.id, 1, price, selectedVariants[product.product.id]);
+      toast({
+        title: "Limit reached",
+        description: "Cannot add more than available stock",
+      });
     }
-  };
+  }, [storeId, cartItems, findCartItem, calculateVariantPrice, getAvailableStock, addItem]);
 
-  const updateQuantity = (productId: string, delta: number) => {
-    const updatedCart = cartItems.map((item) => {
-      if (item.productId !== productId) return item;
-      const newQty = item.quantity + delta;
-      if (newQty < 1) return item;
-      if (newQty > item.storeStock) {
-        toast({
-          title: "Limit reached",
-          description: "Cannot exceed available stock",
-        });
-        return item;
-      }
-      return {
-        ...item,
-        quantity: newQty,
-        lineAmount: newQty * item.unitPrice,
-      };
-    });
+  const updateQuantity = useCallback((productId: string, delta: number, variantId?: string) => {
+    const updatedCart = updateCartItemQuantity(cartItems, productId, delta, variantId);
     updateItems(updatedCart, productId);
-  };
+  }, [cartItems, updateCartItemQuantity, updateItems]);
 
-  const removeFromCart = (productId: string) => {
-    deleteItem(productId);
-  };
+  const removeFromCart = useCallback((productId: string, variantId?: string) => {
+    deleteItem(productId, variantId);
+  }, [deleteItem]);
 
+  
+  
   const displayProducts = tableProducts;
   const displayLoading = tableLoading;
   const productColumns: ColumnDef<ShopProduct>[] = [
@@ -150,10 +123,10 @@ export default function StoreSale() {
       cell: ({ row }) => (
         <img
           src={
-            row.original.product.imageUrl ||
+            row.original?.imageUrl ||
             "https://images.unsplash.com/photo-1610030469983-98e550d6193c?w=50"
           }
-          alt={row.original.product.name}
+          alt={row.original?.name}
           className="w-12 h-16 rounded object-cover"
         />
       ),
@@ -164,10 +137,10 @@ export default function StoreSale() {
       cell: ({ row }) => (
         <div>
           <p className="font-medium text-sm line-clamp-1">
-            {row.original.product.name}
+            {row.original?.name}
           </p>
           <p className="text-xs text-muted-foreground font-mono">
-            {row.original.product.sku || "-"}
+            {row.original?.sku || "-"}
           </p>
         </div>
       ),
@@ -176,16 +149,14 @@ export default function StoreSale() {
       accessorKey: "product.category.name",
       header: "Category",
       cell: ({ row }) => (
-        <span className="text-sm">
-          {row.original.product.category?.name || "-"}
-        </span>
+        <span className="text-sm">{row.original?.category?.name || "-"}</span>
       ),
     },
     {
       accessorKey: "product.color.name",
       header: "Color",
       cell: ({ row }) => {
-        const color = row.original.product.color;
+        const color = row.original?.color;
         if (!color) return <span className="text-sm">-</span>;
         return (
           <div className="flex items-center gap-2">
@@ -202,9 +173,7 @@ export default function StoreSale() {
       accessorKey: "product.fabric.name",
       header: "Fabric",
       cell: ({ row }) => (
-        <span className="text-sm">
-          {row.original.product.fabric?.name || "-"}
-        </span>
+        <span className="text-sm">{row.original?.fabric?.name || "-"}</span>
       ),
     },
     {
@@ -214,18 +183,18 @@ export default function StoreSale() {
         const item = row.original;
         return (
           <div>
-            {item.product.activeSale && item.product.discountedPrice ? (
+            {item?.activeSale && item?.discountedPrice ? (
               <div className="flex items-center gap-2">
                 <span className="font-semibold text-primary">
-                  {formatPrice(item.product.discountedPrice)}
+                  {formatPrice(item?.discountedPrice)}
                 </span>
                 <span className="text-xs text-muted-foreground line-through">
-                  {formatPrice(item.product.price)}
+                  {formatPrice(item?.price)}
                 </span>
               </div>
             ) : (
               <span className="font-semibold text-primary">
-                {formatPrice(item.product.price)}
+                {formatPrice(item?.price)}
               </span>
             )}
           </div>
@@ -234,10 +203,10 @@ export default function StoreSale() {
     },
 
     {
-      accessorKey: "storeStock",
+      accessorKey: "totalStock",
       header: "Stock",
       cell: ({ row }) => {
-        const outOfStock = row.original.storeStock === 0;
+        const outOfStock = isOutOfStock(row.original);
         return (
           <Badge
             variant={outOfStock ? "destructive" : "secondary"}
@@ -245,7 +214,7 @@ export default function StoreSale() {
           >
             {outOfStock
               ? "Out of stock"
-              : `${row.original.storeStock} in stock`}
+              : `${row.original.totalStock} in stock`}
           </Badge>
         );
       },
@@ -255,21 +224,21 @@ export default function StoreSale() {
       header: "Actions",
       cell: ({ row }) => {
         const product = row.original;
-        const inCart = cartItems.some((c) => c.productId === product.product.id);
-        const cartItem = cartItems.find((c) => c.productId === product.product.id);
-        const outOfStock = product.storeStock === 0;
-
-        if (inCart && cartItem) {
+        const inCart = hasItemsInCart(cartItems, product.id);
+        const cartItem = findCartItem(cartItems, product.id);
+        const outOfStock = isOutOfStock(product);
+        const hasVariants = product.variants && product.variants.length > 0;
+        
+        if (inCart && cartItem && !hasVariants) {
           return (
             <div className="flex items-center gap-1">
               <Button
                 variant="outline"
                 size="icon"
                 className="h-8 w-8"
-                onClick={() => updateQuantity(product.product.id, -1)}
-                disabled={
-                  disabledBtn(product.product.id) || cartItem.quantity <= 1
-                }
+                onClick={() => updateQuantity(product.id, -1, undefined)}
+                disabled={disabledBtn(product.id) || cartItem.quantity <= 1}
+                aria-label={`Decrease quantity for ${product.name}`}
               >
                 <Minus className="h-3 w-3" />
               </Button>
@@ -280,11 +249,12 @@ export default function StoreSale() {
                 variant="outline"
                 size="icon"
                 className="h-8 w-8"
-                onClick={() => updateQuantity(product.product.id, 1)}
+                onClick={() => updateQuantity(product.id, 1, undefined)}
                 disabled={
-                  disabledBtn(product.product.id) ||
-                  cartItem.quantity >= product.storeStock
+                  disabledBtn(product.id) ||
+                  cartItem.quantity >= getAvailableStock(product, undefined)
                 }
+                aria-label={`Increase quantity for ${product.name}`}
               >
                 <Plus className="h-3 w-3" />
               </Button>
@@ -292,11 +262,89 @@ export default function StoreSale() {
                 variant="ghost"
                 size="icon"
                 className="h-8 w-8 text-red-600 hover:text-red-700"
-                onClick={() => removeFromCart(product.product.id)}
-                disabled={disabledBtn(product.product.id)}
+                onClick={() => removeFromCart(product.id, undefined)}
+                disabled={disabledBtn(product.id)}
+                aria-label={`Remove ${product.name} from cart`}
               >
                 <Trash2 className="h-3 w-3" />
               </Button>
+            </div>
+          );
+        }
+
+        if (hasVariants) {
+          return (
+            <div className="flex flex-col gap-1">
+              {product.variants?.map((variant) => {
+                const cartItemForVariant = getCartItemByVariant(cartItems, product.id, variant.id);
+                const inCart = !!cartItemForVariant;
+                const variantOutOfStock = isOutOfStock(product, variant.id);
+                
+                if (inCart && cartItemForVariant) {
+                  return (
+                    <div key={variant.id} className="flex items-center gap-1">
+                      <span className="text-xs w-8">{variant.size}</span>
+                      <Button
+                        variant="outline"
+                        size="icon"
+                        className="h-6 w-6"
+                        onClick={() => updateQuantity(product.id, -1, variant.id)}
+                        disabled={disabledBtn(product.id) || cartItemForVariant.quantity <= 1}
+                        aria-label={`Decrease quantity for ${product.name} - ${variant.size}`}
+                      >
+                        <Minus className="h-2 w-2" />
+                      </Button>
+                      <span className="w-6 text-center text-xs font-medium">
+                        {cartItemForVariant.quantity}
+                      </span>
+                      <Button
+                        variant="outline"
+                        size="icon"
+                        className="h-6 w-6"
+                        onClick={() => updateQuantity(product.id, 1, variant.id)}
+                        disabled={
+                          disabledBtn(product.id) ||
+                          cartItemForVariant.quantity >= variant.stockQuantity
+                        }
+                        aria-label={`Increase quantity for ${product.name} - ${variant.size}`}
+                      >
+                        <Plus className="h-2 w-2" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-6 w-6 text-red-600 hover:text-red-700"
+                        onClick={() => removeFromCart(product.id, variant.id)}
+                        disabled={disabledBtn(product.id)}
+                        aria-label={`Remove ${product.name} - ${variant.size} from cart`}
+                      >
+                        <Trash2 className="h-2 w-2" />
+                      </Button>
+                      <span className="text-xs text-muted-foreground">
+                        ({getStockDisplayText(product, variant.id)})
+                      </span>
+                    </div>
+                  );
+                }
+                
+                return (
+                  <div key={variant.id} className="flex items-center gap-1">
+                    <span className="text-xs w-8">{variant.size}</span>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-6 w-6"
+                      disabled={disabledBtn(product.id) || variantOutOfStock}
+                      onClick={() => addToCart(product, variant.id, 1)}
+                    >
+                      <Plus className="h-3 w-3" />
+                    </Button>
+                    <span className="text-xs text-muted-foreground">
+                      ({getStockDisplayText(product, variant.id)})
+                    </span>
+                  </div>
+                );
+              })}
             </div>
           );
         }
@@ -305,9 +353,9 @@ export default function StoreSale() {
           <Button
             variant="ghost"
             size="icon"
-            disabled={disabledBtn(product.product.id) || outOfStock}
+            disabled={disabledBtn(product.id) || outOfStock}
             onClick={() => addToCart(product)}
-            data-testid={`product-${product.product.id}`}
+            data-testid={`product-${product.id}`}
           >
             <Plus className="h-4 w-4" />
           </Button>
@@ -315,7 +363,6 @@ export default function StoreSale() {
       },
     },
   ];
-
 
   return (
     <div className="max-w-7xl mx-auto">
@@ -339,12 +386,14 @@ export default function StoreSale() {
             disabled={isFetching}
             className="flex items-center gap-2"
           >
-            <RefreshCw className={`h-4 w-4 ${isFetching ? 'animate-spin' : ''}`} />
+            <RefreshCw
+              className={`h-4 w-4 ${isFetching ? "animate-spin" : ""}`}
+            />
             Refetch
           </Button>
           <Button
             variant="outline"
-            size={'sm'}
+            size={"sm"}
             onClick={() => navigate("/store/cart")}
             className="gap-2"
           >
@@ -373,6 +422,7 @@ export default function StoreSale() {
           isLoading={displayLoading}
           searchPlaceholder="Search products..."
           emptyMessage="No products in stock"
+          className="[&_table]:text-xs [&_th]:h-8 [&_th]:px-2 [&_td]:px-2 [&_td]:py-1"
         />
       </div>
     </div>

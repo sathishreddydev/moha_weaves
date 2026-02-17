@@ -370,7 +370,7 @@ export const adminRoutes = (app: Express) => {
 
   app.get("/api/admin/products/:id", authAdmin, async (req, res) => {
     try {
-      const product = await AdminServices.getAdminProduct(req.params.id);
+      const product = await roleBasedProductService.getProductByRole(req.params.id,'admin');
       if (!product) {
         return res.status(404).json({ message: "Product not found" });
       }

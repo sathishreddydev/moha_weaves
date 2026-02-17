@@ -15,33 +15,19 @@ import {
   Trash2,
   X
 } from "lucide-react";
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useMemo, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
-import { useStoreCart } from "./Hook/cartStore";
+import { useStoreCart, CartItem } from "./Hook/cartStore";
+import { 
+  formatPrice, 
+  groupCartItemsByProduct, 
+  calculateCartTotals,
+  safeParseFloat,
+  updateCartItemQuantity,
+  getAvailableStock,
+  getStockDisplayText
+} from "@/pages/store/utils/cartUtils";
 
-interface CartItem {
-  id: string;
-  productId: string;
-  quantity: number;
-  unitPrice: number;
-  lineAmount: number;
-  storeStock: number;
-  product: {
-    id: string;
-    name: string;
-    code: string;
-    image: string;
-    price?: string;
-    activeSale?: {
-      id: string;
-      name: string;
-      offerType: string;
-      discountValue: string;
-      maxDiscount?: string;
-    } | null;
-    discountedPrice?: number;
-  };
-}
 interface Discount {
   id: string;
   code: string | null;
@@ -61,18 +47,21 @@ interface Discount {
   createdAt: string;
 }
 
-interface TaxRule {
+interface ExistingCustomer {
+  id: string;
   name: string;
-  rate: number;
-  type: "percentage" | "fixed";
+  phone: string;
+  [key: string]: any;
 }
 
-const formatPrice = (price: number | string) =>
-  new Intl.NumberFormat("en-IN", {
-    style: "currency",
-    currency: "INR",
-    maximumFractionDigits: 0,
-  }).format(Number(price));
+interface LoyaltyData {
+  exists: boolean;
+  customer?: ExistingCustomer;
+  loyaltyPoints: number;
+  redeemableValue: number;
+  [key: string]: any;
+}
+
 
 export default function Cart() {
   const navigate = useNavigate();
@@ -100,9 +89,9 @@ export default function Cart() {
   const [customerName, setCustomerName] = useState("");
   const [customerPhone, setCustomerPhone] = useState("");
   const [phoneError, setPhoneError] = useState("");
-  const [existingCustomer, setExistingCustomer] = useState<any>(null);
+  const [existingCustomer, setExistingCustomer] = useState<ExistingCustomer | null>(null);
   const [disabledCompBtn, setDisabledCompBtn] = useState(false);
-  const [loyaltyData, setLoyaltyData] = useState<any>(null);
+  const [loyaltyData, setLoyaltyData] = useState<LoyaltyData | null>(null);
   const [redeemPoints, setRedeemPoints] = useState(false);
   const [loyaltyLoading, setLoyaltyLoading] = useState(false);
   const [pagination, setPagination] = useState({ pageIndex: 0, pageSize: 10 });
@@ -113,43 +102,11 @@ export default function Cart() {
     if (!storeId) return;
     setStoreId(storeId);
     if (cartItems.length === 0) fetchCart();
-  }, []);
+  }, [storeId, cartItems.length, fetchCart, setStoreId]);
 
-  const updateQuantity = (
-    itemId: string,
-    newQuantity: number,
-    productId: string,
-    storeStock: number,
-  ) => {
-    if (newQuantity <= 0) {
-      removeFromCart(itemId, productId);
-      return;
-    }
-
-    if (newQuantity > storeStock) {
-      toast({
-        title: "Stock Limit",
-        description: `Cannot add more than ${storeStock} items`,
-        variant: "destructive",
-      });
-      return;
-    }
-
-    const updatedItems = cartItems.map((item) =>
-      item.id === itemId
-        ? {
-            ...item,
-            quantity: newQuantity,
-            lineAmount: newQuantity * item.unitPrice,
-          }
-        : item,
-    );
-
-    updateItems(updatedItems, productId);
-  };
-
-  const removeFromCart = (itemId: string, productId: string) => {
-    deleteItem(productId);
+  
+  const removeFromCart = (itemId: string, productId: string, variantId?: string) => {
+    deleteItem(productId, variantId);
   };
 
   const applyCoupon = async () => {
@@ -181,38 +138,42 @@ export default function Cart() {
     }
   };
 
-  const subtotal = cartItems.reduce((sum, item) => sum + item.lineAmount, 0);
-  const discountAmount = discount
-    ? discount.type === "percentage"
-      ? (discount.value / 100) * subtotal
-      : discount.value
-    : 0;
+  const { subtotal } = useMemo(() => calculateCartTotals(cartItems), [cartItems]);
+  const groupedCartItems = useMemo(() => groupCartItemsByProduct(cartItems), [cartItems]);
+  const displayItems = useMemo(() => Object.values(groupedCartItems).flat(), [groupedCartItems]);
+  const discountAmount = useMemo(() => 
+    discount
+      ? discount.type === "percentage"
+        ? (discount.value / 100) * subtotal
+        : discount.value
+      : 0, [discount, subtotal]);
 
-  // Calculate loyalty points discount
-  const discountedSubtotal = subtotal - discountAmount;
-  const loyaltyDiscount =
+  const discountedSubtotal = useMemo(() => subtotal - discountAmount, [subtotal, discountAmount]);
+  const loyaltyDiscount = useMemo(() =>
     redeemPoints && loyaltyData
       ? Math.min(loyaltyData.redeemableValue, discountedSubtotal)
-      : 0;
-  const finalDiscountedSubtotal = subtotal - discountAmount;
+      : 0, [redeemPoints, loyaltyData, discountedSubtotal]);
 
+  const finalDiscountedSubtotal = useMemo(() => discountedSubtotal - loyaltyDiscount, [discountedSubtotal, loyaltyDiscount]);
   const totalAmount = finalDiscountedSubtotal;
 
-  const handlePaginationChange = (pageIndex: number, pageSize: number) => {
+  const handlePaginationChange = useCallback((pageIndex: number, pageSize: number) => {
     setPagination({ pageIndex, pageSize });
-  };
-  const resetForm = () => {
+  }, []);
+
+  const resetForm = useCallback(() => {
     setCustomerName("");
     setCustomerPhone("");
     setDiscount(null);
     setPaymentMode("cash");
     setCouponCode("");
     setExistingCustomer(null);
-  };
-  const validatePhone = (phone: string) => {
+  }, []);
+
+  const validatePhone = useCallback((phone: string) => {
     const phoneRegex = /^[0-9]{10}$/;
     return phoneRegex.test(phone);
-  };
+  }, []);
 
   const handlePhoneChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
@@ -291,7 +252,7 @@ export default function Cart() {
     let pointsToRedeem = 0;
     if (redeemPoints && loyaltyData && loyaltyData.loyaltyPoints > 0) {
       // Maximum points that can be used based on order total (1 point = ₹0.05)
-      const maxPointsForOrder = Math.ceil(totalAmount / 0.05);
+      const maxPointsForOrder = totalAmount > 0 ? Math.ceil(totalAmount / 0.05) : 0;
       pointsToRedeem = Math.min(loyaltyData.loyaltyPoints, maxPointsForOrder);
     }
 
@@ -351,28 +312,44 @@ export default function Cart() {
     {
       accessorKey: "product.name",
       header: "Description",
-      cell: ({ row }) => row.original.product?.name || "Product",
+      cell: ({ row }) => {
+        const item = row.original;
+        const variant = item.product.variants?.find((v) => v.id === item.variantId);
+        const itemIndex = displayItems.findIndex(d => d.id === item.id);
+        const previousItem = itemIndex > 0 ? displayItems[itemIndex - 1] : null;
+        const isSameProductAsPrevious = previousItem?.productId === item.productId;
+        
+        return (
+          <div className={isSameProductAsPrevious ? "pt-2 border-t border-gray-100" : ""}>
+            <div className="font-medium">{item.product?.name || "Product"}</div>
+            {variant && (
+              <div className="text-xs text-muted-foreground">
+                Size: {variant.size} {variant.sku && `(${variant.sku})`}
+              </div>
+            )}
+          </div>
+        );
+      },
     },
     {
       accessorKey: "quantity",
       header: "Qty",
       cell: ({ row }) => {
         const item = row.original;
+        const availableStock = getAvailableStock(item.product, item.variantId);
+        
         return (
           <div className="flex items-center gap-2">
             <Button
               variant="outline"
               size="icon"
-              onClick={() =>
-                updateQuantity(
-                  item.id,
-                  item.quantity - 1,
-                  item.productId,
-                  item.storeStock,
-                )
-              }
-              disabled={disabledBtn(item.productId) || item.quantity <= 1}
+              onClick={() => {
+                const updatedCart = updateCartItemQuantity(cartItems, item.productId, -1, item.variantId);
+                updateItems(updatedCart, item.productId);
+              }}
+              disabled={disabledBtn(item.productId)}
               className="h-6 w-6"
+              aria-label={`Decrease quantity for ${item.product?.name || 'Product'}`}
             >
               <Minus className="h-3 w-3" />
             </Button>
@@ -380,21 +357,21 @@ export default function Cart() {
             <Button
               variant="outline"
               size="icon"
-              onClick={() =>
-                updateQuantity(
-                  item.id,
-                  item.quantity + 1,
-                  item.productId,
-                  item.storeStock,
-                )
-              }
+              onClick={() => {
+                const updatedCart = updateCartItemQuantity(cartItems, item.productId, 1, item.variantId);
+                updateItems(updatedCart, item.productId);
+              }}
               disabled={
-                disabledBtn(item.productId) || item.quantity >= item.storeStock
+                disabledBtn(item.productId) || item.quantity >= availableStock
               }
               className="h-6 w-6"
+              aria-label={`Increase quantity for ${item.product?.name || 'Product'}`}
             >
               <Plus className="h-3 w-3" />
             </Button>
+            <span className="text-xs text-muted-foreground">
+              ({getStockDisplayText(item.product, item.variantId, item.quantity)})
+            </span>
           </div>
         );
       },
@@ -404,6 +381,8 @@ export default function Cart() {
       header: "Price",
       cell: ({ row }) => {
         const item = row.original;
+        const displayPrice = safeParseFloat(item.unitPrice);
+        
         return (
           <div>
             {item.product.activeSale && item.product.discountedPrice ? (
@@ -416,7 +395,7 @@ export default function Cart() {
                 </span>
               </div>
             ) : (
-              <span>{formatPrice(item.unitPrice)}</span>
+              <span>{formatPrice(displayPrice)}</span>
             )}
           </div>
         );
@@ -427,6 +406,8 @@ export default function Cart() {
       header: "Total",
       cell: ({ row }) => {
         const item = row.original;
+        const displayPrice = safeParseFloat(item.unitPrice);
+        
         return (
           <div>
             {item.product.activeSale && item.product.discountedPrice ? (
@@ -436,12 +417,12 @@ export default function Cart() {
                 </span>
                 <span className="text-xs text-muted-foreground line-through">
                   {formatPrice(
-                    parseFloat(item.product.price || "0") * item.quantity,
+                    safeParseFloat(item.product.price || "0") * item.quantity,
                   )}
                 </span>
               </div>
             ) : (
-              <span>{formatPrice(item.lineAmount)}</span>
+              <span>{formatPrice(displayPrice * item.quantity)}</span>
             )}
           </div>
         );
@@ -454,11 +435,12 @@ export default function Cart() {
         const item = row.original;
         return (
           <Button
-            onClick={() => removeFromCart(item.id, item.productId)}
+            onClick={() => removeFromCart(item.id, item.productId, item.variantId)}
             variant="ghost"
             size="sm"
             className="text-red-600 h-6 w-6 p-0"
             disabled={disabledBtn(item.productId)}
+            aria-label={`Remove ${item.product?.name || 'Product'} from cart`}
           >
             <Trash2 size={14} />
           </Button>
@@ -497,8 +479,8 @@ export default function Cart() {
         <>
           <DataTable
             columns={columns}
-            data={cartItems}
-            totalCount={cartItems.length}
+            data={displayItems}
+            totalCount={displayItems.length}
             pageSize={pagination.pageSize}
             pageIndex={pagination.pageIndex}
             onPaginationChange={handlePaginationChange}
@@ -628,7 +610,7 @@ export default function Cart() {
                     <div className="mt-2 flex items-center gap-2 text-xs text-green-600">
                       <span>
                         Coupon applied: {discount?.name} (-₹
-                        {discountAmount?.toLocaleString()})
+                        {discountAmount.toLocaleString()})
                       </span>
                       <Button
                         variant="ghost"
@@ -657,18 +639,18 @@ export default function Cart() {
 
               <div className="flex justify-between text-xs text-slate-600">
                 <span>Subtotal</span>
-                <span>₹{subtotal?.toLocaleString()}</span>
+                <span>₹{subtotal.toLocaleString()}</span>
               </div>
 
               <div className="flex justify-between text-xs text-slate-600">
                 <span>Discount</span>
-                <span>-₹{discountAmount?.toLocaleString()}</span>
+                <span>-₹{discountAmount.toLocaleString()}</span>
               </div>
 
               {loyaltyDiscount > 0 && (
                 <div className="flex justify-between text-xs text-amber-600">
                   <span>Loyalty Points Discount</span>
-                  <span>-₹{loyaltyDiscount?.toLocaleString()}</span>
+                  <span>-₹{loyaltyDiscount.toLocaleString()}</span>
                 </div>
               )}
 
@@ -685,7 +667,7 @@ export default function Cart() {
               <div className="pt-2 mt-1 border-t border-slate-200 flex justify-between items-center">
                 <span className="text-sm font-bold">Total Amount</span>
                 <span className="text-sm font-bold">
-                  ₹{totalAmount?.toLocaleString()}
+                  ₹{totalAmount.toLocaleString()}
                 </span>
               </div>
 

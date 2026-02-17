@@ -16,7 +16,6 @@ import {
   couponUsage,
   coupons,
   fabrics,
-  productVariants,
   products,
   saleProducts,
   sales,
@@ -34,7 +33,10 @@ import {
 } from "@shared/schema";
 import { and, desc, eq, gt, gte, inArray, lte, sql } from "drizzle-orm";
 import { db } from "server/db";
+import { roleBasedProductService } from "server/product/roleBasedProductService";
+import { variantStoreInventory } from "../../shared/tables";
 import { CustomerService } from "./customerStorage";
+import { formatProductsByStore } from "./formatedData";
 
 export interface StoreStorage {
   // Stores
@@ -79,17 +81,17 @@ export interface StoreStorage {
     storeId: string,
   ): Promise<
     | {
+      eligible: boolean;
+      eligibleUntil?: Date;
+      daysRemaining?: number;
+      reason?: string;
+      items?: Array<{
+        itemId: string;
         eligible: boolean;
-        eligibleUntil?: Date;
-        daysRemaining?: number;
         reason?: string;
-        items?: Array<{
-          itemId: string;
-          eligible: boolean;
-          reason?: string;
-          availableQuantity: number;
-        }>;
-      }
+        availableQuantity: number;
+      }>;
+    }
     | undefined
   >;
 
@@ -135,7 +137,7 @@ export interface StoreStorage {
   ): Promise<StoreExchange>;
   getShopAvailableProducts(
     storeId: string,
-  ): Promise<{ product: ProductWithDetails; storeStock: number }[]>;
+  ): Promise<{ product: ProductWithDetails; totalStock: number }[]>;
   getAllStoreSales(): Promise<StoreSaleWithItems[]>;
   getStoreSales(storeId: string, limit?: number): Promise<StoreSaleWithItems[]>;
   getStoreSalesPaginated(
@@ -171,10 +173,15 @@ export interface StoreStorage {
     storeId: string,
     productIds: string[],
   ): Promise<StoreInventory[]>;
+  getStoreVariantInventoryItems(
+    storeId: string,
+    variantIds: string[],
+  ): Promise<any[]>;
   getStoreCart(storeId: string): Promise<{ items: any[] }>;
   deleteFromStoreCart(
     storeId: string,
     productId: string,
+    variantId?: string,
   ): Promise<{ items: any[] }>;
   updateStoreCart(storeId: string, items: any[]): Promise<{ items: any[] }>;
   clearStoreCart(storeId: string): Promise<{ items: any[] }>;
@@ -452,10 +459,10 @@ export class StoreRepository implements StoreStorage {
 
     // Group results by sale and aggregate items
     const salesMap = new Map<string, any>();
-    
+
     for (const row of salesData) {
       const saleId = row.sale.id;
-      
+
       if (!salesMap.has(saleId)) {
         salesMap.set(saleId, {
           ...row.sale,
@@ -463,7 +470,7 @@ export class StoreRepository implements StoreStorage {
           items: [],
         });
       }
-      
+
       // Add item if it exists
       if (row.item) {
         const sale = salesMap.get(saleId);
@@ -482,13 +489,13 @@ export class StoreRepository implements StoreStorage {
 
     // Get eligibility data for all sales in parallel
     const saleIds = Array.from(salesMap.keys());
-    const eligibilityPromises = saleIds.map(saleId => 
+    const eligibilityPromises = saleIds.map(saleId =>
       this.checkStoreSaleExchangeEligibility(saleId, storeId)
         .catch(() => ({ eligible: false, reason: "Error checking eligibility" }))
     );
-    
+
     const eligibilityResults = await Promise.all(eligibilityPromises);
-    
+
     // Combine results
     const result: StoreSaleWithItems[] = [];
     saleIds.forEach((saleId, index) => {
@@ -505,17 +512,17 @@ export class StoreRepository implements StoreStorage {
     storeId: string,
   ): Promise<
     | {
+      eligible: boolean;
+      eligibleUntil?: Date;
+      daysRemaining?: number;
+      reason?: string;
+      items?: Array<{
+        itemId: string;
         eligible: boolean;
-        eligibleUntil?: Date;
-        daysRemaining?: number;
         reason?: string;
-        items?: Array<{
-          itemId: string;
-          eligible: boolean;
-          reason?: string;
-          availableQuantity: number;
-        }>;
-      }
+        availableQuantity: number;
+      }>;
+    }
     | undefined
   > {
     // First, get the sale with items
@@ -912,12 +919,12 @@ export class StoreRepository implements StoreStorage {
 
     const newItemsAmount = data.newItems
       ? data.newItems.reduce((sum: number, item: any) => {
-          return (
-            sum +
-            (parseFloat(item.lineAmount) ||
-              parseFloat(item.unitPrice) * item.quantity)
-          );
-        }, 0)
+        return (
+          sum +
+          (parseFloat(item.lineAmount) ||
+            parseFloat(item.unitPrice) * item.quantity)
+        );
+      }, 0)
       : 0;
 
     // Mandatory amount checks
@@ -1081,7 +1088,7 @@ export class StoreRepository implements StoreStorage {
   }
   async getShopAvailableProducts(
     storeId: string,
-  ): Promise<{ product: ProductWithDetails; storeStock: number }[]> {
+  ): Promise<{ product: ProductWithDetails; totalStock: number }[]> {
     const result = await db
       .select()
       .from(storeInventory)
@@ -1172,16 +1179,16 @@ export class StoreRepository implements StoreStorage {
           fabric: row.fabrics,
           activeSale: applicableSale
             ? {
-                id: applicableSale.id,
-                name: applicableSale.name,
-                offerType: applicableSale.offerType,
-                discountValue: applicableSale.discountValue,
-                maxDiscount: applicableSale.maxDiscount || undefined,
-              }
+              id: applicableSale.id,
+              name: applicableSale.name,
+              offerType: applicableSale.offerType,
+              discountValue: applicableSale.discountValue,
+              maxDiscount: applicableSale.maxDiscount || undefined,
+            }
             : null,
           discountedPrice: applicableSale ? discountedPrice : undefined,
         },
-        storeStock: row.store_inventory.quantity,
+        totalStock: row.store_inventory.quantity,
       };
     });
   }
@@ -1330,12 +1337,12 @@ export class StoreRepository implements StoreStorage {
               fabric: itemRow.fabrics,
               activeSale: applicableSale
                 ? {
-                    id: applicableSale.id,
-                    name: applicableSale.name,
-                    offerType: applicableSale.offerType,
-                    discountValue: applicableSale.discountValue,
-                    maxDiscount: applicableSale.maxDiscount || undefined,
-                  }
+                  id: applicableSale.id,
+                  name: applicableSale.name,
+                  offerType: applicableSale.offerType,
+                  discountValue: applicableSale.discountValue,
+                  maxDiscount: applicableSale.maxDiscount || undefined,
+                }
                 : null,
               discountedPrice: applicableSale ? discountedPrice : undefined,
             },
@@ -1557,6 +1564,21 @@ export class StoreRepository implements StoreStorage {
       );
   }
 
+  async getStoreVariantInventoryItems(
+    storeId: string,
+    variantIds: string[],
+  ): Promise<any[]> {
+    return await db
+      .select()
+      .from(variantStoreInventory)
+      .where(
+        and(
+          eq(variantStoreInventory.storeId, storeId),
+          inArray(variantStoreInventory.variantId, variantIds),
+        ),
+      );
+  }
+
   async addToStoreCart(
     storeId: string,
     productId: string,
@@ -1572,7 +1594,7 @@ export class StoreRepository implements StoreStorage {
         .from(storeCart)
         .where(
           and(
-            eq(storeCart.storeId, storeId), 
+            eq(storeCart.storeId, storeId),
             eq(storeCart.productId, productId),
             variantId ? eq(storeCart.variantId, variantId) : sql`${storeCart.variantId} IS NULL`
           ),
@@ -1609,141 +1631,58 @@ export class StoreRepository implements StoreStorage {
   }
 
   async getStoreCart(storeId: string): Promise<{ items: any[] }> {
+    // Get basic cart items first
     const cartItems = await db
       .select()
       .from(storeCart)
-      .innerJoin(products, eq(storeCart.productId, products.id))
-      .leftJoin(categories, eq(products.categoryId, categories.id))
-      .leftJoin(colors, eq(products.colorId, colors.id))
-      .leftJoin(fabrics, eq(products.fabricId, fabrics.id))
-      .leftJoin(productVariants, eq(storeCart.variantId, productVariants.id))
-      .leftJoin(
-        storeInventory,
-        and(
-          eq(storeInventory.productId, products.id),
-          eq(storeInventory.storeId, storeId),
-        ),
-      )
       .where(eq(storeCart.storeId, storeId));
 
-    // Load active sales data
-    const now = new Date();
-    const activeSales = await db
-      .select()
-      .from(sales)
-      .where(
-        and(
-          eq(sales.isActive, true),
-          lte(sales.validFrom, now),
-          gte(sales.validUntil, now),
-        ),
+    if (!cartItems.length) {
+      return { items: [] };
+    }
+    const productIds = [...new Set(cartItems.map(item => item.productId))];
+    const products = await roleBasedProductService.getProductsByRole(
+      {
+        ids: productIds,
+        storeId
+      },
+      "store"
+    );
+
+    const formattedProducts = formatProductsByStore(products, storeId);
+
+    const items = cartItems.map(cartItem => {
+      const product = formattedProducts.find(
+        p => p?.id === cartItem.productId
       );
 
-    // Fetch sale product mappings
-    const saleProductMappings = await db.select().from(saleProducts);
-
-    return {
-      items: cartItems.map((item) => {
-        const product = item.products;
-
-        // Find applicable sale (same logic as user cart)
-        let applicableSale = null;
-        const productSaleMapping = saleProductMappings.find(
-          (sp) => sp.productId === product.id,
-        );
-        if (productSaleMapping) {
-          applicableSale = activeSales.find(
-            (s) => s.id === productSaleMapping.saleId,
-          );
-        }
-        // Only exclude category pricing when THIS product is explicitly mapped to a different sale
-        if (!applicableSale && product.categoryId) {
-          applicableSale = activeSales.find(
-            (s) =>
-              s.categoryId === product.categoryId &&
-              !saleProductMappings.some(
-                (sp) => sp.saleId === s.id && sp.productId === product.id,
-              ),
-          );
-        }
-
-        // Calculate discounted price
-        let discountedPrice = parseFloat(product.price);
-        if (applicableSale) {
-          const originalPrice = discountedPrice;
-          if (
-            applicableSale.offerType === "percentage" ||
-            applicableSale.offerType === "category" ||
-            applicableSale.offerType === "flash_sale"
-          ) {
-            const discount =
-              originalPrice * (parseFloat(applicableSale.discountValue) / 100);
-            const maxDiscount = applicableSale.maxDiscount
-              ? parseFloat(applicableSale.maxDiscount)
-              : originalPrice;
-            discountedPrice =
-              originalPrice - Math.min(discount, maxDiscount, originalPrice);
-          } else if (
-            applicableSale.offerType === "flat" ||
-            applicableSale.offerType === "product"
-          ) {
-            const flatDiscount = Math.min(
-              parseFloat(applicableSale.discountValue),
-              originalPrice,
-            );
-            discountedPrice = originalPrice - flatDiscount;
-          }
-          discountedPrice = Math.max(0, discountedPrice);
-        }
-
-        // Use discounted price if available, otherwise use stored cart price
-        const effectivePrice = applicableSale
-          ? discountedPrice
-          : Number(item.store_cart.unitPrice);
-        const lineAmount = item.store_cart.quantity * effectivePrice;
-
-        return {
-          id: item.store_cart.id,
-          productId: item.store_cart.productId,
-          variantId: item.store_cart.variantId,
-          quantity: item.store_cart.quantity,
-          unitPrice: effectivePrice,
-          lineAmount,
-          storeStock: item.store_inventory?.quantity || 0,
-          product: {
-            id: item.products.id,
-            name: item.products.name,
-            code: item.products.sku || item.products.id,
-            image: item.products.imageUrl,
-            price: item.products.price,
-            category: item.categories,
-            color: item.colors,
-            fabric: item.fabrics,
-            variants: item.product_variants ? [item.product_variants] : undefined,
-            activeSale: applicableSale
-              ? {
-                  id: applicableSale.id,
-                  name: applicableSale.name,
-                  offerType: applicableSale.offerType,
-                  discountValue: applicableSale.discountValue,
-                  maxDiscount: applicableSale.maxDiscount || undefined,
-                }
-              : null,
-            discountedPrice: applicableSale ? discountedPrice : undefined,
-          },
-        };
-      }),
-    };
+      return {
+        id: cartItem.id,
+        productId: cartItem.productId,
+        variantId: cartItem.variantId,
+        quantity: cartItem.quantity,
+        unitPrice: cartItem.unitPrice,
+        lineAmount: Number(cartItem.lineAmount),
+        totalStock: product?.totalStock || 0,
+        product: product
+      };
+    });
+    return { items };
   }
 
   async deleteFromStoreCart(
     storeId: string,
     productId: string,
+    variantId?: string,
   ): Promise<{ items: any[] }> {
     await db
       .delete(storeCart)
       .where(
-        and(eq(storeCart.storeId, storeId), eq(storeCart.productId, productId)),
+        and(
+          eq(storeCart.storeId, storeId), 
+          eq(storeCart.productId, productId),
+          variantId ? eq(storeCart.variantId, variantId) : sql`${storeCart.variantId} IS NULL`
+        )
       );
 
     // Return updated cart after deletion
@@ -1763,6 +1702,7 @@ export class StoreRepository implements StoreStorage {
             and(
               eq(storeCart.storeId, storeId),
               eq(storeCart.productId, item.productId),
+              item.variantId ? eq(storeCart.variantId, item.variantId) : sql`${storeCart.variantId} IS NULL`
             ),
           )
           .limit(1);
@@ -1786,12 +1726,14 @@ export class StoreRepository implements StoreStorage {
               and(
                 eq(storeCart.storeId, storeId),
                 eq(storeCart.productId, item.productId),
+                item.variantId ? eq(storeCart.variantId, item.variantId) : sql`${storeCart.variantId} IS NULL`
               ),
             );
         } else {
           await tx.insert(storeCart).values({
             storeId,
             productId: item.productId,
+            variantId: item.variantId,
             quantity,
             unitPrice: unitPrice.toString(),
             lineAmount: lineAmount.toString(),

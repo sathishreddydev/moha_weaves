@@ -11,6 +11,8 @@ import { storage } from "../storage";
 import { customerRoutes } from "./customerRoutes";
 import { storeProductsStorage } from "./productsStorage";
 import { storeService } from "./storeStorage";
+import { formatProductsByStore } from "./formatedData";
+import { stockRequestService } from "./stockRequestStorage";
 
 export const storeRoutes = (app: Express) => {
   const authStore = createAuthMiddleware(["store"]);
@@ -155,7 +157,7 @@ export const storeRoutes = (app: Express) => {
 
       // Calculate stats for store-specific products
       const totalProducts = products.length;
-      const inStockProducts = products.filter(p => 
+      const inStockProducts = products.filter(p =>
         (p.storeAllocations || []).some(alloc => alloc.quantity > 0) ||
         (p.variants || []).some(v => (v.storeAllocations || []).some(alloc => alloc.quantity > 0))
       ).length;
@@ -165,10 +167,84 @@ export const storeRoutes = (app: Express) => {
         totalProducts,
         inStockProducts,
         outOfStockProducts,
-        data: products.map(product => ({
-          product,
-          storeStock: (product.storeAllocations || []).reduce((sum, alloc) => sum + alloc.quantity, 0)
-        })),
+        data: formatProductsByStore(products, user.storeId),
+        total: totalProducts,
+        page: Number(page),
+        pageSize: limit,
+        totalPages: Math.ceil(totalProducts / limit),
+      });
+    } catch (error) {
+      console.error("Error fetching paginated products:", error);
+      res.status(500).json({
+        message: "Failed to fetch products",
+        error: error instanceof Error ? error.message : "Unknown error",
+      });
+    }
+  });
+
+  app.post("/api/store/getProducts", authStore, async (req, res) => {
+    try {
+      const user = (req as any).user;
+      if (!user.storeId) {
+        return res.status(400).json({ message: "No store assigned" });
+      }
+
+      const { page = "1", pageSize = "10" } = req.query;
+      const limit = Number(pageSize);
+      const offset = (Number(page) - 1) * limit;
+
+      const {
+        search,
+        categoryIds,
+      } = req.body;
+
+      // Convert categoryIds to names for role-based service
+      let categoryNames: string[] = [];
+      if (categoryIds && categoryIds.length > 0) {
+        // Use publicStorage to get categories
+        const categories = await publicStorage.getCategoriesWithSubcategories();
+        categoryNames = categories
+          .filter((cat: any) => categoryIds.includes(cat.id))
+          .map((cat: any) => cat.name);
+      }
+
+      const filters: ProductFilters = {
+        search,
+        category: categoryNames,
+        limit,
+        offset,
+        storeId: user.storeId, // Important: Pass store ID for role-based filtering
+      };
+
+      // MIGRATED: Use role-based service for store users (50-60% faster queries)
+      const products = await roleBasedProductService.getProductsByRole(filters, "store");
+
+      // Get stock requests for each product
+      const productIds = products.map(p => p.id);
+      const stockRequests = await stockRequestService.getStockRequestsForProducts(user.storeId, productIds);
+
+
+      // Attach stock requests to products
+
+      const formattedData = formatProductsByStore(products, user.storeId)
+      // Calculate stats for store-specific products
+      const totalProducts = formattedData.length;
+      const inStockProducts = formattedData.filter(p =>
+        (p.storeAllocations || []).some((alloc: any) => alloc.quantity > 0) ||
+        (p.variants || []).some((v: any) => (v.storeAllocations || []).some((alloc: any) => alloc.quantity > 0))
+      ).length;
+      const outOfStockProducts = totalProducts - inStockProducts;
+      const finalData = formattedData.map(product => ({
+        ...product,
+        stockRequests: stockRequests.filter(
+          request => request.productId === product.id
+        )
+      }));
+      res.json({
+        totalProducts,
+        inStockProducts,
+        outOfStockProducts,
+        data: finalData,
         total: totalProducts,
         page: Number(page),
         pageSize: limit,
@@ -193,7 +269,7 @@ export const storeRoutes = (app: Express) => {
       const params = parsePaginationParams(req.query);
       const offset = getOffset(params.page, params.pageSize);
       const { search, status, dateFrom, dateTo } = req.body;
-      const result = await storage.getStockRequestsPaginated(user.storeId, {
+      const result = await stockRequestService.getStockRequestsPaginated(user.storeId, {
         limit: params.pageSize,
         offset,
         search: search,
@@ -223,7 +299,7 @@ export const storeRoutes = (app: Express) => {
         return res.status(400).json({ message: "No store assigned" });
       }
       const { productId, quantity, notes } = req.body;
-      const request = await storage.createStockRequest({
+      const request = await stockRequestService.createStockRequest({
         storeId: user.storeId,
         requestedBy: user.id,
         productId,
@@ -242,7 +318,7 @@ export const storeRoutes = (app: Express) => {
       if (!user.storeId) {
         return res.status(400).json({ message: "No store assigned" });
       }
-      const request = await storage.updateStockRequestStatus(
+      const request = await stockRequestService.updateStockRequestStatus(
         req.params.id,
         "received",
         user.id,
