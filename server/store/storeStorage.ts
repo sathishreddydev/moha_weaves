@@ -742,6 +742,30 @@ export class StoreRepository implements StoreStorage {
             })
             .where(eq(storeSaleItems.id, item.saleItemId));
 
+          // Get the original sale item to check for variant
+          const [originalSaleItem] = await tx
+            .select()
+            .from(storeSaleItems)
+            .where(eq(storeSaleItems.id, item.saleItemId))
+            .limit(1);
+
+          // Handle variant-specific inventory updates
+          if (originalSaleItem?.variantId) {
+            // Add back to variant store inventory
+            await tx
+              .update(variantStoreInventory)
+              .set({
+                quantity: sql`${variantStoreInventory.quantity} + ${item.quantity}`,
+                updatedAt: new Date(),
+              })
+              .where(
+                and(
+                  eq(variantStoreInventory.storeId, exchange.storeId),
+                  eq(variantStoreInventory.variantId, originalSaleItem.variantId),
+                ),
+              );
+          }
+
           // Update store inventory
           await tx
             .update(storeInventory)
@@ -766,6 +790,7 @@ export class StoreRepository implements StoreStorage {
 
           await tx.insert(stockMovements).values({
             productId: item.productId,
+            variantId: originalSaleItem?.variantId,
             quantity: item.quantity,
             movementType: "return",
             source: "store",

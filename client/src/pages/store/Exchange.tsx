@@ -188,7 +188,7 @@ function StoreExchange() {
         title: "Success",
         description: "Exchange completed successfully",
       });
-      navigate(`/store/invoice/${data.orderId}`);
+      navigate(`/store/invoice/${data.originalSaleId}`);
     },
     onError: (error: any) => {
       toast({
@@ -787,7 +787,7 @@ function StoreExchange() {
                       return (
                         <div
                           key={sale.id}
-                          className={`flex items-center justify-between p-3 border rounded-lg ${
+                          className={`flex items-center justify-between p-3 border rounded-lg relative ${
                             isDisabled
                               ? "opacity-60 cursor-not-allowed bg-red-50/50"
                               : "hover-elevate cursor-pointer"
@@ -801,6 +801,22 @@ function StoreExchange() {
                               : "Select this sale for exchange"
                           }
                         >
+                          {/* Top right corner - Partial Returns badge */}
+                          {sale.items &&
+                            sale.items.some(
+                              (item: any) => item.returnedQuantity > 0,
+                            ) && (
+                              <div className="absolute top-2 right-2">
+                                <Badge
+                                  variant="outline"
+                                  className="text-xs text-orange-600 border-orange-600"
+                                >
+                                  <AlertCircle className="h-3 w-3 mr-1" />
+                                  Partial Returns
+                                </Badge>
+                              </div>
+                            )}
+
                           <div className="flex-1">
                             <div className="flex items-center gap-2 mb-1">
                               <span className="font-medium text-sm">
@@ -847,9 +863,16 @@ function StoreExchange() {
                               </div>
                             )}
                           </div>
-                          <ArrowRight
-                            className={`h-4 w-4 ${isDisabled ? "text-gray-400" : "text-muted-foreground"}`}
-                          />
+
+                          <div className="flex flex-col items-end">
+                            <ArrowRight
+                              className={`h-4 w-4 ${
+                                isDisabled
+                                  ? "text-gray-400"
+                                  : "text-muted-foreground"
+                              }`}
+                            />
+                          </div>
                         </div>
                       );
                     })}
@@ -984,14 +1007,29 @@ function StoreExchange() {
                                 <span>{formatPrice(item.price)}</span>
                               )}
                             </p>
-                            <Badge
-                              variant={
-                                isUnavailable ? "destructive" : "secondary"
-                              }
-                              className="text-xs"
-                            >
-                              {item.availableQuantity} available
-                            </Badge>
+                            <div className="flex items-center gap-2 mt-1">
+                              <Badge
+                                variant={
+                                  isUnavailable ? "destructive" : "secondary"
+                                }
+                                className="text-xs"
+                              >
+                                {item.availableQuantity} available
+                              </Badge>
+                              {item.returnedQuantity > 0 && (
+                                <Badge
+                                  variant="outline"
+                                  className="text-xs text-orange-600"
+                                >
+                                  {item.returnedQuantity} returned
+                                </Badge>
+                              )}
+                            </div>
+                            <div className="text-xs text-muted-foreground mt-1">
+                              Original: {item.quantity} • Returned:{" "}
+                              {item.returnedQuantity || 0} • Available:{" "}
+                              {item.availableQuantity}
+                            </div>
                           </div>
                         </div>
                         <Button
@@ -1179,21 +1217,43 @@ function StoreExchange() {
                                   {item.variants && item.variants.length > 0 ? (
                                     <>
                                       {item.variants
-                                        .filter((variant) => (variant.stockQuantity || 0) > 0)
+                                        .filter(
+                                          (variant) =>
+                                            (variant.stockQuantity || 0) > 0,
+                                        )
                                         .slice(0, 3)
                                         .map((variant) => (
-                                          <Badge key={variant.id} variant="secondary" className="text-xs">
-                                            {variant.size}: {variant.stockQuantity || 0}
+                                          <Badge
+                                            key={variant.id}
+                                            variant="secondary"
+                                            className="text-xs"
+                                          >
+                                            {variant.size}:{" "}
+                                            {variant.stockQuantity || 0}
                                           </Badge>
                                         ))}
-                                      {item.variants.filter((variant) => (variant.stockQuantity || 0) > 0).length > 3 && (
-                                        <Badge variant="outline" className="text-xs">
-                                          +{item.variants.filter((variant) => (variant.stockQuantity || 0) > 0).length - 3} more
+                                      {item.variants.filter(
+                                        (variant) =>
+                                          (variant.stockQuantity || 0) > 0,
+                                      ).length > 3 && (
+                                        <Badge
+                                          variant="outline"
+                                          className="text-xs"
+                                        >
+                                          +
+                                          {item.variants.filter(
+                                            (variant) =>
+                                              (variant.stockQuantity || 0) > 0,
+                                          ).length - 3}{" "}
+                                          more
                                         </Badge>
                                       )}
                                     </>
                                   ) : (
-                                    <Badge variant="secondary" className="text-xs">
+                                    <Badge
+                                      variant="secondary"
+                                      className="text-xs"
+                                    >
                                       {item.totalStock} in stock
                                     </Badge>
                                   )}
