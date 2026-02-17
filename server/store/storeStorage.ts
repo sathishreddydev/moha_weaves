@@ -31,6 +31,10 @@ import {
   subcategories,
   users,
   variantStoreInventory,
+  productDamages,
+  damageSourceEnum,
+  damageCategoryEnum,
+  damageSeverityEnum,
 } from "@shared/schema";
 import { and, desc, eq, gt, gte, inArray, lte, sql } from "drizzle-orm";
 import { db } from "server/db";
@@ -754,55 +758,117 @@ export class StoreRepository implements StoreStorage {
             .where(eq(storeSaleItems.id, item.saleItemId))
             .limit(1);
 
-          // Handle variant-specific inventory updates
+          // Handle variant-specific inventory updates based on exchange type
           if (originalSaleItem?.variantId) {
-            // Add back to variant store inventory
-            await tx
-              .update(variantStoreInventory)
-              .set({
-                quantity: sql`${variantStoreInventory.quantity} + ${item.quantity}`,
-                updatedAt: new Date(),
-              })
+            // Fetch variant store inventory record
+            const [variantInventoryRecord] = await tx
+              .select()
+              .from(variantStoreInventory)
               .where(
                 and(
                   eq(variantStoreInventory.storeId, exchange.storeId),
                   eq(variantStoreInventory.variantId, originalSaleItem.variantId),
                 ),
+              )
+              .limit(1);
+
+            if (variantInventoryRecord) {
+              if (item.exchangeType === "damage") {
+
+              } else {
+                // Normal exchanges: add back to variant store inventory
+                await tx
+                  .update(variantStoreInventory)
+                  .set({
+                    quantity: sql`${variantStoreInventory.quantity} + ${item.quantity}`,
+                    updatedAt: new Date(),
+                  })
+                  .where(
+                    and(
+                      eq(variantStoreInventory.storeId, exchange.storeId),
+                      eq(variantStoreInventory.variantId, originalSaleItem.variantId),
+                    ),
+                  );
+              }
+            }
+          }
+
+          // Update store inventory based on exchange type
+          if (item.exchangeType === "damage") {
+            
+          } else {
+            // Normal exchanges: add items back to store inventory
+            await tx
+              .update(storeInventory)
+              .set({
+                quantity: sql`${storeInventory.quantity} + ${item.quantity}`,
+                updatedAt: new Date(),
+              })
+              .where(
+                and(
+                  eq(storeInventory.storeId, exchange.storeId),
+                  eq(storeInventory.productId, item.productId),
+                ),
               );
           }
 
-          // Update store inventory
-          await tx
-            .update(storeInventory)
-            .set({
-              quantity: sql`${storeInventory.quantity} + ${item.quantity}`,
-              updatedAt: new Date(),
-            })
-            .where(
-              and(
-                eq(storeInventory.storeId, exchange.storeId),
-                eq(storeInventory.productId, item.productId),
-              ),
-            );
-
           // Update total stock in products table
-          await tx
-            .update(products)
-            .set({
-              totalStock: sql`${products.totalStock} + ${item.quantity}`,
-            })
-            .where(eq(products.id, item.productId));
+          // Update product stock based on exchange type
+          if (item.exchangeType === "damage") {
+           
+          } else {
+            // Normal exchanges: add items back to sellable stock
+            await tx
+              .update(products)
+              .set({
+                totalStock: sql`${products.totalStock} + ${item.quantity}`,
+              })
+              .where(eq(products.id, item.productId));
+          }
 
           await tx.insert(stockMovements).values({
             productId: item.productId,
             variantId: originalSaleItem?.variantId,
-            quantity: item.quantity,
+            quantity: item.exchangeType === "damage" ? -item.quantity : item.quantity,
             movementType: item.exchangeType === "damage" ? "adjustment" : "exchange",
             source: "store",
             orderRefId: createdExchange.id,
             storeId: exchange.storeId,
             notes: `Exchange ${item.exchangeType} - ${item.specificReason}`,
           });
+
+          // Create damage record for damage exchanges to integrate with inventory damage system
+          if (item.exchangeType === "damage") {
+            const mapExchangeReasonToDamageCategory = (specificReason: string) => {
+              const mapping: Record<string, typeof damageCategoryEnum.enumValues[number]> = {
+                "defective": "manufacturing_defect",
+                "damaged_packaging": "shipping_damage",
+                "wrong_item": "handling_damage",
+                "size_issue": "customer_damage",
+                "color_issue": "customer_damage",
+                "quality_issue": "manufacturing_defect",
+                "expired": "expired",
+                "other": "other",
+              };
+              return mapping[specificReason] || "other";
+            };
+
+            await tx.insert(productDamages).values({
+              productId: item.productId,
+              variantId: originalSaleItem?.variantId,
+              source: "store",
+              quantity: item.quantity,
+              damageCategory: mapExchangeReasonToDamageCategory(item.specificReason || "other"),
+              damageSeverity: "major",
+              reason: item.specificReason || "other",
+              reportedBy: exchange.processedBy || "system",
+              approvedBy: exchange.processedBy || "system",
+              notes: `Exchange damage - ${item.specificReason || "other"}`,
+              status: "confirmed",
+              createdAt: new Date(),
+              updatedAt: new Date(),
+            });
+          }
         }
       }
 

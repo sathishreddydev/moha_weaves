@@ -9,6 +9,8 @@ import {
   RefreshCw,
   Package,
   ArrowUpDown,
+  AlertTriangle,
+  ArrowLeftRight,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -196,13 +198,17 @@ export default function StockMovements() {
             <div className="flex items-center gap-2">
               <span className={`font-medium ${
                 type === 'sale' ? 'text-red-600' : 
-                type === 'return' ? 'text-orange-600' : 'text-green-600'
+                type === 'return' ? 'text-orange-600' : 
+                type === 'adjustment' ? 'text-orange-600' :
+                'text-green-600'
               }`}>
-                {type === 'sale' ? '-' : type === 'return' ? '+' : '+'}{quantity}
+                {type === 'sale' ? '-' : type === 'return' ? '+' : type === 'adjustment' ? '-' : '+'}{quantity}
               </span>
               {type === 'sale' && <TrendingDown className="h-4 w-4 text-red-600" />}
               {type === 'return' && <ArrowUpDown className="h-4 w-4 text-orange-600" />}
               {type === 'restock' && <TrendingUp className="h-4 w-4 text-green-600" />}
+              {type === 'adjustment' && <AlertTriangle className="h-4 w-4 text-orange-600" />}
+              {type === 'exchange' && <ArrowLeftRight className="h-4 w-4 text-green-600" />}
             </div>
           );
         },
@@ -218,6 +224,7 @@ export default function StockMovements() {
             restock: "default",
             transfer: "outline",
             adjustment: "secondary",
+            exchange: "default",
           } as const;
           
           return (

@@ -378,7 +378,12 @@ function StoreExchange() {
     setReturnItems((prev) =>
       prev.map((item) =>
         item.saleItemId === saleItemId
-          ? { ...item, exchangeType, specificReason: "" }
+          ? { 
+              ...item, 
+              exchangeType, 
+              specificReason: "", // Reset specific reason when type changes
+              damageImages: exchangeType === "damage" ? item.damageImages : [] // Clear images if switching to normal
+            }
           : item,
       ),
     );
@@ -627,6 +632,26 @@ function StoreExchange() {
         toast({
           title: "Invalid Amount",
           description: `Invalid return amount for ${returnItem.product.name}`,
+          variant: "destructive",
+        });
+        return;
+      }
+      
+      // Validate exchange type and specific reason
+      if (!returnItem.exchangeType || !returnItem.specificReason) {
+        toast({
+          title: "Missing Exchange Reason",
+          description: `Please select exchange type and reason for ${returnItem.product.name}`,
+          variant: "destructive",
+        });
+        return;
+      }
+      
+      // Validate damage images for damage exchanges
+      if (returnItem.exchangeType === "damage" && (!returnItem.damageImages || returnItem.damageImages.length === 0)) {
+        toast({
+          title: "Damage Photos Required",
+          description: `Please upload at least one damage photo for ${returnItem.product.name}`,
           variant: "destructive",
         });
         return;
