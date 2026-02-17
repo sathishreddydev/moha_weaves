@@ -29,12 +29,12 @@ import {
   storeSales,
   stores,
   subcategories,
-  users
+  users,
+  variantStoreInventory,
 } from "@shared/schema";
 import { and, desc, eq, gt, gte, inArray, lte, sql } from "drizzle-orm";
 import { db } from "server/db";
 import { roleBasedProductService } from "server/product/roleBasedProductService";
-import { variantStoreInventory } from "../../shared/tables";
 import { CustomerService } from "./customerStorage";
 import { formatProductsByStore } from "./formatedData";
 
@@ -56,8 +56,9 @@ export interface StoreStorage {
       customerPhone: string;
       items: Array<{
         productId: string;
+        variantId?: string | null;
         quantity: number;
-        unitPrice: number;
+        unitPrice: number | string;
         lineAmount: number;
       }>;
       discountAmount: number;
@@ -275,8 +276,9 @@ export class StoreRepository implements StoreStorage {
       customerPhone: string;
       items: Array<{
         productId: string;
+        variantId?: string | null;
         quantity: number;
-        unitPrice: number;
+        unitPrice: number | string;
         lineAmount: number;
       }>;
       discountAmount: number;
@@ -310,20 +312,44 @@ export class StoreRepository implements StoreStorage {
       await db.insert(storeSaleItems).values({
         saleId: newSale.id,
         productId: item.productId,
+        variantId: item.variantId,
         quantity: item.quantity,
-        price: item.unitPrice.toString(),
+        price: typeof item.unitPrice === 'string' ? item.unitPrice : item.unitPrice.toString(),
       });
 
-      // Deduct from store inventory
-      await db
-        .update(storeInventory)
-        .set({ quantity: sql`${storeInventory.quantity} - ${item.quantity}` })
-        .where(
-          and(
-            eq(storeInventory.storeId, storeId),
-            eq(storeInventory.productId, item.productId),
-          ),
-        );
+      if (item.variantId) {
+        // Deduct from variant store inventory
+        await db
+          .update(variantStoreInventory)
+          .set({ quantity: sql`${variantStoreInventory.quantity} - ${item.quantity}` })
+          .where(
+            and(
+              eq(variantStoreInventory.storeId, storeId),
+              eq(variantStoreInventory.variantId, item.variantId),
+            ),
+          );
+        
+        await db
+          .update(storeInventory)
+          .set({ quantity: sql`${storeInventory.quantity} - ${item.quantity}` })
+          .where(
+            and(
+              eq(storeInventory.storeId, storeId),
+              eq(storeInventory.productId, item.productId),
+            ),
+          );
+      } else {
+        // Deduct from product store inventory
+        await db
+          .update(storeInventory)
+          .set({ quantity: sql`${storeInventory.quantity} - ${item.quantity}` })
+          .where(
+            and(
+              eq(storeInventory.storeId, storeId),
+              eq(storeInventory.productId, item.productId),
+            ),
+          );
+      }
 
       // Deduct from total stock
       await db
@@ -334,6 +360,7 @@ export class StoreRepository implements StoreStorage {
       // Record stock movement (negative for deduction)
       await db.insert(stockMovements).values({
         productId: item.productId,
+        variantId: item.variantId,
         quantity: -item.quantity,
         movementType: "sale",
         source: "store",
@@ -369,15 +396,26 @@ export class StoreRepository implements StoreStorage {
 
     if (!sale) return undefined;
 
+    // Get sale items with basic product info
     const items = await db
       .select()
       .from(storeSaleItems)
-      .leftJoin(products, eq(storeSaleItems.productId, products.id))
-      .leftJoin(categories, eq(products.categoryId, categories.id))
-      .leftJoin(subcategories, eq(products.subcategoryId, subcategories.id))
-      .leftJoin(colors, eq(products.colorId, colors.id))
-      .leftJoin(fabrics, eq(products.fabricId, fabrics.id))
       .where(eq(storeSaleItems.saleId, saleId));
+
+    // Get product IDs for role-based service
+    const productIds = items.map(item => item.productId);
+    
+    // Use roleBasedProductService to get products with full details
+    const products = await roleBasedProductService.getProductsByRole(
+      { ids: productIds, storeId: sale.store_sales.storeId },
+      "store"
+    );
+
+    // Use formatProductsByStore to format products for the specific store
+    const formattedProducts = formatProductsByStore(products, sale.store_sales.storeId);
+
+    // Create a product map for easy lookup
+    const productMap = new Map(formattedProducts.map(p => [p.id, p]));
 
     const itemsWithReturns = await Promise.all(
       items.map(async (item) => {
@@ -387,20 +425,16 @@ export class StoreRepository implements StoreStorage {
           })
           .from(storeExchangeReturnItems)
           .where(
-            eq(storeExchangeReturnItems.saleItemId, item.store_sale_items.id),
+            eq(storeExchangeReturnItems.saleItemId, item.id),
           );
 
         const returnedQuantity = Number(returnedResult[0]?.totalReturned || 0);
+        const product = productMap.get(item.productId);
 
         return {
-          ...item.store_sale_items,
+          ...item,
           returnedQuantity,
-          product: {
-            ...item.products!,
-            category: item.categories,
-            color: item.colors,
-            fabric: item.fabrics,
-          },
+          product: product || null,
         };
       }),
     );

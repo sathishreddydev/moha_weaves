@@ -2294,6 +2294,8 @@ export class DatabaseStorage implements IStorage {
 
         productId: stockMovements.productId,
 
+        variantId: stockMovements.variantId,
+
         quantity: stockMovements.quantity,
 
         movementType: stockMovements.movementType,
@@ -2387,145 +2389,6 @@ export class DatabaseStorage implements IStorage {
     });
 
   }
-
-
-
-  async getAllStoreExchanges(
-
-    limit?: number,
-
-  ): Promise<StoreExchangeWithDetails[]> {
-
-    const exchangesList = await db
-
-      .select()
-
-      .from(storeExchanges)
-
-      .leftJoin(stores, eq(storeExchanges.storeId, stores.id))
-
-      .leftJoin(users, eq(storeExchanges.processedBy, users.id))
-
-      .orderBy(desc(storeExchanges.createdAt))
-
-      .limit(limit || 100);
-
-
-
-    const result: StoreExchangeWithDetails[] = [];
-
-
-
-    for (const exchange of exchangesList) {
-
-      const originalSale = await storeService.getStoreSaleForExchange(
-
-        exchange.store_exchanges.originalSaleId,
-
-      );
-
-
-
-      const returnItemsList = await db
-
-        .select()
-
-        .from(storeExchangeReturnItems)
-
-        .leftJoin(products, eq(storeExchangeReturnItems.productId, products.id))
-
-        .leftJoin(categories, eq(products.categoryId, categories.id))
-
-        .leftJoin(colors, eq(products.colorId, colors.id))
-
-        .leftJoin(fabrics, eq(products.fabricId, fabrics.id))
-
-        .where(
-
-          eq(storeExchangeReturnItems.exchangeId, exchange.store_exchanges.id),
-
-        );
-
-
-
-      const newItemsList = await db
-
-        .select()
-
-        .from(storeExchangeNewItems)
-
-        .leftJoin(products, eq(storeExchangeNewItems.productId, products.id))
-
-        .leftJoin(categories, eq(products.categoryId, categories.id))
-
-        .leftJoin(colors, eq(products.colorId, colors.id))
-
-        .leftJoin(fabrics, eq(products.fabricId, fabrics.id))
-
-        .where(
-
-          eq(storeExchangeNewItems.exchangeId, exchange.store_exchanges.id),
-
-        );
-
-
-
-      result.push({
-
-        ...exchange.store_exchanges,
-
-        store: exchange.stores!,
-
-        originalSale: originalSale!,
-
-        processor: exchange.users!,
-
-        returnItems: returnItemsList.map((item) => ({
-
-          ...item.store_exchange_return_items,
-
-          product: {
-
-            ...item.products!,
-
-            category: item.categories,
-
-            color: item.colors,
-
-            fabric: item.fabrics,
-
-          },
-
-        })),
-
-        newItems: newItemsList.map((item) => ({
-
-          ...item.store_exchange_new_items,
-
-          product: {
-
-            ...item.products!,
-
-            category: item.categories,
-
-            color: item.colors,
-
-            fabric: item.fabrics,
-
-          },
-
-        })),
-
-      });
-
-    }
-
-
-
-    return result;
-
-  }
-
 
 
   async getItemStatusHistory(orderId: string): Promise<ItemStatusHistory[]> {

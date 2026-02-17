@@ -167,21 +167,38 @@ export default function StoreHistory() {
         const sale = row.original;
         return (
           <div className="flex items-center gap-1">
-            {sale.items.slice(0, 2).map((item) => (
-              <div
-                key={item.id}
-                className="w-10 h-12 rounded overflow-hidden bg-muted"
-              >
-                <img
-                  src={
-                    item.product.imageUrl ||
-                    "https://images.unsplash.com/photo-1610030469983-98e550d6193c?w=50"
-                  }
-                  alt=""
-                  className="w-full h-full object-cover"
-                />
-              </div>
-            ))}
+            {sale.items.slice(0, 2).map((item) => {
+          // Find variant if variantId exists
+          let variantInfo = "";
+          if (item.variantId && item.product.variants) {
+            const variant = item.product.variants.find((v: any) => v.id === item.variantId);
+            if (variant) {
+              variantInfo = ` (${variant.size})`;
+            }
+          }
+          
+          return (
+            <div
+              key={item.id}
+              className="w-10 h-12 rounded overflow-hidden bg-muted relative"
+              title={`${item.product.name}${variantInfo}`}
+            >
+              <img
+                src={
+                  item.product.imageUrl ||
+                  "https://images.unsplash.com/photo-1610030469983-98e550d6193c?w=50"
+                }
+                alt=""
+                className="w-full h-full object-cover"
+              />
+              {variantInfo && (
+                <div className="absolute bottom-0 left-0 right-0 bg-black/70 text-white text-xs px-1 py-0.5 text-center truncate">
+                  {variantInfo.slice(1, -1)}
+                </div>
+              )}
+            </div>
+          );
+        })}
             {sale.items.length > 2 && (
               <span className="text-xs text-muted-foreground">
                 +{sale.items.length - 2}
@@ -395,72 +412,86 @@ export default function StoreHistory() {
               <div>
                 <p className="font-medium text-sm mb-2">Items Sold</p>
                 <div className="space-y-2">
-                  {selectedSale.items.map((item: any) => (
-                    <div
-                      key={item.id}
-                      className="flex items-center gap-3 p-2 border rounded-lg"
-                    >
-                      <img
-                        src={
-                          item.product.imageUrl ||
-                          "https://images.unsplash.com/photo-1610030469983-98e550d6193c?w=60"
-                        }
-                        alt=""
-                        className="w-12 h-16 rounded object-cover"
-                      />
-                      <div className="flex-1">
-                        <p className="font-medium text-sm line-clamp-1">
-                          {item.product.name}
-                        </p>
-                        <p className="text-xs text-muted-foreground">
-                          Qty: {item.quantity} x{" "}
-                          {item.product.activeSale &&
-                          item.product.discountedPrice ? (
-                            <span className="flex items-center gap-1">
+                  {selectedSale.items.map((item: any) => {
+                    // Find variant if variantId exists
+                    let variantInfo = null;
+                    if (item.variantId && item.product.variants) {
+                      variantInfo = item.product.variants.find((v: any) => v.id === item.variantId);
+                    }
+                    
+                    return (
+                      <div
+                        key={item.id}
+                        className="flex items-center gap-3 p-2 border rounded-lg"
+                      >
+                        <img
+                          src={
+                            item.product.imageUrl ||
+                            "https://images.unsplash.com/photo-1610030469983-98e550d6193c?w=60"
+                          }
+                          alt=""
+                          className="w-12 h-16 rounded object-cover"
+                        />
+                        <div className="flex-1">
+                          <p className="font-medium text-sm line-clamp-1">
+                            {item.product.name}
+                          </p>
+                          {variantInfo && (
+                            <p className="text-xs text-blue-600 font-medium">
+                              Size: {variantInfo.size}
+                              {variantInfo.sku && ` (${variantInfo.sku})`}
+                            </p>
+                          )}
+                          <p className="text-xs text-muted-foreground">
+                            Qty: {item.quantity} x{" "}
+                            {item.product.activeSale &&
+                            item.product.discountedPrice ? (
+                              <span className="flex items-center gap-1">
+                                <span>
+                                  {formatPrice(item.product.discountedPrice)}
+                                </span>
+                                <span className="text-xs line-through text-muted-foreground">
+                                  {formatPrice(item.price)}
+                                </span>
+                              </span>
+                            ) : (
+                              <span>{formatPrice(item.price)}</span>
+                            )}
+                          </p>
+                          {(item.returnedQuantity || 0) > 0 && (
+                            <Badge
+                              variant="outline"
+                              className="text-xs mt-1 text-orange-600 border-orange-600"
+                            >
+                              {item.returnedQuantity} returned
+                            </Badge>
+                          )}
+                        </div>
+                        <span className="font-medium">
+                          {item.product.activeSale && item.product.discountedPrice ? (
+                            <div className="flex items-center gap-2">
                               <span>
-                                {formatPrice(item.product.discountedPrice)}
+                                {formatPrice(
+                                  item.product.discountedPrice * item.quantity,
+                                )}
                               </span>
                               <span className="text-xs line-through text-muted-foreground">
-                                {formatPrice(item.price)}
+                                {formatPrice(
+                                  parseFloat(item.price) * item.quantity,
+                                )}
                               </span>
-                            </span>
+                            </div>
                           ) : (
-                            <span>{formatPrice(item.price)}</span>
-                          )}
-                        </p>
-                        {(item.returnedQuantity || 0) > 0 && (
-                          <Badge
-                            variant="outline"
-                            className="text-xs mt-1 text-orange-600 border-orange-600"
-                          >
-                            {item.returnedQuantity} returned
-                          </Badge>
-                        )}
-                      </div>
-                      <span className="font-medium">
-                        {item.product.activeSale && item.product.discountedPrice ? (
-                          <div className="flex items-center gap-2">
                             <span>
-                              {formatPrice(
-                                item.product.discountedPrice * item.quantity,
-                              )}
-                            </span>
-                            <span className="text-xs line-through text-muted-foreground">
                               {formatPrice(
                                 parseFloat(item.price) * item.quantity,
                               )}
                             </span>
-                          </div>
-                        ) : (
-                          <span>
-                            {formatPrice(
-                              parseFloat(item.price) * item.quantity,
-                            )}
-                          </span>
-                        )}
-                      </span>
-                    </div>
-                  ))}
+                          )}
+                        </span>
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
 

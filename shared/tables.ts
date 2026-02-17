@@ -329,6 +329,8 @@ export const storeSaleItems = pgTable("store_sale_items", {
   productId: varchar("product_id")
     .references(() => products.id)
     .notNull(),
+  variantId: varchar("variant_id")
+    .references(() => productVariants.id),
   quantity: integer("quantity").notNull(),
   price: decimal("price", { precision: 10, scale: 2 }).notNull(),
   returnedQuantity: integer("returned_quantity").notNull().default(0),
@@ -672,6 +674,8 @@ export const stockMovements = pgTable("stock_movements", {
   productId: varchar("product_id")
     .references(() => products.id)
     .notNull(),
+  variantId: varchar("variant_id")
+    .references(() => productVariants.id),
   quantity: integer("quantity").notNull(),
   movementType: enums.stockMovementTypeEnum("movement_type")
     .notNull()

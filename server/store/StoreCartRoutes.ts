@@ -7,9 +7,9 @@ import { StoreRepository } from "./storeStorage";
 const cartItemSchema = z.object({
   id: z.string().optional(),
   productId: z.string(),
-  variantId: z.string().optional(),
+  variantId: z.string().nullable().optional(),
   quantity: z.number().min(1),
-  unitPrice: z.number().min(0),
+  unitPrice: z.union([z.number().min(0), z.string().min(0)]),
   lineAmount: z.number().min(0),
   totalStock: z.number().min(0),
 });
@@ -243,13 +243,38 @@ export const storeCartRoutes = (app: Express) => {
         inventoryData.map((inv: any) => [inv.productId, inv])
       );
 
+      // Get variant inventory for variant items
+      const variantIds = validatedData.items
+        .filter(item => item.variantId)
+        .map(item => item.variantId) as string[];
+
+      let variantInventoryData: any[] = [];
+      if (variantIds.length > 0) {
+        variantInventoryData = await storeRepo.getStoreVariantInventoryItems(storeId, variantIds);
+      }
+      const variantInventoryMap = new Map(
+        variantInventoryData.map((inv: any) => [inv.variantId, inv])
+      );
+
       for (const item of validatedData.items) {
-        const inventory = inventoryMap.get(item.productId);
-        if (!inventory || (inventory as any).quantity < item.quantity) {
-          return res.status(400).json({
-            error: "Insufficient stock",
-            message: `Only ${(inventory as any)?.quantity || 0} items available for item ${item.productId}. Cannot complete checkout.`
-          });
+        if (item.variantId) {
+          // Check variant-level stock
+          const variantInventory = variantInventoryMap.get(item.variantId);
+          if (!variantInventory || (variantInventory as any).quantity < item.quantity) {
+            return res.status(400).json({
+              error: "Insufficient stock",
+              message: `Only ${(variantInventory as any)?.quantity || 0} items available for variant ${item.variantId}. Cannot complete checkout.`
+            });
+          }
+        } else {
+          // Check product-level stock
+          const inventory = inventoryMap.get(item.productId);
+          if (!inventory || (inventory as any).quantity < item.quantity) {
+            return res.status(400).json({
+              error: "Insufficient stock",
+              message: `Only ${(inventory as any)?.quantity || 0} items available for item ${item.productId}. Cannot complete checkout.`
+            });
+          }
         }
       }
 

@@ -353,28 +353,6 @@ export const storeRoutes = (app: Express) => {
     }
   });
 
-  app.get("/api/store/sales/:id", authStore, async (req, res) => {
-    try {
-      const user = (req as any).user;
-      if (!user.storeId) {
-        return res.status(400).json({ message: "No store assigned" });
-      }
-      const sale = await storeService.getStoreSaleForExchange(req.params.id);
-      if (!sale) {
-        return res.status(404).json({ message: "Sale not found" });
-      }
-      if (sale.storeId !== user.storeId) {
-        return res
-          .status(403)
-          .json({ message: "Sale belongs to different store" });
-      }
-      res.json(sale);
-    } catch (error) {
-      console.error("Error fetching sale:", error);
-      res.status(500).json({ message: "Failed to fetch sale" });
-    }
-  });
-
   app.post("/api/store/getStoreExchanges", authStore, async (req, res) => {
     try {
       const user = (req as any).user;
