@@ -35,16 +35,15 @@ import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 
 type ShopProduct = ProductWithDetails & {
-    activeSale?: {
-      id: string;
-      name: string;
-      offerType: string;
-      discountValue: string;
-      maxDiscount?: string;
-    } | null;
-    discountedPrice?: number;
-  };
-
+  activeSale?: {
+    id: string;
+    name: string;
+    offerType: string;
+    discountValue: string;
+    maxDiscount?: string;
+  } | null;
+  discountedPrice?: number;
+};
 
 interface ReturnItem {
   saleItemId: string;
@@ -117,18 +116,22 @@ function StoreExchange() {
   const [customerName, setCustomerName] = useState("");
   const [customerPhone, setCustomerPhone] = useState("");
   const [showNewItemsSection, setShowNewItemsSection] = useState(false);
+  const [selectedProductForVariant, setSelectedProductForVariant] =
+    useState<ShopProduct | null>(null);
+  const [showVariantSelection, setShowVariantSelection] = useState(false);
 
-  const {
-    data: saleData,
-    isLoading: saleLoading,
-  } = useQuery<StoreSaleWithItems>({
-    queryKey: ["/api/store/sales", selectedSaleId],
-    queryFn: async () => {
-      const response = await apiRequest("GET", `/api/store/sales/${selectedSaleId}`);
-      return response;
-    },
-    enabled: !!selectedSaleId && !!user && user.role === "store",
-  });
+  const { data: saleData, isLoading: saleLoading } =
+    useQuery<StoreSaleWithItems>({
+      queryKey: ["/api/store/sales", selectedSaleId],
+      queryFn: async () => {
+        const response = await apiRequest(
+          "GET",
+          `/api/store/sales/${selectedSaleId}`,
+        );
+        return response;
+      },
+      enabled: !!selectedSaleId && !!user && user.role === "store",
+    });
 
   const { data: products, isLoading: productsLoading } = useQuery<
     ShopProduct[]
@@ -150,12 +153,14 @@ function StoreExchange() {
       returnItems: {
         saleItemId: string;
         productId: string;
+        variantId?: string;
         quantity: number;
         unitPrice: string;
         returnAmount: string;
       }[];
       newItems: {
         productId: string;
+        variantId?: string;
         quantity: number;
         unitPrice: string;
         lineAmount: string;
@@ -216,7 +221,10 @@ function StoreExchange() {
         setIsSearching(true);
         setShowSearchResults(true);
         try {
-          const results = await apiRequest("GET", `/api/store/sales/search?query=${encodeURIComponent(saleIdInput.trim())}`);
+          const results = await apiRequest(
+            "GET",
+            `/api/store/sales/search?query=${encodeURIComponent(saleIdInput.trim())}`,
+          );
           setSearchResults(results);
         } catch {
           toast({
@@ -238,6 +246,7 @@ function StoreExchange() {
     setNewItems([]);
     setShowSearchResults(false);
     setSearchResults([]);
+    navigate(`/store/exchange/${saleId}`);
   };
 
   const saleItems: SaleItemWithAvailable[] =
@@ -266,6 +275,7 @@ function StoreExchange() {
               ? {
                   ...item,
                   quantity: item.quantity + 1,
+                  variantId: saleItem.variantId,
                   returnAmount: (
                     (item.quantity + 1) *
                     parseFloat(item.unitPrice)
@@ -304,26 +314,27 @@ function StoreExchange() {
   };
 
   const updateReturnQuantity = (saleItemId: string, delta: number) => {
-    setReturnItems((prev) =>
-      prev
-        .map((item) => {
-          if (item.saleItemId !== saleItemId) return item;
-          const newQty = item.quantity + delta;
-          if (newQty < 1) return null;
-          if (newQty > item.maxQuantity) {
-            toast({
-              title: "Limit reached",
-              description: "Cannot exceed available quantity",
-            });
-            return item;
-          }
-          return {
-            ...item,
-            quantity: newQty,
-            returnAmount: (newQty * parseFloat(item.unitPrice)).toString(),
-          };
-        })
-        .filter(Boolean) as ReturnItem[],
+    setReturnItems(
+      (prev) =>
+        prev
+          .map((item) => {
+            if (item.saleItemId !== saleItemId) return item;
+            const newQty = item.quantity + delta;
+            if (newQty < 1) return null;
+            if (newQty > item.maxQuantity) {
+              toast({
+                title: "Limit reached",
+                description: "Cannot exceed available quantity",
+              });
+              return item;
+            }
+            return {
+              ...item,
+              quantity: newQty,
+              returnAmount: (newQty * parseFloat(item.unitPrice)).toString(),
+            };
+          })
+          .filter(Boolean) as ReturnItem[],
     );
   };
 
@@ -332,21 +343,72 @@ function StoreExchange() {
       prev.filter((item) => item.saleItemId !== saleItemId),
     );
   };
-  const addNewItem = (product: ShopProduct) => {
-    if (product.totalStock === 0) {
+  const addNewItem = (product: ShopProduct, variantId?: string) => {
+    // Check if product has variants and no variant was selected
+    if (product.variants && product.variants.length > 0 && !variantId) {
+      setSelectedProductForVariant(product);
+      setShowVariantSelection(true);
+      return;
+    }
+
+    // Validate variant exists if variantId is provided
+    if (variantId && product.variants) {
+      const selectedVariant = product.variants.find((v) => v.id === variantId);
+      if (!selectedVariant) {
+        toast({
+          title: "Invalid Variant",
+          description: "Selected variant not found",
+          variant: "destructive",
+        });
+        return;
+      }
+    }
+
+    // Get variant-specific stock if variantId is provided
+    let availableStock = 0;
+    let unitPrice = product.price;
+
+    if (variantId && product.variants) {
+      const selectedVariant = product.variants.find((v) => v.id === variantId);
+      if (selectedVariant) {
+        // Use variant stockQuantity since storeAllocations may not exist
+        availableStock = selectedVariant.stockQuantity || 0;
+        unitPrice = selectedVariant.price || product.price;
+      }
+    } else if (!product.variants || product.variants.length === 0) {
+      // For products without variants, use total stock
+      availableStock = product.totalStock;
+    }
+
+    // Stock validation
+    if (availableStock === 0) {
       toast({
-        title: "Out of stock",
-        description: "This product is not available",
+        title: "Out of Stock",
+        description: "This item is currently out of stock",
         variant: "destructive",
       });
       return;
     }
-    const existing = newItems.find((item) => item.productId === product.id);
+
+    // Check for existing item (both productId and variantId must match)
+    const existing = newItems.find(
+      (item) => item.productId === product.id && item.variantId === variantId,
+    );
+
     if (existing) {
-      if (existing.quantity < product.totalStock) {
+      if (existing.quantity >= availableStock) {
+        toast({
+          title: "Stock Limit Reached",
+          description: `Cannot add more than ${availableStock} units`,
+          variant: "destructive",
+        });
+        return;
+      }
+
+      if (existing.quantity < availableStock) {
         setNewItems((prev) =>
           prev.map((item) =>
-            item.productId === product.id
+            item.productId === product.id && item.variantId === variantId
               ? {
                   ...item,
                   quantity: item.quantity + 1,
@@ -358,10 +420,10 @@ function StoreExchange() {
               : item,
           ),
         );
-      } else {
+
         toast({
-          title: "Limit reached",
-          description: "Cannot add more than available stock",
+          title: "Item Updated",
+          description: "Quantity increased successfully",
         });
       }
     } else {
@@ -369,48 +431,71 @@ function StoreExchange() {
         ...prev,
         {
           productId: product.id,
+          variantId: variantId,
           product: product,
           quantity: 1,
-          maxQuantity: product.totalStock,
+          maxQuantity: availableStock,
           unitPrice:
             product.activeSale && product.discountedPrice
               ? product.discountedPrice.toString()
-              : product.price,
+              : unitPrice,
           lineAmount:
             product.activeSale && product.discountedPrice
               ? product.discountedPrice.toString()
-              : product.price,
+              : unitPrice,
         },
       ]);
+
+      toast({
+        title: "Item Added",
+        description: `${product.name}${variantId ? ` (${product.variants?.find((v) => v.id === variantId)?.size})` : ""} added to exchange`,
+      });
     }
   };
 
-  const updateNewItemQuantity = (productId: string, delta: number) => {
-    setNewItems((prev) =>
-      prev
-        .map((item) => {
-          if (item.productId !== productId) return item;
-          const newQty = item.quantity + delta;
-          if (newQty < 1) return null;
-          if (newQty > item.maxQuantity) {
-            toast({
-              title: "Limit reached",
-              description: "Cannot exceed available stock",
-            });
-            return item;
-          }
-          return {
-            ...item,
-            quantity: newQty,
-            lineAmount: (newQty * parseFloat(item.unitPrice)).toString(),
-          };
-        })
-        .filter(Boolean) as NewCartItem[],
+  const updateNewItemQuantity = (
+    productId: string,
+    variantId: string | undefined,
+    delta: number,
+  ) => {
+    setNewItems(
+      (prev) =>
+        prev
+          .map((item) => {
+            if (item.productId !== productId || item.variantId !== variantId)
+              return item;
+            const newQty = item.quantity + delta;
+
+            if (newQty < 1) {
+              return null;
+            }
+
+            // Validation: Cannot exceed max quantity
+            if (newQty > item.maxQuantity) {
+              toast({
+                title: "Stock Limit Reached",
+                description: `Cannot add more than ${item.maxQuantity} units`,
+                variant: "destructive",
+              });
+              return item;
+            }
+
+            return {
+              ...item,
+              quantity: newQty,
+              lineAmount: (newQty * parseFloat(item.unitPrice)).toString(),
+            };
+          })
+          .filter(Boolean) as NewCartItem[],
     );
   };
 
-  const removeNewItem = (productId: string) => {
-    setNewItems((prev) => prev.filter((item) => item.productId !== productId));
+  const removeNewItem = (productId: string, variantId?: string) => {
+    setNewItems((prev) =>
+      prev.filter(
+        (item) => item.productId !== productId || item.variantId !== variantId,
+      ),
+    );
   };
 
   const returnTotal = returnItems.reduce(
@@ -507,13 +592,48 @@ function StoreExchange() {
       }
 
       const inventory = products?.find((p) => p.id === newItem.productId);
-      if (!inventory || inventory.totalStock < newItem.quantity) {
+      if (!inventory) {
         toast({
-          title: "Insufficient Stock",
-          description: `Only ${inventory?.totalStock || 0} units available for ${newItem.product.name}`,
+          title: "Product Not Found",
+          description: `Product ${newItem.product.name} not found in inventory`,
           variant: "destructive",
         });
         return;
+      }
+
+      // Check variant-specific stock if variantId exists
+      if (newItem.variantId && inventory.variants) {
+        const variant = inventory.variants.find(
+          (v) => v.id === newItem.variantId,
+        );
+        if (!variant) {
+          toast({
+            title: "Variant Not Found",
+            description: `Selected variant not found for ${newItem.product.name}`,
+            variant: "destructive",
+          });
+          return;
+        }
+
+        const availableStock = variant.stockQuantity || 0;
+        if (availableStock < newItem.quantity) {
+          toast({
+            title: "Insufficient Stock",
+            description: `Only ${availableStock} units available for ${newItem.product.name} (${variant.size})`,
+            variant: "destructive",
+          });
+          return;
+        }
+      } else if (!newItem.variantId) {
+        // For products without variants, check total stock
+        if (inventory.totalStock < newItem.quantity) {
+          toast({
+            title: "Insufficient Stock",
+            description: `Only ${inventory.totalStock} units available for ${newItem.product.name}`,
+            variant: "destructive",
+          });
+          return;
+        }
       }
     }
 
@@ -571,12 +691,14 @@ function StoreExchange() {
       returnItems: returnItems.map((item) => ({
         saleItemId: item.saleItemId,
         productId: item.productId,
+        variantId: item.variantId,
         quantity: item.quantity,
         unitPrice: item.unitPrice,
         returnAmount: item.returnAmount,
       })),
       newItems: newItems.map((item) => ({
         productId: item.productId,
+        variantId: item.variantId,
         quantity: item.quantity,
         unitPrice: item.unitPrice,
         lineAmount: item.lineAmount,
@@ -588,23 +710,24 @@ function StoreExchange() {
     });
   };
 
-  const filteredProducts = products?.filter(
-    (item) =>
-      item.totalStock > 0 &&
-      (item.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        item.sku?.toLowerCase().includes(searchQuery.toLowerCase())),
-  ) || [];
+  const filteredProducts =
+    products?.filter(
+      (item) =>
+        item.totalStock > 0 &&
+        (item.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          item.sku?.toLowerCase().includes(searchQuery.toLowerCase())),
+    ) || [];
 
   return (
-    <div className="max-w-6xl mx-auto">
+    <div className="max-w-6xl mx-auto text-sm">
       <div className="mb-8">
         <div className="flex items-center gap-4 mb-2">
           <div>
-            <h1 className="text-2xl font-semibold flex items-center gap-2">
-              <ArrowLeftRight className="h-6 w-6" />
+            <h1 className="text-xl font-semibold flex items-center gap-2">
+              <ArrowLeftRight className="h-5 w-5" />
               Process Exchange
             </h1>
-            <p className="text-muted-foreground">
+            <p className="text-xs text-muted-foreground">
               Return items from a sale and add new items
             </p>
           </div>
@@ -656,7 +779,7 @@ function StoreExchange() {
                     <p className="text-sm font-medium text-muted-foreground">
                       Found {searchResults.length} sales
                     </p>
-                    {searchResults.map((sale:any) => {
+                    {searchResults.map((sale: any) => {
                       const eligibility = sale.eligibilityData;
                       const isEligible = eligibility?.eligible !== false;
                       const isDisabled = eligibility && !eligibility.eligible;
@@ -764,10 +887,16 @@ function StoreExchange() {
             <Card>
               <CardHeader>
                 <div className="flex items-center justify-between">
-                  <CardTitle className="flex items-center gap-2">
-                    <RefreshCw className="h-5 w-5" />
-                    Items to Return
-                  </CardTitle>
+                  <div>
+                    <CardTitle className="text-lg flex items-center gap-2">
+                      <RefreshCw className="h-4 w-4" />
+                      Items to Return
+                    </CardTitle>
+                    <p className="text-xs text-muted-foreground">
+                      Sale #{selectedSaleId}
+                    </p>
+                  </div>
+
                   <Button
                     variant="ghost"
                     size="sm"
@@ -776,9 +905,7 @@ function StoreExchange() {
                     Change Sale
                   </Button>
                 </div>
-                <p className="text-sm text-muted-foreground">
-                  Sale #{selectedSaleId}
-                </p>
+
                 {saleData?.eligibilityData ? (
                   <div className="flex items-center gap-2">
                     <div
@@ -836,7 +963,10 @@ function StoreExchange() {
                             </p>
                             {item?.variantId && (
                               <p className="text-xs text-muted-foreground">
-                                Size: {item.product?.variants?.find((v: any) => v.id === item.variantId)?.size || `ID: ${item.variantId}`}
+                                Size:{" "}
+                                {item.product?.variants?.find(
+                                  (v: any) => v.id === item.variantId,
+                                )?.size || `ID: ${item.variantId}`}
                               </p>
                             )}
                             <p className="text-sm text-primary font-semibold">
@@ -904,7 +1034,10 @@ function StoreExchange() {
                             </p>
                             {item?.variantId && (
                               <p className="text-xs text-muted-foreground">
-                                Size: {item.product?.variants?.find((v: any) => v.id === item.variantId)?.size || `ID: ${item.variantId}`}
+                                Size:{" "}
+                                {item.product?.variants?.find(
+                                  (v: any) => v.id === item.variantId,
+                                )?.size || `ID: ${item.variantId}`}
                               </p>
                             )}
                             <p className="text-xs text-muted-foreground">
@@ -964,8 +1097,8 @@ function StoreExchange() {
             <Card>
               <CardHeader>
                 <div className="flex items-center justify-between">
-                  <CardTitle className="flex items-center gap-2">
-                    <Package className="h-5 w-5" />
+                  <CardTitle className="text-lg flex items-center gap-2">
+                    <Package className="h-4 w-4" />
                     New Items
                   </CardTitle>
                   <Button
@@ -998,8 +1131,14 @@ function StoreExchange() {
                   ) : filteredProducts && filteredProducts.length > 0 ? (
                     <div className="space-y-2 max-h-[200px] overflow-y-auto">
                       {filteredProducts.map((item) => {
+                        // Check if any variant of this product is already in new items
                         const inNew = newItems.find(
                           (c) => c.productId === item.id,
+                        );
+
+                        // Check if product has variants with available stock
+                        const hasAvailableVariants = item.variants?.some(
+                          (variant) => (variant.stockQuantity || 0) > 0,
                         );
 
                         return (
@@ -1021,35 +1160,53 @@ function StoreExchange() {
                                 <p className="font-medium text-sm line-clamp-1">
                                   {item.name}
                                 </p>
-                                
+
                                 <p className="text-sm text-primary font-semibold">
-                                  {item.activeSale &&
-                                  item.discountedPrice ? (
+                                  {item.activeSale && item.discountedPrice ? (
                                     <div className="flex items-center gap-2">
                                       <span>
-                                        {formatPrice(
-                                          item.discountedPrice,
-                                        )}
+                                        {formatPrice(item.discountedPrice)}
                                       </span>
                                       <span className="text-xs text-muted-foreground line-through">
                                         {formatPrice(item.price)}
                                       </span>
                                     </div>
                                   ) : (
-                                    <span>
-                                      {formatPrice(item.price)}
-                                    </span>
+                                    <span>{formatPrice(item.price)}</span>
                                   )}
                                 </p>
-                                <Badge
-                                  variant="secondary"
-                                  className="text-xs"
-                                >
-                                  {item.totalStock} in stock
-                                </Badge>
+                                <div className="flex flex-wrap gap-1">
+                                  {item.variants && item.variants.length > 0 ? (
+                                    <>
+                                      {item.variants
+                                        .filter((variant) => (variant.stockQuantity || 0) > 0)
+                                        .slice(0, 3)
+                                        .map((variant) => (
+                                          <Badge key={variant.id} variant="secondary" className="text-xs">
+                                            {variant.size}: {variant.stockQuantity || 0}
+                                          </Badge>
+                                        ))}
+                                      {item.variants.filter((variant) => (variant.stockQuantity || 0) > 0).length > 3 && (
+                                        <Badge variant="outline" className="text-xs">
+                                          +{item.variants.filter((variant) => (variant.stockQuantity || 0) > 0).length - 3} more
+                                        </Badge>
+                                      )}
+                                    </>
+                                  ) : (
+                                    <Badge variant="secondary" className="text-xs">
+                                      {item.totalStock} in stock
+                                    </Badge>
+                                  )}
+                                </div>
                               </div>
                             </div>
-                            <Button variant="ghost" size="icon">
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              disabled={
+                                !hasAvailableVariants && item.totalStock === 0
+                              }
+                            >
                               {inNew ? (
                                 <Check className="h-4 w-4 text-green-500" />
                               ) : (
@@ -1077,7 +1234,7 @@ function StoreExchange() {
                       <div className="space-y-2">
                         {newItems.map((item) => (
                           <div
-                            key={item.productId}
+                            key={`${item.productId}-${item.variantId || "no-variant"}`}
                             className="flex items-center gap-3 p-2 border rounded-lg bg-green-50 dark:bg-green-950/20"
                           >
                             <img
@@ -1092,6 +1249,14 @@ function StoreExchange() {
                               <p className="font-medium text-sm line-clamp-1">
                                 {item.product.name}
                               </p>
+                              {item?.variantId && (
+                                <p className="text-xs text-muted-foreground">
+                                  Size:{" "}
+                                  {item.product?.variants?.find(
+                                    (v: any) => v.id === item.variantId,
+                                  )?.size || `ID: ${item.variantId}`}
+                                </p>
+                              )}
                               <p className="text-xs text-muted-foreground">
                                 {formatPrice(item.unitPrice)} each
                               </p>
@@ -1103,7 +1268,11 @@ function StoreExchange() {
                                 className="h-7 w-7"
                                 onClick={(e) => {
                                   e.stopPropagation();
-                                  updateNewItemQuantity(item.productId, -1);
+                                  updateNewItemQuantity(
+                                    item.productId,
+                                    item.variantId,
+                                    -1,
+                                  );
                                 }}
                               >
                                 <Minus className="h-3 w-3" />
@@ -1115,9 +1284,14 @@ function StoreExchange() {
                                 variant="outline"
                                 size="icon"
                                 className="h-7 w-7"
+                                disabled={item.quantity >= item.maxQuantity}
                                 onClick={(e) => {
                                   e.stopPropagation();
-                                  updateNewItemQuantity(item.productId, 1);
+                                  updateNewItemQuantity(
+                                    item.productId,
+                                    item.variantId,
+                                    1,
+                                  );
                                 }}
                               >
                                 <Plus className="h-3 w-3" />
@@ -1128,7 +1302,7 @@ function StoreExchange() {
                                 className="h-7 w-7 text-destructive"
                                 onClick={(e) => {
                                   e.stopPropagation();
-                                  removeNewItem(item.productId);
+                                  removeNewItem(item.productId, item.variantId);
                                 }}
                               >
                                 <Trash2 className="h-4 w-4" />
@@ -1151,7 +1325,7 @@ function StoreExchange() {
           <div className="space-y-6">
             <Card>
               <CardHeader>
-                <CardTitle>Exchange Summary</CardTitle>
+                <CardTitle className="text-lg">Exchange Summary</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="space-y-2">
@@ -1196,7 +1370,7 @@ function StoreExchange() {
 
             <Card>
               <CardHeader>
-                <CardTitle>Exchange Details</CardTitle>
+                <CardTitle className="text-lg">Exchange Details</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div>
@@ -1258,6 +1432,93 @@ function StoreExchange() {
               </CardContent>
             </Card>
           </div>
+        </div>
+      )}
+
+      {/* Variant Selection Modal */}
+      {showVariantSelection && selectedProductForVariant && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <Card className="w-full max-w-md mx-4">
+            <CardHeader>
+              <CardTitle>Select Variant</CardTitle>
+              <p className="text-sm text-muted-foreground">
+                {selectedProductForVariant.name}
+              </p>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-2 max-h-60 overflow-y-auto">
+                {selectedProductForVariant.variants
+                  ?.filter((variant) => {
+                    // Check if variant has stock (using stockQuantity since storeAllocations may not exist)
+                    return (variant.stockQuantity || 0) > 0;
+                  })
+                  .map((variant) => {
+                    const availableStock = variant.stockQuantity || 0;
+
+                    return (
+                      <div
+                        key={variant.id}
+                        className="flex items-center justify-between p-3 border rounded-lg cursor-pointer hover:bg-muted"
+                        onClick={() => {
+                          // Validate variant stock before adding
+                          if (availableStock === 0) {
+                            toast({
+                              title: "Out of Stock",
+                              description:
+                                "This variant is currently out of stock",
+                              variant: "destructive",
+                            });
+                            return;
+                          }
+
+                          addNewItem(selectedProductForVariant, variant.id);
+                          setShowVariantSelection(false);
+                          setSelectedProductForVariant(null);
+                        }}
+                      >
+                        <div>
+                          <p className="font-medium text-sm">
+                            Size: {variant.size}
+                          </p>
+                          <p className="text-xs text-muted-foreground">
+                            SKU: {variant.sku || "N/A"}
+                          </p>
+                          <p className="text-sm text-primary font-semibold">
+                            {formatPrice(
+                              variant.price || selectedProductForVariant.price,
+                            )}
+                          </p>
+                        </div>
+                        <Badge variant="secondary" className="text-xs">
+                          {availableStock} in stock
+                        </Badge>
+                      </div>
+                    );
+                  })}
+              </div>
+              {selectedProductForVariant.variants?.filter((variant) => {
+                return (variant.stockQuantity || 0) > 0;
+              }).length === 0 && (
+                <div className="text-center py-4">
+                  <p className="text-muted-foreground">
+                    No variants available in stock
+                  </p>
+                </div>
+              )}
+              <div className="flex gap-2 mt-4">
+                <Button
+                  variant="outline"
+                  className="flex-1"
+                  onClick={() => {
+                    setShowVariantSelection(false);
+                    setSelectedProductForVariant(null);
+                  }}
+                >
+                  Cancel
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
         </div>
       )}
     </div>
