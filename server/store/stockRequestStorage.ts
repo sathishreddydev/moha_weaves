@@ -46,11 +46,11 @@ export interface Iprops {
         storeId: string,
         productIds: string[],
     ): Promise<StockRequest[]>;
-    getStockRequest(id: string): Promise<StockRequestWithDetails | undefined>;
+    getStockRequest(id: string, role?: string): Promise<StockRequestWithDetails | undefined>;
     getStockRequests(filters?: {
         storeId?: string;
         status?: string;
-    }): Promise<StockRequestWithDetails[]>;
+    }, role?: string): Promise<StockRequestWithDetails[]>;
     createStockRequest(request: InsertStockRequest): Promise<StockRequest>;
     updateStockRequestStatus(
         id: string,
@@ -82,38 +82,34 @@ export class StockRequestRepository implements Iprops {
 
     async getStockRequest(
         id: string,
+        role: string = "admin",
     ): Promise<StockRequestWithDetails | undefined> {
         const result = await db
             .select()
             .from(stockRequests)
             .innerJoin(stores, eq(stockRequests.storeId, stores.id))
-            .innerJoin(products, eq(stockRequests.productId, products.id))
-            .leftJoin(categories, eq(products.categoryId, categories.id))
-            .leftJoin(colors, eq(products.colorId, colors.id))
-            .leftJoin(fabrics, eq(products.fabricId, fabrics.id))
             .where(eq(stockRequests.id, id))
             .limit(1);
         if (result.length === 0) return undefined;
         const row = result[0];
+        const product = await roleBasedProductService.getProductByRole(row.stock_requests.productId, role as any);
+        
+        if (!product) {
+            throw new Error(`Product not found: ${row.stock_requests.productId}`);
+        }
 
         return {
             ...row.stock_requests,
             store: row.stores,
-            product: {
-                ...row.products,
-                category: row.categories,
-                color: row.colors,
-                fabric: row.fabrics,
-            },
+            product,
         };
 
     }
 
     async getStockRequests(filters?: {
         storeId?: string;
-
         status?: string;
-    }): Promise<StockRequestWithDetails[]> {
+    }, role: string = "admin"): Promise<StockRequestWithDetails[]> {
         const conditions = [];
 
         if (filters?.storeId) {
@@ -129,28 +125,29 @@ export class StockRequestRepository implements Iprops {
             .select()
             .from(stockRequests)
             .innerJoin(stores, eq(stockRequests.storeId, stores.id))
-            .innerJoin(products, eq(stockRequests.productId, products.id))
-            .leftJoin(categories, eq(products.categoryId, categories.id))
-            .leftJoin(colors, eq(products.colorId, colors.id))
-            .leftJoin(fabrics, eq(products.fabricId, fabrics.id))
             .where(conditions.length > 0 ? and(...conditions) : undefined)
             .orderBy(desc(stockRequests.createdAt));
 
-        return result.map((row) => ({
-            ...row.stock_requests,
+        // Get all product IDs for batch fetching
+        const productIds = result.map(row => row.stock_requests.productId);
+        const products = await roleBasedProductService.getProductsByRole(
+            { ids: productIds },
+            role as any
+        );
 
-            store: row.stores,
+        const productMap = new Map(products.map(p => [p.id, p]));
 
-            product: {
-                ...row.products,
-
-                category: row.categories,
-
-                color: row.colors,
-
-                fabric: row.fabrics,
-            },
-        }));
+        return result.map((row) => {
+            const product = productMap.get(row.stock_requests.productId);
+            if (!product) {
+                throw new Error(`Product not found: ${row.stock_requests.productId}`);
+            }
+            return {
+                ...row.stock_requests,
+                store: row.stores,
+                product,
+            };
+        });
     }
 
     async getStockRequestsPaginated(
@@ -163,6 +160,7 @@ export class StockRequestRepository implements Iprops {
             dateFrom?: string;
             dateTo?: string;
         },
+        role: string,
     ): Promise<{ data: StockRequestWithDetails[]; total: number }> {
         const conditions = [eq(stockRequests.storeId, storeId)];
         if (options.status) {
@@ -171,8 +169,6 @@ export class StockRequestRepository implements Iprops {
         if (options.search) {
             conditions.push(
                 or(
-                    ilike(products.name, `%${options.search}%`),
-                    ilike(products.sku, `%${options.search}%`),
                     ilike(stockRequests.notes, `%${options.search}%`),
                 )!,
             );
@@ -187,43 +183,49 @@ export class StockRequestRepository implements Iprops {
         }
 
         const countResult = await db
-
             .select({ count: count() })
-
             .from(stockRequests)
-
-            .innerJoin(products, eq(stockRequests.productId, products.id))
-
             .where(and(...conditions));
 
         const result = await db
             .select()
             .from(stockRequests)
             .innerJoin(stores, eq(stockRequests.storeId, stores.id))
-            .innerJoin(products, eq(stockRequests.productId, products.id))
-            .leftJoin(categories, eq(products.categoryId, categories.id))
-            .leftJoin(colors, eq(products.colorId, colors.id))
-            .leftJoin(fabrics, eq(products.fabricId, fabrics.id))
             .where(and(...conditions))
             .orderBy(desc(stockRequests.createdAt))
             .limit(options.limit)
             .offset(options.offset);
 
-        const results = result.map((row) => ({
-            ...row.stock_requests,
+        const productIds = result.map(row => row.stock_requests.productId);
+        const getProductsByRole = await roleBasedProductService.getProductsByRole(
+            { ids: productIds },
+            role as any
+        );
+        const products = formatProductsByStore(getProductsByRole, storeId);
+        const productMap = new Map(products.map(p => [p.id, p]));
 
-            store: row.stores,
+        let filteredResults = result;
+        if (options.search) {
+            filteredResults = result.filter(row => {
+                const product = productMap.get(row.stock_requests.productId);
+                return product && (
+                    product.name.toLowerCase().includes(options.search!.toLowerCase()) ||
+                    product.sku?.toLowerCase().includes(options.search!.toLowerCase())
+                );
+            });
+        }
 
-            product: {
-                ...row.products,
-
-                category: row.categories,
-
-                color: row.colors,
-
-                fabric: row.fabrics,
-            },
-        }));
+        const results = filteredResults.map((row) => {
+            const product = productMap.get(row.stock_requests.productId);
+            if (!product) {
+                throw new Error(`Product not found: ${row.stock_requests.productId}`);
+            }
+            return {
+                ...row.stock_requests,
+                store: row.stores,
+                product,
+            };
+        });
 
         return {
             data: results,
@@ -240,23 +242,17 @@ export class StockRequestRepository implements Iprops {
 
     async updateStockRequestStatus(
         id: string,
-
         status: string,
-
         approvedBy?: string,
-
         notes?: string,
     ): Promise<StockRequest | undefined> {
         const updateData: any = { status: status as any, updatedAt: new Date() };
-
         if (approvedBy) {
             updateData.approvedBy = approvedBy;
         }
-
         if (notes !== undefined) {
             updateData.notes = notes;
         }
-
         const [result] = await db
             .update(stockRequests)
             .set(updateData)

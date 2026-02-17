@@ -56,7 +56,7 @@ export default function StoreRequests() {
     handlePaginationChange,
     refetch,
   } = useDataTable<StockRequestWithDetails>({
-    queryKey: "/api/store/requests/paginated",
+    queryKey: "/api/store/requestsPaginated",
     initialPageSize: 10,
   });
 

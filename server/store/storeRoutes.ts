@@ -259,7 +259,7 @@ export const storeRoutes = (app: Express) => {
     }
   });
 
-  app.post("/api/store/requests/paginated", authStore, async (req, res) => {
+  app.post("/api/store/requestsPaginated", authStore, async (req, res) => {
     try {
       const user = (req as any).user;
       if (!user.storeId) {
@@ -276,7 +276,7 @@ export const storeRoutes = (app: Express) => {
         status: status as string,
         dateFrom: dateFrom,
         dateTo: dateTo,
-      });
+      },'store');
 
       const response = createPaginatedResponse(
         result.data,
@@ -375,7 +375,7 @@ export const storeRoutes = (app: Express) => {
     }
   });
 
-  app.get("/api/store/store-exchanges", authStore, async (req, res) => {
+  app.post("/api/store/getStoreExchanges", authStore, async (req, res) => {
     try {
       const user = (req as any).user;
       if (!user.storeId) {

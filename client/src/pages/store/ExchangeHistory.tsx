@@ -24,7 +24,7 @@ export default function StoreExchangeHistory() {
     handlePaginationChange,
     refetch,
   } = useDataTable<StoreExchangeWithDetails>({
-    queryKey: "/api/store/store-exchanges",
+    queryKey: "/api/store/getStoreExchanges",
     initialPageSize: 10,
   });
 

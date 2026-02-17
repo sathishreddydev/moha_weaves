@@ -1,5 +1,5 @@
 import { store_customers } from "@shared/schema";
-import { eq } from "drizzle-orm";
+import { eq, ilike, or, and } from "drizzle-orm";
 import { db } from "../db";
 
 export interface StoreCustomer {
@@ -28,12 +28,23 @@ export class CustomerService implements CustomerStorage {
     return customer;
   }
 
-  async getAllCustomers(storeId: string): Promise<any[]> {
+  async getAllCustomers(storeId: string, search?: string): Promise<any[]> {
+    let conditions = [eq(store_customers.storeId, storeId)];
+    
+    if (search) {
+      conditions.push(
+        or(
+          ilike(store_customers.name, `%${search}%`),
+          ilike(store_customers.phone, `%${search}%`)
+        )!
+      );
+    }
+    
     const customers = await db
       .select()
       .from(store_customers)
-      .where(eq(store_customers.storeId, storeId));
-
+      .where(and(...conditions));
+    
     return customers;
   }
 

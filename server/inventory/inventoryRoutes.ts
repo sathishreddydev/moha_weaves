@@ -54,7 +54,7 @@ export const inventoryRoutes = (app: Express) => {
       const { status } = req.query;
       const requests = await stockRequestService.getStockRequests({
         status: status as string,
-      });
+      }, "inventory");
       res.json(requests);
     } catch (error) {
       console.error("Error fetching stock requests:", error);
@@ -78,7 +78,7 @@ export const inventoryRoutes = (app: Express) => {
 
         // Get the request details to check stock before approval
         if (status === "approved") {
-          const stockRequest = await stockRequestService.getStockRequest(req.params.id);
+          const stockRequest = await stockRequestService.getStockRequest(req.params.id, "inventory");
 
           if (!stockRequest) {
             return res.status(404).json({ message: "Request not found" });
