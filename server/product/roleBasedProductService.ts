@@ -13,6 +13,7 @@ import {
   stores,
   productActualPrices,
   productSeo,
+  Store,
 } from "@shared/schema";
 
 import {
@@ -32,10 +33,10 @@ import { db } from "server/db";
 export interface ProductFilters {
   search?: string;
   sku?: string;
-  category?: string[];
-  subcategory?: string[];
-  color?: string[];
-  fabric?: string[];
+  categoryIds?: string[];
+  subcategoryIds?: string[];
+  colorIds?: string[];
+  fabricIds?: string[];
   featured?: boolean;
   minPrice?: number;
   maxPrice?: number;
@@ -46,6 +47,10 @@ export interface ProductFilters {
   onSale?: boolean;
   ids?: string[];
   storeId?: string;
+  size?: string[];
+  inStock?: boolean;
+  minStock?: number;
+  tags?: string[];
 }
 
 export type UserRole = "user" | "admin" | "inventory" | "store";
@@ -65,6 +70,137 @@ export class RoleBasedProductService {
           gte(sales.validUntil, now),
         )
       );
+  }
+
+  // Helper method to fetch sale product mappings (optimized)
+  private async getSaleProductMappings(saleIds?: string[]) {
+    if (saleIds && saleIds.length > 0) {
+      return await db
+        .select()
+        .from(saleProducts)
+        .where(inArray(saleProducts.saleId, saleIds));
+    }
+    return await db.select().from(saleProducts);
+  }
+
+  // Helper method to resolve names to IDs for categories
+  private async resolveCategoryNames(names: string[]) {
+    if (names.length === 0) return [];
+    const result = await db
+      .select({ id: categories.id })
+      .from(categories)
+      .where(inArray(categories.name, names));
+    return result.map((c) => c.id);
+  }
+
+  // Helper method to resolve names to IDs for subcategories
+  private async resolveSubcategoryNames(names: string[]) {
+    if (names.length === 0) return [];
+    const result = await db
+      .select({ id: subcategories.id })
+      .from(subcategories)
+      .where(inArray(subcategories.name, names));
+    return result.map((s) => s.id);
+  }
+
+  // Helper method to resolve names to IDs for colors
+  private async resolveColorNames(names: string[]) {
+    if (names.length === 0) return [];
+    const result = await db
+      .select({ id: colors.id })
+      .from(colors)
+      .where(inArray(colors.name, names));
+    return result.map((c) => c.id);
+  }
+
+  // Helper method to resolve names to IDs for fabrics
+  private async resolveFabricNames(names: string[]) {
+    if (names.length === 0) return [];
+    const result = await db
+      .select({ id: fabrics.id })
+      .from(fabrics)
+      .where(inArray(fabrics.name, names));
+    return result.map((f) => f.id);
+  }
+
+  // Helper method to find applicable sale for a product
+  private findApplicableSale(
+    productId: string,
+    categoryId: string | null,
+    activeSales: any[],
+    saleProductMappings: any[],
+  ) {
+    // Check for product-specific sale
+    const productSaleMapping = saleProductMappings.find(
+      (sp) => sp.productId === productId,
+    );
+    let applicableSale = null;
+    if (productSaleMapping) {
+      applicableSale = activeSales.find(
+        (s) => s.id === productSaleMapping.saleId,
+      );
+    }
+
+    // Check for category-wide sale if no product-specific sale
+    if (!applicableSale && categoryId) {
+      applicableSale = activeSales.find(
+        (s) =>
+          s.categoryId === categoryId &&
+          !saleProductMappings.some(
+            (sp) => sp.saleId === s.id && sp.productId === productId,
+          ),
+      );
+    }
+
+    return applicableSale;
+  }
+
+  // Helper method to construct active sale object
+  private constructActiveSaleObject(applicableSale: any) {
+    return applicableSale
+      ? {
+          id: applicableSale.id,
+          name: applicableSale.name,
+          offerType: applicableSale.offerType,
+          discountValue: applicableSale.discountValue,
+          maxDiscount: applicableSale.maxDiscount || undefined,
+        }
+      : null;
+  }
+
+  private async resolveCategoryAndSubcategoryIds(categoryIds: string[]) {
+    if (categoryIds.length === 0) return [];
+
+    const categoriesResult = await db
+      .select({ id: categories.id })
+      .from(categories)
+      .where(inArray(categories.id, categoryIds));
+
+    const selectedCategoryIds = categoriesResult.map((c) => c.id);
+
+    // Get direct subcategories that were passed in IDs
+    const directSubcategoriesResult = await db
+      .select({ id: subcategories.id })
+      .from(subcategories)
+      .where(inArray(subcategories.id, categoryIds));
+
+    const directSubcategoryIds = directSubcategoriesResult.map((s) => s.id);
+
+    // Get subcategories under selected categories
+    const expandedSubcategories =
+      selectedCategoryIds.length > 0
+        ? await db
+            .select({ id: subcategories.id })
+            .from(subcategories)
+            .where(inArray(subcategories.categoryId, selectedCategoryIds))
+        : [];
+
+    return Array.from(
+      new Set([
+        ...directSubcategoryIds,
+        ...expandedSubcategories.map((s) => s.id),
+      ]),
+    );
   }
 
   private async getSaleMappings(saleIds: string[]) {
@@ -173,7 +309,6 @@ export class RoleBasedProductService {
     filters: ProductFilters = {},
     role: UserRole = "user",
   ): Promise<ProductWithDetails[]> {
-
     const conditions: any[] = [eq(products.isActive, true)];
 
     if (filters.ids?.length)
@@ -191,7 +326,22 @@ export class RoleBasedProductService {
         )
       );
     }
+    const incomingIds: string[] = filters.categoryIds ?? [];
 
+    const finalSubcategoryIds =
+      await this.resolveCategoryAndSubcategoryIds(incomingIds);
+
+    if (finalSubcategoryIds.length) {
+      conditions.push(inArray(products.subcategoryId, finalSubcategoryIds));
+    }
+
+    if (filters.colorIds?.length) {
+      conditions.push(inArray(products.colorId, filters.colorIds));
+    }
+
+    if (filters.fabricIds?.length) {
+      conditions.push(inArray(products.fabricId, filters.fabricIds));
+    }
     if (filters.featured)
       conditions.push(eq(products.isFeatured, true));
 
@@ -212,6 +362,7 @@ export class RoleBasedProductService {
         )
       );
     }
+
 
     let orderBy: any = desc(products.createdAt);
 
@@ -335,6 +486,48 @@ export class RoleBasedProductService {
 
     if (filters.onSale) {
       results = results.filter(p => p.activeSale !== null);
+    }
+
+    if (filters.storeId) {
+      results = results.filter(p => {
+        const hasStoreAllocation = p.storeAllocations?.some(
+          (allocation: { storeId: string; storeName: string; quantity: number }) => allocation.storeId === filters.storeId
+        );
+        const hasVariantInStore = p.variants?.some((variant: any) =>
+          variant.storeAllocations?.some(
+            (storeAllocation: { storeId: string; storeName: string; quantity: number }) => storeAllocation.storeId === filters.storeId
+          )
+        );
+        return hasStoreAllocation || hasVariantInStore;
+      });
+    }
+
+    if (filters.size?.length) {
+      results = results.filter(p => 
+        p.variants?.some((variant: any) => 
+          filters.size!.includes(variant.size)
+        )
+      );
+    }
+
+    if (filters.inStock) {
+      results = results.filter(p => {
+        const totalStock = p.variants?.reduce((sum: number, variant: any) => 
+          sum + (variant.onlineStock || 0) + 
+          variant.storeAllocations?.reduce((storeSum: number, allocation: { quantity: number }) => 
+            storeSum + (allocation.quantity || 0), 0) || 0, 0) || 0;
+        return totalStock > 0;
+      });
+    }
+
+    if (filters.minStock !== undefined) {
+      results = results.filter(p => {
+        const totalStock = p.variants?.reduce((sum: number, variant: any) => 
+          sum + (variant.onlineStock || 0) + 
+          variant.storeAllocations?.reduce((storeSum: number, allocation: { quantity: number }) => 
+            storeSum + (allocation.quantity || 0), 0) || 0, 0) || 0;
+        return totalStock >= filters.minStock!;
+      });
     }
 
     return results;

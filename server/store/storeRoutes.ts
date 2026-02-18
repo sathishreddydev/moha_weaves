@@ -132,21 +132,38 @@ export const storeRoutes = (app: Express) => {
       const {
         search,
         categoryIds,
+        subcategoryIds,
+        colorIds,
+        fabricIds,
+        sizes,
+        minPrice,
+        maxPrice,
+        featured,
+        onSale,
+        inStock,
+        minStock,
+        sort,
       } = req.body;
 
-      // Convert categoryIds to names for role-based service
-      let categoryNames: string[] = [];
-      if (categoryIds && categoryIds.length > 0) {
-        // Use publicStorage to get categories
-        const categories = await publicStorage.getCategoriesWithSubcategories();
-        categoryNames = categories
-          .filter((cat: any) => categoryIds.includes(cat.id))
-          .map((cat: any) => cat.name);
-      }
+      // Convert string boolean values to actual booleans
+      const featuredFilter = featured === "true" ? true : featured === "false" ? false : undefined;
+      const onSaleFilter = onSale === "true" ? true : onSale === "false" ? false : undefined;
+      const inStockFilter = inStock === "true" ? true : inStock === "false" ? false : undefined;
 
       const filters: ProductFilters = {
         search,
-        category: categoryNames,
+        categoryIds,
+        subcategoryIds,
+        colorIds,
+        fabricIds,
+        size: sizes,
+        minPrice,
+        maxPrice,
+        featured: featuredFilter,
+        onSale: onSaleFilter,
+        inStock: inStockFilter,
+        minStock,
+        sort,
         limit,
         offset,
         storeId: user.storeId, // Important: Pass store ID for role-based filtering
@@ -196,21 +213,33 @@ export const storeRoutes = (app: Express) => {
       const {
         search,
         categoryIds,
+        subcategoryIds,
+        colorIds,
+        fabricIds,
+        sizes,
+        minPrice,
+        maxPrice,
+        featured,
+        onSale,
+        inStock,
+        minStock,
+        sort,
       } = req.body;
-
-      // Convert categoryIds to names for role-based service
-      let categoryNames: string[] = [];
-      if (categoryIds && categoryIds.length > 0) {
-        // Use publicStorage to get categories
-        const categories = await publicStorage.getCategoriesWithSubcategories();
-        categoryNames = categories
-          .filter((cat: any) => categoryIds.includes(cat.id))
-          .map((cat: any) => cat.name);
-      }
 
       const filters: ProductFilters = {
         search,
-        category: categoryNames,
+        categoryIds,
+        subcategoryIds,
+        colorIds,
+        fabricIds,
+        size: sizes,
+        minPrice,
+        maxPrice,
+        featured,
+        onSale,
+        inStock,
+        minStock,
+        sort,
         limit,
         offset,
         storeId: user.storeId, // Important: Pass store ID for role-based filtering

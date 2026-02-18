@@ -1,12 +1,15 @@
 import { DataTable } from "@/components/DataTable/DataTable";
+import { useFilterStore } from "@/components/Store/useFilterStore";
+import { FilterItem } from "@/components/Type/type";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { useDataTable } from "@/hooks/use-data-table";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/lib/auth";
+import { TreeNode } from "@/lib/type";
 import type { ProductWithDetails } from "@shared/schema";
 import { ColumnDef } from "@tanstack/react-table";
-import { Minus, Plus, RefreshCw, ShoppingCart, Trash2 } from "lucide-react";
+import { Camera, Minus, Plus, RefreshCw, ShoppingCart, Trash2 } from "lucide-react";
 import { useEffect, useState, useMemo, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { useStoreCart } from "./Hook/cartStore";
@@ -38,6 +41,10 @@ export default function StoreSale() {
   const { toast } = useToast();
   const navigate = useNavigate();
   const storeId = user?.storeId;
+  const { categories, colors, fabrics, fetchFilters } = useFilterStore();
+  const [showScanner, setShowScanner] = useState(false);
+  const [scannerStream, setScannerStream] = useState<MediaStream | null>(null);
+  const [scannerError, setScannerError] = useState<string>("");
 
   
   const {
@@ -60,6 +67,12 @@ export default function StoreSale() {
       if (cartItems.length === 0) fetchCart();
     }
   }, [storeId, cartItems.length, fetchCart, setStoreId]);
+
+  useEffect(() => {
+    if (!categories.length || !colors.length || !fabrics.length) {
+      fetchFilters();
+    }
+  }, [categories.length, colors.length, fabrics.length, fetchFilters]);
 
   const {
     data: tableProducts,
@@ -112,10 +125,158 @@ export default function StoreSale() {
     deleteItem(productId, variantId);
   }, [deleteItem]);
 
-  
+  // Barcode scanner simulation
+  const handleBarcodeScan = useCallback(async () => {
+    try {
+      setScannerError("");
+      
+      // Request camera access
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { 
+          facingMode: 'environment', // Use back camera on mobile
+          width: { ideal: 1280 },
+          height: { ideal: 720 }
+        }
+      });
+      
+      setScannerStream(stream);
+      setShowScanner(true);
+      
+      toast({
+        title: "Camera Access Granted",
+        description: "Point camera at barcode to scan",
+      });
+    } catch (error) {
+      console.error("Camera access error:", error);
+      let errorMessage = "Failed to access camera";
+      
+      if (error instanceof Error) {
+        if (error.name === 'NotAllowedError') {
+          errorMessage = "Camera access denied. Please allow camera permissions in your browser settings.";
+        } else if (error.name === 'NotFoundError') {
+          errorMessage = "No camera found. Please connect a camera device.";
+        } else if (error.name === 'NotReadableError') {
+          errorMessage = "Camera is already in use by another application.";
+        }
+      }
+      
+      setScannerError(errorMessage);
+      toast({
+        title: "Camera Error",
+        description: errorMessage,
+        variant: "destructive",
+      });
+    }
+  }, [toast]);
+
+  // Stop camera stream
+  const stopScanner = useCallback(() => {
+    if (scannerStream) {
+      scannerStream.getTracks().forEach(track => track.stop());
+      setScannerStream(null);
+    }
+    setShowScanner(false);
+    setScannerError("");
+  }, [scannerStream]);
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      if (scannerStream) {
+        scannerStream.getTracks().forEach(track => track.stop());
+      }
+    };
+  }, [scannerStream]);
+
   
   const displayProducts = tableProducts;
   const displayLoading = tableLoading;
+
+  const filters: FilterItem[] = useMemo(() => [
+    {
+      key: "categoryIds",
+      label: "Categories",
+      tree: categories.map((cat) => ({
+        id: cat.id, 
+        label: cat.name,
+        data: cat,
+        children: cat?.subcategories?.map((sub) => ({
+          id: sub.id, 
+          label: sub.name,
+        })) || [],
+      })),
+      placeholder: "Search categories...",
+    },
+    {
+      key: "colorIds",
+      label: "Colors",
+      tree: colors.map((color) => ({
+        id: color.id, 
+        label: color.name,
+        data: color,
+      })),
+      placeholder: "Search colors...",
+    },
+    {
+      key: "fabricIds",
+      label: "Fabrics",
+      tree: fabrics.map((fabric) => ({
+        id: fabric.id, 
+        label: fabric.name,
+        data: fabric,
+      })),
+      placeholder: "Search fabrics...",
+    },
+    {
+      key: "sizes",
+      label: "Sizes",
+      tree: [
+        { id: "XS", label: "XS" },
+        { id: "S", label: "S" },
+        { id: "M", label: "M" },
+        { id: "L", label: "L" },
+        { id: "XL", label: "XL" },
+        { id: "XXL", label: "XXL" },
+        { id: "3XL", label: "3XL" },
+      ],
+      placeholder: "Select sizes...",
+    },
+    {
+      key: "featured",
+      label: "Featured",
+      tree: [
+        { id: "true", label: "Featured Only" },
+      ],
+      placeholder: "Select featured status...",
+    },
+    {
+      key: "onSale",
+      label: "Sale Status",
+      tree: [
+        { id: "true", label: "On Sale Only" },
+      ],
+      placeholder: "Select sale status...",
+    },
+    {
+      key: "inStock",
+      label: "Stock Status",
+      tree: [
+        { id: "true", label: "In Stock Only" },
+      ],
+      placeholder: "Select stock status...",
+    },
+    {
+      key: "sort",
+      label: "Sort By",
+      tree: [
+        { id: "price-low", label: "Price: Low to High" },
+        { id: "price-high", label: "Price: High to Low" },
+        { id: "name", label: "Name: A to Z" },
+        { id: "created-desc", label: "Newest First" },
+      ],
+      placeholder: "Select sort order...",
+    },
+  ], [categories, colors, fabrics]);
   const productColumns: ColumnDef<ShopProduct>[] = [
     {
       accessorKey: "product.imageUrl",
@@ -382,6 +543,15 @@ export default function StoreSale() {
           <Button
             variant="outline"
             size="sm"
+            onClick={handleBarcodeScan}
+            className="gap-2"
+          >
+            <Camera className="h-4 w-4" />
+            Scan Barcode
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
             onClick={() => refetch()}
             disabled={isFetching}
             className="flex items-center gap-2"
@@ -411,6 +581,67 @@ export default function StoreSale() {
         </div>
       </div>
 
+      {/* Barcode Scanner Modal */}
+      {showScanner && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold">Barcode Scanner</h3>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={stopScanner}
+              >
+                ×
+              </Button>
+            </div>
+            {scannerError ? (
+              <div className="bg-red-50 border border-red-200 rounded-lg p-4 text-center">
+                <p className="text-sm text-red-600">{scannerError}</p>
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  className="mt-2"
+                  onClick={handleBarcodeScan}
+                >
+                  Try Again
+                </Button>
+              </div>
+            ) : scannerStream ? (
+              <div className="bg-black rounded-lg overflow-hidden">
+                <video
+                  autoPlay
+                  playsInline
+                  muted
+                  className="w-full h-64 object-cover"
+                  ref={(videoElement) => {
+                    if (videoElement && scannerStream) {
+                      videoElement.srcObject = scannerStream;
+                    }
+                  }}
+                />
+                <div className="absolute inset-0 pointer-events-none">
+                  <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2">
+                    <div className="w-48 h-1 bg-red-500 opacity-75"></div>
+                    <div className="w-1 h-48 bg-red-500 opacity-75 absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2"></div>
+                  </div>
+                </div>
+                <div className="bg-black/80 text-white p-2 text-center">
+                  <p className="text-sm">Align barcode within frame</p>
+                </div>
+              </div>
+            ) : (
+              <div className="bg-gray-100 rounded-lg p-8 text-center">
+                <div className="w-16 h-16 bg-gray-300 rounded-full mx-auto mb-4 flex items-center justify-center">
+                  <Camera className="h-8 w-8 text-gray-600" />
+                </div>
+                <p className="text-sm text-gray-600">Initializing camera...</p>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
       <div>
         <DataTable
           columns={productColumns}
@@ -422,6 +653,7 @@ export default function StoreSale() {
           isLoading={displayLoading}
           searchPlaceholder="Search products..."
           emptyMessage="No products in stock"
+          filters={filters}
           className="[&_table]:text-xs [&_th]:h-8 [&_th]:px-2 [&_td]:px-2 [&_td]:py-1"
         />
       </div>

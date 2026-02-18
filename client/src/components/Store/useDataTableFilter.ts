@@ -33,7 +33,16 @@ export const useDataTableFilterStore = create<FilterStore>()(
     setFilter: (key, values) => set((state) => ({ ...state, [key]: values })),
     setDateRange: (dateRange) => set({ dateRange }),
 
-    resetFilters: () => set({ ...initialState }),
+    resetFilters: () => set((state) => {
+      const newState = { ...initialState };
+      Object.keys(state).forEach(key => {
+        if (key !== 'search' && key !== 'dateRange' && 
+            typeof state[key as keyof typeof state] !== 'function') {
+          newState[key] = [];
+        }
+      });
+      return newState;
+    }),
 
     hasActiveFilters: () => {
       const state = get();
