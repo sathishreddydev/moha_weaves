@@ -18,9 +18,9 @@ import {
 import React, { useEffect, useState, useMemo, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { useStoreCart, CartItem } from "./Hook/cartStore";
-import { 
-  formatPrice, 
-  groupCartItemsByProduct, 
+import {
+  formatPrice,
+  groupCartItemsByProduct,
   calculateCartTotals,
   safeParseFloat,
   updateCartItemQuantity,
@@ -83,7 +83,7 @@ export default function Cart() {
   const [discount, setDiscount] = useState<Discount | null>(null);
   const [couponCode, setCouponCode] = useState("");
 
-  const [paymentMode, setPaymentMode] = useState<"cash" | "card" | "upi">(
+  const [paymentMode, setPaymentMode] = useState<"cash" | "razorpay">(
     "cash",
   );
   const [customerName, setCustomerName] = useState("");
@@ -104,7 +104,7 @@ export default function Cart() {
     if (cartItems.length === 0) fetchCart();
   }, [storeId, cartItems.length, fetchCart, setStoreId]);
 
-  
+
   const removeFromCart = (itemId: string, productId: string, variantId?: string) => {
     deleteItem(productId, variantId);
   };
@@ -141,7 +141,7 @@ export default function Cart() {
   const { subtotal } = useMemo(() => calculateCartTotals(cartItems), [cartItems]);
   const groupedCartItems = useMemo(() => groupCartItemsByProduct(cartItems), [cartItems]);
   const displayItems = useMemo(() => Object.values(groupedCartItems).flat(), [groupedCartItems]);
-  const discountAmount = useMemo(() => 
+  const discountAmount = useMemo(() =>
     discount
       ? discount.type === "percentage"
         ? (discount.value / 100) * subtotal
@@ -189,8 +189,8 @@ export default function Cart() {
       setExistingCustomer(null);
     } else if (numericValue.length === 10) {
       setPhoneError("");
-      // Fetch loyalty points and customer data when phone is valid
-      await fetchLoyaltyPoints(numericValue);
+      // // Fetch loyalty points and customer data when phone is valid
+      // await fetchLoyaltyPoints(numericValue);
     } else {
       setPhoneError("");
       setLoyaltyData(null);
@@ -217,6 +217,87 @@ export default function Cart() {
       setExistingCustomer(null);
     } finally {
       setLoyaltyLoading(false);
+    }
+  };
+
+  const initiateRazorpayPayment = async (pointsToRedeem: number) => {
+    try {
+      // Step 1: Create Razorpay order
+      const razorpayOrder = await apiRequest("POST", "/api/store/create-razorpay-order", {
+        amount: totalAmount,
+        currency: "INR",
+      });
+
+      // Step 2: Open Razorpay checkout popup
+      const options = {
+        key: "rzp_test_UxXBzl98ySixq7",
+        amount: razorpayOrder.amount,
+        currency: razorpayOrder.currency,
+        name: "Moha Weaves",
+        description: "Store Order Payment",
+        order_id: razorpayOrder.razorpayOrderId,
+
+        handler: async function (response: any) {
+          // Step 3: Call unified /api/store/checkout with Razorpay signature
+          const data = await apiRequest("POST", "/api/store/checkout", {
+            razorpayOrderId: response.razorpay_order_id,
+            razorpayPaymentId: response.razorpay_payment_id,
+            razorpaySignature: response.razorpay_signature,
+            items: cartItems,
+            discount,
+            loyaltyDiscount:
+              pointsToRedeem > 0
+                ? {
+                  pointsRedeemed: pointsToRedeem,
+                  discountValue: loyaltyDiscount,
+                }
+                : null,
+            tax: 0,
+            total: totalAmount,
+            paymentMode: "razorpay",
+            customerName,
+            customerPhone,
+          });
+
+          toast({
+            title: "Payment Success!",
+            description: `Order #${data.orderId} completed successfully`,
+          });
+
+          queryClient.invalidateQueries({
+            predicate: (query) =>
+              typeof query.queryKey[0] === "string" &&
+              query.queryKey[0].startsWith("/api/store"),
+          });
+
+          clearCart();
+          resetForm();
+          setLoyaltyData(null);
+          setRedeemPoints(false);
+          setDisabledCompBtn(false);
+          navigate(`/store/invoice/${data.orderId}`);
+        },
+
+        theme: { color: "#3399cc" },
+      };
+
+      const rzp = new (window as any).Razorpay(options);
+      rzp.on("payment.failed", function () {
+        toast({
+          title: "Payment Failed",
+          description: "Transaction was cancelled or failed",
+          variant: "destructive",
+        });
+        setDisabledCompBtn(false);
+      });
+      rzp.open();
+    } catch (err: any) {
+      setDisabledCompBtn(false);
+      toast({
+        title: "Payment Initiation Failed",
+        description: err.message || "Failed to initiate Razorpay",
+        variant: "destructive",
+      });
     }
   };
 
@@ -258,6 +339,13 @@ export default function Cart() {
 
     setDisabledCompBtn(true);
 
+    // If payment mode is Razorpay, initiate Razorpay payment
+    if (paymentMode === "razorpay") {
+      await initiateRazorpayPayment(pointsToRedeem);
+      return;
+    }
+
+    // For cash payment, proceed with existing flow
     try {
       const data = await apiRequest("POST", "/api/store/checkout", {
         items: cartItems,
@@ -265,9 +353,9 @@ export default function Cart() {
         loyaltyDiscount:
           pointsToRedeem > 0
             ? {
-                pointsRedeemed: pointsToRedeem,
-                discountValue: pointsToRedeem * 0.05, // 100 points = ₹5, so 1 point = ₹0.05
-              }
+              pointsRedeemed: pointsToRedeem,
+              discountValue: loyaltyDiscount,
+            }
             : null,
         tax: 0,
         total: totalAmount,
@@ -318,7 +406,7 @@ export default function Cart() {
         const itemIndex = displayItems.findIndex(d => d.id === item.id);
         const previousItem = itemIndex > 0 ? displayItems[itemIndex - 1] : null;
         const isSameProductAsPrevious = previousItem?.productId === item.productId;
-        
+
         return (
           <div className={isSameProductAsPrevious ? "pt-2 border-t border-gray-100" : ""}>
             <div className="font-medium">{item.product?.name || "Product"}</div>
@@ -337,7 +425,7 @@ export default function Cart() {
       cell: ({ row }) => {
         const item = row.original;
         const availableStock = getAvailableStock(item.product, item.variantId);
-        
+
         return (
           <div className="flex items-center gap-2">
             <Button
@@ -382,7 +470,7 @@ export default function Cart() {
       cell: ({ row }) => {
         const item = row.original;
         const displayPrice = safeParseFloat(item.unitPrice);
-        
+
         return (
           <div>
             {item.product.activeSale && item.product.discountedPrice ? (
@@ -407,7 +495,7 @@ export default function Cart() {
       cell: ({ row }) => {
         const item = row.original;
         const displayPrice = safeParseFloat(item.unitPrice);
-        
+
         return (
           <div>
             {item.product.activeSale && item.product.discountedPrice ? (
@@ -575,7 +663,7 @@ export default function Cart() {
                   </h4>
 
                   <div className="flex flex-wrap gap-2">
-                    {(["cash", "card", "upi"] as const).map((mode) => (
+                    {(["cash", "razorpay"] as const).map((mode) => (
                       <Button
                         key={mode}
                         variant={paymentMode === mode ? "default" : "outline"}
@@ -583,7 +671,7 @@ export default function Cart() {
                         onClick={() => setPaymentMode(mode)}
                         className="capitalize flex-1 sm:flex-none"
                       >
-                        {mode}
+                        {mode === "razorpay" ? "Razorpay" : mode}
                       </Button>
                     ))}
                   </div>
@@ -595,7 +683,7 @@ export default function Cart() {
                   </h4>
 
                   <div className="flex gap-2">
-                    <Input 
+                    <Input
                       className="w-3/4 sm:w-auto"
                       placeholder="Enter coupon code"
                       value={couponCode}
@@ -677,7 +765,7 @@ export default function Cart() {
                 disabled={!!phoneError || loading || disabledCompBtn}
               >
                 <ShoppingBag className="h-4 w-4 mr-2" />
-                Complete Checkout
+                {paymentMode === "razorpay" ? `Pay ₹${totalAmount.toLocaleString()}` : "Complete Checkout"}
               </Button>
             </div>
           </div>

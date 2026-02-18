@@ -8,6 +8,13 @@
       "when": 1771397811874,
       "tag": "0000_old_harry_osborn",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1771422166156,
+      "tag": "0001_large_professor_monster",
+      "breakpoints": true
     }
   ]
 }

@@ -314,6 +314,9 @@ export const storeSales = pgTable("store_sales", {
   discountAmount: decimal("discount_amount", { precision: 10, scale: 2 }).default("0"),
   taxAmount: decimal("tax_amount", { precision: 10, scale: 2 }).default("0"),
   paymentMode: varchar("payment_mode").default("cash"),
+  razorpayOrderId: text("razorpay_order_id"),
+  razorpayPaymentId: text("razorpay_payment_id"),
+  razorpaySignature: text("razorpay_signature"),
   saleType: enums.storeSaleTypeEnum("sale_type").notNull().default("walk_in"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });

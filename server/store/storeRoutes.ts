@@ -10,9 +10,11 @@ import {
 import { storage } from "../storage";
 import { customerRoutes } from "./customerRoutes";
 import { storeProductsStorage } from "./productsStorage";
-import { storeService } from "./storeStorage";
+import { storeService, StoreRepository } from "./storeStorage";
 import { formatProductsByStore } from "./formatedData";
 import { stockRequestService } from "./stockRequestStorage";
+import { razorpay } from "../razorpayClient";
+import crypto from "crypto";
 
 export const storeRoutes = (app: Express) => {
   const authStore = createAuthMiddleware(["store"]);
@@ -305,7 +307,7 @@ export const storeRoutes = (app: Express) => {
         status: status as string,
         dateFrom: dateFrom,
         dateTo: dateTo,
-      },'store');
+      }, 'store');
 
       const response = createPaginatedResponse(
         result.data,
@@ -381,7 +383,7 @@ export const storeRoutes = (app: Express) => {
       res.status(500).json({ message: "Failed to search sales" });
     }
   });
-  
+
   app.get("/api/store/sales/:id", authStore, async (req, res) => {
     try {
       const user = (req as any).user;
@@ -390,7 +392,7 @@ export const storeRoutes = (app: Express) => {
       }
 
       const sale = await storeService.getStoreSaleForExchange(req.params.id);
-      
+
       if (!sale) {
         return res.status(404).json({ message: "Sale not found" });
       }
@@ -478,6 +480,34 @@ export const storeRoutes = (app: Express) => {
       const message =
         error instanceof Error ? error.message : "Failed to create exchange";
       res.status(400).json({ message });
+    }
+  });
+  // Razorpay endpoints for store module
+  app.post("/api/store/create-razorpay-order", authStore, async (req, res) => {
+    try {
+      const { amount } = req.body;
+      const user = (req as any).user;
+
+      if (!amount || amount <= 0) {
+        return res.status(400).json({ message: "Invalid amount" });
+      }
+
+      // Create Razorpay order
+      const razorpayOrder = await razorpay.orders.create({
+        amount: Math.round(amount * 100), // paise
+        currency: "INR",
+        receipt: `${user.storeId}`, 
+        payment_capture: true,
+      });
+
+      res.json({
+        razorpayOrderId: razorpayOrder.id,
+        amount: razorpayOrder.amount,
+        currency: razorpayOrder.currency,
+      });
+    } catch (err) {
+      console.error("Error creating Razorpay order:", err);
+      res.status(500).json({ message: "Failed to create Razorpay order" });
     }
   });
 

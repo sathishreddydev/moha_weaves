@@ -2,6 +2,7 @@ import { Express, Request, Response } from "express";
 import { createAuthMiddleware } from "server/authMiddleware";
 import { z } from "zod";
 import { StoreRepository } from "./storeStorage";
+import crypto from "crypto";
 
 
 const cartItemSchema = z.object({
@@ -41,13 +42,13 @@ export const checkoutSchema = z.object({
   items: z.array(cartItemSchema),
   discount: z
     .object({
+      id: z.string().optional(),
       type: z.enum(["percentage", "fixed", "coupon"]),
       value: z.number().min(0),
       code: z.string().optional(),
-      couponId: z.string().optional(),
-      description: z.string().nullable(),
-      minOrderAmount: z.number().nullable(),
-      maxDiscount: z.number().nullable(),
+      description: z.string().nullable().optional(),
+      minOrderAmount: z.number().nullable().optional(),
+      maxDiscount: z.number().nullable().optional(),
     })
     .nullable()
     .optional(),
@@ -57,7 +58,11 @@ export const checkoutSchema = z.object({
   }).nullable().optional(),
   tax: z.number().min(0),
   total: z.number().min(0),
-  paymentMode: z.enum(["cash", "card", "upi"]),
+  paymentMode: z.enum(["cash", "razorpay"]),
+  // Razorpay-specific fields (required when paymentMode is razorpay)
+  razorpayOrderId: z.string().optional(),
+  razorpayPaymentId: z.string().optional(),
+  razorpaySignature: z.string().optional(),
   customerName: z.string().min(1),
   customerPhone: z.string().min(1),
 });
@@ -234,6 +239,22 @@ export const storeCartRoutes = (app: Express) => {
       if (!storeId || !processedBy) return res.status(401).json({ error: "Store not authenticated" });
 
       const validatedData = checkoutSchema.parse(req.body);
+
+      // --- Razorpay signature verification ---
+      if (validatedData.paymentMode === "razorpay") {
+        const { razorpayOrderId, razorpayPaymentId, razorpaySignature } = validatedData;
+        if (!razorpayOrderId || !razorpayPaymentId || !razorpaySignature) {
+          return res.status(400).json({ error: "Missing Razorpay payment details" });
+        }
+        const generatedSignature = crypto
+          .createHmac("sha256", process.env.RAZORPAY_KEY_SECRET!)
+          .update(`${razorpayOrderId}|${razorpayPaymentId}`)
+          .digest("hex");
+        if (generatedSignature !== razorpaySignature) {
+          return res.status(400).json({ error: "Payment verification failed" });
+        }
+      }
+
       const storeRepo = new StoreRepository();
 
       // Validate stock availability for all checkout items in single query
@@ -284,37 +305,10 @@ export const storeCartRoutes = (app: Express) => {
           ? (validatedData.discount.value / 100) * subtotal
           : validatedData.discount.value
         : 0;
-      
-      const loyaltyDiscountAmount = 0;
-      const pointsRedeemed = 0;
-      
-      // // Handle loyalty points redemption
-      // if (validatedData.loyaltyDiscount && validatedData.loyaltyDiscount.pointsRedeemed > 0) {
-      //   // Get customer to check available points
-      //   const customer = await customerService.getCustomerByPhone(validatedData.customerPhone);
-      //   if (!customer) {
-      //     return res.status(404).json({ error: "Customer not found for loyalty points redemption" });
-      //   }
 
-      //   if (customer.loyaltyPoints < validatedData.loyaltyDiscount.pointsRedeemed) {
-      //     return res.status(400).json({ 
-      //       error: "Insufficient loyalty points",
-      //       availablePoints: customer.loyaltyPoints,
-      //       requestedPoints: validatedData.loyaltyDiscount.pointsRedeemed
-      //     });
-      //   }
+      const loyaltyDiscountAmount = validatedData.loyaltyDiscount?.discountValue ?? 0;
+      const pointsRedeemed = validatedData.loyaltyDiscount?.pointsRedeemed ?? 0;
 
-      //   // Redeem the points
-      //   const updatedCustomer = await customerService.addOrCreateCustomerLoyalty(
-      //     customer.name,
-      //     customer.phone,
-      //     customer.storeId,
-      //     -validatedData.loyaltyDiscount.pointsRedeemed
-      //   );
-        
-      //   loyaltyDiscountAmount = validatedData.loyaltyDiscount.discountValue;
-      //   pointsRedeemed = validatedData.loyaltyDiscount.pointsRedeemed;
-      // }
 
       const order = await storeRepo.createStoreSale(storeId, processedBy, {
         customerName: validatedData.customerName,
@@ -326,19 +320,23 @@ export const storeCartRoutes = (app: Express) => {
         totalAmount: validatedData.total,
         paymentMode: validatedData.paymentMode,
         discountCode: validatedData.discount?.code,
+        razorpayOrderId: validatedData.razorpayOrderId,
+        razorpayPaymentId: validatedData.razorpayPaymentId,
+        razorpaySignature: validatedData.razorpaySignature,
       });
 
-      if (validatedData.discount?.code && validatedData.discount?.couponId) {
+      // Update coupon usage — use discount.id (consistent with client Discount interface)
+      if (validatedData.discount?.code && validatedData.discount?.id) {
         await storeRepo.updateCouponUsage(
-          validatedData.discount.couponId,
+          validatedData.discount.id,
           processedBy,
           order.id,
           discountAmount.toString()
         );
       }
 
-      res.json({ 
-        orderId: order.id, 
+      res.json({
+        orderId: order.id,
         receiptUrl: `/api/store/receipt/${order.id}`,
         pointsRedeemed,
         loyaltyDiscountAmount

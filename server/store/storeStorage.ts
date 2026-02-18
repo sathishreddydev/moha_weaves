@@ -72,6 +72,9 @@ export interface StoreStorage {
       totalAmount: number;
       paymentMode: string;
       discountCode?: string;
+      razorpayOrderId?: string;
+      razorpayPaymentId?: string;
+      razorpaySignature?: string;
     },
   ): Promise<StoreSale>;
   // Store Exchanges
@@ -299,6 +302,9 @@ export class StoreRepository implements StoreStorage {
       totalAmount: number;
       paymentMode: string;
       discountCode?: string;
+      razorpayOrderId?: string;
+      razorpayPaymentId?: string;
+      razorpaySignature?: string;
     },
   ): Promise<StoreSale> {
     // Generate custom sale ID
@@ -316,6 +322,9 @@ export class StoreRepository implements StoreStorage {
         discountAmount: data.discountAmount.toString(),
         taxAmount: data.taxAmount.toString(),
         paymentMode: data.paymentMode,
+        razorpayOrderId: data.razorpayOrderId || null,
+        razorpayPaymentId: data.razorpayPaymentId || null,
+        razorpaySignature: data.razorpaySignature || null,
         saleType: "walk_in",
       })
       .returning();
