@@ -17,6 +17,7 @@ import {
   coupons,
   fabrics,
   products,
+  productVariants,
   saleProducts,
   sales,
   stockMovements,
@@ -177,6 +178,10 @@ export interface StoreStorage {
     storeId: string,
     productId: string,
   ): Promise<StoreInventory | undefined>;
+  getVariantStoreInventory(
+    storeId: string,
+    variantId: string,
+  ): Promise<typeof variantStoreInventory.$inferSelect | undefined>;
   getStoreInventoryItems(
     storeId: string,
     productIds: string[],
@@ -745,6 +750,34 @@ export class StoreRepository implements StoreStorage {
         await tx.insert(storeExchangeReturnItems).values(returnRecords);
 
         for (const item of returnItemsData) {
+          // CRITICAL: Real-time availability check inside transaction to prevent race conditions
+          const [currentSaleItem] = await tx
+            .select()
+            .from(storeSaleItems)
+            .where(eq(storeSaleItems.id, item.saleItemId))
+            .limit(1);
+
+          if (!currentSaleItem) {
+            throw new Error(`Sale item ${item.saleItemId} not found`);
+          }
+
+          // Calculate current returned quantity in real-time
+          const [returnedResult] = await tx
+            .select({
+              totalReturned: sql<number>`COALESCE(SUM(${storeExchangeReturnItems.quantity}), 0)`,
+            })
+            .from(storeExchangeReturnItems)
+            .where(eq(storeExchangeReturnItems.saleItemId, item.saleItemId));
+
+          const currentReturnedQuantity = Number(returnedResult?.totalReturned || 0);
+          const realTimeAvailableQuantity = currentSaleItem.quantity - currentReturnedQuantity;
+
+          if (item.quantity > realTimeAvailableQuantity) {
+            throw new Error(
+              `Cannot return more than available quantity for item ${item.saleItemId}. Available: ${realTimeAvailableQuantity}, Requested: ${item.quantity}`
+            );
+          }
+
           await tx
             .update(storeSaleItems)
             .set({
@@ -753,11 +786,7 @@ export class StoreRepository implements StoreStorage {
             .where(eq(storeSaleItems.id, item.saleItemId));
 
           // Get the original sale item to check for variant
-          const [originalSaleItem] = await tx
-            .select()
-            .from(storeSaleItems)
-            .where(eq(storeSaleItems.id, item.saleItemId))
-            .limit(1);
+          const originalSaleItem = currentSaleItem;
 
           // Handle variant-specific inventory updates based on exchange type
           if (originalSaleItem?.variantId) {
@@ -775,7 +804,8 @@ export class StoreRepository implements StoreStorage {
 
             if (variantInventoryRecord) {
               if (item.exchangeType === "damage") {
-
+                // Damage exchanges: do NOT add back to variant inventory (item is damaged)
+                // Inventory stays reduced - damage record will handle this separately
               } else {
                 // Normal exchanges: add back to variant store inventory
                 await tx
@@ -796,7 +826,8 @@ export class StoreRepository implements StoreStorage {
 
           // Update store inventory based on exchange type
           if (item.exchangeType === "damage") {
-            
+            // Damage exchanges: do NOT add back to store inventory (item is damaged)
+            // Inventory stays reduced - damage record will handle this separately
           } else {
             // Normal exchanges: add items back to store inventory
             await tx
@@ -816,7 +847,8 @@ export class StoreRepository implements StoreStorage {
           // Update total stock in products table
           // Update product stock based on exchange type
           if (item.exchangeType === "damage") {
-           
+            // Damage exchanges: do NOT add back to total stock (item is damaged)
+            // Total stock stays reduced - damage record will handle this separately
           } else {
             // Normal exchanges: add items back to sellable stock
             await tx
@@ -877,25 +909,39 @@ export class StoreRepository implements StoreStorage {
         const newRecords = newItemsData.map((item) => ({
           ...item,
           exchangeId: createdExchange.id,
+          variantId: item.variantId,
         }));
         await tx.insert(storeExchangeNewItems).values(newRecords);
 
         for (const item of newItemsData) {
-          // Update store inventory
-          await tx
-            .update(storeInventory)
-            .set({
-              quantity: sql`${storeInventory.quantity} - ${item.quantity}`,
-              updatedAt: new Date(),
-            })
-            .where(
-              and(
-                eq(storeInventory.storeId, exchange.storeId),
-                eq(storeInventory.productId, item.productId),
-              ),
-            );
+          if (item.variantId) {
+            await tx
+              .update(variantStoreInventory)
+              .set({
+                quantity: sql`${variantStoreInventory.quantity} - ${item.quantity}`,
+                updatedAt: new Date(),
+              })
+              .where(
+                and(
+                  eq(variantStoreInventory.storeId, exchange.storeId),
+                  eq(variantStoreInventory.variantId, item.variantId),
+                ),
+              );
+          } else {
+            await tx
+              .update(storeInventory)
+              .set({
+                quantity: sql`${storeInventory.quantity} - ${item.quantity}`,
+                updatedAt: new Date(),
+              })
+              .where(
+                and(
+                  eq(storeInventory.storeId, exchange.storeId),
+                  eq(storeInventory.productId, item.productId),
+                ),
+              );
+          }
 
-          // Update total stock in products table
           await tx
             .update(products)
             .set({
@@ -905,6 +951,7 @@ export class StoreRepository implements StoreStorage {
 
           await tx.insert(stockMovements).values({
             productId: item.productId,
+            variantId: item.variantId,
             quantity: -item.quantity,
             movementType: "sale",
             source: "store",
@@ -927,6 +974,7 @@ export class StoreRepository implements StoreStorage {
       returnItems: {
         saleItemId: string;
         productId: string;
+        variantId?: string;
         quantity: number;
         unitPrice: string;
         returnAmount: string;
@@ -936,6 +984,7 @@ export class StoreRepository implements StoreStorage {
       }[];
       newItems?: {
         productId: string;
+        variantId?: string;
         quantity: number;
         unitPrice: string;
         lineAmount: string;
@@ -1000,6 +1049,13 @@ export class StoreRepository implements StoreStorage {
         throw new Error(`Sale item ${returnItem.saleItemId} not found`);
       }
 
+      // CRITICAL: Validate variantId matches the original sale item
+      if (saleItem.variantId !== returnItem.variantId) {
+        throw new Error(
+          `Variant mismatch for sale item ${returnItem.saleItemId}. Original variant: ${saleItem.variantId}, Return variant: ${returnItem.variantId}`
+        );
+      }
+
       const availableQuantity =
         saleItem.quantity - (saleItem.returnedQuantity || 0);
       if (returnItem.quantity > availableQuantity) {
@@ -1045,13 +1101,43 @@ export class StoreRepository implements StoreStorage {
           throw new Error("Invalid new item data");
         }
 
-        // Check store inventory
-        const inventory = await this.getStoreInventoryItem(
-          storeId,
-          newItem.productId,
-        );
+        // Check store inventory (variant-specific if variantId provided)
+        let inventory;
+        if (newItem.variantId) {
+          // CRITICAL: Validate that variant belongs to the specified product
+          const [variantValidation] = await db
+            .select()
+            .from(productVariants)
+            .where(
+              and(
+                eq(productVariants.id, newItem.variantId),
+                eq(productVariants.productId, newItem.productId),
+              ),
+            )
+            .limit(1);
+
+          if (!variantValidation) {
+            throw new Error(
+              `Variant ${newItem.variantId} does not belong to product ${newItem.productId}`
+            );
+          }
+
+          // Check variant store inventory
+          inventory = await this.getVariantStoreInventory(
+            storeId,
+            newItem.variantId,
+          );
+        } else {
+          // Check regular store inventory
+          inventory = await this.getStoreInventoryItem(
+            storeId,
+            newItem.productId,
+          );
+        }
+        
         if (!inventory || inventory.quantity < newItem.quantity) {
-          throw new Error(`Insufficient stock for item ${newItem.productId}`);
+          const itemType = newItem.variantId ? `variant ${newItem.variantId}` : `item ${newItem.productId}`;
+          throw new Error(`Insufficient stock for ${itemType}`);
         }
 
         // Validate new item amount
@@ -1658,6 +1744,22 @@ export class StoreRepository implements StoreStorage {
         and(
           eq(storeInventory.storeId, storeId),
           eq(storeInventory.productId, productId),
+        ),
+      );
+    return result || undefined;
+  }
+
+  async getVariantStoreInventory(
+    storeId: string,
+    variantId: string,
+  ): Promise<typeof variantStoreInventory.$inferSelect | undefined> {
+    const [result] = await db
+      .select()
+      .from(variantStoreInventory)
+      .where(
+        and(
+          eq(variantStoreInventory.storeId, storeId),
+          eq(variantStoreInventory.variantId, variantId),
         ),
       );
     return result || undefined;

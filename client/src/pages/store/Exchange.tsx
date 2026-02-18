@@ -179,6 +179,9 @@ function StoreExchange() {
         quantity: number;
         unitPrice: string;
         returnAmount: string;
+        exchangeType: string;
+        specificReason: string;
+        damageImages: string;
       }[];
       newItems: {
         productId: string;
@@ -406,6 +409,39 @@ function StoreExchange() {
           ? { ...item, damageImages }
           : item,
       ),
+    );
+  };
+
+  const removeDamageImage = (saleItemId: string, imageIndex: number) => {
+    setReturnItems((prev) =>
+      prev.map((item) => {
+        if (item.saleItemId === saleItemId) {
+          const updatedImages = item.damageImages.filter((_, i) => i !== imageIndex);
+          toast({
+            title: "Photo Removed",
+            description: "Damage photo has been removed",
+            duration: 2000,
+          });
+          return { ...item, damageImages: updatedImages };
+        }
+        return item;
+      }),
+    );
+  };
+
+  const clearAllDamageImages = (saleItemId: string) => {
+    setReturnItems((prev) =>
+      prev.map((item) => {
+        if (item.saleItemId === saleItemId) {
+          toast({
+            title: "All Photos Cleared", 
+            description: "All damage photos have been removed",
+            duration: 2000,
+          });
+          return { ...item, damageImages: [] };
+        }
+        return item;
+      }),
     );
   };
   const addNewItem = (product: ShopProduct, variantId?: string) => {
@@ -1221,15 +1257,44 @@ function StoreExchange() {
                                   Upload Photos
                                 </CloudinaryUploader>
                                 {item.damageImages.length > 0 && (
-                                  <div className="flex gap-1 mt-1">
-                                    {item.damageImages.map((url, index) => (
-                                      <img
-                                        key={index}
-                                        src={url}
-                                        alt={`Damage ${index + 1}`}
-                                        className="w-8 h-8 rounded object-cover border"
-                                      />
-                                    ))}
+                                  <div className="mt-1">
+                                    <div className="flex items-center justify-between mb-1">
+                                      <p className="text-xs font-medium">Damage Photos:</p>
+                                      {item.damageImages.length > 1 && (
+                                        <button
+                                          type="button"
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            clearAllDamageImages(item.saleItemId);
+                                          }}
+                                          className="text-xs text-red-600 hover:text-red-700"
+                                        >
+                                          Clear All
+                                        </button>
+                                      )}
+                                    </div>
+                                    <div className="flex gap-1">
+                                      {item.damageImages.map((url, index) => (
+                                        <div key={index} className="relative">
+                                          <img
+                                            src={url}
+                                            alt={`Damage ${index + 1}`}
+                                            className="w-8 h-8 rounded object-cover border"
+                                          />
+                                          <button
+                                            type="button"
+                                            onClick={(e) => {
+                                              e.stopPropagation();
+                                              removeDamageImage(item.saleItemId, index);
+                                            }}
+                                            title="Remove damage photo"
+                                            className="absolute -top-1 -right-1 bg-red-500 text-white rounded-full w-3 h-3 flex items-center justify-center text-xs hover:bg-red-600 transition-colors"
+                                          >
+                                            ×
+                                          </button>
+                                        </div>
+                                      ))}
+                                    </div>
                                   </div>
                                 )}
                               </div>
