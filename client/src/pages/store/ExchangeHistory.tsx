@@ -4,12 +4,7 @@ import { Button } from "@/components/ui/button";
 import { useDataTable } from "@/hooks/use-data-table";
 import type { StoreExchangeWithDetails } from "@shared/schema";
 import { ColumnDef } from "@tanstack/react-table";
-import {
-  ArrowLeftRight,
-  Eye,
-  Package,
-  RefreshCw
-} from "lucide-react";
+import { ArrowLeftRight, Eye, Package, RefreshCw } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
 export default function StoreExchangeHistory() {
@@ -45,6 +40,16 @@ export default function StoreExchangeHistory() {
       hour: "2-digit",
       minute: "2-digit",
     });
+  };
+  const parseImages = (value: string) => {
+    try {
+      const firstParse = JSON.parse(value || "[]");
+      return typeof firstParse === "string"
+        ? JSON.parse(firstParse)
+        : firstParse;
+    } catch {
+      return [];
+    }
   };
 
   const exchangesColumns: ColumnDef<StoreExchangeWithDetails>[] = [
@@ -111,6 +116,19 @@ export default function StoreExchangeHistory() {
             <span className="text-xs text-muted-foreground">
               {totalItems} total
             </span>
+            {totalItems > 3 && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() =>
+                  navigate(`/store/invoice/${exchange.originalSale.id}`)
+                }
+                className="ml-2"
+              >
+                <Eye className="h-4 w-4" />
+                View Details
+              </Button>
+            )}
           </div>
         );
       },
@@ -154,8 +172,23 @@ export default function StoreExchangeHistory() {
       cell: ({ row }) => (
         <div className="text-sm text-muted-foreground max-w-48">
           {row.original.returnItems?.map((item: any, idx: number) => (
-            <div key={idx} className="truncate">
-              {item.product?.name}: {item.exchangeType === "damage" ? "Damage" : "Normal"} - {item.specificReason}
+            <div key={idx} className="truncate flex items-center gap-1">
+              <span>
+                {item.product?.name}:{" "}
+                {item.exchangeType === "damage" ? "Damage" : "Normal"} -{" "}
+                {item.specificReason}
+              </span>
+              {item.exchangeType === "damage" &&
+                item.damageImages &&
+                item.damageImages.length > 0 && (
+                  <Badge variant="destructive" className="text-xs">
+                    {parseImages(item.damageImages).length > 0 && (
+                      <Badge variant="destructive" className="text-xs">
+                        {parseImages(item.damageImages).length} photos
+                      </Badge>
+                    )}
+                  </Badge>
+                )}
             </div>
           )) || "Not specified"}
         </div>
@@ -207,6 +240,28 @@ export default function StoreExchangeHistory() {
                       Qty: {item.quantity} × {formatPrice(item.unitPrice)} ={" "}
                       {formatPrice(item.returnAmount)}
                     </p>
+                    {item.exchangeType === "damage" &&
+                      item.damageImages &&
+                      JSON.parse(item.damageImages || "[]").length > 0 && (
+                        <div className="mt-2">
+                          <p className="text-xs font-medium text-red-600 mb-1">
+                            Damage Photos:
+                          </p>
+                          <div className="flex gap-1">
+                            {parseImages(item.damageImages).map(
+                              (url: string, index: number) => (
+                                <img
+                                  key={index}
+                                  src={url}
+                                  alt={`Damage ${index + 1}`}
+                                  className="w-12 h-12 rounded object-cover border cursor-pointer hover:scale-105 transition-transform"
+                                  onClick={() => window.open(url, "_blank")}
+                                />
+                              ),
+                            )}
+                          </div>
+                        </div>
+                      )}
                   </div>
                   <Badge variant="destructive" className="text-xs">
                     Return

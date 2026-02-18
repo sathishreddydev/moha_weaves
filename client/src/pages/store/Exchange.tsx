@@ -58,7 +58,7 @@ interface ReturnItem {
   returnAmount: string;
   exchangeType: string;
   specificReason: string;
-  damageImages: string[];
+  damageImages: string[]; // Array, not JSON string
 }
 
 interface NewCartItem {
@@ -181,7 +181,7 @@ function StoreExchange() {
         returnAmount: string;
         exchangeType: string;
         specificReason: string;
-        damageImages: string;
+        damageImages: string[];
       }[];
       newItems: {
         productId: string;
@@ -818,7 +818,7 @@ function StoreExchange() {
         returnAmount: item.returnAmount,
         exchangeType: item.exchangeType,
         specificReason: item.specificReason,
-        damageImages: JSON.stringify(item.damageImages),
+        damageImages: item.damageImages,
       })),
       newItems: newItems.map((item) => ({
         productId: item.productId,

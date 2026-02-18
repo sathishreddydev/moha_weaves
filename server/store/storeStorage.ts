@@ -130,7 +130,7 @@ export interface StoreStorage {
         returnAmount: string;
         exchangeType: string;
         specificReason: string;
-        damageImages: string;
+        damageImages: string[];
       }[];
       newItems?: {
         productId: string;
@@ -980,7 +980,7 @@ export class StoreRepository implements StoreStorage {
         returnAmount: string;
         exchangeType: string;
         specificReason: string;
-        damageImages: string;
+        damageImages: string[];
       }[];
       newItems?: {
         productId: string;
@@ -1082,8 +1082,7 @@ export class StoreRepository implements StoreStorage {
 
       // For damage exchanges, require at least one damage image
       if (returnItem.exchangeType === "damage") {
-        const damageImages = JSON.parse(returnItem.damageImages || "[]");
-        if (!damageImages || damageImages.length === 0) {
+        if (!returnItem.damageImages || returnItem.damageImages.length === 0) {
           throw new Error("At least one damage photo is required for damage exchanges");
         }
       }
@@ -1200,7 +1199,13 @@ export class StoreRepository implements StoreStorage {
     //   );
     // }
 
-    return await this.createStoreExchange(
+    // Convert damageImages arrays to JSON strings for database storage
+    const returnItemsForDb: Omit<InsertStoreExchangeReturnItem, "exchangeId">[] = data.returnItems.map(item => ({
+      ...item,
+      damageImages: JSON.stringify(item.damageImages || [])
+    }));
+
+    const exchange = await this.createStoreExchange(
       {
         id: exchangeId,
         storeId,
@@ -1214,9 +1219,11 @@ export class StoreRepository implements StoreStorage {
         balanceAmount: balanceAmount.toString(),
         balanceDirection,
       },
-      data.returnItems,
+      returnItemsForDb,
       data.newItems || [],
     );
+
+    return exchange;
   }
 
   async getStoreExchangesPaginated(
