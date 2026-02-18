@@ -740,6 +740,7 @@ export class StoreRepository implements StoreStorage {
           ...item,
           exchangeId: createdExchange.id,
           damageImages: JSON.stringify(item.damageImages || []),
+          variantId: item.variantId, // Add variantId to match database schema
         }));
         await tx.insert(storeExchangeReturnItems).values(returnRecords);
 

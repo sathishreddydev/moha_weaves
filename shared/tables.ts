@@ -774,6 +774,8 @@ export const storeExchangeReturnItems = pgTable("store_exchange_return_items", {
   productId: varchar("product_id")
     .references(() => products.id)
     .notNull(),
+  variantId: varchar("variant_id")
+    .references(() => productVariants.id),
   quantity: integer("quantity").notNull(),
   unitPrice: decimal("unit_price", { precision: 10, scale: 2 }).notNull(),
   returnAmount: decimal("return_amount", { precision: 10, scale: 2 }).notNull(),

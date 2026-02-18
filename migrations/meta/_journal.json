@@ -29,6 +29,13 @@
       "when": 1771335893719,
       "tag": "0003_perpetual_black_panther",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1771363933977,
+      "tag": "0004_sticky_layla_miller",
+      "breakpoints": true
     }
   ]
 }

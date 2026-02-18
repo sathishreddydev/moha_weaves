@@ -295,14 +295,6 @@ export default function Invoice() {
                           <p className="text-xs text-slate-600">
                             Date: {formatDate(exchange.createdAt)}
                           </p>
-                          <div className="text-xs text-slate-600">
-                            <p className="font-medium">Exchange Reasons:</p>
-                            {exchange.returnItems?.map((item: any, idx: number) => (
-                              <div key={idx} className="ml-2">
-                                {item.product?.name}: {item.exchangeType === "damage" ? "Damage" : "Normal"} - {item.specificReason}
-                              </div>
-                            ))}
-                          </div>
                         </div>
                         <div className="text-right">
                           <p className="text-xs text-slate-600">
@@ -326,7 +318,7 @@ export default function Invoice() {
                                       SKU ID
                                     </th>
                                     <th className="py-3 font-semibold px-2">
-                                      Description
+                                      Product
                                     </th>
                                     <th className="py-3 font-semibold px-2 text-center">
                                       Qty
@@ -356,6 +348,7 @@ export default function Invoice() {
                                                 Size: {item.product?.variants?.find((v: any) => v.id === item.variantId)?.size || `ID: ${item.variantId}`}
                                               </div>
                                             )}
+                                            {item.exchangeType === "damage" ? "Damage" : "Normal"} - {item.specificReason}
                                           </div>
                                         </td>
                                         <td className="py-3 px-2 text-center">
