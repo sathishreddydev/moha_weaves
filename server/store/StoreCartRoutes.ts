@@ -1,4 +1,4 @@
-import crypto from "crypto";
+import * as crypto from "crypto";
 import { Express, Request, Response } from "express";
 import { createAuthMiddleware } from "server/authMiddleware";
 import { z } from "zod";
@@ -71,7 +71,7 @@ export const storeCartRoutes = (app: Express) => {
   const authStore = createAuthMiddleware(["store"]);
   app.get("/api/store/cart", authStore, async (req: Request, res: Response) => {
     try {
-      const storeId = req.user?.storeId;
+      const storeId = (req.user as any)?.storeId;
       if (!storeId) return res.status(401).json({ error: "Store not authenticated" });
 
       const storeRepo = new StoreRepository();
@@ -85,7 +85,7 @@ export const storeCartRoutes = (app: Express) => {
 
   app.post("/api/store/cart", authStore, async (req: Request, res: Response) => {
     try {
-      const storeId = req.user?.storeId;
+      const storeId = (req.user as any)?.storeId;
       if (!storeId) {
         return res.status(401).json({ error: "Store not authenticated" });
       }
@@ -129,7 +129,7 @@ export const storeCartRoutes = (app: Express) => {
 
   app.put("/api/store/cart", authStore, async (req: Request, res: Response) => {
     try {
-      const storeId = req.user?.storeId;
+      const storeId = (req.user as any)?.storeId;
       if (!storeId) return res.status(401).json({ error: "Store not authenticated" });
 
       const validatedData = updateCartSchema.parse(req.body);
@@ -212,7 +212,7 @@ export const storeCartRoutes = (app: Express) => {
 
   app.delete("/api/store/cart/:productId/:variantId?", authStore, async (req: Request, res: Response) => {
     try {
-      const storeId = req.user?.storeId;
+      const storeId = (req.user as any)?.storeId;
       if (!storeId) return res.status(401).json({ error: "Store not authenticated" });
 
       const { productId, variantId } = req.params;
@@ -228,7 +228,7 @@ export const storeCartRoutes = (app: Express) => {
 
   app.post("/api/store/apply-coupon", authStore, async (req: Request, res: Response) => {
     try {
-      const storeId = req.user?.storeId;
+      const storeId = (req.user as any)?.storeId;
       if (!storeId) return res.status(401).json({ error: "Store not authenticated" });
 
       const validatedData = applyCouponSchema.parse(req.body);
@@ -246,8 +246,8 @@ export const storeCartRoutes = (app: Express) => {
 
   app.post("/api/store/checkout", authStore, async (req: Request, res: Response) => {
     try {
-      const storeId = req.user?.storeId;
-      const processedBy = req.user?.id;
+      const storeId = (req.user as any)?.storeId;
+      const processedBy = (req.user as any)?.id;
       if (!storeId || !processedBy) return res.status(401).json({ error: "Store not authenticated" });
 
       const validatedData = checkoutSchema.parse(req.body);
@@ -326,7 +326,9 @@ export const storeCartRoutes = (app: Express) => {
         customerName: validatedData.customerName,
         customerPhone: validatedData.customerPhone,
         items: validatedData.items.map(item => ({
-          ...item,
+          productId: item.productId,
+          variantId: item.variantId || null,
+          quantity: item.quantity || 0,
           unitPrice: typeof item.unitPrice === 'number' ? item.unitPrice.toString() : item.unitPrice,
           lineAmount: item.lineAmount.toString(),
         })),
@@ -367,7 +369,7 @@ export const storeCartRoutes = (app: Express) => {
 
   app.get("/api/store/receipt/:orderId", authStore, async (req: Request, res: Response) => {
     try {
-      const storeId = req.user?.storeId;
+      const storeId = (req.user as any)?.storeId;
       if (!storeId) return res.status(401).json({ error: "Store not authenticated" });
 
       const { orderId } = req.params;

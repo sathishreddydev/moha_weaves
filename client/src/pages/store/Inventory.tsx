@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { useDataTable } from "@/hooks/use-data-table";
 import { TreeNode } from "@/lib/type";
-import type { ProductWithDetails } from "@shared/schema";
+import type { ProductWithDetails, StockRequestWithDetails } from "@shared/schema";
 import { ColumnDef } from "@tanstack/react-table";
 import { ArrowLeftRight, Globe, Package, RefreshCw, Store } from "lucide-react";
 import { useEffect, useState, useMemo, useCallback } from "react";
@@ -23,6 +23,7 @@ type ShopProduct = ProductWithDetails & {
     maxDiscount?: string;
   } | null;
   discountedPrice?: number;
+  stockRequests?: StockRequestWithDetails[];
 };
 
 export default function StoreInventoryPage() {
@@ -401,6 +402,7 @@ export default function StoreInventoryPage() {
         searchPlaceholder="Search by name or SKU..."
         emptyMessage="No products available for shop"
         filters={filters}
+        className="[&_table]:text-xs [&_th]:h-8 [&_th]:px-2 [&_td]:px-2 [&_td]:py-1"
       />
       {dialogOpen && (
         <RequestDialog

@@ -375,6 +375,7 @@ export default function StoreHistory() {
           isLoading={isLoading}
           searchPlaceholder="Search by sale ID..."
           emptyMessage="No sales history yet"
+          className="[&_table]:text-xs [&_th]:h-8 [&_th]:px-2 [&_td]:px-2 [&_td]:py-1"
         />
       </div>
 
