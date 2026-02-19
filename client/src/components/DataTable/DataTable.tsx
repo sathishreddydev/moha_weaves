@@ -46,7 +46,7 @@ import {
   Search,
   X,
 } from "lucide-react";
-import React, { useCallback, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import { DateRange } from "react-day-picker";
 
 import { TreeNode } from "@/lib/type";
@@ -67,6 +67,9 @@ export interface DataTableProps<TData, TValue> {
   searchPlaceholder?: string;
   emptyMessage?: string;
   className?: string;
+  hideSearch?: boolean;
+  hideDateRange?: boolean;
+  pageKey?: string;
 
   accordion?: boolean;
   accordionContent?: (row: TData) => React.ReactNode;
@@ -89,6 +92,9 @@ export function DataTable<TData, TValue>({
   searchPlaceholder = "Search...",
   emptyMessage = "No results found.",
   className,
+  hideSearch = false,
+  hideDateRange = false,
+  pageKey = 'default',
   accordion = false,
   accordionContent,
   accordionPosition = "below",
@@ -96,16 +102,24 @@ export function DataTable<TData, TValue>({
   onRowExpand,
   filters,
 }: DataTableProps<TData, TValue>) {
+  const filterStore = useDataTableFilterStore();
+  const pageFilters = filterStore.getFilters(pageKey);
+  
   const {
-    search,
-    dateRange,
     setSearch,
     setDateRange,
     resetFilters,
     hasActiveFilters,
     setFilter,
-    ...dynamicFilters
-  } = useDataTableFilterStore();
+  } = filterStore;
+
+  // Get page-specific dynamic filters
+  const dynamicFilters: Record<string, string[]> = {};
+  Object.keys(pageFilters).forEach(key => {
+    if (key !== 'search' && key !== 'dateRange' && Array.isArray(pageFilters[key])) {
+      dynamicFilters[key] = pageFilters[key] as string[];
+    }
+  });
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [sorting, setSorting] = useState<SortingState>([]);
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
@@ -113,8 +127,30 @@ export function DataTable<TData, TValue>({
   const [expandedRows, setExpandedRows] = useState<Set<string>>(
     new Set(defaultExpandedRows),
   );
+  const [localSearch, setLocalSearch] = useState(pageFilters.search);
+  const searchTimeoutRef = useRef<NodeJS.Timeout>();
 
   const pageCount = Math.ceil(totalCount / pageSize);
+
+  useEffect(() => {
+    if (searchTimeoutRef.current) {
+      clearTimeout(searchTimeoutRef.current);
+    }
+
+    searchTimeoutRef.current = setTimeout(() => {
+      setSearch(localSearch, pageKey);
+    }, 300);
+
+    return () => {
+      if (searchTimeoutRef.current) {
+        clearTimeout(searchTimeoutRef.current);
+      }
+    };
+  }, [localSearch, setSearch, pageKey]);
+
+  useEffect(() => {
+    setLocalSearch(pageFilters.search);
+  }, [pageFilters.search]);
 
   const table = useReactTable({
     data,
@@ -139,9 +175,9 @@ export function DataTable<TData, TValue>({
 
   const handleSearchChange = useCallback(
     (value: string) => {
-      setSearch(value);
+      setLocalSearch(value);
     },
-    [setSearch],
+    [],
   );
 
   const toggleRowExpansion = useCallback(
@@ -160,73 +196,77 @@ export function DataTable<TData, TValue>({
   return (
     <div className="space-y-4">
       <div className="flex flex-col sm:flex-row gap-4">
-        <div className="relative flex-1 max-w-sm">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-          <Input
-            placeholder={searchPlaceholder}
-            value={search}
-            onChange={(e) => handleSearchChange(e.target.value)}
-            className="pl-9"
-          />
-        </div>
-
-        <Popover>
-          <PopoverTrigger asChild>
-            <Button
-              variant="outline"
-              className={cn(
-                "justify-start text-left font-normal w-[240px]",
-                !dateRange && "text-muted-foreground",
-              )}
-            >
-              <CalendarIcon className="mr-2 h-4 w-4" />
-              {dateRange?.from ? (
-                dateRange.to ? (
-                  <>
-                    {format(dateRange.from, "LLL dd, y")} -{" "}
-                    {format(dateRange.to, "LLL dd, y")}
-                  </>
-                ) : (
-                  format(dateRange.from, "LLL dd, y")
-                )
-              ) : (
-                <span>Date range</span>
-              )}
-            </Button>
-          </PopoverTrigger>
-
-          <PopoverContent className="w-auto p-0" align="start">
-            <Calendar
-              mode="range"
-              selected={dateRange as DateRange | undefined}
-              onSelect={(range) => {
-                const value =
-                  range?.from || range?.to
-                    ? { from: range?.from, to: range?.to }
-                    : null;
-
-                setDateRange(value);
-              }}
-              numberOfMonths={2}
+        {!hideSearch && (
+          <div className="relative flex-1 max-w-sm">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder={searchPlaceholder}
+              value={localSearch}
+              onChange={(e) => handleSearchChange(e.target.value)}
+              className="pl-9"
             />
+          </div>
+        )}
 
-            {dateRange && (
-              <div className="p-3 border-t">
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => {
-                    setDateRange(null);
-                  }}
-                  className="w-full"
-                >
-                  <X className="mr-2 h-4 w-4" />
-                  Clear date
-                </Button>
-              </div>
-            )}
-          </PopoverContent>
-        </Popover>
+        {!hideDateRange && (
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button
+                variant="outline"
+                className={cn(
+                  "justify-start text-left font-normal w-[240px]",
+                  !pageFilters.dateRange && "text-muted-foreground",
+                )}
+              >
+                <CalendarIcon className="mr-2 h-4 w-4" />
+                {pageFilters.dateRange?.from ? (
+                  pageFilters.dateRange.to ? (
+                    <>
+                      {format(pageFilters.dateRange.from, "LLL dd, y")} -{" "}
+                      {format(pageFilters.dateRange.to, "LLL dd, y")}
+                    </>
+                  ) : (
+                    format(pageFilters.dateRange.from, "LLL dd, y")
+                  )
+                ) : (
+                  <span>Date range</span>
+                )}
+              </Button>
+            </PopoverTrigger>
+
+            <PopoverContent className="w-auto p-0" align="start">
+              <Calendar
+                mode="range"
+                selected={pageFilters.dateRange as DateRange | undefined}
+                onSelect={(range) => {
+                  const value =
+                    range?.from || range?.to
+                      ? { from: range?.from, to: range?.to }
+                      : null;
+
+                  setDateRange(value, pageKey);
+                }}
+                numberOfMonths={2}
+              />
+
+              {pageFilters.dateRange && (
+                <div className="p-3 border-t">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => {
+                      setDateRange(null, pageKey);
+                    }}
+                    className="w-full"
+                  >
+                    <X className="mr-2 h-4 w-4" />
+                    Clear date
+                  </Button>
+                </div>
+              )}
+            </PopoverContent>
+          </Popover>
+        )}
 
         {filters?.length && (
           <Button
@@ -239,16 +279,16 @@ export function DataTable<TData, TValue>({
         )}
       </div>
 
-      {hasActiveFilters() && (
+      {hasActiveFilters(pageKey) && (
         <div className="flex flex-wrap items-center gap-2">
           <span className="text-sm text-muted-foreground flex items-center">
             <Filter className="h-4 w-4 mr-1" />
             Active filters:
           </span>
 
-          {search && (
+          {!hideSearch && localSearch && (
             <Badge variant="secondary" className="gap-1">
-              Search: {search}
+              Search: {localSearch}
               <X
                 className="h-3 w-3 cursor-pointer"
                 onClick={() => handleSearchChange("")}
@@ -256,14 +296,14 @@ export function DataTable<TData, TValue>({
             </Badge>
           )}
 
-          {dateRange?.from && (
+          {!hideDateRange && pageFilters.dateRange?.from && (
             <Badge variant="secondary" className="gap-1">
-              Date: {format(dateRange.from, "MMM dd")}
-              {dateRange.to && ` - ${format(dateRange.to, "MMM dd")}`}
+              Date: {format(pageFilters.dateRange.from, "MMM dd")}
+              {pageFilters.dateRange.to && ` - ${format(pageFilters.dateRange.to, "MMM dd")}`}
               <X
                 className="h-3 w-3 cursor-pointer"
                 onClick={() => {
-                  setDateRange(null);
+                  setDateRange(null, pageKey);
                 }}
               />
             </Badge>
@@ -280,7 +320,7 @@ export function DataTable<TData, TValue>({
                   <X
                     className="h-3 w-3 cursor-pointer"
                     onClick={() => {
-                      setFilter(key, []);
+                      setFilter(key, [], pageKey);
                     }}
                   />
                 </Badge>
@@ -293,7 +333,7 @@ export function DataTable<TData, TValue>({
             variant="ghost"
             size="sm"
             onClick={() => {
-              resetFilters();
+              resetFilters(pageKey);
             }}
             className="h-6 px-2 text-xs"
           >
@@ -467,6 +507,7 @@ export function DataTable<TData, TValue>({
         open={isFilterOpen}
         onOpenChange={setIsFilterOpen}
         filters={filters}
+        pageKey={pageKey}
       />
     </div>
   );

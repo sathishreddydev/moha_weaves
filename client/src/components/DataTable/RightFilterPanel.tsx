@@ -11,11 +11,12 @@ type Props = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   filters?: FilterItem[];
+  pageKey?: string;
 };
 
 type TempFilters = Record<string, string[]>;
 
-export function RightFilterPanel({ open, onOpenChange, filters }: Props) {
+export function RightFilterPanel({ open, onOpenChange, filters, pageKey = 'default' }: Props) {
   const store = useDataTableFilterStore();
 
   const [tempFilters, setTempFilters] = useState<TempFilters>({});
@@ -24,19 +25,20 @@ export function RightFilterPanel({ open, onOpenChange, filters }: Props) {
     if (!open || !filters) return;
 
     const initial: TempFilters = {};
+    const pageFilters = store.getFilters(pageKey);
     filters.forEach(({ key }) => {
-      initial[key] = (store[key as keyof typeof store] as string[]) || [];
+      initial[key] = (pageFilters[key as keyof typeof pageFilters] as string[]) || [];
     });
 
     setTempFilters(initial);
-  }, [open, filters, store]);
+  }, [open, filters, store, pageKey]);
 
   const handleApply = () => {
     if (!filters) return;
     
     filters.forEach(({ key }) => {
       const values = tempFilters[key as string] || [];
-      store.setFilter(key, values);
+      store.setFilter(key, values, pageKey);
     });
 
     onOpenChange(false);
@@ -44,7 +46,7 @@ export function RightFilterPanel({ open, onOpenChange, filters }: Props) {
 
   const handleReset = () => {
     setTempFilters({});
-    store.resetFilters();
+    store.resetFilters(pageKey);
   };
 
   return (

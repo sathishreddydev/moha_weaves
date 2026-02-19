@@ -16,6 +16,7 @@ import {
   isOutOfStock,
   updateCartItemQuantity
 } from "@/pages/store/utils/cartUtils";
+import { createSaleFilters } from "@/pages/store/utils/filterUtils";
 import { ColumnDef } from "@tanstack/react-table";
 import { Camera, Minus, Plus, RefreshCw, ShoppingCart, Trash2 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
@@ -73,6 +74,7 @@ export default function StoreSale() {
   } = useDataTable<ShopProduct>({
     queryKey: "/api/store/products/paginated",
     initialPageSize: 10,
+    pageKey:"storeSales"
   });
 
   
@@ -179,91 +181,9 @@ export default function StoreSale() {
   const displayProducts = tableProducts;
   const displayLoading = tableLoading;
 
-  const filters: FilterItem[] = useMemo(() => [
-    {
-      key: "categoryIds",
-      label: "Categories",
-      tree: categories.map((cat) => ({
-        id: cat.id, 
-        label: cat.name,
-        data: cat,
-        children: cat?.subcategories?.map((sub) => ({
-          id: sub.id, 
-          label: sub.name,
-        })) || [],
-      })),
-      placeholder: "Search categories...",
-    },
-    {
-      key: "colorIds",
-      label: "Colors",
-      tree: colors.map((color) => ({
-        id: color.id, 
-        label: color.name,
-        data: color,
-      })),
-      placeholder: "Search colors...",
-    },
-    {
-      key: "fabricIds",
-      label: "Fabrics",
-      tree: fabrics.map((fabric) => ({
-        id: fabric.id, 
-        label: fabric.name,
-        data: fabric,
-      })),
-      placeholder: "Search fabrics...",
-    },
-    {
-      key: "sizes",
-      label: "Sizes",
-      tree: [
-        { id: "XS", label: "XS" },
-        { id: "S", label: "S" },
-        { id: "M", label: "M" },
-        { id: "L", label: "L" },
-        { id: "XL", label: "XL" },
-        { id: "XXL", label: "XXL" },
-        { id: "3XL", label: "3XL" },
-      ],
-      placeholder: "Select sizes...",
-    },
-    {
-      key: "featured",
-      label: "Featured",
-      tree: [
-        { id: "true", label: "Featured Only" },
-      ],
-      placeholder: "Select featured status...",
-    },
-    {
-      key: "onSale",
-      label: "Sale Status",
-      tree: [
-        { id: "true", label: "On Sale Only" },
-      ],
-      placeholder: "Select sale status...",
-    },
-    {
-      key: "inStock",
-      label: "Stock Status",
-      tree: [
-        { id: "true", label: "In Stock Only" },
-      ],
-      placeholder: "Select stock status...",
-    },
-    {
-      key: "sort",
-      label: "Sort By",
-      tree: [
-        { id: "price-low", label: "Price: Low to High" },
-        { id: "price-high", label: "Price: High to Low" },
-        { id: "name", label: "Name: A to Z" },
-        { id: "created-desc", label: "Newest First" },
-      ],
-      placeholder: "Select sort order...",
-    },
-  ], [categories, colors, fabrics]);
+  const filters: FilterItem[] = useMemo(() => 
+    createSaleFilters(categories, colors, fabrics)
+  , [categories, colors, fabrics]);
   const productColumns: ColumnDef<ShopProduct>[] = [
     {
       accessorKey: "product.imageUrl",
@@ -631,6 +551,7 @@ export default function StoreSale() {
 
       <div>
         <DataTable
+          pageKey="storeSales"
           columns={productColumns}
           data={displayProducts}
           totalCount={totalCount || displayProducts.length}

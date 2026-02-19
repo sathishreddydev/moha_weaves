@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo } from "react";
+import { useState, useCallback, useMemo, useEffect } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useDataTableFilterStore } from "@/components/Store/useDataTableFilter";
 import { apiRequest } from "@/lib/queryClient";
@@ -28,20 +28,40 @@ export interface UseDataTableOptions<T> {
   initialPageSize?: number;
   buildUrl?: (params: TableParams) => string;
   method?: "GET" | "POST";
+  pageKey?: string;
 }
 
 export function useDataTable<T>({
   queryKey,
   initialPageSize = 10,
   method = "POST",
+  pageKey = 'default',
 }: UseDataTableOptions<T>) {
   const queryClient = useQueryClient();
 
   const [pageIndex, setPageIndex] = useState(0);
   const [pageSize, setPageSize] = useState(initialPageSize);
+  const filterStore = useDataTableFilterStore();
+  const [filterUpdateTrigger, setFilterUpdateTrigger] = useState(0);
+  const pageFilters = useMemo(() => {
+    return filterStore.getFilters(pageKey);
+  }, [filterStore, pageKey, filterUpdateTrigger]);
 
-  const { search, dateRange, ...dynamicFilters } =
-    useDataTableFilterStore();
+  useEffect(() => {
+    let lastFilters = JSON.stringify(filterStore.getFilters(pageKey));
+
+    const interval = setInterval(() => {
+      const currentFilters = JSON.stringify(filterStore.getFilters(pageKey));
+      if (currentFilters !== lastFilters) {
+        lastFilters = currentFilters;
+        setFilterUpdateTrigger(prev => prev + 1);
+      }
+    }, 300); // Check every 300ms
+
+    return () => clearInterval(interval);
+  }, [filterStore, pageKey]);
+
+  const { search, dateRange, ...dynamicFilters } = pageFilters;
 
   const params: TableParams = useMemo(
     () => ({
@@ -52,7 +72,7 @@ export function useDataTable<T>({
       dateTo: dateRange?.to?.toISOString(),
       ...dynamicFilters,
     }),
-    [pageIndex, pageSize, search, dateRange, dynamicFilters],
+    [pageIndex, pageSize, search, dateRange, dynamicFilters, filterUpdateTrigger],
   );
   const queryParams = useMemo(
     () => ({
@@ -72,13 +92,22 @@ export function useDataTable<T>({
         dateTo: dateRange.to.toISOString(),
       }),
       ...Object.entries(dynamicFilters).reduce((acc, [key, value]) => {
-        if (Array.isArray(value) && value.length > 0) {
-          acc[key] = value;
+        if (key === 'sort') {
+          // Handle sort filter - could be array or string
+          if (Array.isArray(value)) {
+            if (value.length > 0) {
+              acc[key] = value[0]; // Extract first element if array
+            }
+          } else if (value) {
+            acc[key] = value; // Use as-is if string
+          }
+        } else if (Array.isArray(value) && value.length > 0) {
+          acc[key] = value; // Send other filters as arrays
         }
         return acc;
       }, {} as Record<string, any>),
     }),
-    [search, dateRange, dynamicFilters],
+    [search, dateRange, dynamicFilters, filterUpdateTrigger],
   );
 
   const url = useMemo(() => {

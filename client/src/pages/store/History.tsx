@@ -19,6 +19,7 @@ import type { StoreSaleWithItems } from "@shared/schema";
 import { ColumnDef } from "@tanstack/react-table";
 import { formatDate, formatPrice } from "@/lib/utils";
 import { saveAs } from "file-saver";
+import { createHistoryFilters } from "./utils/filterUtils";
 import {
   AlertCircle,
   ArrowLeftRight,
@@ -30,7 +31,7 @@ import {
   RefreshCw,
   User,
 } from "lucide-react";
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import * as XLSX from "xlsx";
 
@@ -52,8 +53,10 @@ export default function StoreHistory() {
   } = useDataTable<StoreSaleWithItems>({
     queryKey: "/api/store/salesHistory",
     initialPageSize: 10,
+    pageKey: "storeSalesHistory",
   });
 
+  const filters = useMemo(() => createHistoryFilters(), []);
 
   const exportToExcel = () => {
     if (!sales || sales.length === 0) {
@@ -349,6 +352,7 @@ export default function StoreHistory() {
         </div>
 
         <DataTable
+          pageKey='storeSalesHistory'
           columns={salesColumns}
           data={sales}
           totalCount={totalCount}
@@ -358,6 +362,7 @@ export default function StoreHistory() {
           isLoading={isLoading}
           searchPlaceholder="Search by sale ID..."
           emptyMessage="No sales history yet"
+          filters={filters}
           className="[&_table]:text-xs [&_th]:h-8 [&_th]:px-2 [&_td]:px-2 [&_td]:py-1"
         />
       </div>

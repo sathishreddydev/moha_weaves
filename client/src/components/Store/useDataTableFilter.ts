@@ -12,12 +12,13 @@ export type FiltersState = {
 };
 
 type FilterStore = FiltersState & {
-  setSearch: (search: string) => void;
-  setFilter: (key: string, values: string[]) => void;
-  setDateRange: (range: DateRangeFilter | null) => void;
+  setSearch: (search: string, pageKey?: string) => void;
+  setFilter: (key: string, values: string[], pageKey?: string) => void;
+  setDateRange: (range: DateRangeFilter | null, pageKey?: string) => void;
 
-  resetFilters: () => void;
-  hasActiveFilters: () => boolean;
+  resetFilters: (pageKey?: string) => void;
+  hasActiveFilters: (pageKey?: string) => boolean;
+  getFilters: (pageKey: string) => FiltersState;
 };
 
 const initialState: FiltersState = {
@@ -26,33 +27,55 @@ const initialState: FiltersState = {
 };
 
 export const useDataTableFilterStore = create<FilterStore>()(
-  devtools((set, get) => ({
-    ...initialState,
+  devtools((set, get) => {
+    const store: Record<string, FiltersState> = {
+      default: { ...initialState }
+    };
 
-    setSearch: (search) => set({ search }),
-    setFilter: (key, values) => set((state) => ({ ...state, [key]: values })),
-    setDateRange: (dateRange) => set({ dateRange }),
+    return {
+      // Backward compatibility - use default page
+      get search() { return store.default.search; },
+      get dateRange() { return store.default.dateRange; },
+      
+      setSearch: (search, pageKey = 'default') => {
+        store[pageKey] = { ...store[pageKey], search };
+        // Always trigger update for reactive subscriptions
+        set({ [`search_${pageKey}`]: search });
+      },
+      
+      setFilter: (key, values, pageKey = 'default') => {
+        store[pageKey] = { ...store[pageKey], [key]: values };
+        // Always trigger update for reactive subscriptions
+        set({ [`${key}_${pageKey}`]: values });
+      },
+      
+      setDateRange: (dateRange, pageKey = 'default') => {
+        store[pageKey] = { ...store[pageKey], dateRange };
+        // Always trigger update for reactive subscriptions
+        set({ [`dateRange_${pageKey}`]: dateRange });
+      },
 
-    resetFilters: () => set((state) => {
-      const newState = { ...initialState };
-      Object.keys(state).forEach(key => {
-        if (key !== 'search' && key !== 'dateRange' && 
-            typeof state[key as keyof typeof state] !== 'function') {
-          newState[key] = [];
+      resetFilters: (pageKey = 'default') => {
+        store[pageKey] = { ...initialState };
+        if (pageKey === 'default') {
+          set(initialState);
         }
-      });
-      return newState;
-    }),
+      },
 
-    hasActiveFilters: () => {
-      const state = get();
-      return (
-        state.search !== "" ||
-        Object.entries(state).some(([key, value]) => 
-          key !== 'search' && key !== 'dateRange' && Array.isArray(value) && value.length > 0
-        ) ||
-        Boolean(state.dateRange?.from || state.dateRange?.to)
-      );
-    },
-  })),
+      hasActiveFilters: (pageKey = 'default') => {
+        const state = store[pageKey] || initialState;
+        return (
+          state.search !== "" ||
+          Object.entries(state).some(([key, value]) => 
+            key !== 'search' && key !== 'dateRange' && Array.isArray(value) && value.length > 0
+          ) ||
+          Boolean(state.dateRange?.from || state.dateRange?.to)
+        );
+      },
+
+      getFilters: (pageKey: string) => {
+        return store[pageKey] || { ...initialState };
+      },
+    };
+  }),
 );

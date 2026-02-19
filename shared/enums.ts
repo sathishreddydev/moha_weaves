@@ -95,6 +95,13 @@ export const requestStatusEnum = pgEnum("request_status", [
   "rejected",
 ]);
 
+export const requestPriorityEnum = pgEnum("request_priority", [
+  "urgent",
+  "high",
+  "normal",
+  "low",
+]);
+
 // Return and exchange enums
 export const returnReasonEnum = pgEnum("return_reason", [
   "defective",

@@ -1,44 +1,13 @@
 import {
     InsertStockRequest,
-    InsertStore,
-    InsertStoreExchange,
-    InsertStoreExchangeNewItem,
-    InsertStoreExchangeReturnItem,
-    ProductWithDetails,
     StockRequest,
     StockRequestWithDetails,
-    Store,
-    StoreExchange,
-    StoreExchangeWithDetails,
-    StoreInventory,
-    StoreSale,
-    StoreSaleWithItems,
-    appSettings,
-    categories,
-    colors,
-    couponUsage,
-    coupons,
-    fabrics,
-    products,
-    saleProducts,
-    sales,
-    stockMovements,
-    storeCart,
-    storeExchangeNewItems,
-    storeExchangeReturnItems,
-    storeExchanges,
-    storeInventory,
-    storeSaleItems,
-    storeSales,
-    stores,
-    subcategories,
-    users,
+    stores
 } from "@shared/schema";
-import { and, count, desc, eq, gt, gte, ilike, inArray, lte, or, sql } from "drizzle-orm";
+import { and, asc, count, desc, eq, gte, ilike, inArray, lte, or, sql } from "drizzle-orm";
 import { db } from "server/db";
 import { roleBasedProductService } from "server/product/roleBasedProductService";
-import { stockRequests, variantStoreInventory } from "../../shared/tables";
-import { CustomerService } from "./customerStorage";
+import { stockRequests } from "../../shared/tables";
 import { formatProductsByStore } from "./formatedData";
 
 export interface Iprops {
@@ -51,6 +20,20 @@ export interface Iprops {
         storeId?: string;
         status?: string;
     }, role?: string): Promise<StockRequestWithDetails[]>;
+    getStockRequestsPaginated(
+        storeId: string,
+        options: {
+            limit: number;
+            offset: number;
+            search?: string;
+            status?: string;
+            priority?: string;
+            dateFrom?: string;
+            dateTo?: string;
+            sort?: string;
+        },
+        role: string,
+    ): Promise<{ data: StockRequestWithDetails[]; total: number }>;
     createStockRequest(request: InsertStockRequest): Promise<StockRequest>;
     updateStockRequestStatus(
         id: string,
@@ -157,14 +140,19 @@ export class StockRequestRepository implements Iprops {
             offset: number;
             search?: string;
             status?: string;
+            priority?: string;
             dateFrom?: string;
             dateTo?: string;
+            sort?: string;
         },
         role: string,
     ): Promise<{ data: StockRequestWithDetails[]; total: number }> {
         const conditions = [eq(stockRequests.storeId, storeId)];
         if (options.status) {
             conditions.push(eq(stockRequests.status, options.status as any));
+        }
+        if (options.priority) {
+            conditions.push(eq(stockRequests.priority, options.priority as any));
         }
         if (options.search) {
             conditions.push(
@@ -182,6 +170,30 @@ export class StockRequestRepository implements Iprops {
             conditions.push(lte(stockRequests.createdAt, new Date(options.dateTo)));
         }
 
+        // Add dynamic sorting
+        let orderByClause = desc(stockRequests.createdAt); // default
+        if (options.sort) {
+            switch (options.sort) {
+                case 'date-asc':
+                    orderByClause = asc(stockRequests.createdAt);
+                    break;
+                case 'priority-desc':
+                    // Custom priority order: urgent > high > normal > low
+                    orderByClause = sql`CASE 
+                        WHEN ${stockRequests.priority} = 'urgent' THEN 1
+                        WHEN ${stockRequests.priority} = 'high' THEN 2
+                        WHEN ${stockRequests.priority} = 'normal' THEN 3
+                        WHEN ${stockRequests.priority} = 'low' THEN 4
+                        ELSE 5
+                    END`;
+                    break;
+                case 'date-desc':
+                default:
+                    orderByClause = desc(stockRequests.createdAt);
+                    break;
+            }
+        }
+
         const countResult = await db
             .select({ count: count() })
             .from(stockRequests)
@@ -192,7 +204,7 @@ export class StockRequestRepository implements Iprops {
             .from(stockRequests)
             .innerJoin(stores, eq(stockRequests.storeId, stores.id))
             .where(and(...conditions))
-            .orderBy(desc(stockRequests.createdAt))
+            .orderBy(orderByClause)
             .limit(options.limit)
             .offset(options.offset);
 

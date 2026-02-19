@@ -33,7 +33,7 @@ import {
   users,
   variantStoreInventory
 } from "@shared/schema";
-import { and, desc, eq, gt, gte, inArray, lte, sql } from "drizzle-orm";
+import { and, asc, desc, eq, gt, gte, inArray, lte, sql } from "drizzle-orm";
 import { db } from "server/db";
 import { roleBasedProductService } from "server/product/roleBasedProductService";
 import { CustomerService } from "./customerStorage";
@@ -137,6 +137,7 @@ export interface StoreStorage {
       search?: string;
       dateFrom?: string;
       dateTo?: string;
+      sort?: string;
     },
   ): Promise<{ data: StoreSaleWithItems[]; total: number }>;
   updateStoreInventory(
@@ -1123,50 +1124,86 @@ export class StoreRepository implements StoreStorage {
   }
 
   async getStoreExchangesPaginated(
-    storeId: string,
-    options: {
-      limit: number;
-      offset: number;
-      search?: string;
-      dateFrom?: string;
-      dateTo?: string;
-    },
-  ) {
-    const conditions = [eq(storeExchanges.storeId, storeId)];
-
-    if (options.search) {
-      conditions.push(
-        sql`${storeExchanges.id}::text ILIKE ${`%${options.search}%`}`,
-      );
+  storeId: string,
+  options: {
+    limit: number;
+    offset: number;
+    search?: string;
+    dateFrom?: string;
+    dateTo?: string;
+    // ADD NEW FILTERS
+    exchangeType?: string;
+    reason?: string;
+    sort?: string;
+  },
+) {
+  const conditions = [eq(storeExchanges.storeId, storeId)];
+ 
+  if (options.search) {
+    conditions.push(
+      sql`${storeExchanges.id}::text ILIKE ${`%${options.search}%`}`,
+    );
+  }
+ 
+  if (options.dateFrom) {
+    conditions.push(
+      gte(storeExchanges.createdAt, new Date(options.dateFrom)),
+    );
+  }
+ 
+  if (options.dateTo) {
+    conditions.push(lte(storeExchanges.createdAt, new Date(options.dateTo)));
+  }
+ 
+  // ADD NEW FILTER CONDITIONS
+  if (options.exchangeType) {
+    if (options.exchangeType === 'exchange') {
+      conditions.push(sql`${storeExchanges.status} = 'completed'`);
+    } else if (options.exchangeType === 'return') {
+      conditions.push(sql`${storeExchanges.status} = 'return_only'`);
     }
-
-    if (options.dateFrom) {
-      conditions.push(
-        gte(storeExchanges.createdAt, new Date(options.dateFrom)),
-      );
+    // 'both' means no filter needed
+  }
+ 
+  if (options.reason) {
+    conditions.push(
+      sql`${storeExchangeReturnItems.specificReason} ILIKE ${`%${options.reason}%`}`,
+    );
+  }
+ 
+  const whereClause = and(...conditions);
+ 
+  // ADD DYNAMIC SORTING
+  let orderByClause = desc(storeExchanges.createdAt); // default
+  if (options.sort) {
+    switch (options.sort) {
+      case 'date-asc':
+        orderByClause = asc(storeExchanges.createdAt);
+        break;
+      case 'date-desc':
+      default:
+        orderByClause = desc(storeExchanges.createdAt);
+        break;
     }
-
-    if (options.dateTo) {
-      conditions.push(lte(storeExchanges.createdAt, new Date(options.dateTo)));
-    }
-
-    const whereClause = and(...conditions);
-
-    const [data, countResult] = await Promise.all([
-      db
-        .select()
-        .from(storeExchanges)
-        .leftJoin(stores, eq(storeExchanges.storeId, stores.id))
-        .leftJoin(users, eq(storeExchanges.processedBy, users.id))
-        .where(whereClause)
-        .orderBy(desc(storeExchanges.createdAt))
-        .limit(options.limit)
-        .offset(options.offset),
-      db
-        .select({ count: sql<number>`count(*)::int` })
-        .from(storeExchanges)
-        .where(whereClause),
-    ]);
+  }
+ 
+  const [data, countResult] = await Promise.all([
+    db
+      .select()
+      .from(storeExchanges)
+      .leftJoin(stores, eq(storeExchanges.storeId, stores.id))
+      .leftJoin(users, eq(storeExchanges.processedBy, users.id))
+      .leftJoin(storeExchangeReturnItems, eq(storeExchanges.id, storeExchangeReturnItems.exchangeId))
+      .where(whereClause)
+      .orderBy(orderByClause) // Use dynamic ordering
+      .limit(options.limit)
+      .offset(options.offset),
+    db
+      .select({ count: sql<number>`count(DISTINCT ${storeExchanges.id})::int` })
+      .from(storeExchanges)
+      .leftJoin(storeExchangeReturnItems, eq(storeExchanges.id, storeExchangeReturnItems.exchangeId))
+      .where(whereClause),
+  ]);
 
     // Extract all exchange IDs to fetch related data in bulk
     const exchangeIds = data.map(exchange => exchange.store_exchanges.id);
@@ -1252,8 +1289,17 @@ export class StoreRepository implements StoreStorage {
 
     // Build the result
     const result: StoreExchangeWithDetails[] = [];
+    const processedExchangeIds = new Set<string>();
+    
     for (const exchange of data) {
       const exchangeId = exchange.store_exchanges.id;
+      
+      // Skip if we've already processed this exchange (to handle duplicates from join)
+      if (processedExchangeIds.has(exchangeId)) {
+        continue;
+      }
+      processedExchangeIds.add(exchangeId);
+      
       const originalSale = originalSalesMap.get(exchange.store_exchanges.originalSaleId);
       const returnItems = returnItemsMap.get(exchangeId) || [];
       const newItems = newItemsMap.get(exchangeId) || [];
@@ -1500,6 +1546,7 @@ export class StoreRepository implements StoreStorage {
       search?: string;
       dateFrom?: string;
       dateTo?: string;
+      sort?: string;
     },
   ) {
     const conditions = [eq(storeSales.storeId, storeId)];
@@ -1518,6 +1565,26 @@ export class StoreRepository implements StoreStorage {
       conditions.push(lte(storeSales.createdAt, new Date(options.dateTo)));
     }
 
+    // Add dynamic sorting
+    let orderByClause = desc(storeSales.createdAt); // default
+    if (options.sort) {
+      switch (options.sort) {
+        case 'date-asc':
+          orderByClause = asc(storeSales.createdAt);
+          break;
+        case 'amount-desc':
+          orderByClause = desc(storeSales.totalAmount);
+          break;
+        case 'amount-asc':
+          orderByClause = asc(storeSales.totalAmount);
+          break;
+        case 'date-desc':
+        default:
+          orderByClause = desc(storeSales.createdAt);
+          break;
+      }
+    }
+
     const whereClause = and(...conditions);
 
     const [data, countResult] = await Promise.all([
@@ -1526,7 +1593,7 @@ export class StoreRepository implements StoreStorage {
         .from(storeSales)
         .innerJoin(stores, eq(storeSales.storeId, stores.id))
         .where(whereClause)
-        .orderBy(desc(storeSales.createdAt))
+        .orderBy(orderByClause)
         .limit(options.limit)
         .offset(options.offset),
       db

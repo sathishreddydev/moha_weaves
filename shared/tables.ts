@@ -385,6 +385,7 @@ export const stockRequests = pgTable("stock_requests", {
     .notNull(),
   quantity: integer("quantity").notNull(),
   status: enums.requestStatusEnum("status").notNull().default("pending"),
+  priority: enums.requestPriorityEnum("priority").notNull().default("normal"),
   approvedBy: varchar("approved_by"),
   notes: text("notes"),
   createdAt: timestamp("created_at").notNull().defaultNow(),

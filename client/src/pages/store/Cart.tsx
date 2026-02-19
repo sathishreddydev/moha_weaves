@@ -536,6 +536,7 @@ export default function Cart() {
       ) : (
         <>
           <DataTable
+            pageKey="storeCart"
             columns={columns}
             data={displayItems}
             totalCount={displayItems.length}
@@ -543,6 +544,8 @@ export default function Cart() {
             pageIndex={pagination.pageIndex}
             onPaginationChange={handlePaginationChange}
             emptyMessage="No items in cart"
+            hideSearch={true}
+            hideDateRange={true}
           />
 
           <div className="flex mt-8 flex-col lg:flex-row gap-8">

@@ -1,3 +1,4 @@
+import { useMemo } from "react";
 import { DataTable } from "@/components/DataTable/DataTable";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -7,6 +8,7 @@ import { ColumnDef } from "@tanstack/react-table";
 import { ArrowLeftRight, Eye, Package, RefreshCw } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { formatDate, formatPrice } from "@/lib/utils";
+import { createExchangeFilters } from "./utils/filterUtils";
 
 export default function StoreExchangeHistory() {
   const navigate = useNavigate();
@@ -22,8 +24,9 @@ export default function StoreExchangeHistory() {
   } = useDataTable<StoreExchangeWithDetails>({
     queryKey: "/api/store/getStoreExchanges",
     initialPageSize: 10,
+    pageKey: "storeExchangeHistory",
   });
-
+  const filters = useMemo(() => createExchangeFilters(), []); 
   const parseImages = (value: string) => {
     try {
       const firstParse = JSON.parse(value || "[]");
@@ -352,6 +355,7 @@ export default function StoreExchangeHistory() {
         </div>
 
         <DataTable
+          pageKey='storeExchangeHistory'
           columns={exchangesColumns}
           data={exchanges}
           totalCount={totalCount}
@@ -365,6 +369,7 @@ export default function StoreExchangeHistory() {
           accordionContent={renderAccordionContent}
           accordionPosition="inline"
           className="[&_table]:text-xs [&_th]:h-8 [&_th]:px-2 [&_td]:px-2 [&_td]:py-1"
+          filters={filters}
         />
       </div>
     </div>

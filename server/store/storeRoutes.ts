@@ -96,13 +96,14 @@ export const storeRoutes = (app: Express) => {
 
       const params = parsePaginationParams(req.query);
       const offset = getOffset(params.page, params.pageSize);
-      const { search, dateFrom, dateTo } = req.body;
+      const { search, dateFrom, dateTo, sort } = req.body;
       const result = await storeService.getStoreSalesPaginated(user.storeId, {
         limit: params.pageSize,
         offset,
         search: search,
         dateFrom: dateFrom,
         dateTo: dateTo,
+        sort: sort,
       });
 
       const response = createPaginatedResponse(
@@ -295,14 +296,16 @@ export const storeRoutes = (app: Express) => {
 
       const params = parsePaginationParams(req.query);
       const offset = getOffset(params.page, params.pageSize);
-      const { search, status, dateFrom, dateTo } = req.body;
+      const { search, status, priority, dateFrom, dateTo, sort } = req.body;
       const result = await stockRequestService.getStockRequestsPaginated(user.storeId, {
         limit: params.pageSize,
         offset,
         search: search,
         status: status as string,
+        priority: priority as string,
         dateFrom: dateFrom,
         dateTo: dateTo,
+        sort: sort,
       }, 'store');
 
       const response = createPaginatedResponse(
@@ -401,39 +404,44 @@ export const storeRoutes = (app: Express) => {
     }
   });
 
-  app.post("/api/store/getStoreExchanges", authStore, async (req, res) => {
-    try {
-      const user = (req as any).user;
-      if (!user.storeId) {
-        return res.status(400).json({ message: "No store assigned" });
-      }
-
-      const params = parsePaginationParams(req.query);
-      const offset = getOffset(params.page, params.pageSize);
-
-      const result = await storeService.getStoreExchangesPaginated(
-        user.storeId,
-        {
-          limit: params.pageSize,
-          offset,
-          search: params.search,
-          dateFrom: params.dateFrom,
-          dateTo: params.dateTo,
-        },
-      );
-
-      const response = createPaginatedResponse(
-        result.data,
-        result.total,
-        params.page,
-        params.pageSize,
-      );
-
-      res.json(response);
-    } catch (error) {
-      res.status(500).json({ message: "Failed to fetch exchanges" });
+ app.post("/api/store/getStoreExchanges", authStore, async (req, res) => {
+  try {
+    const user = (req as any).user;
+    if (!user.storeId) {
+      return res.status(400).json({ message: "No store assigned" });
     }
-  });
+
+    const params = parsePaginationParams(req.query);
+    const body = req.body || {}; // Read from body for POST
+    const offset = getOffset(params.page, params.pageSize);
+
+    const result = await storeService.getStoreExchangesPaginated(
+      user.storeId,
+      {
+        limit: params.pageSize,
+        offset,
+        search: params.search,
+        dateFrom: params.dateFrom,
+        dateTo: params.dateTo,
+        // ADD NEW FILTERS
+        exchangeType: body.exchangeType,
+        reason: body.reason,
+        sort: body.sort,
+      },
+    );
+
+    const response = createPaginatedResponse(
+      result.data,
+      result.total,
+      params.page,
+      params.pageSize,
+    );
+
+    res.json(response);
+  } catch (error) {
+    res.status(500).json({ message: "Failed to fetch exchanges" });
+  }
+});
 
   app.post("/api/store/store-exchanges", authStore, async (req, res) => {
     try {

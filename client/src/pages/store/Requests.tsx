@@ -9,7 +9,8 @@ import type { StockRequestWithDetails } from "@shared/schema";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { ColumnDef } from "@tanstack/react-table";
 import { CheckCircle, Clock, Package, XCircle } from "lucide-react";
-
+import { createRequestFilters } from "./utils/filterUtils";
+import { useMemo } from "react";
 const statusConfig: Record<
   string,
   { icon: typeof Clock; label: string; color: string }
@@ -46,7 +47,7 @@ const statusConfig: Record<
 export default function StoreRequests() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
-
+  const filters = useMemo(() => createRequestFilters(), []);
   const {
     data: requests,
     totalCount,
@@ -58,6 +59,7 @@ export default function StoreRequests() {
   } = useDataTable<StockRequestWithDetails>({
     queryKey: "/api/store/requestsPaginated",
     initialPageSize: 10,
+    pageKey:"storeRequest"
   });
 
   const markReceivedMutation = useMutation({
@@ -209,6 +211,7 @@ export default function StoreRequests() {
         <Card>
           <CardContent className="p-4">
             <DataTable
+              pageKey="storeRequest"
               columns={columns}
               data={requests}
               totalCount={totalCount}
@@ -218,6 +221,7 @@ export default function StoreRequests() {
               onPaginationChange={handlePaginationChange}
               searchPlaceholder="Search requests..."
               emptyMessage="No stock requests found"
+              filters={filters} 
             />
           </CardContent>
         </Card>

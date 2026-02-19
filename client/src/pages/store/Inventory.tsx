@@ -12,6 +12,7 @@ import { Link } from "react-router-dom";
 import { RequestDialog } from "./utils/RequestDialog";
 import { formatPrice } from "./utils/cartUtils";
 import { FilterItem, ShopProduct, StoreTreeNode } from "./utils/types";
+import { createInventoryFilters } from "./utils/filterUtils";
 
 export default function StoreInventoryPage() {
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -65,6 +66,7 @@ export default function StoreInventoryPage() {
   } = useDataTable<any>({
     queryKey: "/api/store/getProducts",
     initialPageSize: 10,
+    pageKey:"storeInventory"
   });
 
   const getRequestStatusBadge = useCallback((status: string) => {
@@ -292,23 +294,9 @@ export default function StoreInventoryPage() {
     },
   ];
 
-  const filters: FilterItem[] = useMemo(
-    () => [
-      {
-        key: "categoryIds",
-        label: "Categories",
-        tree: categoryTree,
-        placeholder: "Search categories...",
-      },
-      {
-        key: "colorIds",
-        label: "Colors",
-        tree: colorTree,
-        placeholder: "Search colors...",
-      },
-    ],
-    [categoryTree, colorTree],
-  );
+  const filters: FilterItem[] = useMemo(() => 
+     createInventoryFilters(categories, colors, fabrics)
+   , [categories, colors, fabrics]);
   return (
     <div className="max-w-6xl mx-auto">
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-8">
@@ -381,6 +369,7 @@ export default function StoreInventoryPage() {
       </div>
 
       <DataTable
+        pageKey="storeInventory"
         columns={inventoryColumns}
         data={products}
         totalCount={totalCount}
