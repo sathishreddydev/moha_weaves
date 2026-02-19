@@ -20,6 +20,7 @@ import type {
   StoreExchangeWithDetails,
   StoreSaleWithItems,
 } from "@shared/schema";
+import { StoreStats } from "./utils/types";
 import { useQuery } from "@tanstack/react-query";
 import {
   Activity,
@@ -38,36 +39,6 @@ import {
 } from "lucide-react";
 import { useState } from "react";
 import { Link } from "react-router-dom";
-
-interface StoreStats {
-  todaySales: number;
-  todayRevenue: number;
-  totalInventory: number;
-  pendingRequests: number;
-  totalSales?: number;
-  totalRevenue?: number;
-  weeklySalesGrowth?: number;
-  monthlyRevenueGrowth?: number;
-  topSellingProducts?: Array<{
-    product: ProductWithDetails;
-    quantity: number;
-    revenue: number;
-  }>;
-  lowStockProducts?: Array<{
-    product: ProductWithDetails;
-    currentStock: number;
-    reorderLevel: number;
-  }>;
-  recentSales?: StoreSaleWithItems[];
-  recentRequests?: StockRequestWithDetails[];
-  recentExchanges?: StoreExchangeWithDetails[];
-  requestStats?: {
-    pending: number;
-    approved: number;
-    dispatched: number;
-    received: number;
-  };
-}
 
 
 const formatPrice = (price: number | string) => {

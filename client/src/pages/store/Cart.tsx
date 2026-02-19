@@ -27,32 +27,7 @@ import {
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { CartItem, useStoreCart } from "./Hook/cartForStore";
-
-interface Discount {
-  id: string;
-  code: string | null;
-  name: string;
-  description: string | null;
-  type: "percentage" | "fixed" | "coupon";
-  value: number;
-  minOrderAmount: number | null;
-  maxDiscount: number | null;
-  usageLimit: number | null;
-  usedCount: number;
-  perUserLimit: number | null;
-  validFrom: string;
-  validUntil: string;
-  isActive: boolean;
-  categoryId: string | null;
-  createdAt: string;
-}
-
-interface ExistingCustomer {
-  id: string;
-  name: string;
-  phone: string;
-  [key: string]: any;
-}
+import { Discount, ExistingCustomer } from "./utils/types";
 
 interface LoyaltyData {
   exists: boolean;

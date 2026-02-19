@@ -35,61 +35,10 @@ import {
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
+import { ShopProduct, ReturnItem, NewCartItem, SaleItemWithAvailable } from "./utils/types";
+import { ExchangeType } from "./utils/enums";
+import { formatDate, formatPrice } from "@/lib/utils";
 
-type ShopProduct = ProductWithDetails & {
-  activeSale?: {
-    id: string;
-    name: string;
-    offerType: string;
-    discountValue: string;
-    maxDiscount?: string;
-  } | null;
-  discountedPrice?: number;
-};
-
-interface ReturnItem {
-  saleItemId: string;
-  productId: string;
-  variantId?: string;
-  product: ProductWithDetails;
-  quantity: number;
-  maxQuantity: number;
-  unitPrice: string;
-  returnAmount: string;
-  exchangeType: string;
-  specificReason: string;
-  damageImages: string[]; // Array, not JSON string
-}
-
-interface NewCartItem {
-  productId: string;
-  variantId?: string;
-  product: ProductWithDetails;
-  quantity: number;
-  maxQuantity: number;
-  unitPrice: string;
-  lineAmount: string;
-}
-
-interface SaleItemWithAvailable {
-  id: string;
-  productId: string;
-  variantId?: string;
-  quantity: number;
-  returnedQuantity: number;
-  price: string;
-  product: ProductWithDetails & {
-    activeSale?: {
-      id: string;
-      name: string;
-      offerType: string;
-      discountValue: string;
-      maxDiscount?: string;
-    } | null;
-    discountedPrice?: number;
-  };
-  availableQuantity: number;
-}
 const exchangeTypes = [
   { value: "normal", label: "Normal Exchange" },
   { value: "damage", label: "Damage" },
@@ -280,7 +229,9 @@ function StoreExchange() {
     })) || [];
 
   const addReturnItem = (saleItem: SaleItemWithAvailable) => {
-    if (saleItem.availableQuantity <= 0) {
+    const available = saleItem?.availableQuantity ?? 0;
+
+    if (available <= 0) {
       toast({
         title: "Not available",
         description: "This item has already been fully returned",
@@ -292,7 +243,7 @@ function StoreExchange() {
       (item) => item.saleItemId === saleItem.id,
     );
     if (existing) {
-      if (existing.quantity < saleItem.availableQuantity) {
+      if (existing.quantity < available) {
         setReturnItems((prev) =>
           prev.map((item) => {
             if (item.saleItemId !== saleItem.id) return item;
@@ -329,7 +280,7 @@ function StoreExchange() {
           variantId: saleItem.variantId,
           product: saleItem.product,
           quantity: 1,
-          maxQuantity: saleItem.availableQuantity,
+          maxQuantity: available,
           unitPrice:
             saleItem.product.activeSale && saleItem.product.discountedPrice
               ? saleItem.product.discountedPrice.toString()

@@ -17,6 +17,8 @@ import {
 } from "@radix-ui/react-tooltip";
 import type { StoreSaleWithItems } from "@shared/schema";
 import { ColumnDef } from "@tanstack/react-table";
+import { formatDate, formatPrice } from "@/lib/utils";
+import { StoreSale } from "./utils/types";
 import { saveAs } from "file-saver";
 import {
   AlertCircle,
@@ -35,7 +37,7 @@ import * as XLSX from "xlsx";
 
 export default function StoreHistory() {
   const navigate = useNavigate();
-  const [selectedSale, setSelectedSale] = useState<StoreSaleWithItems | null>(
+  const [selectedSale, setSelectedSale] = useState<StoreSale | null>(
     null,
   );
 

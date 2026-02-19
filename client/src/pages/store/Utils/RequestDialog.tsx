@@ -9,12 +9,7 @@ import { useMutation } from "@tanstack/react-query";
 import { useState } from "react";
 import type { FormEvent } from "react";
 import { AdaptiveModal } from "../../../components/common/AdaptiveModal";
-
-interface RequestDialogProps {
-  dialogOpen: boolean;
-  setDialogOpen: (open: boolean) => void;
-  productData: ProductWithDetails | undefined;
-}
+import { RequestDialogProps } from "./types";
 
 export const RequestDialog = ({
   dialogOpen,

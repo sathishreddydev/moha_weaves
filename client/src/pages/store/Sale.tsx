@@ -23,17 +23,7 @@ import { Camera, Minus, Plus, RefreshCw, ShoppingCart, Trash2 } from "lucide-rea
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useStoreCart } from "./Hook/cartForStore";
-
-type ShopProduct = ProductWithDetails & {
-  activeSale?: {
-    id: string;
-    name: string;
-    offerType: string;
-    discountValue: string;
-    maxDiscount?: string;
-  } | null;
-  discountedPrice?: number;
-};
+import { ShopProduct } from "./utils/types";
 
 export default function StoreSale() {
   const { user } = useAuth();

@@ -6,6 +6,7 @@ import type { StoreExchangeWithDetails } from "@shared/schema";
 import { ColumnDef } from "@tanstack/react-table";
 import { ArrowLeftRight, Eye, Package, RefreshCw } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { formatDate, formatPrice } from "@/lib/utils";
 
 export default function StoreExchangeHistory() {
   const navigate = useNavigate();
@@ -23,24 +24,6 @@ export default function StoreExchangeHistory() {
     initialPageSize: 10,
   });
 
-  const formatPrice = (price: number | string) => {
-    const numPrice = typeof price === "string" ? parseFloat(price) : price;
-    return new Intl.NumberFormat("en-IN", {
-      style: "currency",
-      currency: "INR",
-      maximumFractionDigits: 0,
-    }).format(numPrice);
-  };
-
-  const formatDate = (date: string | Date) => {
-    return new Date(date).toLocaleDateString("en-IN", {
-      day: "numeric",
-      month: "short",
-      year: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-    });
-  };
   const parseImages = (value: string) => {
     try {
       const firstParse = JSON.parse(value || "[]");

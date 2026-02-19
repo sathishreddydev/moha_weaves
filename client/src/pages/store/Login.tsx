@@ -24,13 +24,12 @@ import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { Link, Navigate, useNavigate } from "react-router-dom";
 import { z } from "zod";
+import { LoginFormValues } from "./utils/types";
 
 const loginSchema = z.object({
   email: z.string().email("Please enter a valid email"),
   password: z.string().min(6, "Password must be at least 6 characters"),
 });
-
-type LoginFormValues = z.infer<typeof loginSchema>;
 
 export default function StoreLogin() {
   const navigate = useNavigate();
