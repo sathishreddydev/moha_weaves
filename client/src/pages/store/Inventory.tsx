@@ -1,30 +1,17 @@
 import { DataTable } from "@/components/DataTable/DataTable";
 import { useFilterStore } from "@/components/Store/useFilterStore";
-import { FilterItem } from "@/components/Type/type";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { useDataTable } from "@/hooks/use-data-table";
-import { TreeNode } from "@/lib/type";
-import type { ProductWithDetails, StockRequestWithDetails } from "@shared/schema";
+import type { ProductWithDetails } from "@shared/schema";
 import { ColumnDef } from "@tanstack/react-table";
 import { ArrowLeftRight, Globe, Package, RefreshCw, Store } from "lucide-react";
-import { useEffect, useState, useMemo, useCallback } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { RequestDialog } from "./utils/RequestDialog";
 import { formatPrice } from "./utils/cartUtils";
-
-type ShopProduct = ProductWithDetails & {
-  activeSale?: {
-    id: string;
-    name: string;
-    offerType: string;
-    discountValue: string;
-    maxDiscount?: string;
-  } | null;
-  discountedPrice?: number;
-  stockRequests?: StockRequestWithDetails[];
-};
+import { FilterItem, ShopProduct, StoreTreeNode } from "./utils/types";
 
 export default function StoreInventoryPage() {
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -41,15 +28,17 @@ export default function StoreInventoryPage() {
     [colors],
   );
 
-  const categoryTree: TreeNode[] = useMemo(
+  const categoryTree: StoreTreeNode[] = useMemo(
     () =>
       categories.map((cat) => ({
         id: cat.id,
         label: cat.name,
+        type: "category" as const,
         children:
           cat?.subcategories?.map((sub) => ({
             id: sub.id,
             label: sub.name,
+            type: "subcategory" as const,
           })) || [],
       })),
     [categories],

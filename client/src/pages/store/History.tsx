@@ -18,7 +18,6 @@ import {
 import type { StoreSaleWithItems } from "@shared/schema";
 import { ColumnDef } from "@tanstack/react-table";
 import { formatDate, formatPrice } from "@/lib/utils";
-import { StoreSale } from "./utils/types";
 import { saveAs } from "file-saver";
 import {
   AlertCircle,
@@ -37,7 +36,7 @@ import * as XLSX from "xlsx";
 
 export default function StoreHistory() {
   const navigate = useNavigate();
-  const [selectedSale, setSelectedSale] = useState<StoreSale | null>(
+  const [selectedSale, setSelectedSale] = useState<StoreSaleWithItems | null>(
     null,
   );
 
@@ -55,24 +54,6 @@ export default function StoreHistory() {
     initialPageSize: 10,
   });
 
-  const formatPrice = (price: number | string) => {
-    const numPrice = typeof price === "string" ? parseFloat(price) : price;
-    return new Intl.NumberFormat("en-IN", {
-      style: "currency",
-      currency: "INR",
-      maximumFractionDigits: 0,
-    }).format(numPrice);
-  };
-
-  const formatDate = (date: string | Date) => {
-    return new Date(date).toLocaleDateString("en-IN", {
-      day: "numeric",
-      month: "short",
-      year: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-    });
-  };
 
   const exportToExcel = () => {
     if (!sales || sales.length === 0) {

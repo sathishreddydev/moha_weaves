@@ -2,6 +2,7 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Card } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Star, ThumbsUp, User } from "lucide-react";
+import { formatDate, formatPrice } from "@/lib/utils";
 
 interface ReviewsProps {
   reviewsData: {
@@ -18,14 +19,6 @@ interface ReviewsProps {
 export function Reviews({ reviewsData, reviewLoading }: ReviewsProps) {
   const reviews = reviewsData?.reviews;
   const reviewStats = reviewsData?.stats;
-
-  const formatDate = (date: string | Date) => {
-    return new Date(date).toLocaleDateString("en-IN", {
-      day: "numeric",
-      month: "short",
-      year: "numeric",
-    });
-  };
 
   const ratingDistribution = reviewStats?.ratingDistribution || {};
   const totalReviews = reviewStats?.totalReviews || 0;

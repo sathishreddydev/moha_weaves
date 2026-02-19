@@ -31,6 +31,7 @@ import {
 } from "lucide-react";
 import { useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
+import { formatDate, formatPrice } from "@/lib/utils";
 
 
 export default function OrderDetail() {
@@ -143,14 +144,6 @@ export default function OrderDetail() {
     },
   });
 
-  const formatPrice = (price: string | number) => {
-    const numPrice = typeof price === "string" ? parseFloat(price) : price;
-    return new Intl.NumberFormat("en-IN", {
-      style: "currency",
-      currency: "INR",
-      maximumFractionDigits: 0,
-    }).format(numPrice);
-  };
 
   const maskId = (value?: string | null) => {
     if (!value) return "—";
@@ -159,15 +152,6 @@ export default function OrderDetail() {
     return `${trimmed.slice(0, 4)}••••${trimmed.slice(-4)}`;
   };
 
-  const formatDate = (date: string | Date) => {
-    return new Date(date).toLocaleDateString("en-IN", {
-      day: "numeric",
-      month: "short",
-      year: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-    });
-  };
 
   const handleReturnSubmit = () => {
     const orderItemById = new Map(order?.items?.map((it) => [it.id, it]) || []);

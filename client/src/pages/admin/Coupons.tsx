@@ -42,6 +42,7 @@ import {
   Trash2
 } from "lucide-react";
 import { useState } from "react";
+import { formatDate, formatPrice } from "@/lib/utils";
 
 
 interface CouponFormData {
@@ -236,21 +237,6 @@ export default function AdminCoupons() {
   const handleOpenDelete = (id: string) => {
     setDeletingCouponId(id);
     setDeleteDialogOpen(true);
-  };
-
-  const formatPrice = (price: string | number | null) => {
-    if (!price) return "-";
-    const numPrice = typeof price === "string" ? parseFloat(price) : price;
-    return `₹${numPrice.toLocaleString("en-IN")}`;
-  };
-
-  const formatDate = (date: string | Date | null) => {
-    if (!date) return "-";
-    return new Date(date).toLocaleDateString("en-IN", {
-      day: "numeric",
-      month: "short",
-      year: "numeric",
-    });
   };
 
   return (

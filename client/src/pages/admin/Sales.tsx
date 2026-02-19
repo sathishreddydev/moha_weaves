@@ -39,6 +39,7 @@ import type { SaleWithDetails } from "@shared/schema";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Calendar, DollarSign, Edit, Percent, Plus, Tag, Trash2, Zap } from "lucide-react";
 import { useEffect, useState } from "react";
+import { formatDate, formatPrice } from "@/lib/utils";
 
 interface SaleFormData {
   name: string;
@@ -311,13 +312,6 @@ export default function AdminSales() {
     setDeleteDialogOpen(true);
   };
 
-  const formatDate = (date: string | Date) => {
-    return new Date(date).toLocaleDateString("en-IN", {
-      day: "numeric",
-      month: "short",
-      year: "numeric",
-    });
-  };
 
   const getOfferIcon = (type: string) => {
     switch (type) {

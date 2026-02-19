@@ -15,6 +15,7 @@ import {
 } from 'lucide-react';
 import { useMemo } from 'react';
 import { useNavigate } from "react-router-dom";
+import { formatDate, formatPrice } from "@/lib/utils";
 
 // Status options provided by user
 const itemStatuses = [
@@ -25,25 +26,6 @@ const itemStatuses = [
   "delivered",
 ];
 
-
-const formatPrice = (price: string | number) => {
-  const numPrice = typeof price === "string" ? parseFloat(price) : price;
-  return new Intl.NumberFormat("en-IN", {
-    style: "currency",
-    currency: "INR",
-    maximumFractionDigits: 0,
-  }).format(numPrice);
-};
-
-const formatDate = (date: string | Date) => {
-  return new Date(date).toLocaleDateString("en-IN", {
-    day: "numeric",
-    month: "short",
-    year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
-};
 
 interface StatusBadgeProps {
   status: string;

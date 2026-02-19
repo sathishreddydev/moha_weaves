@@ -1,6 +1,5 @@
 import { DataTable } from "@/components/DataTable/DataTable";
 import { useFilterStore } from "@/components/Store/useFilterStore";
-import { FilterItem } from "@/components/Type/type";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { useDataTable } from "@/hooks/use-data-table";
@@ -17,13 +16,12 @@ import {
   isOutOfStock,
   updateCartItemQuantity
 } from "@/pages/store/utils/cartUtils";
-import type { ProductWithDetails } from "@shared/schema";
 import { ColumnDef } from "@tanstack/react-table";
 import { Camera, Minus, Plus, RefreshCw, ShoppingCart, Trash2 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useStoreCart } from "./Hook/cartForStore";
-import { ShopProduct } from "./utils/types";
+import { FilterItem, ShopProduct } from "./utils/types";
 
 export default function StoreSale() {
   const { user } = useAuth();

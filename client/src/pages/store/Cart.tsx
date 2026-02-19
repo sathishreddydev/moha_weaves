@@ -27,15 +27,10 @@ import {
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { CartItem, useStoreCart } from "./Hook/cartForStore";
-import { Discount, ExistingCustomer } from "./utils/types";
+import { PaymentMethod } from "./utils/enums";
+import { Discount, ExistingCustomer, LoyaltyData } from "./utils/types";
 
-interface LoyaltyData {
-  exists: boolean;
-  customer?: ExistingCustomer;
-  loyaltyPoints: number;
-  redeemableValue: number;
-  [key: string]: any;
-}
+
 
 
 export default function Cart() {
@@ -58,8 +53,8 @@ export default function Cart() {
   const [discount, setDiscount] = useState<Discount | null>(null);
   const [couponCode, setCouponCode] = useState("");
 
-  const [paymentMode, setPaymentMode] = useState<"cash" | "razorpay">(
-    "cash",
+  const [paymentMode, setPaymentMode] = useState<PaymentMethod>(
+    PaymentMethod.CASH,
   );
   const [customerName, setCustomerName] = useState("");
   const [customerPhone, setCustomerPhone] = useState("");
@@ -140,7 +135,7 @@ export default function Cart() {
     setCustomerName("");
     setCustomerPhone("");
     setDiscount(null);
-    setPaymentMode("cash");
+    setPaymentMode(PaymentMethod.CASH);
     setCouponCode("");
     setExistingCustomer(null);
   }, []);
@@ -229,7 +224,7 @@ export default function Cart() {
                 : null,
             tax: 0,
             total: totalAmount,
-            paymentMode: "razorpay",
+            paymentMode: PaymentMethod.RAZORPAY,
             customerName,
             customerPhone,
           });
@@ -315,7 +310,7 @@ export default function Cart() {
     setDisabledCompBtn(true);
 
     // If payment mode is Razorpay, initiate Razorpay payment
-    if (paymentMode === "razorpay") {
+    if (paymentMode === PaymentMethod.RAZORPAY) {
       await initiateRazorpayPayment(pointsToRedeem);
       return;
     }
@@ -638,7 +633,7 @@ export default function Cart() {
                   </h4>
 
                   <div className="flex flex-wrap gap-2">
-                    {(["cash", "razorpay"] as const).map((mode) => (
+                    {([PaymentMethod.CASH, PaymentMethod.RAZORPAY] as const).map((mode: PaymentMethod) => (
                       <Button
                         key={mode}
                         variant={paymentMode === mode ? "default" : "outline"}
@@ -646,7 +641,7 @@ export default function Cart() {
                         onClick={() => setPaymentMode(mode)}
                         className="capitalize flex-1 sm:flex-none"
                       >
-                        {mode === "razorpay" ? "Razorpay" : mode}
+                        {mode === PaymentMethod.RAZORPAY ? "Razorpay" : mode}
                       </Button>
                     ))}
                   </div>
@@ -740,7 +735,7 @@ export default function Cart() {
                 disabled={!!phoneError || loading || disabledCompBtn}
               >
                 <ShoppingBag className="h-4 w-4 mr-2" />
-                {paymentMode === "razorpay" ? `Pay ₹${totalAmount.toLocaleString()}` : "Complete Checkout"}
+                {paymentMode === PaymentMethod.RAZORPAY ? `Pay ₹${totalAmount.toLocaleString()}` : "Complete Checkout"}
               </Button>
             </div>
           </div>

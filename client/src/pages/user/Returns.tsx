@@ -12,6 +12,7 @@ import {
   RotateCcw
 } from "lucide-react";
 import { Link } from "react-router-dom";
+import { formatDate, formatPrice } from "@/lib/utils";
 
 export default function Returns() {
   const { user } = useAuth();
@@ -22,22 +23,6 @@ export default function Returns() {
     select: (data) => data.filter((r) => r.resolution === "refund"),
   });
 
-  const formatPrice = (price: string | number) => {
-    const numPrice = typeof price === "string" ? parseFloat(price) : price;
-    return new Intl.NumberFormat("en-IN", {
-      style: "currency",
-      currency: "INR",
-      maximumFractionDigits: 0,
-    }).format(numPrice);
-  };
-
-  const formatDate = (date: string | Date) => {
-    return new Date(date).toLocaleDateString("en-IN", {
-      day: "numeric",
-      month: "short",
-      year: "numeric",
-    });
-  };
 
   if (!user) {
     return (

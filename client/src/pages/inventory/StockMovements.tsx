@@ -31,6 +31,7 @@ import { ColumnDef } from "@tanstack/react-table";
 import * as XLSX from "xlsx";
 import { saveAs } from "file-saver";
 import type { StockMovement } from "@shared/schema";
+import { formatDate } from "@/lib/utils";
 
 interface StockStats {
   totalOnlineCleared: number;
@@ -44,17 +45,6 @@ interface StockMovementWithDetails extends StockMovement {
   storeName?: string;
 }
 
-
-const formatDate = (date: Date | string) => {
-  const dateObj = typeof date === 'string' ? new Date(date) : date;
-  return dateObj.toLocaleString("en-IN", {
-    day: "2-digit",
-    month: "2-digit",
-    year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
-};
 
 export default function StockMovements() {
   const { toast } = useToast();

@@ -13,6 +13,7 @@ import { Star } from "lucide-react";
 import { useAuth } from "@/lib/auth";
 import type { ProductReview, ProductWithDetails, User } from "@shared/schema";
 import { useQuery } from "@tanstack/react-query";
+import { formatDate, formatPrice } from "@/lib/utils";
 
 type ReviewWithDetails = ProductReview & {
   user: User;
@@ -25,13 +26,6 @@ export default function AdminReviews() {
     queryKey: ["/api/admin/reviews"],
     enabled: !!user && user.role === "admin",
   });
-
-  const formatDate = (date: string | Date) =>
-    new Date(date).toLocaleDateString("en-IN", {
-      day: "numeric",
-      month: "short",
-      year: "numeric",
-    });
 
   const renderStars = (rating: number) => (
     <div className="flex gap-0.5">

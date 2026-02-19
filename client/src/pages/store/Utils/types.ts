@@ -51,7 +51,28 @@ export type ShopProduct = ProductWithDetails & {
     maxDiscount?: string;
   } | null;
   discountedPrice?: number;
+  stockRequests?: StockRequestWithDetails[];
 };
+
+// Tree node for inventory
+export interface StoreTreeNode {
+  id: string;
+  label: string;
+  type: "category" | "subcategory" | "product";
+  children?: StoreTreeNode[];
+  data?: any;
+}
+
+// Dashboard data type
+export interface DashboardData {
+  stats: StoreStats;
+  recentSales: StoreSaleWithItems[];
+  lowStockProducts: Array<{
+    product: ProductWithDetails;
+    currentStock: number;
+    reorderLevel: number;
+  }>;
+}
 
 // Dashboard stats
 export interface StoreStats {
@@ -201,10 +222,18 @@ export interface StoreFilterItem {
   type: "category" | "brand" | "size" | "color" | "price";
 }
 
+// Filter item for data table
+export interface FilterItem {
+  key: string;
+  label: string;
+  tree: StoreTreeNode[] | any[];
+  placeholder: string;
+}
+
 // Tree node for inventory
 export interface StoreTreeNode {
   id: string;
-  name: string;
+  label: string;
   type: "category" | "subcategory" | "product";
   children?: StoreTreeNode[];
   data?: any;
@@ -288,4 +317,12 @@ export interface StoreExchange {
   balanceAmount: number;
   balanceDirection: BalanceDirection;
   exchangeDate: Date;
+}
+
+export interface LoyaltyData {
+  exists: boolean;
+  customer?: ExistingCustomer;
+  loyaltyPoints: number;
+  redeemableValue: number;
+  [key: string]: any;
 }

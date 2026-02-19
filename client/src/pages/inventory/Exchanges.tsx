@@ -26,7 +26,7 @@ import {
 } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { useNavigate } from "react-router-dom";
-
+import { formatDate, formatPrice } from "@/lib/utils";
 
 
 const getExchangeStatusFlow = (currentStatus: string) => {
@@ -47,24 +47,6 @@ const getExchangeStatusFlow = (currentStatus: string) => {
   return flow[currentStatus] || [];
 };
 
-const formatPrice = (price: string | number) => {
-  const numPrice = typeof price === "string" ? parseFloat(price) : price;
-  return new Intl.NumberFormat("en-IN", {
-    style: "currency",
-    currency: "INR",
-    maximumFractionDigits: 0,
-  }).format(numPrice);
-};
-
-const formatDate = (date: string | Date) => {
-  return new Date(date).toLocaleDateString("en-IN", {
-    day: "numeric",
-    month: "short",
-    year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
-};
 
 interface StatusBadgeProps {
   status: string;

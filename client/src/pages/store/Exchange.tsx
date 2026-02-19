@@ -17,7 +17,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/lib/auth";
 import { apiRequest } from "@/lib/queryClient";
-import type { ProductWithDetails, StoreSaleWithItems } from "@shared/schema";
+import type { StoreSaleWithItems } from "@shared/schema";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   AlertCircle,
@@ -35,33 +35,13 @@ import {
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { ShopProduct, ReturnItem, NewCartItem, SaleItemWithAvailable } from "./utils/types";
+import { damageReasons, exchangeTypes, normalExchangeReasons } from "./utils/exchangeReasons";
+import { NewCartItem, ReturnItem, SaleItemWithAvailable, ShopProduct } from "./utils/types";
 import { ExchangeType } from "./utils/enums";
-import { formatDate, formatPrice } from "@/lib/utils";
 
-const exchangeTypes = [
-  { value: "normal", label: "Normal Exchange" },
-  { value: "damage", label: "Damage" },
-];
-
-const normalExchangeReasons = [
-  { value: "size_issue", label: "Size doesn't fit" },
-  { value: "changed_mind", label: "Changed my mind" },
-  { value: "wrong_item", label: "Wrong item" },
-  { value: "not_as_described", label: "Not as described" },
-  { value: "quality_issue", label: "Quality issue" },
-];
-
-const damageReasons = [
-  { value: "defective", label: "Defective product" },
-  { value: "damaged_packaging", label: "Damaged packaging" },
-  { value: "manufacturing_defect", label: "Manufacturing defect" },
-  { value: "shipping_damage", label: "Shipping damage" },
-  { value: "scratches_broken", label: "Scratches/Broken" },
-];
 
 const getSpecificReasons = (exchangeType: string) => {
-  if (exchangeType === "damage") {
+  if (exchangeType === ExchangeType.DAMAGE) {
     return damageReasons;
   }
   return normalExchangeReasons;

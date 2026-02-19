@@ -6,25 +6,9 @@ import type { StoreSaleWithItems } from "@shared/schema";
 import { ColumnDef } from "@tanstack/react-table";
 import { Store as StoreIcon } from "lucide-react";
 import { useMemo } from "react";
+import { formatDate, formatPrice } from "@/lib/utils";
 
-const formatPrice = (price: string | number) => {
-  const numPrice = typeof price === "string" ? parseFloat(price) : price;
-  return new Intl.NumberFormat("en-IN", {
-    style: "currency",
-    currency: "INR",
-    maximumFractionDigits: 0,
-  }).format(numPrice);
-};
 
-const formatDate = (date: string | Date) => {
-  return new Date(date).toLocaleDateString("en-IN", {
-    day: "numeric",
-    month: "short",
-    year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
-};
 
 export default function InventoryStoreOrders() {
 

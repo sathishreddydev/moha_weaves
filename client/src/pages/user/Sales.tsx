@@ -7,6 +7,7 @@ import type { SaleWithDetails } from "@shared/schema";
 import { useQuery } from "@tanstack/react-query";
 import { ArrowRight, Clock, Sparkles, Tag } from "lucide-react";
 import { Link } from "react-router-dom";
+import { formatDate, formatPrice } from "@/lib/utils";
 
 export default function Sales() {
   const { data: sales, isLoading } = useQuery<SaleWithDetails[]>({
@@ -17,22 +18,6 @@ export default function Sales() {
     queryKey: ["/api/sales?featured=true&current=true"],
   });
 
-  const formatPrice = (price: string | number) => {
-    const numPrice = typeof price === "string" ? parseFloat(price) : price;
-    return new Intl.NumberFormat("en-IN", {
-      style: "currency",
-      currency: "INR",
-      maximumFractionDigits: 0,
-    }).format(numPrice);
-  };
-
-  const formatDate = (date: string | Date) => {
-    return new Date(date).toLocaleDateString("en-IN", {
-      day: "numeric",
-      month: "short",
-      year: "numeric",
-    });
-  };
   
   const getDiscountBadgeText = (sale: SaleWithDetails) => {
     switch (sale.offerType) {

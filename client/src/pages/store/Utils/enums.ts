@@ -1,9 +1,4 @@
-// Discount types
-export enum DiscountType {
-  PERCENTAGE = "percentage",
-  FIXED = "fixed",
-  COUPON = "coupon"
-}
+
 
 // Request status
 export enum RequestStatus {
@@ -36,28 +31,6 @@ export enum InvoiceType {
   EXCHANGE = "exchange"
 }
 
-// Filter types
-export enum FilterType {
-  CATEGORY = "category",
-  BRAND = "brand",
-  SIZE = "size",
-  COLOR = "color",
-  PRICE = "price"
-}
-
-// Tree node types
-export enum TreeNodeType {
-  CATEGORY = "category",
-  SUBCATEGORY = "subcategory",
-  PRODUCT = "product"
-}
-
-// Sale offer types
-export enum SaleOfferType {
-  PERCENTAGE = "percentage",
-  FIXED = "fixed",
-  BOGO = "bogo"
-}
 
 // Stock balance direction
 export enum BalanceDirection {
@@ -69,41 +42,8 @@ export enum BalanceDirection {
 // Payment methods
 export enum PaymentMethod {
   CASH = "cash",
-  CARD = "card",
-  UPI = "upi",
-  BANK_TRANSFER = "bank_transfer"
+  RAZORPAY = "razorpay"
 }
 
-// Order status
-export enum OrderStatus {
-  PENDING = "pending",
-  CONFIRMED = "confirmed",
-  PROCESSING = "processing",
-  SHIPPED = "shipped",
-  DELIVERED = "delivered",
-  CANCELLED = "cancelled",
-  RETURNED = "returned"
-}
 
-// Product status
-export enum ProductStatus {
-  ACTIVE = "active",
-  INACTIVE = "inactive",
-  OUT_OF_STOCK = "out_of_stock",
-  DISCONTINUED = "discontinued"
-}
 
-// Store roles
-export enum StoreRole {
-  ADMIN = "admin",
-  MANAGER = "manager",
-  STAFF = "staff"
-}
-
-// Priority levels
-export enum Priority {
-  LOW = "low",
-  MEDIUM = "medium",
-  HIGH = "high",
-  URGENT = "urgent"
-}

@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 import { useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
+import { formatDate, formatPrice } from "@/lib/utils";
 
 export default function Orders() {
   const { user } = useAuth();
@@ -78,21 +79,6 @@ export default function Orders() {
     navigate(`/user/orders/${orderId}/items/${itemId}`);
   };
 
-  const formatPrice = (price: string | number) => {
-    const numPrice = typeof price === "string" ? parseFloat(price) : price;
-    return new Intl.NumberFormat("en-IN", {
-      style: "currency",
-      currency: "INR",
-      maximumFractionDigits: 0,
-    }).format(numPrice);
-  };
-
-  const formatDate = (date: string | Date) =>
-    new Date(date).toLocaleDateString("en-IN", {
-      day: "numeric",
-      month: "short",
-      year: "numeric",
-    });
 
   const isWithinTimeRange = (date: string | Date) => {
     if (timeFilter === "any") return true;

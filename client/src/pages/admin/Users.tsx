@@ -6,16 +6,10 @@ import type { User } from "@shared/schema";
 import { ColumnDef } from "@tanstack/react-table";
 import { Mail, Phone } from "lucide-react";
 import { useMemo } from "react";
+import { formatDate } from "@/lib/utils";
 
 type SafeUser = Omit<User, "password">;
 
-const formatDate = (date: string | Date) => {
-  return new Date(date).toLocaleDateString("en-IN", {
-    day: "numeric",
-    month: "short",
-    year: "numeric",
-  });
-};
 
 export default function AdminUsers() {
   const {

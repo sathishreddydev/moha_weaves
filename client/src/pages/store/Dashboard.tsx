@@ -14,13 +14,7 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAuth } from "@/lib/auth";
 import { apiRequest } from "@/lib/queryClient";
-import type {
-  ProductWithDetails,
-  StockRequestWithDetails,
-  StoreExchangeWithDetails,
-  StoreSaleWithItems,
-} from "@shared/schema";
-import { StoreStats } from "./utils/types";
+import { formatDate, formatPrice } from "@/lib/utils";
 import { useQuery } from "@tanstack/react-query";
 import {
   Activity,
@@ -39,35 +33,10 @@ import {
 } from "lucide-react";
 import { useState } from "react";
 import { Link } from "react-router-dom";
+import { DashboardData } from "./utils/types";
 
 
-const formatPrice = (price: number | string) => {
-  const numPrice = typeof price === "string" ? parseFloat(price) : price;
-  return new Intl.NumberFormat("en-IN", {
-    style: "currency",
-    currency: "INR",
-    maximumFractionDigits: 0,
-  }).format(numPrice);
-};
 
-const formatDate = (date: string | Date) => {
-  return new Date(date).toLocaleDateString("en-IN", {
-    day: "numeric",
-    month: "short",
-    year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
-};
-type DashboardData = {
-  stats: StoreStats;
-  recentSales: StoreSaleWithItems[];
-  lowStockProducts: {
-    product: ProductWithDetails;
-    currentStock: number;
-    reorderLevel: number;
-  }[];
-};
 export default function StoreDashboard() {
   const { user } = useAuth();
   const [activeTab, setActiveTab] = useState("overview");
@@ -511,7 +480,7 @@ export default function StoreDashboard() {
                           </Link>
                         </TableCell>
                       </TableRow>
-                    ))}
+                    ))} 
                   </TableBody>
                 </Table>
               ) : (
