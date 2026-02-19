@@ -1,20 +1,18 @@
 import type { Express } from "express";
 import { ProductFilters, roleBasedProductService } from "server/product/roleBasedProductService";
 import { createAuthMiddleware } from "../authMiddleware";
-import { publicStorage } from "../common/publicStorage";
 import {
   createPaginatedResponse,
   getOffset,
   parsePaginationParams,
 } from "../paginationHelper";
-import { storage } from "../storage";
-import { customerRoutes } from "./customerRoutes";
-import { storeProductsStorage } from "./productsStorage";
-import { storeService, StoreRepository } from "./storeStorage";
-import { formatProductsByStore } from "./formatedData";
-import { stockRequestService } from "./stockRequestStorage";
 import { razorpay } from "../razorpayClient";
-import crypto from "crypto";
+import { customerRoutes } from "./customerRoutes";
+import { formatProductsByStore } from "./formatedData";
+import { storeProductsStorage } from "./productsStorage";
+import { stockRequestService } from "./stockRequestStorage";
+import { storeService } from "./storeStorage";
+import StoreLogger from "./utils/logger";
 
 export const storeRoutes = (app: Express) => {
   const authStore = createAuthMiddleware(["store"]);
@@ -27,7 +25,8 @@ export const storeRoutes = (app: Express) => {
       }
       const stats = await storeProductsStorage.getStoreStats(user.storeId);
       res.json(stats);
-    } catch {
+    } catch (error) {
+      StoreLogger.error("Failed to fetch stats", "storeRoutes", error);
       res.status(500).json({ message: "Failed to fetch stats" });
     }
   });
@@ -115,7 +114,6 @@ export const storeRoutes = (app: Express) => {
 
       res.json(response);
     } catch (error) {
-      console.error("Error fetching paginated sales:", error);
       res.status(500).json({ message: "Failed to fetch sales" });
     }
   });
@@ -193,7 +191,6 @@ export const storeRoutes = (app: Express) => {
         totalPages: Math.ceil(totalProducts / limit),
       });
     } catch (error) {
-      console.error("Error fetching paginated products:", error);
       res.status(500).json({
         message: "Failed to fetch products",
         error: error instanceof Error ? error.message : "Unknown error",
@@ -282,7 +279,6 @@ export const storeRoutes = (app: Express) => {
         totalPages: Math.ceil(totalProducts / limit),
       });
     } catch (error) {
-      console.error("Error fetching paginated products:", error);
       res.status(500).json({
         message: "Failed to fetch products",
         error: error instanceof Error ? error.message : "Unknown error",
@@ -318,7 +314,6 @@ export const storeRoutes = (app: Express) => {
 
       res.json(response);
     } catch (error) {
-      console.error("Error fetching paginated requests:", error);
       res.status(500).json({ message: "Failed to fetch requests" });
     }
   });
@@ -359,7 +354,6 @@ export const storeRoutes = (app: Express) => {
       }
       res.json(request);
     } catch (error) {
-      console.error("Error marking request as received:", error);
       res.status(500).json({ message: "Failed to update request" });
     }
   });
@@ -379,7 +373,6 @@ export const storeRoutes = (app: Express) => {
       const sales = await storeService.searchStoreSales(user.storeId, query);
       res.json(sales);
     } catch (error) {
-      console.error("Error searching sales:", error);
       res.status(500).json({ message: "Failed to search sales" });
     }
   });
@@ -404,7 +397,6 @@ export const storeRoutes = (app: Express) => {
 
       res.json(sale);
     } catch (error) {
-      console.error("Error fetching store sale:", error);
       res.status(500).json({ message: "Failed to fetch sale" });
     }
   });
@@ -439,7 +431,6 @@ export const storeRoutes = (app: Express) => {
 
       res.json(response);
     } catch (error) {
-      console.error("Error fetching exchanges:", error);
       res.status(500).json({ message: "Failed to fetch exchanges" });
     }
   });
@@ -476,7 +467,6 @@ export const storeRoutes = (app: Express) => {
 
       res.status(201).json(exchange);
     } catch (error) {
-      console.error("Error creating store exchange:", error);
       const message =
         error instanceof Error ? error.message : "Failed to create exchange";
       res.status(400).json({ message });
@@ -506,7 +496,6 @@ export const storeRoutes = (app: Express) => {
         currency: razorpayOrder.currency,
       });
     } catch (err) {
-      console.error("Error creating Razorpay order:", err);
       res.status(500).json({ message: "Failed to create Razorpay order" });
     }
   });

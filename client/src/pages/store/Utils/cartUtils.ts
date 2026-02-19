@@ -1,4 +1,4 @@
-import { CartItem } from "@/pages/store/Hook/cartStore";
+import { CartItem } from "@/pages/store/Hook/cartForStore";
 import { toast } from "@/hooks/use-toast";
 
 // Safe price parsing with validation

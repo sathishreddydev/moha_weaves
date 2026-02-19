@@ -1,8 +1,8 @@
+import crypto from "crypto";
 import { Express, Request, Response } from "express";
 import { createAuthMiddleware } from "server/authMiddleware";
 import { z } from "zod";
 import { StoreRepository } from "./storeStorage";
-import crypto from "crypto";
 
 
 const cartItemSchema = z.object({
@@ -79,7 +79,6 @@ export const storeCartRoutes = (app: Express) => {
 
       res.json(cart);
     } catch (error) {
-      console.error("Error fetching cart:", error);
       res.status(500).json({ error: "Failed to fetch cart" });
     }
   });
@@ -123,8 +122,6 @@ export const storeCartRoutes = (app: Express) => {
           details: error.errors,
         });
       }
-
-      console.error("Error adding to cart:", error);
       res.status(500).json({ error: "Failed to add item to cart" });
     }
   });
@@ -185,13 +182,30 @@ export const storeCartRoutes = (app: Express) => {
         }
       }
 
-      const updatedCart = await storeRepo.updateStoreCart(storeId, validatedData.items);
+      const cartItems = validatedData.items.map((item) => {
+        const quantity = item.quantity ?? 0;
+        const unitPrice = item.unitPrice ?? "0";
+
+        const lineAmount = (
+          Number(quantity) * Number(unitPrice)
+        ).toFixed(2);
+
+        return {
+          productId: item.productId,
+          variantId: item.variantId,
+          quantity,
+          unitPrice: typeof unitPrice === 'number' ? unitPrice.toString() : unitPrice,
+          lineAmount,
+        };
+      });
+
+
+      const updatedCart = await storeRepo.updateStoreCart(storeId, cartItems);
       res.json(updatedCart);
     } catch (error) {
       if (error instanceof z.ZodError) {
         return res.status(400).json({ error: "Invalid cart data", details: error.errors });
       }
-      console.error("Error updating cart:", error);
       res.status(500).json({ error: "Failed to update cart" });
     }
   });
@@ -208,7 +222,6 @@ export const storeCartRoutes = (app: Express) => {
 
       res.json({ message: "Item removed from cart successfully" });
     } catch (error) {
-      console.error("Error removing item:", error);
       res.status(500).json({ error: "Failed to remove item from cart" });
     }
   });
@@ -227,7 +240,6 @@ export const storeCartRoutes = (app: Express) => {
       if (error instanceof z.ZodError) {
         return res.status(400).json({ error: "Invalid coupon data", details: error.errors });
       }
-      console.error("Error applying coupon:", error);
       res.status(400).json({ error: error instanceof Error ? error.message : "Failed to apply coupon" });
     }
   });
@@ -313,7 +325,11 @@ export const storeCartRoutes = (app: Express) => {
       const order = await storeRepo.createStoreSale(storeId, processedBy, {
         customerName: validatedData.customerName,
         customerPhone: validatedData.customerPhone,
-        items: validatedData.items,
+        items: validatedData.items.map(item => ({
+          ...item,
+          unitPrice: typeof item.unitPrice === 'number' ? item.unitPrice.toString() : item.unitPrice,
+          lineAmount: item.lineAmount.toString(),
+        })),
         discountAmount,
         loyaltyDiscountAmount,
         taxAmount: validatedData.tax,
@@ -345,7 +361,6 @@ export const storeCartRoutes = (app: Express) => {
       if (error instanceof z.ZodError) {
         return res.status(400).json({ error: "Invalid checkout data", details: error.errors });
       }
-      console.error("Error during checkout:", error);
       res.status(500).json({ error: error instanceof Error ? error.message : "Failed to complete checkout" });
     }
   });
@@ -361,7 +376,6 @@ export const storeCartRoutes = (app: Express) => {
 
       res.json(receipt);
     } catch (error) {
-      console.error("Error generating receipt:", error);
       res.status(500).json({ error: "Failed to generate receipt" });
     }
   });

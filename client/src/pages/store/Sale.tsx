@@ -6,24 +6,23 @@ import { Button } from "@/components/ui/button";
 import { useDataTable } from "@/hooks/use-data-table";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/lib/auth";
-import { TreeNode } from "@/lib/type";
+import {
+  calculateVariantPrice,
+  findCartItem,
+  formatPrice,
+  getAvailableStock,
+  getCartItemByVariant,
+  getStockDisplayText,
+  hasItemsInCart,
+  isOutOfStock,
+  updateCartItemQuantity
+} from "@/pages/store/utils/cartUtils";
 import type { ProductWithDetails } from "@shared/schema";
 import { ColumnDef } from "@tanstack/react-table";
 import { Camera, Minus, Plus, RefreshCw, ShoppingCart, Trash2 } from "lucide-react";
-import { useEffect, useState, useMemo, useCallback } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { useStoreCart } from "./Hook/cartStore";
-import { 
-  formatPrice, 
-  calculateVariantPrice, 
-  findCartItem, 
-  getCartItemByVariant, 
-  getAvailableStock,
-  updateCartItemQuantity,
-  isOutOfStock,
-  getStockDisplayText,
-  hasItemsInCart
-} from "@/pages/store/utils/cartUtils";
+import { useStoreCart } from "./Hook/cartForStore";
 
 type ShopProduct = ProductWithDetails & {
   activeSale?: {

@@ -8,8 +8,7 @@ export interface CartItem {
   productId: string;
   variantId?: string;
   quantity: number;
-  unitPrice: string | number;  // Accept both string and number from backend
-  lineAmount: number;
+  unitPrice: string;
   totalStock: number;
   product: {
     id: string;
@@ -74,7 +73,6 @@ export const useStoreCart = create<StoreCartState>((set, get) => ({
       const res = await axios.get(`/api/store/cart`);
       set({ items: res.data.items || [] });
     } catch (error) {
-      console.error("Error fetching cart:", error);
       toast({
         title: "Failed to fetch cart",
         description: "Please try again later.",
@@ -105,8 +103,6 @@ export const useStoreCart = create<StoreCartState>((set, get) => ({
         description: res.data.message || "Item added to cart successfully",
       });
     } catch (error: any) {
-      console.error("Error adding to cart:", error);
-
       toast({
         title: "Failed to add item",
         description: error.response?.data?.message || "Something went wrong",
@@ -187,8 +183,6 @@ export const useStoreCart = create<StoreCartState>((set, get) => ({
         description: "Your cart items have been updated successfully",
       });
     } catch (error) {
-      console.error("Error updating cart:", error);
-
       set(produce((state: StoreCartState) => {
         items.forEach(item => {
           state.itemLoading[item.productId] = false;
@@ -224,8 +218,6 @@ export const useStoreCart = create<StoreCartState>((set, get) => ({
         description: "Item has been removed from your cart",
       });
     } catch (error) {
-      console.error("Error removing item:", error);
-
       toast({
         title: "Failed to remove item",
         description: "Failed to remove item from cart",

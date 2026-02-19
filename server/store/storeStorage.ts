@@ -10,14 +10,15 @@ import {
   StoreInventory,
   StoreSale,
   StoreSaleWithItems,
-  appSettings,
   categories,
   colors,
   couponUsage,
   coupons,
+  damageCategoryEnum,
   fabrics,
-  products,
+  productDamages,
   productVariants,
+  products,
   saleProducts,
   sales,
   stockMovements,
@@ -29,19 +30,17 @@ import {
   storeSaleItems,
   storeSales,
   stores,
-  subcategories,
   users,
-  variantStoreInventory,
-  productDamages,
-  damageSourceEnum,
-  damageCategoryEnum,
-  damageSeverityEnum,
+  variantStoreInventory
 } from "@shared/schema";
 import { and, desc, eq, gt, gte, inArray, lte, sql } from "drizzle-orm";
 import { db } from "server/db";
 import { roleBasedProductService } from "server/product/roleBasedProductService";
 import { CustomerService } from "./customerStorage";
 import { formatProductsByStore } from "./formatedData";
+import type { ExchangeNewItem, StoreCartResponse, StoreExchangeData } from "./types";
+import { getStoreConfig } from "./utils/config";
+import { generateStoreExchangeId, generateStoreSaleId } from "./utils/idGenerator";
 
 export interface StoreStorage {
   // Stores
@@ -63,8 +62,8 @@ export interface StoreStorage {
         productId: string;
         variantId?: string | null;
         quantity: number;
-        unitPrice: number | string;
-        lineAmount: number;
+        unitPrice: string;
+        lineAmount: string;
       }>;
       discountAmount: number;
       loyaltyDiscountAmount?: number;
@@ -123,29 +122,7 @@ export interface StoreStorage {
   createStoreExchangeWithValidation(
     storeId: string,
     processedBy: string,
-    data: {
-      originalSaleId: string;
-      returnItems: {
-        saleItemId: string;
-        productId: string;
-        quantity: number;
-        unitPrice: string;
-        returnAmount: string;
-        exchangeType: string;
-        specificReason: string;
-        damageImages: string[];
-      }[];
-      newItems?: {
-        productId: string;
-        quantity: number;
-        unitPrice: string;
-        lineAmount: string;
-      }[];
-      reason?: string;
-      notes?: string;
-      customerName?: string;
-      customerPhone?: string;
-    },
+    data: StoreExchangeData,
   ): Promise<StoreExchange>;
   getShopAvailableProducts(
     storeId: string,
@@ -192,15 +169,22 @@ export interface StoreStorage {
   getStoreVariantInventoryItems(
     storeId: string,
     variantIds: string[],
-  ): Promise<any[]>;
-  getStoreCart(storeId: string): Promise<{ items: any[] }>;
+  ): Promise<StoreInventory[]>;
+  getStoreCart(storeId: string): Promise<StoreCartResponse>;
+  addToStoreCart(
+    storeId: string,
+    productId: string,
+    variantId: string | undefined,
+    quantity: number,
+    unitPrice: number,
+  ): Promise<StoreCartResponse>;
   deleteFromStoreCart(
     storeId: string,
     productId: string,
     variantId?: string,
-  ): Promise<{ items: any[] }>;
-  updateStoreCart(storeId: string, items: any[]): Promise<{ items: any[] }>;
-  clearStoreCart(storeId: string): Promise<{ items: any[] }>;
+  ): Promise<StoreCartResponse>;
+  updateStoreCart(storeId: string, items: ExchangeNewItem[]): Promise<StoreCartResponse>;
+  clearStoreCart(storeId: string): Promise<StoreCartResponse>;
   applyCoupon(storeId: string, code: string): Promise<any>;
   updateCouponUsage(
     couponId: string,
@@ -209,53 +193,9 @@ export interface StoreStorage {
     discountAmount: string,
   ): Promise<void>;
   generateReceipt(storeId: string, orderId: string): Promise<any>;
-  generateStoreExchangeId(storeId: string): Promise<string>;
 }
 export class StoreRepository implements StoreStorage {
   private customerService = new CustomerService();
-  async generateStoreSaleId(storeId: string): Promise<string> {
-    const store = await this.getStore(storeId);
-    if (!store) {
-      throw new Error("Store not found");
-    }
-
-    const cleanStoreName = store.name
-      .replace(/[^a-zA-Z0-9]/g, "")
-      .toLowerCase();
-
-    // Get the count of existing sales for this store to determine the next number
-    const existingSalesCount = await db
-      .select({ count: sql<number>`count(*)::int` })
-      .from(storeSales)
-      .where(eq(storeSales.storeId, storeId));
-
-    const nextNumber = (existingSalesCount[0]?.count || 0) + 1;
-
-    // Format: MOHA + store name + sequential number (padded to 2 digits)
-    return `MOHA${cleanStoreName}${nextNumber.toString().padStart(2, "0")}`;
-  }
-
-  async generateStoreExchangeId(storeId: string): Promise<string> {
-    const store = await this.getStore(storeId);
-    if (!store) {
-      throw new Error("Store not found");
-    }
-
-    const cleanStoreName = store.name
-      .replace(/[^a-zA-Z0-9]/g, "")
-      .toLowerCase();
-
-    // Get the count of existing exchanges for this store to determine the next number
-    const existingExchangesCount = await db
-      .select({ count: sql<number>`count(*)::int` })
-      .from(storeExchanges)
-      .where(eq(storeExchanges.storeId, storeId));
-
-    const nextNumber = (existingExchangesCount[0]?.count || 0) + 1;
-
-    // Format: EX + store name + sequential number (padded to 2 digits)
-    return `EX${cleanStoreName}${nextNumber.toString().padStart(2, "0")}`;
-  }
 
   async getStores(): Promise<Store[]> {
     return db.select().from(stores).where(eq(stores.isActive, true));
@@ -293,8 +233,8 @@ export class StoreRepository implements StoreStorage {
         productId: string;
         variantId?: string | null;
         quantity: number;
-        unitPrice: number | string;
-        lineAmount: number;
+        unitPrice: string;
+        lineAmount: string;
       }>;
       discountAmount: number;
       loyaltyDiscountAmount?: number;
@@ -308,7 +248,7 @@ export class StoreRepository implements StoreStorage {
     },
   ): Promise<StoreSale> {
     // Generate custom sale ID
-    const saleId = await this.generateStoreSaleId(storeId);
+    const saleId = await generateStoreSaleId(storeId);
 
     const [newSale] = await db
       .insert(storeSales)
@@ -335,7 +275,7 @@ export class StoreRepository implements StoreStorage {
         productId: item.productId,
         variantId: item.variantId,
         quantity: item.quantity,
-        price: typeof item.unitPrice === 'string' ? item.unitPrice : item.unitPrice.toString(),
+        price: item.unitPrice,
       });
 
       if (item.variantId) {
@@ -390,15 +330,12 @@ export class StoreRepository implements StoreStorage {
       });
     }
 
-    // Calculate loyalty points (₹100 = 50 points, so totalAmount / 2)
-    // const loyaltyPointsEarned = Math.floor(data.totalAmount / 2);
-
     // Create or update customer with loyalty points
     await this.customerService.addOrCreateCustomerLoyalty(
       data.customerName,
       data.customerPhone,
       storeId,
-      0,
+      Math.floor(data.totalAmount / 2) // ₹100 = 50 points
     );
 
     await this.clearStoreCart(storeId);
@@ -592,9 +529,9 @@ export class StoreRepository implements StoreStorage {
       };
     }
 
-    // Get exchange window days from settings (similar to return window)
-    const windowDays = await this.getExchangeWindowDays();
-    const days = windowDays ? parseInt(windowDays) : 7;
+    // Get exchange window days from configuration
+    const config = getStoreConfig();
+    const days = config.exchangeWindowDays;
 
     const now = new Date();
     const saleDate = new Date(sale.createdAt);
@@ -657,21 +594,6 @@ export class StoreRepository implements StoreStorage {
       daysRemaining,
       items: itemsEligibility,
     };
-  }
-
-  private async getExchangeWindowDays(): Promise<string | null> {
-    try {
-      // Try to get from app_settings table or return default
-      const [result] = await db
-        .select()
-        .from(appSettings)
-        .where(eq(appSettings.key, "exchange_window_days"));
-
-      return result?.value ?? null;
-    } catch (error) {
-      console.error("Error getting exchange window days:", error);
-      return null;
-    }
   }
 
   async getStoreExchange(
@@ -978,34 +900,9 @@ export class StoreRepository implements StoreStorage {
   async createStoreExchangeWithValidation(
     storeId: string,
     processedBy: string,
-    data: {
-      originalSaleId: string;
-      returnItems: {
-        saleItemId: string;
-        productId: string;
-        variantId?: string;
-        quantity: number;
-        unitPrice: string;
-        returnAmount: string;
-        exchangeType: string;
-        specificReason: string;
-        damageImages: string[];
-      }[];
-      newItems?: {
-        productId: string;
-        variantId?: string;
-        quantity: number;
-        unitPrice: string;
-        lineAmount: string;
-      }[];
-      notes?: string;
-      customerName?: string;
-      customerPhone?: string;
-    },
+    data: StoreExchangeData,
   ): Promise<StoreExchange> {
-    // Generate custom exchange ID
-    const exchangeId = await this.generateStoreExchangeId(storeId);
-    // Validate required fields
+    const exchangeId = await generateStoreExchangeId(storeId);
     if (
       !data?.originalSaleId ||
       !data.returnItems ||
@@ -1027,15 +924,16 @@ export class StoreRepository implements StoreStorage {
       throw new Error("Sale belongs to different store");
     }
 
-    // Check exchange eligibility (within 7 days)
+    // Check exchange eligibility (within configured days)
+    const config = getStoreConfig();
     const saleDate = new Date(originalSale.createdAt);
     const currentDate = new Date();
     const daysSinceSale = Math.floor(
       (currentDate.getTime() - saleDate.getTime()) / (1000 * 60 * 60 * 24),
     );
 
-    if (daysSinceSale > 7) {
-      throw new Error("Items can only be exchanged within 7 days of purchase");
+    if (daysSinceSale > config.exchangeWindowDays) {
+      throw new Error(`Items can only be exchanged within ${config.exchangeWindowDays} days of purchase`);
     }
 
     // Validate return items
@@ -1197,17 +1095,6 @@ export class StoreRepository implements StoreStorage {
       balanceDirection = "even";
     }
 
-    // const loyaltyPointsEarned = balanceAmount > 0 ? Math.floor(balanceAmount / 2) : 0;
-
-    // if (loyaltyPointsEarned > 0 && data.customerName && data.customerPhone) {
-    //   await this.customerService.addOrCreateCustomerLoyalty(
-    //     data.customerName,
-    //     data.customerPhone,
-    //     storeId,
-    //     loyaltyPointsEarned
-    //   );
-    // }
-
     // Convert damageImages arrays to JSON strings for database storage
     const returnItemsForDb: Omit<InsertStoreExchangeReturnItem, "exchangeId">[] = data.returnItems.map(item => ({
       ...item,
@@ -1281,58 +1168,107 @@ export class StoreRepository implements StoreStorage {
         .where(whereClause),
     ]);
 
+    // Extract all exchange IDs to fetch related data in bulk
+    const exchangeIds = data.map(exchange => exchange.store_exchanges.id);
+    const originalSaleIds = data.map(exchange => exchange.store_exchanges.originalSaleId);
+
+    // Fetch all original sales in bulk
+    const originalSalesMap = new Map();
+    if (originalSaleIds.length > 0) {
+      const originalSales = await db
+        .select()
+        .from(storeSales)
+        .leftJoin(stores, eq(storeSales.storeId, stores.id))
+        .leftJoin(storeSaleItems, eq(storeSales.id, storeSaleItems.saleId))
+        .where(inArray(storeSales.id, originalSaleIds));
+
+      // Group sales by ID
+      for (const saleRow of originalSales) {
+        if (!originalSalesMap.has(saleRow.store_sales.id)) {
+          originalSalesMap.set(saleRow.store_sales.id, {
+            ...saleRow.store_sales,
+            store: saleRow.stores,
+            items: []
+          });
+        }
+        if (saleRow.store_sale_items) {
+          originalSalesMap.get(saleRow.store_sales.id).items.push(saleRow.store_sale_items);
+        }
+      }
+    }
+
+    // Fetch all return and new items in bulk
+    const [allReturnItems, allNewItems] = await Promise.all([
+      exchangeIds.length > 0 
+        ? db.select().from(storeExchangeReturnItems).where(inArray(storeExchangeReturnItems.exchangeId, exchangeIds))
+        : [],
+      exchangeIds.length > 0
+        ? db.select().from(storeExchangeNewItems).where(inArray(storeExchangeNewItems.exchangeId, exchangeIds))
+        : []
+    ]);
+
+    // Group items by exchange ID
+    const returnItemsMap = new Map<string, typeof storeExchangeReturnItems.$inferSelect[]>();
+    const newItemsMap = new Map<string, typeof storeExchangeNewItems.$inferSelect[]>();
+    
+    for (const item of allReturnItems) {
+      if (!returnItemsMap.has(item.exchangeId)) {
+        returnItemsMap.set(item.exchangeId, []);
+      }
+      const items = returnItemsMap.get(item.exchangeId);
+      if (items) {
+        items.push(item);
+      }
+    }
+
+    for (const item of allNewItems) {
+      if (!newItemsMap.has(item.exchangeId)) {
+        newItemsMap.set(item.exchangeId, []);
+      }
+      const items = newItemsMap.get(item.exchangeId);
+      if (items) {
+        items.push(item);
+      }
+    }
+
+    // Extract all unique product IDs
+    const allProductIds = new Set([
+      ...allReturnItems.map(item => item.productId),
+      ...allNewItems.map(item => item.productId)
+    ]);
+
+    // Fetch all products in bulk
+    const products = allProductIds.size > 0 
+      ? await roleBasedProductService.getProductsByRole(
+          { ids: Array.from(allProductIds), storeId },
+          "store"
+        )
+      : [];
+
+    const formattedProducts = formatProductsByStore(products, storeId);
+    const productMap = new Map(
+      formattedProducts.map(product => [product.id, product])
+    );
+
+    // Build the result
     const result: StoreExchangeWithDetails[] = [];
-
     for (const exchange of data) {
-      const originalSale = await this.getStoreSaleForExchange(
-        exchange.store_exchanges.originalSaleId,
-      );
-
-      // Get return items with product IDs
-      const returnItems = await db
-        .select()
-        .from(storeExchangeReturnItems)
-        .where(
-          eq(storeExchangeReturnItems.exchangeId, exchange.store_exchanges.id),
-        );
-
-      // Get new items with product IDs
-      const newItems = await db
-        .select()
-        .from(storeExchangeNewItems)
-        .where(
-          eq(storeExchangeNewItems.exchangeId, exchange.store_exchanges.id),
-        );
-
-      // Extract unique product IDs from both return and new items
-      const returnProductIds = returnItems.map(item => item.productId);
-      const newProductIds = newItems.map(item => item.productId);
-      const allProductIds = [...new Set([...returnProductIds, ...newProductIds])];
-
-      // Use role-based service to get product details (50-60% faster queries)
-      const products = await roleBasedProductService.getProductsByRole(
-        { ids: allProductIds, storeId },
-        "store"
-      );
-
-      // Format products by store for consistent data structure
-      const formattedProducts = formatProductsByStore(products, storeId);
-
-      // Create a product lookup map for efficient access
-      const productMap = new Map(
-        formattedProducts.map(product => [product.id, product])
-      );
+      const exchangeId = exchange.store_exchanges.id;
+      const originalSale = originalSalesMap.get(exchange.store_exchanges.originalSaleId);
+      const returnItems = returnItemsMap.get(exchangeId) || [];
+      const newItems = newItemsMap.get(exchangeId) || [];
 
       result.push({
         ...exchange.store_exchanges,
         store: exchange.stores!,
-        originalSale: originalSale!,
+        originalSale: originalSale || null,
         processor: exchange.users!,
         returnItems: returnItems.map((item) => {
           const product = productMap.get(item.productId);
           return {
             ...item,
             product: product || null,
+            damageImages: JSON.parse(item.damageImages || "[]"),
           };
         }),
         newItems: newItems.map((item) => {
@@ -1727,8 +1663,9 @@ export class StoreRepository implements StoreStorage {
       reorderLevel: number;
     }>
   > {
-    // Define reorder level as 5 units (you can make this configurable later)
-    const REORDER_LEVEL = 5;
+    // Get configurable reorder level
+    const config = getStoreConfig();
+    const REORDER_LEVEL = config.reorderLevel;
 
     const result = await db
       .select()
@@ -1817,7 +1754,7 @@ export class StoreRepository implements StoreStorage {
     variantId: string | undefined,
     quantity: number,
     unitPrice: number,
-  ): Promise<{ items: any[] }> {
+  ): Promise<StoreCartResponse> {
     const price = Number(unitPrice);
 
     await db.transaction(async (tx) => {
@@ -1862,7 +1799,7 @@ export class StoreRepository implements StoreStorage {
     return this.getStoreCart(storeId);
   }
 
-  async getStoreCart(storeId: string): Promise<{ items: any[] }> {
+  async getStoreCart(storeId: string): Promise<StoreCartResponse> {
     // Get basic cart items first
     const cartItems = await db
       .select()
@@ -1906,7 +1843,7 @@ export class StoreRepository implements StoreStorage {
     storeId: string,
     productId: string,
     variantId?: string,
-  ): Promise<{ items: any[] }> {
+  ): Promise<StoreCartResponse> {
     await db
       .delete(storeCart)
       .where(
@@ -1923,8 +1860,8 @@ export class StoreRepository implements StoreStorage {
 
   async updateStoreCart(
     storeId: string,
-    items: any[],
-  ): Promise<{ items: any[] }> {
+    items: ExchangeNewItem[],
+  ): Promise<StoreCartResponse> {
     await db.transaction(async (tx) => {
       for (const item of items) {
         const [existingItem] = await tx
@@ -1976,7 +1913,7 @@ export class StoreRepository implements StoreStorage {
 
     return this.getStoreCart(storeId);
   }
-  async clearStoreCart(storeId: string): Promise<{ items: any[] }> {
+  async clearStoreCart(storeId: string): Promise<StoreCartResponse> {
     await db.delete(storeCart).where(eq(storeCart.storeId, storeId));
 
     return this.getStoreCart(storeId);

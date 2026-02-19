@@ -1,7 +1,7 @@
+import { CloudinaryUploader } from "@/components/CloudinaryUploader";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { CloudinaryUploader } from "@/components/CloudinaryUploader";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -1665,7 +1665,7 @@ function StoreExchange() {
                     id="customerPhone"
                     value={customerPhone}
                     onChange={(e) => setCustomerPhone(e.target.value)}
-                    placeholder="+91 XXXXX XXXXX"
+                    placeholder={process.env.NEXT_PUBLIC_PHONE_PLACEHOLDER || "+91 XXXXX XXXXX"}
                     readOnly
                   />
                 </div>

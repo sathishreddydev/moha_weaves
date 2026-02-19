@@ -166,7 +166,7 @@ export default function Invoice() {
                 <p className="text-slate-600 text-xs">
                   Fashion & Traditional Wear
                 </p>
-                <p className="text-slate-600 text-xs">GSTIN: XXXXXXXXXX</p>
+                <p className="text-slate-600 text-xs">{process.env.NEXT_PUBLIC_STORE_GSTIN || "GSTIN: XXXXXXXXX"}</p>
               </div>
               <div className="text-right">
                 <h3 className="text-base font-semibold text-slate-800">
