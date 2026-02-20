@@ -1,4 +1,4 @@
-import { insertProductDamageSchema, products } from "@shared/schema";
+import { insertProductDamageSchema, products, stockMovements } from "@shared/schema";
 import { eq } from "drizzle-orm";
 import type { Express } from "express";
 import { productService } from "server/product/productStorage";
@@ -15,6 +15,17 @@ import { inventoryService } from "./inventoryStorage";
 import { productDamageService } from "./productDamageService";
 import { productBaseSchema, trackingNumberSchema } from "./schema";
 import { stockRequestService } from "server/store/stockRequestStorage";
+import { stockValidationService } from "./stockValidationService";
+import { 
+  handleInventoryError, 
+  InsufficientStockError, 
+  ProductNotFoundError, 
+  DatabaseTransactionError,
+  StockValidationError,
+  validateStockAllocation,
+  validateDistributionChannel
+} from "./errorHandling";
+import { stockAuditService } from "./stockAuditService";
 
 const productWithAllocationsSchema = productBaseSchema.refine(
   (data) => {
@@ -76,62 +87,92 @@ export const inventoryRoutes = (app: Express) => {
           return res.status(400).json({ message: "Status is required" });
         }
 
-        // Get the request details to check stock before approval
-        if (status === "approved") {
-          const stockRequest = await stockRequestService.getStockRequest(req.params.id, "inventory");
+        // Get the request details first
+        const stockRequest = await stockRequestService.getStockRequest(req.params.id, "inventory");
 
-          if (!stockRequest) {
-            return res.status(404).json({ message: "Request not found" });
-          }
-
-          // Use database transaction to prevent race conditions
-          await db.transaction(async (tx: any) => {
-            // Get product details within transaction for consistent read
-            const [product] = await tx
-              .select()
-              .from(products)
-              .where(eq(products.id, stockRequest.productId))
-              .for('update'); // Lock the row for this transaction
-
-            if (!product) {
-              throw new Error("Product not found");
-            }
-
-            // Check if sufficient stock is available (double-check within transaction)
-            if (product.totalStock < stockRequest.quantity) {
-              throw new Error(`Insufficient stock available. Available: ${product.totalStock}, Requested: ${stockRequest.quantity}`);
-            }
-
-            // Update stock atomically
-            await tx
-              .update(products)
-              .set({
-                totalStock: product.totalStock - stockRequest.quantity,
-                updatedAt: new Date()
-              })
-              .where(eq(products.id, stockRequest.productId));
-          });
-
-          // If we get here, the stock was successfully updated
-          const updateData: any = { status };
-          if (rejectionReason && status === "rejected") {
-            updateData.notes = rejectionReason;
-          }
-
-          const updatedRequest = await stockRequestService.updateStockRequestStatus(
-            req.params.id,
-            status,
-            (req as any).user.id,
-            rejectionReason,
-          );
-
-          if (!updatedRequest) {
-            return res.status(404).json({ message: "Request not found" });
-          }
-          res.json(updatedRequest);
-          return;
+        if (!stockRequest) {
+          return res.status(404).json({ message: "Request not found" });
         }
 
+        // Handle approval with stock deduction
+        if (status === "approved") {
+          try {
+            // Use database transaction to prevent race conditions
+            await db.transaction(async (tx: any) => {
+              // Get product details within transaction for consistent read with row lock
+              const [product] = await tx
+                .select()
+                .from(products)
+                .where(eq(products.id, stockRequest.productId))
+                .for('update'); // Lock the row for this transaction
+
+              if (!product) {
+                throw new ProductNotFoundError(stockRequest.productId);
+              }
+
+              // Check if sufficient stock is available (double-check within transaction)
+              if (product.totalStock < stockRequest.quantity) {
+                throw new InsufficientStockError(
+                  stockRequest.productId,
+                  stockRequest.quantity,
+                  product.totalStock
+                );
+              }
+
+              // Update stock atomically
+              const updateResult = await tx
+                .update(products)
+                .set({
+                  totalStock: product.totalStock - stockRequest.quantity,
+                  updatedAt: new Date()
+                })
+                .where(eq(products.id, stockRequest.productId))
+                .returning({ totalStock: products.totalStock });
+
+              // Verify the update was successful
+              if (updateResult.length === 0) {
+                throw new DatabaseTransactionError("Failed to update product stock");
+              }
+
+              // Record stock movement for audit trail
+              await tx.insert(stockMovements).values({
+                productId: stockRequest.productId,
+                quantity: -stockRequest.quantity,
+                movementType: "request",
+                source: "online", // Must be "store" | "online" per schema
+                orderRefId: stockRequest.id,
+                notes: `Stock request approved - ${stockRequest.quantity} units allocated to ${stockRequest.store?.name || 'store'}`,
+                createdAt: new Date()
+              });
+            });
+
+            // If transaction succeeds, update request status
+            const updatedRequest = await stockRequestService.updateStockRequestStatus(
+              req.params.id,
+              status,
+              (req as any).user.id,
+              rejectionReason,
+            );
+
+            if (!updatedRequest) {
+              // This shouldn't happen if transaction succeeded, but handle gracefully
+              console.error("Failed to update stock request status after successful stock deduction");
+              throw new DatabaseTransactionError("Failed to update request status");
+            }
+
+            res.json(updatedRequest);
+            return;
+
+          } catch (transactionError: any) {
+            console.error("Transaction failed during stock request approval:", transactionError);
+            
+            // Use proper error handling
+            const errorResponse = handleInventoryError(transactionError, process.env.NODE_ENV === "development");
+            return res.status(errorResponse.statusCode).json(errorResponse);
+          }
+        }
+
+        // Handle rejection status
         const updateData: any = { status };
         if (rejectionReason && status === "rejected") {
           updateData.notes = rejectionReason;
@@ -143,12 +184,19 @@ export const inventoryRoutes = (app: Express) => {
           (req as any).user.id,
           rejectionReason,
         );
+        
         if (!request) {
           return res.status(404).json({ message: "Request not found" });
         }
+        
         res.json(request);
-      } catch {
-        res.status(500).json({ message: "Failed to update request" });
+        
+      } catch (error: any) {
+        console.error("Error updating stock request status:", error);
+        
+        // Use proper error handling
+        const errorResponse = handleInventoryError(error, process.env.NODE_ENV === "development");
+        res.status(errorResponse.statusCode).json(errorResponse);
       }
     },
   );
@@ -402,22 +450,13 @@ export const inventoryRoutes = (app: Express) => {
           const onlinePlusStore = variant.onlineStock + storeTotal;
 
           if (onlinePlusStore !== variant.stockQuantity) {
-            return res.status(400).json({
-              message: `Variant ${variant.size}: Online (${variant.onlineStock}) + Store allocations (${storeTotal}) must equal total stock (${variant.stockQuantity})`,
-            });
+            throw new StockValidationError(
+              `Variant ${variant.size}: Online (${variant.onlineStock}) + Store allocations (${storeTotal}) must equal total stock (${variant.stockQuantity})`
+            );
           }
 
           // Validate distribution channel constraints for variants
-          if (productData.distributionChannel === "online" && storeTotal > 0) {
-            return res.status(400).json({
-              message: `Variant ${variant.size}: Distribution channel is 'Online Only' but has store allocations (${storeTotal})`,
-            });
-          }
-          if (productData.distributionChannel === "shop" && variant.onlineStock > 0) {
-            return res.status(400).json({
-              message: `Variant ${variant.size}: Distribution channel is 'Shop Only' but has online stock (${variant.onlineStock})`,
-            });
-          }
+          validateDistributionChannel(productData.distributionChannel, variant.onlineStock, storeTotal);
         }
 
         // Calculate aggregated totals from variants
@@ -441,6 +480,9 @@ export const inventoryRoutes = (app: Express) => {
           storeName: data.storeName,
           quantity: data.quantity
         }));
+
+        // Validate final stock allocation
+        validateStockAllocation(totalStock, onlineStock, aggregatedStoreAllocations);
 
         // Update product data with calculated totals
         const updatedProductData = {
@@ -477,11 +519,10 @@ export const inventoryRoutes = (app: Express) => {
           (sum, a) => sum + a.quantity,
           0,
         );
-        if (totalAllocated !== productData.totalStock) {
-          return res.status(400).json({
-            message: `Store allocations (${totalAllocated}) must equal total stock (${productData.totalStock})`,
-          });
-        }
+        
+        validateStockAllocation(productData.totalStock, productData.onlineStock, allocations);
+        validateDistributionChannel(productData.distributionChannel, productData.onlineStock, totalAllocated);
+        
         const product = await inventoryService.createProductWithAllocations(
           productData,
           allocations,
@@ -493,11 +534,9 @@ export const inventoryRoutes = (app: Express) => {
         const allocations = storeAllocations || [];
         const storeTotal = allocations.reduce((sum, a) => sum + a.quantity, 0);
         const onlineStock = productData.onlineStock || 0;
-        if (storeTotal + onlineStock !== productData.totalStock) {
-          return res.status(400).json({
-            message: `Online (${onlineStock}) + Store allocations (${storeTotal}) must equal total stock (${productData.totalStock})`,
-          });
-        }
+        
+        validateStockAllocation(productData.totalStock, onlineStock, allocations);
+        
         const product = await inventoryService.createProductWithAllocations(
           productData,
           allocations,
@@ -506,8 +545,12 @@ export const inventoryRoutes = (app: Express) => {
         );
         res.json(product);
       }
-    } catch {
-      res.status(500).json({ message: "Failed to create product" });
+    } catch (error: any) {
+      console.error("Error creating product:", error);
+      
+      // Use proper error handling
+      const errorResponse = handleInventoryError(error, process.env.NODE_ENV === "development");
+      res.status(errorResponse.statusCode).json(errorResponse);
     }
   });
 
@@ -946,6 +989,386 @@ export const inventoryRoutes = (app: Express) => {
     },
   );
 
+  // Stock Validation and Reconciliation Endpoints
+  
+  // Validate stock for a specific product
+  app.get("/api/inventory/validate-stock/:productId", authInventory, async (req, res) => {
+    try {
+      const { productId } = req.params;
+      const validation = await stockValidationService.validateProductStock(productId);
+      res.json(validation);
+    } catch (error: any) {
+      console.error("Error validating product stock:", error);
+      res.status(500).json({
+        message: "Failed to validate product stock",
+        error: process.env.NODE_ENV === "development" ? error.message : undefined
+      });
+    }
+  });
+
+  // Validate stock for all products
+  app.get("/api/inventory/validate-all-stock", authInventory, async (req, res) => {
+    try {
+      const validation = await stockValidationService.validateAllStock();
+      res.json(validation);
+    } catch (error: any) {
+      console.error("Error validating all stock:", error);
+      res.status(500).json({
+        message: "Failed to validate all stock",
+        error: process.env.NODE_ENV === "development" ? error.message : undefined
+      });
+    }
+  });
+
+  // Get stock reconciliation data
+  app.get("/api/inventory/stock-reconciliation", authInventory, async (req, res) => {
+    try {
+      const reconciliationData = await stockValidationService.getStockReconciliationData();
+      res.json(reconciliationData);
+    } catch (error: any) {
+      console.error("Error getting stock reconciliation data:", error);
+      res.status(500).json({
+        message: "Failed to get stock reconciliation data",
+        error: process.env.NODE_ENV === "development" ? error.message : undefined
+      });
+    }
+  });
+
+  // Fix stock discrepancies
+  app.post("/api/inventory/fix-stock-discrepancies", authInventory, async (req, res) => {
+    try {
+      const { productIds } = req.body;
+      
+      if (!Array.isArray(productIds) || productIds.length === 0) {
+        return res.status(400).json({ 
+          message: "productIds must be a non-empty array" 
+        });
+      }
+
+      const result = await stockValidationService.fixStockDiscrepancies(productIds);
+      
+      // Log the action for audit
+      console.log(`Stock discrepancy fix attempted by user ${(req as any).user.id}:`, result);
+      
+      res.json({
+        message: "Stock discrepancy fix completed",
+        fixed: result.fixed,
+        failed: result.failed,
+        totalProcessed: productIds.length
+      });
+    } catch (error: any) {
+      console.error("Error fixing stock discrepancies:", error);
+      res.status(500).json({
+        message: "Failed to fix stock discrepancies",
+        error: process.env.NODE_ENV === "development" ? error.message : undefined
+      });
+    }
+  });
+
+  // Batch stock update endpoint
+  app.post("/api/inventory/batch-stock-update", authInventory, async (req, res) => {
+    try {
+      const { updates } = req.body;
+      
+      if (!Array.isArray(updates) || updates.length === 0) {
+        return res.status(400).json({ 
+          message: "updates must be a non-empty array" 
+        });
+      }
+
+      // Validate update format
+      for (const update of updates) {
+        if (!update.productId || typeof update.totalStock !== "number" || typeof update.onlineStock !== "number") {
+          return res.status(400).json({ 
+            message: "Invalid update format. Each update must have productId, totalStock, and onlineStock" 
+          });
+        }
+      }
+
+      const results = await db.transaction(async (tx) => {
+        const processed = [];
+        
+        for (const update of updates) {
+          try {
+            // Get current product state
+            const [currentProduct] = await tx
+              .select()
+              .from(products)
+              .where(eq(products.id, update.productId))
+              .for('update');
+
+            if (!currentProduct) {
+              processed.push({
+                productId: update.productId,
+                success: false,
+                error: "Product not found"
+              });
+              continue;
+            }
+
+            // Validate stock values
+            if (update.totalStock < 0 || update.onlineStock < 0) {
+              processed.push({
+                productId: update.productId,
+                success: false,
+                error: "Stock values cannot be negative"
+              });
+              continue;
+            }
+
+            if (update.onlineStock > update.totalStock) {
+              processed.push({
+                productId: update.productId,
+                success: false,
+                error: "Online stock cannot exceed total stock"
+              });
+              continue;
+            }
+
+            // Update product stock
+            const [updatedProduct] = await tx
+              .update(products)
+              .set({
+                totalStock: update.totalStock,
+                onlineStock: update.onlineStock,
+                updatedAt: new Date()
+              })
+              .where(eq(products.id, update.productId))
+              .returning();
+
+            // Record stock movement
+            const totalChange = update.totalStock - currentProduct.totalStock;
+            const onlineChange = update.onlineStock - currentProduct.onlineStock;
+
+            if (totalChange !== 0) {
+              await tx.insert(stockMovements).values({
+                productId: update.productId,
+                quantity: totalChange,
+                movementType: "adjustment",
+                source: "online", // Must be "store" | "online" per schema
+                orderRefId: "", // Required field - use empty string for batch updates
+                notes: `Batch stock update: Total ${currentProduct.totalStock} → ${update.totalStock}, Online ${currentProduct.onlineStock} → ${update.onlineStock}`,
+                createdAt: new Date()
+              });
+            }
+
+            processed.push({
+              productId: update.productId,
+              success: true,
+              previousStock: {
+                total: currentProduct.totalStock,
+                online: currentProduct.onlineStock
+              },
+              newStock: {
+                total: updatedProduct.totalStock,
+                online: updatedProduct.onlineStock
+              }
+            });
+
+          } catch (error: any) {
+            processed.push({
+              productId: update.productId,
+              success: false,
+              error: error.message
+            });
+          }
+        }
+
+        return processed;
+      });
+
+      // Log batch update for audit
+      console.log(`Batch stock update performed by user ${(req as any).user.id}:`, {
+        totalUpdates: updates.length,
+        successful: results.filter(r => r.success).length,
+        failed: results.filter(r => !r.success).length
+      });
+
+      res.json({
+        message: "Batch stock update completed",
+        results,
+        summary: {
+          total: updates.length,
+          successful: results.filter(r => r.success).length,
+          failed: results.filter(r => !r.success).length
+        }
+      });
+
+    } catch (error: any) {
+      console.error("Error in batch stock update:", error);
+      res.status(500).json({
+        message: "Failed to perform batch stock update",
+        error: process.env.NODE_ENV === "development" ? error.message : undefined
+      });
+    }
+  });
+
+  // Stock Audit Trail Endpoints
+  
+  // Get stock movement history with user attribution
+  app.get("/api/inventory/stock-audit", authInventory, async (req, res) => {
+    try {
+      const {
+        userId,
+        productId,
+        action,
+        movementType,
+        dateFrom,
+        dateTo,
+        search,
+        page = 1,
+        pageSize = 20
+      } = req.query;
+
+      const history = await stockAuditService.getStockMovementHistory({
+        userId: userId as string,
+        productId: productId as string,
+        action: action as string,
+        movementType: movementType as string,
+        dateFrom: dateFrom as string,
+        dateTo: dateTo as string,
+        search: search as string,
+        page: parseInt(page as string),
+        pageSize: parseInt(pageSize as string)
+      });
+
+      res.json(history);
+    } catch (error: any) {
+      console.error("Error fetching stock audit history:", error);
+      const errorResponse = handleInventoryError(error, process.env.NODE_ENV === "development");
+      res.status(errorResponse.statusCode).json(errorResponse);
+    }
+  });
+
+  // Get user-specific audit trail
+  app.get("/api/inventory/stock-audit/user/:userId", authInventory, async (req, res) => {
+    try {
+      const { userId } = req.params;
+      const { dateFrom, dateTo, page = 1, pageSize = 20 } = req.query;
+
+      const trail = await stockAuditService.getUserAuditTrail(userId, {
+        dateFrom: dateFrom as string,
+        dateTo: dateTo as string,
+        page: parseInt(page as string),
+        pageSize: parseInt(pageSize as string)
+      });
+
+      res.json(trail);
+    } catch (error: any) {
+      console.error("Error fetching user audit trail:", error);
+      const errorResponse = handleInventoryError(error, process.env.NODE_ENV === "development");
+      res.status(errorResponse.statusCode).json(errorResponse);
+    }
+  });
+
+  // Get product-specific audit trail
+  app.get("/api/inventory/stock-audit/product/:productId", authInventory, async (req, res) => {
+    try {
+      const { productId } = req.params;
+      const { dateFrom, dateTo, page = 1, pageSize = 20 } = req.query;
+
+      const trail = await stockAuditService.getProductAuditTrail(productId, {
+        dateFrom: dateFrom as string,
+        dateTo: dateTo as string,
+        page: parseInt(page as string),
+        pageSize: parseInt(pageSize as string)
+      });
+
+      res.json(trail);
+    } catch (error: any) {
+      console.error("Error fetching product audit trail:", error);
+      const errorResponse = handleInventoryError(error, process.env.NODE_ENV === "development");
+      res.status(errorResponse.statusCode).json(errorResponse);
+    }
+  });
+
+  // Generate audit report for compliance
+  app.post("/api/inventory/stock-audit/report", authInventory, async (req, res) => {
+    try {
+      const { dateFrom, dateTo, userId, productId, movementType } = req.body;
+
+      if (!dateFrom || !dateTo) {
+        return res.status(400).json({
+          message: "dateFrom and dateTo are required"
+        });
+      }
+
+      const report = await stockAuditService.generateAuditReport({
+        dateFrom,
+        dateTo,
+        userId,
+        productId,
+        movementType
+      });
+
+      // Log report generation for audit
+      console.log(`Audit report generated by user ${(req as any).user.id}:`, {
+        dateFrom,
+        dateTo,
+        filters: { userId, productId, movementType },
+        totalMovements: report.summary.totalMovements
+      });
+
+      res.json(report);
+    } catch (error: any) {
+      console.error("Error generating audit report:", error);
+      const errorResponse = handleInventoryError(error, process.env.NODE_ENV === "development");
+      res.status(errorResponse.statusCode).json(errorResponse);
+    }
+  });
+
+  // Create stock movement with audit trail
+  app.post("/api/inventory/stock-movement-with-audit", authInventory, async (req, res) => {
+    try {
+      const {
+        productId,
+        quantity,
+        movementType,
+        source,
+        orderRefId,
+        notes
+      } = req.body;
+
+      // Validate required fields
+      if (!productId || typeof quantity !== "number" || !movementType || !source) {
+        return res.status(400).json({
+          message: "productId, quantity, movementType, and source are required"
+        });
+      }
+
+      // Create stock movement with audit
+      await stockAuditService.createStockMovementWithAudit({
+        productId,
+        quantity,
+        movementType,
+        source,
+        userId: (req as any).user.id,
+        orderRefId,
+        notes,
+        ipAddress: req.ip,
+        userAgent: req.get('User-Agent')
+      });
+
+      res.json({
+        message: "Stock movement created with audit trail",
+        movement: {
+          productId,
+          quantity,
+          movementType,
+          source,
+          orderRefId,
+          notes,
+          createdBy: (req as any).user.id,
+          createdAt: new Date()
+        }
+      });
+
+    } catch (error: any) {
+      console.error("Error creating stock movement with audit:", error);
+      const errorResponse = handleInventoryError(error, process.env.NODE_ENV === "development");
+      res.status(errorResponse.statusCode).json(errorResponse);
+    }
+  });
 
   // Stock Movement Endpoints with Pagination (POST)
   app.post("/api/inventory/stock-movements", authInventory, async (req, res) => {

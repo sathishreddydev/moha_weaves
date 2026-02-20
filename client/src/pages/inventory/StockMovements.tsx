@@ -11,6 +11,10 @@ import {
   ArrowUpDown,
   AlertTriangle,
   ArrowLeftRight,
+  User,
+  FileText,
+  Search,
+  Calendar,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -45,6 +49,21 @@ interface StockStats {
 interface StockMovementWithDetails extends StockMovement {
   productName?: string;
   storeName?: string;
+  userName?: string; // Added for audit trail
+}
+
+interface AuditLogEntry {
+  id: string;
+  userId: string;
+  userName?: string;
+  userEmail?: string;
+  action: string;
+  entityType: 'product' | 'stock_request' | 'order' | 'stock_movement';
+  entityId: string;
+  oldValues?: any;
+  newValues?: any;
+  timestamp: Date;
+  notes?: string;
 }
 
 

@@ -7,6 +7,7 @@ import {
   decimal,
   boolean,
   timestamp,
+  json,
 } from "drizzle-orm/pg-core";
 import * as enums from "./enums";
 
@@ -865,4 +866,18 @@ export const contactMessages = pgTable("contact_messages", {
   status: varchar("status", { length: 50 }).default("pending").notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const auditLogs = pgTable("audit_logs", {
+  id: varchar("id", { length: 255 }).primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id", { length: 255 }).notNull().references(() => users.id),
+  action: varchar("action", { length: 100 }).notNull(),
+  entityType: varchar("entity_type", { length: 50 }).notNull(),
+  entityId: varchar("entity_id", { length: 255 }).notNull(),
+  oldValues: json("old_values"),
+  newValues: json("new_values"),
+  ipAddress: varchar("ip_address", { length: 45 }), // INET type
+  userAgent: text("user_agent"),
+  notes: text("notes"),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });

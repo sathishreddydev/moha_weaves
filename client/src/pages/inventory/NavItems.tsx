@@ -11,7 +11,11 @@ import {
   Store,
   Truck,
   TrendingUp,
-  AlertTriangle
+  AlertTriangle,
+  Settings,
+  CheckCircle,
+  Users,
+  Activity
 } from "lucide-react";
 
 export const NavGroups = [
@@ -27,7 +31,9 @@ export const NavGroups = [
     items: [
       { icon: Shirt, label: "Products", href: "/inventory/products" },
       { icon: BarChart3, label: "Stock Distribution", href: "/inventory/distribution" },
-      // { icon: Package, label: "Stock Movements", href: "/inventory/stock-movements" },
+      { icon: TrendingUp, label: "Stock Movements", href: "/inventory/stock-movements" },
+      { icon: CheckCircle, label: "Stock Reconciliation", href: "/inventory/stock-reconciliation" },
+      { icon: Settings, label: "Batch Operations", href: "/inventory/batch-stock-operations" },
     ]
   },
   {
@@ -44,6 +50,12 @@ export const NavGroups = [
       { icon: RotateCcw, label: "Returns", href: "/inventory/returns" },
       { icon: ArrowLeftRight, label: "Exchanges", href: "/inventory/exchanges" },
       { icon: CreditCard, label: "Refunds", href: "/inventory/refunds" },
+    ]
+  },
+  {
+    title: "Audit & Compliance",
+    items: [
+      { icon: Activity, label: "Audit Reporting", href: "/inventory/audit-reporting" },
     ]
   },
   {

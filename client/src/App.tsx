@@ -79,6 +79,9 @@ const InventoryStoreOrders = lazy(
 const DamageReport = lazy(() => import("@/pages/inventory/DamageReport"));
 const DamageHistory = lazy(() => import("@/pages/inventory/DamageHistory"));
 const InventoryStockMovements = lazy(() => import("@/pages/inventory/StockMovements"));
+const InventoryStockReconciliation = lazy(() => import("@/pages/inventory/StockReconciliation"));
+const InventoryBatchStockOperations = lazy(() => import("@/pages/inventory/BatchStockOperations"));
+const InventoryAuditReporting = lazy(() => import("@/pages/inventory/AuditReporting"));
 
 const StoreLogin = lazy(() => import("@/pages/store/Login"));
 const StoreDashboard = lazy(() => import("@/pages/store/Dashboard"));
@@ -209,6 +212,9 @@ function Router() {
                 <Route path="damage-report/:sku" element={<DamageReport />} />
                 <Route path="damage-history" element={<DamageHistory />} />
                 <Route path="stock-movements" element={<InventoryStockMovements />} />
+                <Route path="stock-reconciliation" element={<InventoryStockReconciliation />} />
+                <Route path="batch-stock-operations" element={<InventoryBatchStockOperations />} />
+                <Route path="audit-reporting" element={<InventoryAuditReporting />} />
               </Route>
             </Route>
           </Route>
