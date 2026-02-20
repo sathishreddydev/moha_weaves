@@ -7,13 +7,8 @@ import { apiRequest } from "@/lib/queryClient";
 import type { OrderWithItems } from "@shared/schema";
 import { useMutation } from "@tanstack/react-query";
 import { ColumnDef } from "@tanstack/react-table";
-import {
-  Calendar,
-  ExternalLink,
-  Package,
-  User
-} from 'lucide-react';
-import { useMemo } from 'react';
+import { Calendar, ExternalLink, Package, User } from "lucide-react";
+import { useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { formatDate, formatPrice } from "@/lib/utils";
 
@@ -26,7 +21,6 @@ const itemStatuses = [
   "delivered",
 ];
 
-
 interface StatusBadgeProps {
   status: string;
 }
@@ -36,7 +30,9 @@ const StatusBadge = ({ status }: StatusBadgeProps) => {
   const StatusIcon = config.icon;
 
   return (
-    <span className={`px-2.5 py-0.5 rounded-full text-xs font-medium border flex items-center w-fit capitalize ${config.color}`}>
+    <span
+      className={`px-2.5 py-0.5 rounded-full text-xs font-medium border flex items-center w-fit capitalize ${config.color}`}
+    >
       <StatusIcon size={12} className="mr-1" />
       {config.label}
     </span>
@@ -46,7 +42,7 @@ const StatusBadge = ({ status }: StatusBadgeProps) => {
 export default function InventoryOrders() {
   const navigate = useNavigate();
   const { toast } = useToast();
-  
+
   const {
     data: orders,
     totalCount,
@@ -58,15 +54,23 @@ export default function InventoryOrders() {
   } = useDataTable<OrderWithItems>({
     queryKey: "/api/inventory/orders",
     initialPageSize: 10,
-    pageKey:'inventoryOnlineOrders'
+    pageKey: "inventoryOnlineOrders",
   });
 
   const updateItemStatusMutation = useMutation({
-    mutationFn: async ({ orderId, itemId, status }: { orderId: string; itemId: string; status: string }) => {
+    mutationFn: async ({
+      orderId,
+      itemId,
+      status,
+    }: {
+      orderId: string;
+      itemId: string;
+      status: string;
+    }) => {
       const response = await apiRequest(
         "PATCH",
         `/api/inventory/orders/${orderId}/items/${itemId}/status`,
-        { status }
+        { status },
       );
       return response;
     },
@@ -76,7 +80,9 @@ export default function InventoryOrders() {
     },
     onError: (err: unknown) => {
       const message = err instanceof Error ? err.message : "";
-      const extracted = message.includes(":") ? message.split(":").slice(1).join(":").trim() : "";
+      const extracted = message.includes(":")
+        ? message.split(":").slice(1).join(":").trim()
+        : "";
       toast({
         title: "Error",
         description: extracted || "Failed to update item status",
@@ -86,11 +92,17 @@ export default function InventoryOrders() {
   });
 
   const updateAllItemsStatusMutation = useMutation({
-    mutationFn: async ({ orderId, status }: { orderId: string; status: string }) => {
+    mutationFn: async ({
+      orderId,
+      status,
+    }: {
+      orderId: string;
+      status: string;
+    }) => {
       const response = await apiRequest(
         "PATCH",
         `/api/inventory/orders/${orderId}/status`,
-        { status }
+        { status },
       );
       return response;
     },
@@ -100,7 +112,9 @@ export default function InventoryOrders() {
     },
     onError: (err: unknown) => {
       const message = err instanceof Error ? err.message : "";
-      const extracted = message.includes(":") ? message.split(":").slice(1).join(":").trim() : "";
+      const extracted = message.includes(":")
+        ? message.split(":").slice(1).join(":").trim()
+        : "";
       toast({
         title: "Error",
         description: extracted || "Failed to update order status",
@@ -109,7 +123,11 @@ export default function InventoryOrders() {
     },
   });
 
-  const updateItemStatus = (orderId: string, itemId: string, newStatus: string) => {
+  const updateItemStatus = (
+    orderId: string,
+    itemId: string,
+    newStatus: string,
+  ) => {
     updateItemStatusMutation.mutate({ orderId, itemId, status: newStatus });
   };
 
@@ -124,7 +142,10 @@ export default function InventoryOrders() {
         header: "Order",
         cell: ({ row }) => (
           <div>
-            <div className="font-bold text-primary flex items-center gap-1 cursor-pointer hover:underline" onClick={() => navigate(`/inventory/orders/${row.original.id}`)}>
+            <div
+              className="font-bold text-primary flex items-center gap-1 cursor-pointer hover:underline"
+              onClick={() => navigate(`/inventory/orders/${row.original.id}`)}
+            >
               #{row.original.id}
               <ExternalLink size={12} className="opacity-40" />
             </div>
@@ -145,9 +166,11 @@ export default function InventoryOrders() {
             </div>
             <div>
               <div className="font-medium text-sm text-slate-800">
-                {row.original.customerName || 'Unknown Customer'}
+                {row.original.customerName || "Unknown Customer"}
               </div>
-              <div className="text-xs text-slate-500">{row.original.phone || 'No phone'}</div>
+              <div className="text-xs text-slate-500">
+                {row.original.phone || "No phone"}
+              </div>
             </div>
           </div>
         ),
@@ -161,9 +184,15 @@ export default function InventoryOrders() {
             <div>
               <div className="flex -space-x-2">
                 {(order.items || []).slice(0, 3).map((item, idx) => (
-                  <div key={idx} className="h-7 w-7 rounded border-2 border-white bg-blue-100 flex items-center justify-center text-[10px] font-bold text-blue-600 overflow-hidden">
+                  <div
+                    key={idx}
+                    className="h-7 w-7 rounded border-2 border-white bg-blue-100 flex items-center justify-center text-[10px] font-bold text-blue-600 overflow-hidden"
+                  >
                     <img
-                      src={item.product?.imageUrl || "https://images.unsplash.com/photo-1610030469983-98e550d6193c?w=20"}
+                      src={
+                        item.product?.imageUrl ||
+                        "https://images.unsplash.com/photo-1610030469983-98e550d6193c?w=20"
+                      }
                       alt={item.product?.name || "Item"}
                       className="w-full h-full object-cover"
                     />
@@ -175,7 +204,9 @@ export default function InventoryOrders() {
                   </div>
                 )}
               </div>
-              <div className="mt-1 text-xs text-slate-500">{(order.items?.length || 0)} product(s)</div>
+              <div className="mt-1 text-xs text-slate-500">
+                {order.items?.length || 0} product(s)
+              </div>
             </div>
           );
         },
@@ -189,9 +220,13 @@ export default function InventoryOrders() {
           </div>
         ),
       },
-      
     ],
-    [navigate, updateAllItemsStatus, updateItemStatus, updateItemStatusMutation.isPending]
+    [
+      navigate,
+      updateAllItemsStatus,
+      updateItemStatus,
+      updateItemStatusMutation.isPending,
+    ],
   );
 
   const accordionContent = (order: OrderWithItems) => (
@@ -202,11 +237,13 @@ export default function InventoryOrders() {
           Order Details
         </h3>
         <div className="flex items-center gap-3 bg-white p-2 rounded-lg border border-slate-200 shadow-sm">
-          <span className="text-xs font-semibold text-slate-500 px-2 uppercase tracking-wider">Bulk Update Order:</span>
+          <span className="text-xs font-semibold text-slate-500 px-2 uppercase tracking-wider">
+            Bulk Update Order:
+          </span>
           <div className="flex gap-1">
-            {itemStatuses.map(status => (
+            {itemStatuses.map((status) => (
               <Button
-                variant={'ghost'}
+                variant={"ghost"}
                 key={status}
                 onClick={() => updateAllItemsStatus(order.id, status)}
               >
@@ -226,19 +263,28 @@ export default function InventoryOrders() {
             <div className="flex items-center gap-4 mb-4 md:mb-0">
               <div className="p-3 bg-slate-50 rounded-lg border border-slate-100 overflow-hidden">
                 <img
-                  src={item.product?.imageUrl || "https://images.unsplash.com/photo-1610030469983-98e550d6193c?w=40"}
+                  src={
+                    item.product?.imageUrl ||
+                    "https://images.unsplash.com/photo-1610030469983-98e550d6193c?w=40"
+                  }
                   alt={item.product?.name || "Item"}
                   className="w-8 h-8 object-cover rounded"
                 />
               </div>
               <div>
-                <h4 className="font-semibold text-slate-800">{item.product?.name || 'Unknown Item'}</h4>
+                <h4 className="font-semibold text-slate-800">
+                  {item.product?.name || "Unknown Item"}
+                </h4>
                 <div className="text-xs text-slate-500 flex items-center gap-2">
                   <span>SKU: {item.id}</span>
                   <span className="h-1 w-1 bg-slate-300 rounded-full"></span>
                   <span>Qty: {item.quantity}</span>
                   {(() => {
-                    const variant = item.variantId && item.product?.variants?.find((v: any) => v.id === item.variantId);
+                    const variant =
+                      item.variantId &&
+                      item.product?.variants?.find(
+                        (v: any) => v.id === item.variantId,
+                      );
                     return variant ? (
                       <>
                         <span className="h-1 w-1 bg-slate-300 rounded-full"></span>
@@ -254,24 +300,36 @@ export default function InventoryOrders() {
 
             <div className="flex flex-col md:flex-row items-start md:items-center gap-4">
               <div className="flex flex-col items-start md:items-end">
-                <span className="text-[10px] font-bold text-slate-400 uppercase mb-1">Current Status</span>
+                <span className="text-[10px] font-bold text-slate-400 uppercase mb-1">
+                  Current Status
+                </span>
                 <StatusBadge status={item.status} />
               </div>
 
               <div className="h-8 w-[1px] bg-slate-200 hidden md:block"></div>
 
               <div className="w-full md:w-auto">
-                <span className="text-[10px] font-bold text-slate-400 uppercase mb-1 block md:text-right">Change Status</span>
+                <span className="text-[10px] font-bold text-slate-400 uppercase mb-1 block md:text-right">
+                  Change Status
+                </span>
                 <select
                   value={item.status}
-                  onChange={(e) => updateItemStatus(order.id, item.id, e.target.value)}
+                  onChange={(e) =>
+                    updateItemStatus(order.id, item.id, e.target.value)
+                  }
                   className="w-full md:w-auto text-sm bg-slate-50 border border-slate-200 rounded-lg px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-500 font-medium"
                   disabled={updateItemStatusMutation.isPending}
                 >
-                  {itemStatuses.map(status => {
+                  {itemStatuses.map((status) => {
                     const config = itemStatusConfig[status];
                     return (
-                      <option key={status} value={status} className="capitalize">{config?.label || status}</option>
+                      <option
+                        key={status}
+                        value={status}
+                        className="capitalize"
+                      >
+                        {config?.label || status}
+                      </option>
                     );
                   })}
                 </select>
@@ -284,24 +342,32 @@ export default function InventoryOrders() {
   );
 
   return (
-    <div className="min-h-screen bg-slate-50 p-4 md:p-8 font-sans text-slate-900">
-      <div className="max-w-6xl mx-auto">
-        <DataTable
-          pageKey="inventoryOnlineOrders"
-          columns={columns}
-          data={orders || []}
-          totalCount={totalCount || 0}
-          pageSize={pageSize}
-          pageIndex={pageIndex}
-          onPaginationChange={handlePaginationChange}
-          isLoading={isLoading}
-          searchPlaceholder="Search by Order ID or Customer..."
-          emptyMessage="No orders found"
-          accordion={true}
-          accordionContent={accordionContent}
-          accordionPosition="inline"
-        />
+    <div className="max-w-7xl mx-auto">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-4">
+        <div>
+          <h1 className="text-2xl font-semibold" data-testid="text-page-title">
+            Online Orders
+          </h1>
+          <p className="text-muted-foreground">
+            View all online orders
+          </p>
+        </div>
       </div>
+      <DataTable
+        pageKey="inventoryOnlineOrders"
+        columns={columns}
+        data={orders || []}
+        totalCount={totalCount || 0}
+        pageSize={pageSize}
+        pageIndex={pageIndex}
+        onPaginationChange={handlePaginationChange}
+        isLoading={isLoading}
+        searchPlaceholder="Search by Order ID or Customer..."
+        emptyMessage="No orders found"
+        accordion={true}
+        accordionContent={accordionContent}
+        accordionPosition="inline"
+      />
     </div>
   );
 }

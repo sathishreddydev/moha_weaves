@@ -109,7 +109,7 @@ export default function InventoryStoreOrders() {
   return (
     <div>
       <div className="max-w-7xl mx-auto">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-4">
           <div>
             <h1
               className="text-2xl font-semibold"
@@ -123,9 +123,7 @@ export default function InventoryStoreOrders() {
           </div>
         </div>
 
-        <Card>
-          <CardContent className="p-4">
-            <DataTable
+        <DataTable
               pageKey="inventoryStoreOrders"
               columns={columns}
               data={storeSales}
@@ -137,8 +135,6 @@ export default function InventoryStoreOrders() {
               searchPlaceholder="Search by sale ID..."
               emptyMessage="No store sales found"
             />
-          </CardContent>
-        </Card>
       </div>
     </div>
   );

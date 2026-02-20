@@ -14,7 +14,8 @@ export default function StockDistribution() {
   const { user } = useAuth();
 
   const isInventoryUser =
-    !!user && (user.role === UserRole.INVENTORY || user.role === UserRole.ADMIN);
+    !!user &&
+    (user.role === UserRole.INVENTORY || user.role === UserRole.ADMIN);
   const { data: stores } = useQuery<StoreType[]>({
     queryKey: ["/api/inventory/stores"],
     enabled: isInventoryUser,
@@ -34,9 +35,8 @@ export default function StockDistribution() {
   } = useDataTable<ProductWithDetails>({
     queryKey: "/api/inventory/getProducts",
     initialPageSize: 10,
-    pageKey:'inventoryStockDistribution'
+    pageKey: "inventoryStockDistribution",
   });
-
 
   const columns: ColumnDef<ProductWithDetails>[] = useMemo(() => {
     const baseColumns: ColumnDef<ProductWithDetails>[] = [
@@ -252,23 +252,18 @@ export default function StockDistribution() {
         </Card>
       </div>
 
-      {/* Data Table */}
-      <Card>
-        <CardContent className="p-4">
-          <DataTable
-            pageKey="inventoryStockDistribution"
-            columns={columns}
-            data={products}
-            totalCount={totalCount}
-            pageIndex={pageIndex}
-            pageSize={pageSize}
-            onPaginationChange={handlePaginationChange}
-            isLoading={isLoading}
-            searchPlaceholder="Search by name or SKU..."
-            emptyMessage="No products found"
-          />
-        </CardContent>
-      </Card>
+      <DataTable
+        pageKey="inventoryStockDistribution"
+        columns={columns}
+        data={products}
+        totalCount={totalCount}
+        pageIndex={pageIndex}
+        pageSize={pageSize}
+        onPaginationChange={handlePaginationChange}
+        isLoading={isLoading}
+        searchPlaceholder="Search by name or SKU..."
+        emptyMessage="No products found"
+      />
     </div>
   );
 }

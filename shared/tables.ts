@@ -405,6 +405,7 @@ export const returnRequests = pgTable("return_requests", {
     .references(() => users.id)
     .notNull(),
   status: enums.returnStatusEnum("status").notNull().default("return_requested"),
+  reason: enums.returnReasonEnum("reason").notNull(),
   reasonDetails: text("reason_details"),
   resolution: enums.returnResolutionEnum("resolution").notNull().default("refund"),
   refundAmount: decimal("refund_amount", { precision: 10, scale: 2 }),

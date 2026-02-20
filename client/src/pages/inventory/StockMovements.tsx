@@ -58,7 +58,7 @@ interface AuditLogEntry {
   userName?: string;
   userEmail?: string;
   action: string;
-  entityType: 'product' | 'stock_request' | 'order' | 'stock_movement';
+  entityType: "product" | "stock_request" | "order" | "stock_movement";
   entityId: string;
   oldValues?: any;
   newValues?: any;
@@ -66,11 +66,14 @@ interface AuditLogEntry {
   notes?: string;
 }
 
-
 export default function StockMovements() {
   const { toast } = useToast();
 
-  const { data: stats, isLoading: statsLoading, refetch: refetchStats } = useQuery<StockStats>({
+  const {
+    data: stats,
+    isLoading: statsLoading,
+    refetch: refetchStats,
+  } = useQuery<StockStats>({
     queryKey: ["/api/inventory/stock-stats"],
     refetchInterval: 30000, // Refresh every 30 seconds
   });
@@ -111,7 +114,7 @@ export default function StockMovements() {
       Quantity: Math.abs(movement.quantity),
       Type: movement.movementType,
       Source: movement.source,
-      "Store": movement.storeName || "-",
+      Store: movement.storeName || "-",
       "Order Reference": movement.orderRefId,
     }));
 
@@ -173,22 +176,44 @@ export default function StockMovements() {
         cell: ({ row }) => {
           const quantity = Math.abs(row.original.quantity);
           const type = row.original.movementType;
-          
+
           return (
             <div className="flex items-center gap-2">
-              <span className={`font-medium ${
-                type === 'sale' ? 'text-red-600' : 
-                type === 'return' ? 'text-orange-600' : 
-                type === 'adjustment' ? 'text-orange-600' :
-                'text-green-600'
-              }`}>
-                {type === 'sale' ? '-' : type === 'return' ? '+' : type === 'adjustment' ? '-' : '+'}{quantity}
+              <span
+                className={`font-medium ${
+                  type === "sale"
+                    ? "text-red-600"
+                    : type === "return"
+                      ? "text-orange-600"
+                      : type === "adjustment"
+                        ? "text-orange-600"
+                        : "text-green-600"
+                }`}
+              >
+                {type === "sale"
+                  ? "-"
+                  : type === "return"
+                    ? "+"
+                    : type === "adjustment"
+                      ? "-"
+                      : "+"}
+                {quantity}
               </span>
-              {type === 'sale' && <TrendingDown className="h-4 w-4 text-red-600" />}
-              {type === 'return' && <ArrowUpDown className="h-4 w-4 text-orange-600" />}
-              {type === 'restock' && <TrendingUp className="h-4 w-4 text-green-600" />}
-              {type === 'adjustment' && <AlertTriangle className="h-4 w-4 text-orange-600" />}
-              {type === 'exchange' && <ArrowLeftRight className="h-4 w-4 text-green-600" />}
+              {type === "sale" && (
+                <TrendingDown className="h-4 w-4 text-red-600" />
+              )}
+              {type === "return" && (
+                <ArrowUpDown className="h-4 w-4 text-orange-600" />
+              )}
+              {type === "restock" && (
+                <TrendingUp className="h-4 w-4 text-green-600" />
+              )}
+              {type === "adjustment" && (
+                <AlertTriangle className="h-4 w-4 text-orange-600" />
+              )}
+              {type === "exchange" && (
+                <ArrowLeftRight className="h-4 w-4 text-green-600" />
+              )}
             </div>
           );
         },
@@ -206,7 +231,7 @@ export default function StockMovements() {
             adjustment: "secondary",
             exchange: "default",
           } as const;
-          
+
           return (
             <Badge variant={variants[type]} className="capitalize">
               {type}
@@ -242,9 +267,7 @@ export default function StockMovements() {
         accessorKey: "orderRefId",
         header: "Order Reference",
         cell: ({ row }) => (
-          <span className="font-mono text-sm">
-            {row.original.orderRefId}
-          </span>
+          <span className="font-mono text-sm">{row.original.orderRefId}</span>
         ),
       },
     ],
@@ -257,7 +280,9 @@ export default function StockMovements() {
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
           <div>
             <h1 className="text-2xl font-semibold">Stock Movements</h1>
-            <p className="text-muted-foreground">Track inventory movements across all channels</p>
+            <p className="text-muted-foreground">
+              Track inventory movements across all channels
+            </p>
           </div>
           <div className="flex gap-2">
             <Button
@@ -265,7 +290,9 @@ export default function StockMovements() {
               onClick={handleRefresh}
               disabled={statsLoading || movementsLoading}
             >
-              <RefreshCw className={`h-4 w-4 mr-2 ${statsLoading || movementsLoading ? 'animate-spin' : ''}`} />
+              <RefreshCw
+                className={`h-4 w-4 mr-2 ${statsLoading || movementsLoading ? "animate-spin" : ""}`}
+              />
               Refresh
             </Button>
             <Button
@@ -283,16 +310,16 @@ export default function StockMovements() {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Online Sales</CardTitle>
+              <CardTitle className="text-sm font-medium">
+                Online Sales
+              </CardTitle>
               <ShoppingCart className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold text-red-600">
                 {stats?.totalOnlineCleared || 0}
               </div>
-              <p className="text-xs text-muted-foreground">
-                Items sold online
-              </p>
+              <p className="text-xs text-muted-foreground">Items sold online</p>
             </CardContent>
           </Card>
 
@@ -318,7 +345,8 @@ export default function StockMovements() {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold text-blue-600">
-                {(stats?.totalOnlineCleared || 0) + (stats?.totalStoreCleared || 0)}
+                {(stats?.totalOnlineCleared || 0) +
+                  (stats?.totalStoreCleared || 0)}
               </div>
               <p className="text-xs text-muted-foreground">
                 Combined sales volume
@@ -328,13 +356,13 @@ export default function StockMovements() {
 
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Filtered Results</CardTitle>
+              <CardTitle className="text-sm font-medium">
+                Filtered Results
+              </CardTitle>
               <Filter className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">
-                {totalCount || 0}
-              </div>
+              <div className="text-2xl font-bold">{totalCount || 0}</div>
               <p className="text-xs text-muted-foreground">
                 Total movements found
               </p>
@@ -344,7 +372,7 @@ export default function StockMovements() {
 
         {/* Movements Table */}
         <DataTable
-        pageKey="inventoryStockmovments"
+          pageKey="inventoryStockmovments"
           columns={columns}
           data={movements}
           totalCount={totalCount}

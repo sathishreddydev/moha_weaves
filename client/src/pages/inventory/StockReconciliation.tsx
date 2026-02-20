@@ -1,20 +1,6 @@
-import { useState, useMemo } from "react";
-import {
-  CheckCircle,
-  XCircle,
-  AlertTriangle,
-  RefreshCw,
-  Download,
-  Filter,
-  Search,
-  Package,
-  TrendingUp,
-  TrendingDown,
-  Settings,
-} from "lucide-react";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import {
   Select,
@@ -31,12 +17,23 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
-import * as XLSX from "xlsx";
-import { saveAs } from "file-saver";
+import { apiRequest } from "@/lib/queryClient";
 import { formatDate } from "@/lib/utils";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { saveAs } from "file-saver";
+import {
+  AlertTriangle,
+  CheckCircle,
+  Download,
+  Package,
+  RefreshCw,
+  Search,
+  Settings,
+  TrendingUp
+} from "lucide-react";
+import { useMemo, useState } from "react";
+import * as XLSX from "xlsx";
 
 interface StockReconciliationData {
   productId: string;

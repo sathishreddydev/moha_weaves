@@ -125,7 +125,7 @@ export default function InventoryStoreExchanges() {
 
         if (exchange.balanceDirection === "due_from_customer") {
           return (
-            <Badge className="text-orange-600 border-orange-600">
+            <Badge>
               Paid {formatPrice(balance)}
             </Badge>
           );
@@ -335,9 +335,7 @@ export default function InventoryStoreExchanges() {
           </p>
         </div>
 
-        <Card>
-          <CardContent className="p-4">
-            <DataTable
+         <DataTable
               pageKey="inventoryStoreExchanges"
               columns={exchangesColumns}
               data={exchanges || []}
@@ -352,8 +350,6 @@ export default function InventoryStoreExchanges() {
               accordionContent={renderAccordionContent}
               accordionPosition="inline"
             />
-          </CardContent>
-        </Card>
       </div>
     </div>
   );
