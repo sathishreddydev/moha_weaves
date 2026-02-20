@@ -38,7 +38,9 @@ export enum FilterKey {
   FABRIC_IDS = "fabricIds",
   STOCK_STATUS = "stockStatus",
   FEATURED = "featured",
-  SORT = "sort"
+  SORT = "sort",
+  MIN_PRICE = "minPrice",
+  MAX_PRICE = "maxPrice"
 }
 
 // Tree Node Type enum

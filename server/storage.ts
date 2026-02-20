@@ -54,7 +54,7 @@ import {
   ilike,
   lte,
   or,
-  sql,inArray
+  sql, inArray
 } from "drizzle-orm";
 
 import { storeService } from "./store/storeStorage";
@@ -1012,181 +1012,7 @@ export class DatabaseStorage implements IStorage {
 
   }
 
-  async getStoreSalesPaginatedInventory(params: {
 
-    page: number;
-
-    pageSize: number;
-
-    search?: string;
-
-    storeId?: string;
-
-    dateFrom?: string;
-
-    dateTo?: string;
-
-  }): Promise<{
-
-    data: StoreSaleWithItems[];
-
-    total: number;
-
-    page: number;
-
-    pageSize: number;
-
-    totalPages: number;
-
-  }> {
-
-    const { page, pageSize, search, storeId, dateFrom, dateTo } = params;
-
-    const offset = (page - 1) * pageSize;
-
-
-
-    const conditions: any[] = [];
-
-
-
-    if (search) {
-
-      conditions.push(ilike(storeSales.id, `%${search}%`));
-
-    }
-
-
-
-    if (storeId) {
-
-      conditions.push(eq(storeSales.storeId, storeId));
-
-    }
-
-
-
-    if (dateFrom) {
-
-      conditions.push(gte(storeSales.createdAt, new Date(dateFrom)));
-
-    }
-
-
-
-    if (dateTo) {
-
-      conditions.push(lte(storeSales.createdAt, new Date(dateTo)));
-
-    }
-
-
-
-    const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
-
-
-
-    const [countResult] = await db
-
-      .select({ count: sql<number>`count(*)` })
-
-      .from(storeSales)
-
-      .where(whereClause);
-
-
-
-    const total = Number(countResult?.count || 0);
-
-
-
-    const salesList = await db
-
-      .select()
-
-      .from(storeSales)
-
-      .innerJoin(stores, eq(storeSales.storeId, stores.id))
-
-      .where(whereClause)
-
-      .orderBy(desc(storeSales.createdAt))
-
-      .limit(pageSize)
-
-      .offset(offset);
-
-
-
-    const result: StoreSaleWithItems[] = [];
-
-
-
-    for (const row of salesList) {
-
-      const items = await db
-
-        .select()
-
-        .from(storeSaleItems)
-
-        .innerJoin(products, eq(storeSaleItems.productId, products.id))
-
-        .leftJoin(categories, eq(products.categoryId, categories.id))
-
-        .leftJoin(colors, eq(products.colorId, colors.id))
-
-        .leftJoin(fabrics, eq(products.fabricId, fabrics.id))
-
-        .where(eq(storeSaleItems.saleId, row.store_sales.id));
-
-
-
-      result.push({
-
-        ...row.store_sales,
-
-        store: row.stores,
-
-        items: items.map((itemRow) => ({
-
-          ...itemRow.store_sale_items,
-
-          product: {
-
-            ...itemRow.products,
-
-            category: itemRow.categories,
-
-            color: itemRow.colors,
-
-            fabric: itemRow.fabrics,
-
-          },
-
-        })),
-
-      });
-
-    }
-
-
-
-    return {
-
-      data: result,
-
-      total,
-
-      page,
-
-      pageSize,
-
-      totalPages: Math.ceil(total / pageSize),
-
-    };
-
-  }
 
 
 
@@ -2228,9 +2054,9 @@ export class DatabaseStorage implements IStorage {
 
         storeStock: sql<number>`COALESCE((
 
-          SELECT SUM(quantity) FROM store_inventory WHERE product_id = ${products.id}
+SELECT SUM(quantity) FROM store_inventory WHERE product_id = ${products.id}
 
-        ), 0)::int`,
+), 0)::int`,
 
       })
 
@@ -2371,7 +2197,7 @@ export class DatabaseStorage implements IStorage {
     // Handle pagination
     if (filters?.page && filters?.pageSize) {
       const offset = (filters.page - 1) * filters.pageSize;
-      
+
       // Get total count
       const countQuery = db
         .select({ count: sql<number>`count(*)` })
@@ -2379,16 +2205,16 @@ export class DatabaseStorage implements IStorage {
         .innerJoin(products, eq(stockMovements.productId, products.id))
         .leftJoin(stores, eq(stockMovements.storeId, stores.id))
         .where(conditions.length > 0 ? and(...conditions) : undefined);
-      
+
       const [{ count: total }] = await countQuery;
-      
+
       // Get paginated data
       const data = await query
         .limit(filters.pageSize)
         .offset(offset);
-      
+
       const totalPages = Math.ceil(total / filters.pageSize);
-      
+
       return {
         data,
         total,

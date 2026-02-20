@@ -49,6 +49,7 @@ export const NavGroups = [
     items: [
       { icon: RotateCcw, label: "Returns", href: "/inventory/returns" },
       { icon: ArrowLeftRight, label: "Exchanges", href: "/inventory/exchanges" },
+      { icon: Store, label: "Store Exchanges", href: "/inventory/store-exchanges" },
       { icon: CreditCard, label: "Refunds", href: "/inventory/refunds" },
     ]
   },

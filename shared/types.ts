@@ -236,8 +236,8 @@ export type InventoryAdjustmentWithDetails = InventoryAdjustment & {
 
 export type StoreExchangeWithDetails = StoreExchange & {
   store: Store;
-  originalSale: StoreSaleWithItems;
-  processor: User;
+  originalSale: StoreSaleWithItems | null;
+  processor: User | null;
   returnItems: (StoreExchangeReturnItem & { product: ProductWithDetails })[];
   newItems: (StoreExchangeNewItem & { product: ProductWithDetails })[];
 };

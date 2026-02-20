@@ -77,6 +77,9 @@ const InventoryRefunds = lazy(() => import("@/pages/inventory/Refunds"));
 const InventoryStoreOrders = lazy(
   () => import("@/pages/inventory/StoreOrders")
 ); // Added new page
+const InventoryStoreExchanges = lazy(
+  () => import("@/pages/inventory/StoreExchanges")
+); // Added new page
 const DamageReport = lazy(() => import("@/pages/inventory/DamageReport"));
 const DamageHistory = lazy(() => import("@/pages/inventory/DamageHistory"));
 const InventoryStockMovements = lazy(() => import("@/pages/inventory/StockMovements"));
@@ -206,6 +209,7 @@ function Router() {
                 <Route path="orders" element={<InventoryOrders />} />
                 <Route path="orders/:id" element={<InventoryOrderDetail />} />
                 <Route path="store-orders" element={<InventoryStoreOrders />} />
+                <Route path="store-exchanges" element={<InventoryStoreExchanges />} />
                 <Route path="returns" element={<InventoryReturns />} />
                 <Route path="exchanges" element={<InventoryExchanges />} />
                 <Route path="refunds" element={<InventoryRefunds />} />

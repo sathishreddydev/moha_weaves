@@ -17,7 +17,7 @@ import type {
   StockRequestWithDetails,
 } from "@shared/schema";
 import { useQuery } from "@tanstack/react-query";
-import { AlertTriangle, ClipboardList, Truck, DollarSign, TrendingUp, Package } from "lucide-react";
+import { AlertTriangle, ClipboardList, Truck, DollarSign, TrendingUp, Package, Store, ArrowLeftRight } from "lucide-react";
 import { Link } from "react-router-dom";
 import { UserRole } from "./utils/enums";
 
@@ -39,6 +39,24 @@ export default function InventoryDashboard() {
 
   const { data: pendingOrders } = useQuery<Order[]>({
     queryKey: ["/api/inventory/orders?status=created"],
+    enabled: isInventoryUser,
+  });
+
+  const { data: storeSalesStats } = useQuery<{
+    total: number;
+    today: number;
+    thisWeek: number;
+  }>({
+    queryKey: ["/api/inventory/store-sales-stats"],
+    enabled: isInventoryUser,
+  });
+
+  const { data: storeExchangesStats } = useQuery<{
+    total: number;
+    today: number;
+    thisWeek: number;
+  }>({
+    queryKey: ["/api/inventory/store-exchanges-stats"],
     enabled: isInventoryUser,
   });
 
@@ -91,46 +109,36 @@ export default function InventoryDashboard() {
           </CardContent>
         </Card>
 
-        <Card data-testid="stat-inventory-value">
+        <Card data-testid="stat-store-sales">
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">
-              Total Value
+              Store Sales
             </CardTitle>
-            <DollarSign className="h-4 w-4 text-green-600" />
+            <Store className="h-4 w-4 text-blue-500" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              {loadingValuation ? (
-                <Skeleton className="h-8 w-20" />
-              ) : (
-                `₹${(valuation?.summary?.totalValue || 0).toLocaleString('en-IN')}`
-              )}
+              {storeSalesStats?.today || 0}
             </div>
-            <p className="text-xs text-muted-foreground">Inventory worth</p>
+            <p className="text-xs text-muted-foreground">
+              Today ({storeSalesStats?.thisWeek || 0} this week)
+            </p>
           </CardContent>
         </Card>
 
-        <Card data-testid="stat-profit-potential">
+        <Card data-testid="stat-store-exchanges">
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">
-              Profit Potential
+              Store Exchanges
             </CardTitle>
-            <TrendingUp className="h-4 w-4 text-purple-500" />
+            <ArrowLeftRight className="h-4 w-4 text-purple-500" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              {loadingValuation ? (
-                <Skeleton className="h-8 w-20" />
-              ) : (
-                `${(valuation?.summary?.profitMargin || 0).toFixed(1)}%`
-              )}
+              {storeExchangesStats?.today || 0}
             </div>
             <p className="text-xs text-muted-foreground">
-              {loadingValuation ? (
-                "Calculating..."
-              ) : (
-                `₹${(valuation?.summary?.profitPotential || 0).toLocaleString('en-IN')}`
-              )}
+              Today ({storeExchangesStats?.thisWeek || 0} this week)
             </p>
           </CardContent>
         </Card>
