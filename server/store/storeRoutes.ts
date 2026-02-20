@@ -23,7 +23,12 @@ export const storeRoutes = (app: Express) => {
       if (!user.storeId) {
         return res.status(400).json({ message: "No store assigned" });
       }
-      const stats = await storeProductsStorage.getStoreStats(user.storeId);
+      const { dateFrom, dateTo } = req.query;
+      const parsedFrom = dateFrom ? new Date(dateFrom as string) : undefined;
+      const parsedTo = dateTo ? new Date(dateTo as string) : undefined;
+      // Set dateTo to end of day so the full day is included
+      if (parsedTo) parsedTo.setHours(23, 59, 59, 999);
+      const stats = await storeProductsStorage.getStoreStats(user.storeId, parsedFrom, parsedTo);
       res.json(stats);
     } catch (error) {
       StoreLogger.error("Failed to fetch stats", "storeRoutes", error);
@@ -404,44 +409,44 @@ export const storeRoutes = (app: Express) => {
     }
   });
 
- app.post("/api/store/getStoreExchanges", authStore, async (req, res) => {
-  try {
-    const user = (req as any).user;
-    if (!user.storeId) {
-      return res.status(400).json({ message: "No store assigned" });
+  app.post("/api/store/getStoreExchanges", authStore, async (req, res) => {
+    try {
+      const user = (req as any).user;
+      if (!user.storeId) {
+        return res.status(400).json({ message: "No store assigned" });
+      }
+
+      const params = parsePaginationParams(req.query);
+      const body = req.body || {}; // Read from body for POST
+      const offset = getOffset(params.page, params.pageSize);
+
+      const result = await storeService.getStoreExchangesPaginated(
+        user.storeId,
+        {
+          limit: params.pageSize,
+          offset,
+          search: params.search,
+          dateFrom: params.dateFrom,
+          dateTo: params.dateTo,
+          // ADD NEW FILTERS
+          exchangeType: body.exchangeType,
+          reason: body.reason,
+          sort: body.sort,
+        },
+      );
+
+      const response = createPaginatedResponse(
+        result.data,
+        result.total,
+        params.page,
+        params.pageSize,
+      );
+
+      res.json(response);
+    } catch (error) {
+      res.status(500).json({ message: "Failed to fetch exchanges" });
     }
-
-    const params = parsePaginationParams(req.query);
-    const body = req.body || {}; // Read from body for POST
-    const offset = getOffset(params.page, params.pageSize);
-
-    const result = await storeService.getStoreExchangesPaginated(
-      user.storeId,
-      {
-        limit: params.pageSize,
-        offset,
-        search: params.search,
-        dateFrom: params.dateFrom,
-        dateTo: params.dateTo,
-        // ADD NEW FILTERS
-        exchangeType: body.exchangeType,
-        reason: body.reason,
-        sort: body.sort,
-      },
-    );
-
-    const response = createPaginatedResponse(
-      result.data,
-      result.total,
-      params.page,
-      params.pageSize,
-    );
-
-    res.json(response);
-  } catch (error) {
-    res.status(500).json({ message: "Failed to fetch exchanges" });
-  }
-});
+  });
 
   app.post("/api/store/store-exchanges", authStore, async (req, res) => {
     try {
@@ -494,7 +499,7 @@ export const storeRoutes = (app: Express) => {
       const razorpayOrder = await razorpay.orders.create({
         amount: Math.round(amount * 100), // paise
         currency: "INR",
-        receipt: `${user.storeId}`, 
+        receipt: `${user.storeId}`,
         payment_capture: true,
       });
 

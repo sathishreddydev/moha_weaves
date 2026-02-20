@@ -1596,7 +1596,7 @@ function StoreExchange() {
                     id="customerPhone"
                     value={customerPhone}
                     onChange={(e) => setCustomerPhone(e.target.value)}
-                    placeholder={process.env.NEXT_PUBLIC_PHONE_PLACEHOLDER || "+91 XXXXX XXXXX"}
+                    placeholder={import.meta.env.NEXT_PUBLIC_PHONE_PLACEHOLDER || "+91 XXXXX XXXXX"}
                     readOnly
                   />
                 </div>

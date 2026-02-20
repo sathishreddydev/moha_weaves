@@ -28,18 +28,26 @@ import {
   Plus,
   Receipt,
   RefreshCw,
+  RepeatIcon,
   ShoppingCart,
-  TrendingUp
+  TrendingUp,
 } from "lucide-react";
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { DashboardData } from "./utils/types";
 
-
-
 export default function StoreDashboard() {
   const { user } = useAuth();
   const [activeTab, setActiveTab] = useState("overview");
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
+
+  const buildStatsUrl = () => {
+    const params = new URLSearchParams();
+    if (dateFrom) params.set("dateFrom", dateFrom);
+    if (dateTo) params.set("dateTo", dateTo);
+    return `/api/store/stats${params.toString() ? `?${params}` : ""}`;
+  };
 
   const {
     data,
@@ -47,11 +55,11 @@ export default function StoreDashboard() {
     isFetching,
     refetch: refetchDashboard,
   } = useQuery<DashboardData>({
-    queryKey: ["/api/store/dashboard"],
+    queryKey: ["/api/store/dashboard", dateFrom, dateTo],
     enabled: !!user && user.role === "store",
     queryFn: async () => {
       const [stats, recentSales, lowStockProducts] = await Promise.all([
-        apiRequest("GET", "/api/store/stats"),
+        apiRequest("GET", buildStatsUrl()),
         apiRequest("GET", "/api/store/sales/recent"),
         apiRequest("GET", "/api/store/products/low-stock"),
       ]);
@@ -60,10 +68,11 @@ export default function StoreDashboard() {
   });
 
   const { stats, recentSales, lowStockProducts } = data || {};
+  const isDateFiltered = !!(dateFrom || dateTo);
 
   return (
     <div className="max-w-7xl mx-auto">
-      <div className="flex items-center justify-between mb-8">
+      <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-2xl font-semibold" data-testid="text-page-title">
             Store Dashboard
@@ -91,7 +100,7 @@ export default function StoreDashboard() {
             Refresh
           </Button>
           <Link to="/store/sale">
-            <Button size={'sm'} data-testid="button-new-sale">
+            <Button size={"sm"} data-testid="button-new-sale">
               <Plus className="h-4 w-4 mr-2" />
               New Sale
             </Button>
@@ -99,9 +108,49 @@ export default function StoreDashboard() {
         </div>
       </div>
 
+      {/* Date Range Filter */}
+      <div className="flex flex-wrap items-center gap-3 mb-6 p-4 border rounded-lg bg-muted/30">
+        <span className="text-sm font-medium">Filter by Date:</span>
+        <div className="flex items-center gap-2">
+          <label className="text-xs text-muted-foreground">From</label>
+          <input
+            type="date"
+            value={dateFrom}
+            onChange={(e) => setDateFrom(e.target.value)}
+            className="text-sm border rounded px-2 py-1 bg-background"
+          />
+        </div>
+        <div className="flex items-center gap-2">
+          <label className="text-xs text-muted-foreground">To</label>
+          <input
+            type="date"
+            value={dateTo}
+            onChange={(e) => setDateTo(e.target.value)}
+            className="text-sm border rounded px-2 py-1 bg-background"
+          />
+        </div>
+        {isDateFiltered && (
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => {
+              setDateFrom("");
+              setDateTo("");
+            }}
+          >
+            Clear
+          </Button>
+        )}
+        {isDateFiltered && (
+          <Badge variant="secondary" className="text-xs">
+            Showing results for selected range
+          </Badge>
+        )}
+      </div>
+
       {isDashboardLoading ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-          {[...Array(4)].map((_, i) => (
+          {[...Array(5)].map((_, i) => (
             <Skeleton key={i} className="h-32" />
           ))}
         </div>
@@ -113,18 +162,22 @@ export default function StoreDashboard() {
           >
             <CardHeader className="flex flex-row items-center justify-between pb-2">
               <CardTitle className="text-sm font-medium text-muted-foreground">
-                Today&apos;s Sales
+                {isDateFiltered ? "Period Sales" : "Today's Sales"}
               </CardTitle>
               <ShoppingCart className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">{stats?.todaySales || 0}</div>
-              <p className="text-xs text-muted-foreground">transactions</p>
-              {stats?.totalSales !== undefined && (
-                <p className="text-xs text-muted-foreground">
-                  Total: {stats.totalSales}
-                </p>
-              )}
+              <div className="text-muted-foreground">
+                <div className="flex items-center gap-2 text-xs">
+                  {stats?.totalSales !== undefined && (
+                    <p>Total Sales: {stats.totalSales}</p>
+                  )}
+
+                  <p>Total Exch: {stats?.totalExchanges}</p>
+                </div>
+              </div>
+
               {stats?.weeklySalesGrowth !== undefined && (
                 <div className="flex items-center mt-2">
                   {stats.weeklySalesGrowth >= 0 ? (
@@ -148,7 +201,7 @@ export default function StoreDashboard() {
           >
             <CardHeader className="flex flex-row items-center justify-between pb-2">
               <CardTitle className="text-sm font-medium text-muted-foreground">
-                Today&apos;s Revenue
+                {isDateFiltered ? "Period Revenue" : "Today's Revenue"}
               </CardTitle>
               <TrendingUp className="h-4 w-4 text-green-500" />
             </CardHeader>
@@ -156,10 +209,22 @@ export default function StoreDashboard() {
               <div className="text-2xl font-bold">
                 {formatPrice(stats?.todayRevenue || 0)}
               </div>
+
               {stats?.totalRevenue !== undefined && (
-                <p className="text-xs text-muted-foreground">
-                  Total: {formatPrice(stats.totalRevenue)}
-                </p>
+                <div className="flex items-center gap-2 mt-1">
+                  <span className="text-xs text-muted-foreground">
+                    TSR: {formatPrice(stats.totalRevenue)}
+                  </span>
+                  <span className="text-xs text-muted-foreground">
+                    TER: {formatPrice(stats?.exchangeBalanceRevenue ?? 0)}
+                  </span>
+
+                  {stats?.netRevenue !== undefined && (
+                    <span className="text-xs font-medium text-green-600">
+                      Net: {formatPrice(stats.netRevenue)}
+                    </span>
+                  )}
+                </div>
               )}
               {stats?.monthlyRevenueGrowth !== undefined && (
                 <div className="flex items-center mt-2">
@@ -480,7 +545,7 @@ export default function StoreDashboard() {
                           </Link>
                         </TableCell>
                       </TableRow>
-                    ))} 
+                    ))}
                   </TableBody>
                 </Table>
               ) : (

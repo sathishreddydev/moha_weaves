@@ -78,12 +78,19 @@ export interface DashboardData {
 export interface StoreStats {
   todaySales: number;
   todayRevenue: number;
+  netTodayRevenue: number;
   totalInventory: number;
   pendingRequests: number;
   totalSales?: number;
   totalRevenue?: number;
+  netRevenue: number;
   weeklySalesGrowth?: number;
   monthlyRevenueGrowth?: number;
+  // Exchange stats
+  totalExchanges?: number;
+  exchangeReturnAmount?: number;
+  exchangeNewAmount?: number;
+  exchangeBalanceRevenue?: number;
   topSellingProducts?: Array<{
     product: ProductWithDetails;
     quantity: number;
@@ -102,6 +109,11 @@ export interface StoreStats {
     approved: number;
     dispatched: number;
     received: number;
+  };
+  dateRange?: {
+    from: string | null;
+    to: string | null;
+    isFiltered: boolean;
   };
 }
 
