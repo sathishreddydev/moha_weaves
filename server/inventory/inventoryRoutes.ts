@@ -304,25 +304,39 @@ export const inventoryRoutes = (app: Express) => {
   // Inventory product management (moved from admin)
   app.post("/api/inventory/getProducts", authInventory, async (req, res) => {
     try {
+
+      const params = parsePaginationParams(req.query)
+
       const {
         search,
         categoryIds,
+        subcategoryIds,
+        colorIds,
+        fabricIds,
+        sizes,
+        minPrice,
+        maxPrice,
+        featured,
+        onSale,
+        inStock,
+        minStock,
+        sort,
       } = req.body;
-
-      const params = parsePaginationParams(req.query);
-
-      // Convert categoryIds to names for role-based service
-      let categoryNames: string[] = [];
-      if (categoryIds && categoryIds.length > 0) {
-        const categories = await publicStorage.getCategoriesWithSubcategories();
-        categoryNames = categories
-          .filter((cat: any) => categoryIds.includes(cat.id))
-          .map((cat: any) => cat.name);
-      }
 
       const filters: ProductFilters = {
         search,
-        category: categoryNames,
+        categoryIds,
+        subcategoryIds,
+        colorIds,
+        fabricIds,
+        size: sizes,
+        minPrice,
+        maxPrice,
+        featured,
+        onSale,
+        inStock,
+        minStock,
+        sort,
         limit: params.pageSize,
         offset: (params.page - 1) * params.pageSize,
       };
@@ -932,18 +946,31 @@ export const inventoryRoutes = (app: Express) => {
     },
   );
 
-  // Stock Movement Endpoints
-  app.get("/api/inventory/stock-movements", authInventory, async (req, res) => {
+
+  // Stock Movement Endpoints with Pagination (POST)
+  app.post("/api/inventory/stock-movements", authInventory, async (req, res) => {
     try {
-      const { source, productId, limit } = req.query;
+      // Accept pagination from both query params and body
+      const page = req.body.page || req.query.page;
+      const pageSize = req.body.pageSize || req.query.pageSize;
+      const { search, source, movementType } = req.body;
+      
       const movements = await storage.getStockMovements({
+        page: page ? parseInt(page) : 1,
+        pageSize: pageSize ? parseInt(pageSize) : 20,
+        search: search as string,
         source: source as string,
-        productId: productId as string,
-        limit: limit ? parseInt(limit as string) : undefined,
+        movementType: movementType as string,
       });
+      
       res.json(movements);
-    } catch {
-      res.status(500).json({ message: "Failed to fetch stock movements" });
+    } catch (error) {
+      console.error("Error fetching stock movements:", error);
+      const message = error instanceof Error ? error.message : "Unknown error occurred";
+      res.status(500).json({
+        message: "Failed to fetch stock movements",
+        error: process.env.NODE_ENV === "development" ? message : undefined
+      });
     }
   });
 
@@ -1471,41 +1498,41 @@ export const inventoryRoutes = (app: Express) => {
       res.status(201).json(damage);
     } catch (error) {
       console.error("Failed to report damage:", error);
-      
+
       if (error instanceof Error) {
         // Handle validation errors
         if (error.message.includes("validation")) {
-          return res.status(400).json({ 
-            message: "Validation failed", 
-            error: error.message 
+          return res.status(400).json({
+            message: "Validation failed",
+            error: error.message
           });
         }
         // Handle permission errors
         if (error.message.includes("permission") || error.message.includes("Insufficient permissions")) {
-          return res.status(403).json({ 
-            message: "Permission denied", 
-            error: error.message 
+          return res.status(403).json({
+            message: "Permission denied",
+            error: error.message
           });
         }
         // Handle stock errors
         if (error.message.includes("stock") || error.message.includes("Insufficient")) {
-          return res.status(409).json({ 
-            message: "Stock validation failed", 
-            error: error.message 
+          return res.status(409).json({
+            message: "Stock validation failed",
+            error: error.message
           });
         }
         // Handle data consistency errors
         if (error.message.includes("consistency") || error.message.includes("not found")) {
-          return res.status(400).json({ 
-            message: "Data validation failed", 
-            error: error.message 
+          return res.status(400).json({
+            message: "Data validation failed",
+            error: error.message
           });
         }
       }
-      
-      res.status(500).json({ 
+
+      res.status(500).json({
         message: "Failed to report damage",
-        error: process.env.NODE_ENV === "development" ? 
+        error: process.env.NODE_ENV === "development" ?
           (error instanceof Error ? error.message : "Unknown error") : undefined
       });
     }
@@ -1514,10 +1541,10 @@ export const inventoryRoutes = (app: Express) => {
   // Get all damages with filters
   app.post("/api/inventory/getDamages", authInventory, async (req, res) => {
     try {
-      const { 
-        productId, 
-        source, 
-        status, 
+      const {
+        productId,
+        source,
+        status,
         category,
         severity,
         dateFrom,
@@ -1527,7 +1554,7 @@ export const inventoryRoutes = (app: Express) => {
         pageSize = 10
       } = req.body;
       const params = parsePaginationParams({ page, pageSize });
-      
+
       const result = await productDamageService.getDamages({
         productId: productId as string,
         source: source as
@@ -1558,20 +1585,20 @@ export const inventoryRoutes = (app: Express) => {
 
     } catch (error) {
       console.error("Failed to fetch damages:", error);
-      
+
       if (error instanceof Error) {
         // Handle validation errors
         if (error.message.includes("validation") || error.message.includes("Invalid")) {
-          return res.status(400).json({ 
-            message: "Invalid request parameters", 
-            error: error.message 
+          return res.status(400).json({
+            message: "Invalid request parameters",
+            error: error.message
           });
         }
       }
-      
-      res.status(500).json({ 
+
+      res.status(500).json({
         message: "Failed to fetch damages",
-        error: process.env.NODE_ENV === "development" ? 
+        error: process.env.NODE_ENV === "development" ?
           (error instanceof Error ? error.message : "Unknown error") : undefined
       });
     }
@@ -1600,20 +1627,20 @@ export const inventoryRoutes = (app: Express) => {
         res.json(analytics);
       } catch (error) {
         console.error("Failed to fetch damage analytics:", error);
-        
+
         if (error instanceof Error) {
           // Handle validation errors
           if (error.message.includes("validation") || error.message.includes("Invalid")) {
-            return res.status(400).json({ 
-              message: "Invalid request parameters", 
-              error: error.message 
+            return res.status(400).json({
+              message: "Invalid request parameters",
+              error: error.message
             });
           }
         }
-        
-        res.status(500).json({ 
+
+        res.status(500).json({
           message: "Failed to fetch damage analytics",
-          error: process.env.NODE_ENV === "development" ? 
+          error: process.env.NODE_ENV === "development" ?
             (error instanceof Error ? error.message : "Unknown error") : undefined
         });
       }
@@ -1632,20 +1659,20 @@ export const inventoryRoutes = (app: Express) => {
       res.json(damage);
     } catch (error) {
       console.error("Failed to fetch damage:", error);
-      
+
       if (error instanceof Error) {
         // Handle validation errors
         if (error.message.includes("validation") || error.message.includes("Invalid")) {
-          return res.status(400).json({ 
-            message: "Invalid request parameters", 
-            error: error.message 
+          return res.status(400).json({
+            message: "Invalid request parameters",
+            error: error.message
           });
         }
       }
-      
-      res.status(500).json({ 
+
+      res.status(500).json({
         message: "Failed to fetch damage",
-        error: process.env.NODE_ENV === "development" ? 
+        error: process.env.NODE_ENV === "development" ?
           (error instanceof Error ? error.message : "Unknown error") : undefined
       });
     }
@@ -1673,34 +1700,34 @@ export const inventoryRoutes = (app: Express) => {
         res.json(damage);
       } catch (error) {
         console.error("Failed to update damage status:", error);
-        
+
         if (error instanceof Error) {
           // Handle validation errors
           if (error.message.includes("validation") || error.message.includes("Invalid")) {
-            return res.status(400).json({ 
-              message: "Invalid request parameters", 
-              error: error.message 
+            return res.status(400).json({
+              message: "Invalid request parameters",
+              error: error.message
             });
           }
           // Handle permission errors
           if (error.message.includes("permission") || error.message.includes("Insufficient permissions")) {
-            return res.status(403).json({ 
-              message: "Permission denied", 
-              error: error.message 
+            return res.status(403).json({
+              message: "Permission denied",
+              error: error.message
             });
           }
           // Handle not found errors
           if (error.message.includes("not found")) {
-            return res.status(404).json({ 
-              message: "Damage record not found", 
-              error: error.message 
+            return res.status(404).json({
+              message: "Damage record not found",
+              error: error.message
             });
           }
         }
-        
-        res.status(500).json({ 
+
+        res.status(500).json({
           message: "Failed to update damage status",
-          error: process.env.NODE_ENV === "development" ? 
+          error: process.env.NODE_ENV === "development" ?
             (error instanceof Error ? error.message : "Unknown error") : undefined
         });
       }

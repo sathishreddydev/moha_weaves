@@ -1,71 +1,29 @@
+import { DataTable } from "@/components/DataTable/DataTable";
+import { useFilterStore } from "@/components/Store/useFilterStore";
+import { FilterItem } from "@/components/Type/type";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { DataTable } from "@/components/DataTable/DataTable";
 import { useDataTable } from "@/hooks/use-data-table";
 import { useAuth } from "@/lib/auth";
 import { apiRequest } from "@/lib/queryClient";
 import { useQuery } from "@tanstack/react-query";
-import { format } from "date-fns";
-import { AlertTriangle, Calendar, Download, Package, Eye } from "lucide-react";
 import { ColumnDef } from "@tanstack/react-table";
-import { useMemo, useState } from "react";
-import { FilterItem } from "@/components/Type/type";
-import { transformOptions } from "./components/common";
-import { DamageSource, DamageCategory, DamageSeverity, SeverityColors, UserRole } from "./utils/enums";
-import type { ProductDamage, DamageAnalytics } from "./utils/type";
-
-
-const damageSources = [
-  { value: DamageSource.STORE, label: "In-Store" },
-  { value: DamageSource.WAREHOUSE, label: "Warehouse" },
-  { value: DamageSource.ONLINE_RETURN, label: "Online Return" },
-  { value: DamageSource.SHIPPING, label: "Shipping" },
-  { value: DamageSource.MANUFACTURING, label: "Manufacturing" },
-];
-
-const damageCategories = [
-  { value: DamageCategory.MANUFACTURING_DEFECT, label: "Manufacturing Defect" },
-  { value: DamageCategory.SHIPPING_DAMAGE, label: "Shipping Damage" },
-  { value: DamageCategory.STORAGE_DAMAGE, label: "Storage Damage" },
-  { value: DamageCategory.HANDLING_DAMAGE, label: "Handling Damage" },
-  { value: DamageCategory.CUSTOMER_DAMAGE, label: "Customer Damage" },
-  { value: DamageCategory.EXPIRED, label: "Expired" },
-  { value: DamageCategory.THEFT_LOSS, label: "Theft/Loss" },
-  { value: DamageCategory.OTHER, label: "Other" },
-];
-
-const damageSeverities = [
-  { value: DamageSeverity.MINOR, label: "Minor" },
-  { value: DamageSeverity.MAJOR, label: "Major" },
-  { value: DamageSeverity.TOTAL_LOSS, label: "Total Loss" },
-];
-
+import { format } from "date-fns";
+import { AlertTriangle, Calendar, Download, Package } from "lucide-react";
+import { useEffect, useMemo } from "react";
+import { DamageSeverity, SeverityColors, UserRole } from "./utils/enums";
+import {
+  damageCategories,
+  DamageFilters,
+  damageSeverities,
+  damageSources,
+} from "./utils/filtersInventory";
+import type { DamageAnalytics, ProductDamage } from "./utils/type";
 
 export default function DamageHistory() {
   const { user } = useAuth();
-
-  // Custom filters for damage history
-  const damageFilters: FilterItem[] = [
-    {
-      key: "category",
-      label: "Category",
-      placeholder: "Filter by category",
-      tree: transformOptions(damageCategories),
-    },
-    {
-      key: "severity",
-      label: "Severity",
-      placeholder: "Filter by severity",
-      tree: transformOptions(damageSeverities),
-    },
-    {
-      key: "source",
-      label: "Source",
-      placeholder: "Filter by source",
-      tree: transformOptions(damageSources),
-    },
-  ];
+  const filters: FilterItem[] = useMemo(() => DamageFilters(), []);
 
   const {
     data: damages,
@@ -77,7 +35,7 @@ export default function DamageHistory() {
   } = useDataTable<ProductDamage>({
     queryKey: "/api/inventory/getDamages",
     initialPageSize: 10,
-    pageKey:'inventoryDamageHistory'
+    pageKey: "inventoryDamageHistory",
   });
 
   // Get analytics
@@ -90,7 +48,9 @@ export default function DamageHistory() {
       );
       return response;
     },
-    enabled: !!user && (user.role === UserRole.INVENTORY || user.role === UserRole.ADMIN),
+    enabled:
+      !!user &&
+      (user.role === UserRole.INVENTORY || user.role === UserRole.ADMIN),
   });
 
   const columns: ColumnDef<ProductDamage, any>[] = useMemo(
@@ -184,11 +144,13 @@ export default function DamageHistory() {
         accessorKey: "imageUrls",
         header: "Evidence",
         cell: ({ row }) => {
-          const imageUrls = row.getValue("imageUrls") as string[] || [];
+          const imageUrls = (row.getValue("imageUrls") as string[]) || [];
           if (imageUrls.length === 0) {
-            return <span className="text-muted-foreground text-sm">No images</span>;
+            return (
+              <span className="text-muted-foreground text-sm">No images</span>
+            );
           }
-          
+
           return (
             <div className="flex items-center gap-2">
               <div className="flex -space-x-2">
@@ -285,12 +247,10 @@ export default function DamageHistory() {
     document.body.removeChild(link);
   };
 
-
-
   return (
-    <div className="max-w-7xl mx-auto p-6">
+    <div className="max-w-7xl mx-auto">
       <div className="mb-8">
-        <h1 className="text-2xl font-semibold flex items-center gap-2">
+        <h1 className="text-xl font-semibold flex items-center gap-2">
           <AlertTriangle className="h-6 w-6 text-orange-500" />
           Damage History
         </h1>
@@ -350,7 +310,7 @@ export default function DamageHistory() {
       {/* Damage List */}
       <Card>
         <CardHeader className="flex flex-row items-center justify-between">
-          <CardTitle>Damage Records</CardTitle>
+          <CardTitle className="text-lg">Damage Records</CardTitle>
           <Button onClick={exportData}>
             <Download className="mr-2 h-4 w-4" />
             Export CSV
@@ -368,7 +328,7 @@ export default function DamageHistory() {
             isLoading={isLoading}
             searchPlaceholder="Search damage records..."
             emptyMessage="No damage records found"
-            filters={damageFilters}
+            filters={filters}
           />
         </CardContent>
       </Card>

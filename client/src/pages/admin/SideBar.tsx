@@ -1,33 +1,37 @@
-import { Button } from "@/components/ui/button";
-import { useLocation, useNavigate } from "react-router-dom";
-import { AdminNavItems } from "./NavItems";
+import { NavLink } from "react-router-dom";
+import { AdminNavGroups } from "./NavItems";
 
 export function AdminSidebar() {
-  const navigate = useNavigate();
-  const location = useLocation(); 
-
-  const handleNavigation = (href:string) => {
-    navigate(href);
-  };
-
   return (
     <div className="flex flex-col h-full">
-      <nav className="flex-1 p-4 space-y-1">
-        {AdminNavItems.map((item) => {
-          const isActive = location.pathname === item.href; // check if current page
-          return (
-            <Button
-              key={item.href}
-              variant={isActive ? "secondary" : "ghost"} // active style
-              className="w-full justify-start gap-3"
-              data-testid={`nav-${item.label.toLowerCase().replace(/\s/g, "-")}`}
-              onClick={() => handleNavigation(item.href)}
-            >
-              <item.icon className="h-4 w-4" />
-              {item.label}
-            </Button>
-          );
-        })}
+      <nav className="flex-1 p-3 space-y-4">
+        {AdminNavGroups.map((group) => (
+          <div key={group.title} className="space-y-1">
+            <h3 className="px-2 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
+              {group.title}
+            </h3>
+            {group.items.map((item) => (
+              <NavLink
+                key={item.href}
+                to={item.href}
+                data-testid={`nav-${item.label
+                  .toLowerCase()
+                  .replace(/\s/g, "-")}`}
+                className={({ isActive }) =>
+                  `flex items-center gap-2 h-7 text-xs px-2 rounded-md w-full
+                  ${
+                    isActive
+                      ? "bg-secondary text-secondary-foreground"
+                      : "hover:bg-accent hover:text-accent-foreground"
+                  }`
+                }
+              >
+                <item.icon className="h-3 w-3" />
+                {item.label}
+              </NavLink>
+            ))}
+          </div>
+        ))}
       </nav>
     </div>
   );

@@ -33,6 +33,7 @@ import { saveAs } from "file-saver";
 import type { StockMovement } from "@shared/schema";
 import { formatDate } from "@/lib/utils";
 import { DistributionChannel } from "./utils/enums";
+import { useDataTable } from "@/hooks/use-data-table";
 
 interface StockStats {
   totalOnlineCleared: number;
@@ -49,57 +50,26 @@ interface StockMovementWithDetails extends StockMovement {
 
 export default function StockMovements() {
   const { toast } = useToast();
-  const [sourceFilter, setSourceFilter] = useState<string>("all");
-  const [typeFilter, setTypeFilter] = useState<string>("all");
-  const [searchTerm, setSearchTerm] = useState("");
 
   const { data: stats, isLoading: statsLoading, refetch: refetchStats } = useQuery<StockStats>({
     queryKey: ["/api/inventory/stock-stats"],
     refetchInterval: 30000, // Refresh every 30 seconds
   });
 
-  const { data: movements, isLoading: movementsLoading, refetch: refetchMovements } = useQuery<StockMovementWithDetails[]>({
-    queryKey: ["/api/inventory/stock-movements", sourceFilter],
-    queryFn: async () => {
-      const params = new URLSearchParams();
-      if (sourceFilter !== "all") {
-        params.set("source", sourceFilter);
-      }
-      params.set("limit", "100"); // Get more data for better filtering
-      
-      const response = await apiRequest("GET", `/api/inventory/stock-movements?${params.toString()}`);
-      return response;
-    },
-    refetchInterval: 30000, // Refresh every 30 seconds
+  // Use useDataTable for paginated stock movements
+  const {
+    data: movements,
+    totalCount,
+    isLoading: movementsLoading,
+    pageIndex,
+    pageSize,
+    handlePaginationChange,
+    refetch: refetchMovements,
+  } = useDataTable<StockMovementWithDetails>({
+    queryKey: "/api/inventory/stock-movements",
+    initialPageSize: 10,
+    pageKey: "inventoryStockmovments",
   });
-
-  // Pagination state for the table
-  const [pageIndex, setPageIndex] = useState(0);
-  const [pageSize, setPageSize] = useState(20);
-
-  const handlePaginationChange = (newPageIndex: number, newPageSize: number) => {
-    if (newPageSize !== pageSize) {
-      setPageIndex(0);
-      setPageSize(newPageSize);
-    } else {
-      setPageIndex(newPageIndex);
-    }
-  };
-
-  const filteredMovements = useMemo(() => {
-    if (!movements) return [];
-    
-    return movements.filter((movement) => {
-      const matchesSource = sourceFilter === "all" || movement.source === sourceFilter;
-      const matchesType = typeFilter === "all" || movement.movementType === typeFilter;
-      const matchesSearch = searchTerm === "" || 
-        (movement.productName && movement.productName.toLowerCase().includes(searchTerm.toLowerCase())) ||
-        movement.orderRefId.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        (movement.storeName && movement.storeName.toLowerCase().includes(searchTerm.toLowerCase()));
-      
-      return matchesSource && matchesType && matchesSearch;
-    });
-  }, [movements, sourceFilter, typeFilter, searchTerm]);
 
   const handleRefresh = () => {
     refetchStats();
@@ -107,7 +77,7 @@ export default function StockMovements() {
   };
 
   const handleDownloadExcel = () => {
-    if (!filteredMovements || filteredMovements.length === 0) {
+    if (!movements || movements.length === 0) {
       toast({
         title: "No Data",
         description: "No movements to download",
@@ -116,7 +86,7 @@ export default function StockMovements() {
       return;
     }
 
-    const excelData = filteredMovements.map((movement) => ({
+    const excelData = movements.map((movement: StockMovementWithDetails) => ({
       Date: formatDate(movement.createdAt),
       "Product Name": movement.productName || "Unknown",
       Quantity: Math.abs(movement.quantity),
@@ -282,7 +252,7 @@ export default function StockMovements() {
             <Button
               variant="outline"
               onClick={handleDownloadExcel}
-              disabled={!filteredMovements || filteredMovements.length === 0}
+              disabled={!movements || movements.length === 0}
             >
               <Download className="h-4 w-4 mr-2" />
               Download Excel
@@ -344,69 +314,21 @@ export default function StockMovements() {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">
-                {filteredMovements?.length || 0}
+                {totalCount || 0}
               </div>
               <p className="text-xs text-muted-foreground">
-                Movements matching filters
+                Total movements found
               </p>
             </CardContent>
           </Card>
         </div>
 
-        {/* Filters */}
-        <Card className="mb-6">
-          <CardHeader>
-            <CardTitle className="text-lg">Filters</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div>
-                <label className="text-sm font-medium mb-2 block">Source</label>
-                <Select value={sourceFilter} onValueChange={setSourceFilter}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select source" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Sources</SelectItem>
-                    <SelectItem value={DistributionChannel.ONLINE}>Online</SelectItem>
-                    <SelectItem value={DistributionChannel.STORE}>Store</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div>
-                <label className="text-sm font-medium mb-2 block">Movement Type</label>
-                <Select value={typeFilter} onValueChange={setTypeFilter}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select type" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Types</SelectItem>
-                    <SelectItem value="sale">Sales</SelectItem>
-                    <SelectItem value="return">Returns</SelectItem>
-                    <SelectItem value="restock">Restocks</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div>
-                <label className="text-sm font-medium mb-2 block">Search</label>
-                <Input
-                  placeholder="Search by product, order, or store..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
         {/* Movements Table */}
         <DataTable
         pageKey="inventoryStockmovments"
           columns={columns}
-          data={filteredMovements}
-          totalCount={filteredMovements?.length || 0}
+          data={movements}
+          totalCount={totalCount}
           pageIndex={pageIndex}
           pageSize={pageSize}
           onPaginationChange={handlePaginationChange}

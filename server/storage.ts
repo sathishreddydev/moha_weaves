@@ -470,7 +470,15 @@ export interface IStorage {
 
     limit?: number;
 
-  }): Promise<StockMovementWithDetails[]>;
+    page?: number;
+
+    pageSize?: number;
+
+    search?: string;
+
+    movementType?: string;
+
+  }): Promise<StockMovementWithDetails[] | { data: StockMovementWithDetails[]; total: number; page: number; pageSize: number; totalPages: number }>;
 
 
 
@@ -2262,7 +2270,15 @@ export class DatabaseStorage implements IStorage {
 
     limit?: number;
 
-  }): Promise<StockMovementWithDetails[]> {
+    page?: number;
+
+    pageSize?: number;
+
+    search?: string;
+
+    movementType?: string;
+
+  }): Promise<StockMovementWithDetails[] | { data: StockMovementWithDetails[]; total: number; page: number; pageSize: number; totalPages: number }> {
 
     const conditions = [];
 
@@ -2281,6 +2297,30 @@ export class DatabaseStorage implements IStorage {
     if (filters?.productId) {
 
       conditions.push(eq(stockMovements.productId, filters.productId));
+
+    }
+
+    if (filters?.movementType) {
+
+      conditions.push(eq(stockMovements.movementType, filters.movementType as any));
+
+    }
+
+    if (filters?.search) {
+
+      conditions.push(
+
+        or(
+
+          ilike(products.name, `%${filters.search}%`),
+
+          ilike(stockMovements.orderRefId, `%${filters.search}%`),
+
+          ilike(stores.name, `%${filters.search}%`)
+
+        )
+
+      );
 
     }
 
@@ -2328,13 +2368,40 @@ export class DatabaseStorage implements IStorage {
 
 
 
-    if (filters?.limit) {
-
-      return query.limit(filters.limit) as any;
-
+    // Handle pagination
+    if (filters?.page && filters?.pageSize) {
+      const offset = (filters.page - 1) * filters.pageSize;
+      
+      // Get total count
+      const countQuery = db
+        .select({ count: sql<number>`count(*)` })
+        .from(stockMovements)
+        .innerJoin(products, eq(stockMovements.productId, products.id))
+        .leftJoin(stores, eq(stockMovements.storeId, stores.id))
+        .where(conditions.length > 0 ? and(...conditions) : undefined);
+      
+      const [{ count: total }] = await countQuery;
+      
+      // Get paginated data
+      const data = await query
+        .limit(filters.pageSize)
+        .offset(offset);
+      
+      const totalPages = Math.ceil(total / filters.pageSize);
+      
+      return {
+        data,
+        total,
+        page: filters.page,
+        pageSize: filters.pageSize,
+        totalPages
+      };
     }
 
-
+    // Handle legacy limit parameter
+    if (filters?.limit) {
+      return query.limit(filters.limit) as any;
+    }
 
     return query;
 

@@ -10,40 +10,15 @@ import { ArrowLeftRight, Globe, Package, RefreshCw, Store } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { RequestDialog } from "./utils/RequestDialog";
-import { formatPrice } from "./utils/cartUtils";
 import { FilterItem, ShopProduct, StoreTreeNode } from "./utils/types";
 import { createInventoryFilters } from "./utils/filterUtils";
+import { formatPrice } from "@/lib/utils";
 
 export default function StoreInventoryPage() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [productData, setProductData] = useState<ProductWithDetails>();
   const { categories, colors, fabrics, fetchFilters } = useFilterStore();
 
-  const colorTree = useMemo(
-    () =>
-      colors.map((color) => ({
-        id: color.id,
-        label: color.name,
-        data: color,
-      })),
-    [colors],
-  );
-
-  const categoryTree: StoreTreeNode[] = useMemo(
-    () =>
-      categories.map((cat) => ({
-        id: cat.id,
-        label: cat.name,
-        type: "category" as const,
-        children:
-          cat?.subcategories?.map((sub) => ({
-            id: sub.id,
-            label: sub.name,
-            type: "subcategory" as const,
-          })) || [],
-      })),
-    [categories],
-  );
 
   useEffect(() => {
     if (!categories.length || !colors.length || !fabrics.length) {
@@ -380,7 +355,7 @@ export default function StoreInventoryPage() {
         searchPlaceholder="Search by name or SKU..."
         emptyMessage="No products available for shop"
         filters={filters}
-        className="[&_table]:text-xs [&_th]:h-8 [&_th]:px-2 [&_td]:px-2 [&_td]:py-1"
+        
       />
       {dialogOpen && (
         <RequestDialog

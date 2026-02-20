@@ -343,7 +343,7 @@ export function DataTable<TData, TValue>({
       )}
 
       <div className="rounded-md border">
-        <Table className={className}>
+        <Table className="[&_table]:text-xs [&_th]:h-12 [&_th]:px-2 [&_td]:px-2 [&_td]:py-1">
           <TableHeader>
             {table.getHeaderGroups().map((headerGroup) => (
               <TableRow key={headerGroup.id}>

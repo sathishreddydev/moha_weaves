@@ -29,11 +29,14 @@ import {
   Store as StoreIcon,
   Trash2,
 } from "lucide-react";
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import * as XLSX from "xlsx";
 import { ProductPrintDetails } from "./ProductPrintDetails";
 import { DistributionChannel } from "./utils/enums";
+import { useFilterStore } from "@/components/Store/useFilterStore";
+import { inventoryFilters } from "./utils/filtersInventory";
+import { FilterItem } from "./utils/type";
 
 const formatPrice = (price: string | number) => {
   const numPrice = typeof price === "string" ? parseFloat(price) : price;
@@ -75,7 +78,9 @@ const ProductAccordionContent = ({
               Distribution Channel:
             </span>
             <p className="font-medium text-xs capitalize">
-              {DistributionChannel[product.distributionChannel as keyof typeof DistributionChannel] || product.distributionChannel}
+              {DistributionChannel[
+                product.distributionChannel as keyof typeof DistributionChannel
+              ] || product.distributionChannel}
             </p>
           </div>
         </div>
@@ -293,7 +298,7 @@ export default function InventoryProducts() {
   } = useDataTable<ProductWithDetails>({
     queryKey: "/api/inventory/getProducts",
     initialPageSize: 10,
-    pageKey:'inventoryProducts'
+    pageKey: "inventoryProducts",
   });
 
   const deleteMutation = useMutation({
@@ -325,7 +330,18 @@ export default function InventoryProducts() {
       });
     },
   });
+  const { categories, colors, fabrics, fetchFilters } = useFilterStore();
 
+  useEffect(() => {
+    if (!categories.length || !colors.length || !fabrics.length) {
+      fetchFilters();
+    }
+  }, [categories.length, colors.length, fabrics.length, fetchFilters]);
+
+  const filters: FilterItem[] = useMemo(
+    () => inventoryFilters(categories, colors, fabrics),
+    [categories, colors, fabrics],
+  );
   const handlePrintBarcode = (product: ProductWithDetails) => {
     setPrintingProduct(product);
     setPrintDialogOpen(true);
@@ -559,7 +575,10 @@ export default function InventoryProducts() {
         header: "Channel",
         cell: ({ row }) => (
           <Badge variant="outline" className="capitalize">
-            {DistributionChannel[row.original.distributionChannel as keyof typeof DistributionChannel] || row.original.distributionChannel}
+            {DistributionChannel[
+              row.original
+                .distributionChannel as keyof typeof DistributionChannel
+            ] || row.original.distributionChannel}
           </Badge>
         ),
       },
@@ -597,17 +616,17 @@ export default function InventoryProducts() {
             >
               <Edit className="h-4 w-4" />
             </Button>
-             <Button
-            variant="ghost"
-            size="icon"
-            onClick={() =>
-              navigate(`/inventory/damage-report/${row.original.sku}`)
-            }
-            data-testid={`button-report-damage-${row.original.id}`}
-            title="Report Damage"
-          >
-            <AlertTriangle className="h-4 w-4 text-orange-500" />
-          </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() =>
+                navigate(`/inventory/damage-report/${row.original.sku}`)
+              }
+              data-testid={`button-report-damage-${row.original.id}`}
+              title="Report Damage"
+            >
+              <AlertTriangle className="h-4 w-4 text-orange-500" />
+            </Button>
             <Button
               variant="ghost"
               size="icon"
@@ -702,7 +721,7 @@ export default function InventoryProducts() {
             <ProductAccordionContent product={product} />
           )}
           accordionPosition="inline"
-          className="[&_table]:text-xs [&_th]:h-8 [&_th]:px-2 [&_td]:px-2 [&_td]:py-1"
+          filters={filters}
         />
       </div>
 

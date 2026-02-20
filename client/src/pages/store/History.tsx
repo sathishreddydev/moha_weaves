@@ -363,7 +363,7 @@ export default function StoreHistory() {
           searchPlaceholder="Search by sale ID..."
           emptyMessage="No sales history yet"
           filters={filters}
-          className="[&_table]:text-xs [&_th]:h-8 [&_th]:px-2 [&_td]:px-2 [&_td]:py-1"
+          
         />
       </div>
 

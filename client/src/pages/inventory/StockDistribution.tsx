@@ -8,6 +8,7 @@ import { useDataTable } from "@/hooks/use-data-table";
 import { ColumnDef } from "@tanstack/react-table";
 import type { ProductWithDetails, Store as StoreType } from "@shared/schema";
 import { UserRole } from "./utils/enums";
+import { formatPrice } from "@/lib/utils";
 
 export default function StockDistribution() {
   const { user } = useAuth();
@@ -36,14 +37,6 @@ export default function StockDistribution() {
     pageKey:'inventoryStockDistribution'
   });
 
-  const formatPrice = (price: string | number) => {
-    const numPrice = typeof price === "string" ? parseFloat(price) : price;
-    return new Intl.NumberFormat("en-IN", {
-      style: "currency",
-      currency: "INR",
-      maximumFractionDigits: 0,
-    }).format(numPrice);
-  };
 
   const columns: ColumnDef<ProductWithDetails>[] = useMemo(() => {
     const baseColumns: ColumnDef<ProductWithDetails>[] = [

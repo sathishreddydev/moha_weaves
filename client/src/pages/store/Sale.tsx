@@ -562,7 +562,7 @@ export default function StoreSale() {
           searchPlaceholder="Search products..."
           emptyMessage="No products in stock"
           filters={filters}
-          className="[&_table]:text-xs [&_th]:h-8 [&_th]:px-2 [&_td]:px-2 [&_td]:py-1"
+          
         />
       </div>
     </div>
