@@ -6,7 +6,6 @@ import { useAuth } from "@/lib/auth";
 import { apiRequest } from "@/lib/queryClient";
 import {
   calculateCartTotals,
-  formatPrice,
   getAvailableStock,
   getStockDisplayText,
   groupCartItemsByProduct,
@@ -29,6 +28,7 @@ import { useNavigate } from "react-router-dom";
 import { CartItem, useStoreCart } from "./Hook/cartForStore";
 import { PaymentMethod } from "./utils/enums";
 import { Discount, ExistingCustomer, LoyaltyData } from "./utils/types";
+import { formatPrice } from "@/lib/utils";
 
 
 

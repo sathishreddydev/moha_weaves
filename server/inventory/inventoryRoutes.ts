@@ -239,13 +239,22 @@ export const inventoryRoutes = (app: Express) => {
   app.get("/api/inventory/orders", authInventory, async (req, res) => {
     try {
       const { status, limit } = req.query;
+      console.log("Fetching orders with filters:", { status, limit });
+      
       const orders = await storage.getAllOrders({
         status: status as string,
         limit: limit ? parseInt(limit as string) : undefined,
       });
+      
+      console.log("Successfully fetched orders:", orders.length);
       res.json(orders);
-    } catch {
-      res.status(500).json({ message: "Failed to fetch orders" });
+    } catch (error: any) {
+      console.error("Error fetching orders:", error);
+      const message = error instanceof Error ? error.message : "Unknown error occurred";
+      res.status(500).json({ 
+        message: "Failed to fetch orders", 
+        error: process.env.NODE_ENV === "development" ? message : undefined 
+      });
     }
   });
 
@@ -1248,6 +1257,121 @@ export const inventoryRoutes = (app: Express) => {
       res.json(overview);
     } catch {
       res.status(500).json({ message: "Failed to fetch inventory overview" });
+    }
+  });
+
+  // Inventory Valuation Endpoint
+  app.get("/api/inventory/valuation", authInventory, async (req, res) => {
+    try {
+      const { category, dateFrom, dateTo } = req.query;
+
+      // Get all products with their stock and pricing
+      const products = await roleBasedProductService.getProductsByRole({}, "inventory");
+      
+      // Calculate inventory valuation
+      let totalValue = 0;
+      let totalStock = 0;
+      let totalCostValue = 0;
+      const categoryBreakdown: Record<string, { value: number; stock: number; costValue: number; count: number }> = {};
+      
+      products.forEach(product => {
+        const stockValue = (parseFloat(product.price) || 0) * (product.totalStock || 0);
+        const costValue = (parseFloat(product.actualPrice || product.price || '0') || 0) * (product.totalStock || 0);
+        
+        totalValue += stockValue;
+        totalCostValue += costValue;
+        totalStock += product.totalStock || 0;
+        
+        const categoryName = product.category?.name || 'Uncategorized';
+        if (!categoryBreakdown[categoryName]) {
+          categoryBreakdown[categoryName] = {
+            value: 0,
+            stock: 0,
+            costValue: 0,
+            count: 0
+          };
+        }
+        
+        categoryBreakdown[categoryName].value += stockValue;
+        categoryBreakdown[categoryName].costValue += costValue;
+        categoryBreakdown[categoryName].stock += product.totalStock || 0;
+        categoryBreakdown[categoryName].count += 1;
+      });
+      
+      // Calculate profit potential
+      const profitPotential = totalValue - totalCostValue;
+      const profitMargin = totalValue > 0 ? (profitPotential / totalValue) * 100 : 0;
+      
+      // Sort categories by value
+      const sortedCategories = Object.entries(categoryBreakdown)
+        .sort(([,a], [,b]) => b.value - a.value)
+        .map(([name, data]) => ({
+          category: name,
+          value: data.value,
+          costValue: data.costValue,
+          stock: data.stock,
+          count: data.count,
+          avgPricePerUnit: data.stock > 0 ? data.value / data.stock : 0,
+          profitPotential: data.value - data.costValue
+        }));
+      
+      // Get low stock valuation (items below 10 units)
+      const lowStockItems = products.filter(p => (p.totalStock || 0) <= 10);
+      const lowStockValue = lowStockItems.reduce((sum, item) => 
+        sum + ((parseFloat(item.price) || 0) * (item.totalStock || 0)), 0
+      );
+      
+      // Get dead stock valuation (items with zero stock)
+      const deadStockItems = products.filter(p => (p.totalStock || 0) === 0);
+      const deadStockCount = deadStockItems.length;
+      
+      const valuation = {
+        summary: {
+          totalValue,
+          totalCostValue,
+          profitPotential,
+          profitMargin,
+          totalStock,
+          totalProducts: products.length,
+          lowStockValue,
+          lowStockCount: lowStockItems.length,
+          deadStockCount,
+          avgValuePerProduct: products.length > 0 ? totalValue / products.length : 0
+        },
+        categoryBreakdown: sortedCategories,
+        topValuedProducts: products
+          .sort((a, b) => (parseFloat(b.price) || 0) * (b.totalStock || 0) - (parseFloat(a.price) || 0) * (a.totalStock || 0))
+          .slice(0, 10)
+          .map(product => ({
+            id: product.id,
+            name: product.name,
+            sku: product.sku,
+            price: parseFloat(product.price) || 0,
+            totalStock: product.totalStock || 0,
+            totalValue: (parseFloat(product.price) || 0) * (product.totalStock || 0),
+            categoryName: product.category?.name || 'Uncategorized'
+          })),
+        lowStockItems: lowStockItems
+          .map(product => ({
+            id: product.id,
+            name: product.name,
+            sku: product.sku,
+            price: parseFloat(product.price) || 0,
+            totalStock: product.totalStock || 0,
+            totalValue: (parseFloat(product.price) || 0) * (product.totalStock || 0),
+            categoryName: product.category?.name || 'Uncategorized'
+          })),
+        lastCalculated: new Date().toISOString()
+      };
+      
+      res.json(valuation);
+    } catch (error: any) {
+      console.error("Error fetching inventory valuation:", error);
+      const message = error instanceof Error ? error.message : "Unknown error occurred";
+      res.status(500).json({ 
+        message: "Failed to fetch inventory valuation", 
+        error: process.env.NODE_ENV === "development" ? message : undefined 
+      });
     }
   });
 

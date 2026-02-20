@@ -12,7 +12,7 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAuth } from "@/lib/auth";
 import { useQuery } from "@tanstack/react-query";
-import { BarChart3, Calendar, Globe, Package, Store, TrendingDown, TrendingUp } from "lucide-react";
+import { BarChart3, Calendar, Globe, Package, Store, TrendingDown, TrendingUp, DollarSign } from "lucide-react";
 import { ABCClass, TrendType, AnalyticsTab, UserRole, TurnoverHealth } from "./utils/enums";
 import type { StockMovementStats, InventoryTurnover, ABCAnalysis, SeasonalTrend } from "./utils/type";
 
@@ -44,12 +44,53 @@ export default function InventoryAnalytics() {
     enabled: isInventoryUser,
   });
 
+  // Inventory Valuation Query
+  const { data: valuation, isLoading: valuationLoading } = useQuery<{
+    summary: {
+      totalValue: number;
+      totalCostValue: number;
+      profitPotential: number;
+      profitMargin: number;
+      totalStock: number;
+      totalProducts: number;
+      lowStockValue: number;
+      lowStockCount: number;
+      deadStockCount: number;
+      avgValuePerProduct: number;
+    };
+    categoryBreakdown: Array<{
+      category: string;
+      value: number;
+      costValue: number;
+      stock: number;
+      count: number;
+      avgPricePerUnit: number;
+      profitPotential: number;
+    }>;
+    topValuedProducts: Array<{
+      id: string;
+      name: string;
+      sku: string;
+      price: number;
+      totalStock: number;
+      totalValue: number;
+      categoryName: string;
+    }>;
+  }>({
+    queryKey: ["/api/inventory/valuation"],
+    enabled: isInventoryUser,
+  });
+
   // Extract data arrays from responses
   const turnoverData = turnoverResponse.data || [];
   const abcData = abcResponse.data || [];
   const seasonalData = seasonalResponse.data || [];
 
   const getStoreStats = (movements: any[]) => {
+    if (!movements || !Array.isArray(movements)) {
+      return [];
+    }
+    
     const storeMap = new Map<string, { name: string; quantity: number }>();
 
     movements.forEach((movement) => {
@@ -82,7 +123,7 @@ export default function InventoryAnalytics() {
       ? ((stats?.totalStoreCleared || 0) / totalCleared) * 100
       : 0;
 
-  const storeStats = stats ? getStoreStats(stats.storeMovements) : [];
+  const storeStats = stats && stats.storeMovements ? getStoreStats(stats.storeMovements) : [];
 
   // Helper functions for new analytics
   const formatCurrency = (amount: number) => {

@@ -17,7 +17,7 @@ import type {
   StockRequestWithDetails,
 } from "@shared/schema";
 import { useQuery } from "@tanstack/react-query";
-import { AlertTriangle, ClipboardList, Truck } from "lucide-react";
+import { AlertTriangle, ClipboardList, Truck, DollarSign, TrendingUp, Package } from "lucide-react";
 import { Link } from "react-router-dom";
 import { UserRole } from "./utils/enums";
 
@@ -38,7 +38,25 @@ export default function InventoryDashboard() {
   });
 
   const { data: pendingOrders } = useQuery<Order[]>({
-    queryKey: ["/api/inventory/orders?status=pending"],
+    queryKey: ["/api/inventory/orders?status=created"],
+    enabled: isInventoryUser,
+  });
+
+  const { data: valuation, isLoading: loadingValuation } = useQuery<{
+    summary: {
+      totalValue: number;
+      totalCostValue: number;
+      profitPotential: number;
+      profitMargin: number;
+      totalStock: number;
+      totalProducts: number;
+      lowStockValue: number;
+      lowStockCount: number;
+      deadStockCount: number;
+      avgValuePerProduct: number;
+    };
+  }>({
+    queryKey: ["/api/inventory/valuation"],
     enabled: isInventoryUser,
   });
 
@@ -55,7 +73,7 @@ export default function InventoryDashboard() {
       </div>
 
       {/* Stats Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6 mb-8">
         <Card data-testid="stat-low-stock">
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">
@@ -69,6 +87,50 @@ export default function InventoryDashboard() {
             </div>
             <p className="text-xs text-muted-foreground">
               Items below threshold
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card data-testid="stat-inventory-value">
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground">
+              Total Value
+            </CardTitle>
+            <DollarSign className="h-4 w-4 text-green-600" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">
+              {loadingValuation ? (
+                <Skeleton className="h-8 w-20" />
+              ) : (
+                `₹${(valuation?.summary?.totalValue || 0).toLocaleString('en-IN')}`
+              )}
+            </div>
+            <p className="text-xs text-muted-foreground">Inventory worth</p>
+          </CardContent>
+        </Card>
+
+        <Card data-testid="stat-profit-potential">
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground">
+              Profit Potential
+            </CardTitle>
+            <TrendingUp className="h-4 w-4 text-purple-500" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">
+              {loadingValuation ? (
+                <Skeleton className="h-8 w-20" />
+              ) : (
+                `${(valuation?.summary?.profitMargin || 0).toFixed(1)}%`
+              )}
+            </div>
+            <p className="text-xs text-muted-foreground">
+              {loadingValuation ? (
+                "Calculating..."
+              ) : (
+                `₹${(valuation?.summary?.profitPotential || 0).toLocaleString('en-IN')}`
+              )}
             </p>
           </CardContent>
         </Card>

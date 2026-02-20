@@ -23,7 +23,7 @@ export const NavGroups = [
     title: "Overview",
     items: [
       { icon: LayoutDashboard, label: "Dashboard", href: "/inventory/dashboard" },
-      // { icon: BarChart3, label: "Analytics", href: "/inventory/analytics" },
+      { icon: BarChart3, label: "Analytics", href: "/inventory/analytics" },
     ]
   },
   {

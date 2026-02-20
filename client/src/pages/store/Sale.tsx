@@ -8,7 +8,6 @@ import { useAuth } from "@/lib/auth";
 import {
   calculateVariantPrice,
   findCartItem,
-  formatPrice,
   getAvailableStock,
   getCartItemByVariant,
   getStockDisplayText,
@@ -23,6 +22,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useStoreCart } from "./Hook/cartForStore";
 import { FilterItem, ShopProduct } from "./utils/types";
+import { formatPrice } from "@/lib/utils";
 
 export default function StoreSale() {
   const { user } = useAuth();
