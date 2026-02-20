@@ -11,16 +11,6 @@ export const safeParseFloat = (value: any): number => {
   }
 };
 
-// Format price with validation
-export const formatPrice = (price: number | string) => {
-  const numPrice = safeParseFloat(price);
-  return new Intl.NumberFormat("en-IN", {
-    style: "currency",
-    currency: "INR",
-    maximumFractionDigits: 0,
-  }).format(numPrice);
-};
-
 // Calculate variant price with fallback logic
 export const calculateVariantPrice = (
   product: any,

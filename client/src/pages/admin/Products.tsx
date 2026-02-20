@@ -1,19 +1,11 @@
 import { DataTable } from "@/components/DataTable/DataTable";
 import { Badge } from "@/components/ui/badge";
 import { useDataTable } from "@/hooks/use-data-table";
+import { formatPrice } from "@/lib/utils";
 import type { ProductWithDetails } from "@shared/schema";
 import { ColumnDef } from "@tanstack/react-table";
 import { useMemo } from "react";
 import { Link } from "react-router-dom";
-
-const formatPrice = (price: string | number) => {
-  const numPrice = typeof price === "string" ? parseFloat(price) : price;
-  return new Intl.NumberFormat("en-IN", {
-    style: "currency",
-    currency: "INR",
-    maximumFractionDigits: 0,
-  }).format(numPrice);
-};
 
 export default function AdminProducts() {
   const {
@@ -26,6 +18,7 @@ export default function AdminProducts() {
   } = useDataTable<ProductWithDetails>({
     queryKey: "/api/admin/getProducts",
     initialPageSize: 10,
+    pageKey:'adminProductsPage'
   });
 
   const columns: ColumnDef<ProductWithDetails>[] = useMemo(
@@ -101,6 +94,7 @@ export default function AdminProducts() {
       </div>
 
       <DataTable
+        pageKey="adminProductsPage"
         columns={columns}
         data={products}
         totalCount={totalCount}

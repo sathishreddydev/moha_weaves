@@ -264,8 +264,8 @@ export const storeRoutes = (app: Express) => {
       // Calculate stats for store-specific products
       const totalProducts = formattedData.length;
       const inStockProducts = formattedData.filter(p =>
-        (p.storeAllocations || []).some((alloc: any) => alloc.quantity > 0) ||
-        (p.variants || []).some((v: any) => (v.storeAllocations || []).some((alloc: any) => alloc.quantity > 0))
+        p.totalStock > 0 ||
+        (p.variants || []).some((v: any) => v.stockQuantity > 0)
       ).length;
       const outOfStockProducts = totalProducts - inStockProducts;
       const finalData = formattedData.map(product => ({

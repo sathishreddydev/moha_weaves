@@ -833,6 +833,7 @@ export default function AdminCategories() {
         </div>
 
         <DataTable
+          pageKey="adminCategoryPage"
           columns={columns}
           data={categories || []}
           totalCount={categories?.length || 0}

@@ -117,6 +117,7 @@ export default function DamageHistory() {
   } = useDataTable<ProductDamage>({
     queryKey: "/api/inventory/getDamages",
     initialPageSize: 10,
+    pageKey:'inventoryDamageHistory'
   });
 
   // Get analytics
@@ -397,6 +398,7 @@ export default function DamageHistory() {
         </CardHeader>
         <CardContent>
           <DataTable
+            pageKey="inventoryDamageHistory"
             columns={columns}
             data={damages || []}
             totalCount={totalCount || 0}

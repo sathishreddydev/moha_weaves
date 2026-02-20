@@ -23,6 +23,7 @@ export default function InventoryStoreOrders() {
   } = useDataTable<StoreSaleWithItems>({
     queryKey: "/api/inventory/store-sales",
     initialPageSize: 10,
+    pageKey:"inventoryStoreOrders"
   });
 
   const columns: ColumnDef<StoreSaleWithItems>[] = useMemo(
@@ -125,6 +126,7 @@ export default function InventoryStoreOrders() {
         <Card>
           <CardContent className="p-4">
             <DataTable
+              pageKey="inventoryStoreOrders"
               columns={columns}
               data={storeSales}
               totalCount={totalCount}

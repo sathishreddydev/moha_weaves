@@ -22,6 +22,7 @@ export default function AdminUsers() {
   } = useDataTable<SafeUser>({
     queryKey: "/api/admin/getUsers",
     initialPageSize: 10,
+    pageKey:'adminUserPage'
   });
 
   const columns: ColumnDef<SafeUser>[] = useMemo(
@@ -92,6 +93,7 @@ export default function AdminUsers() {
       <Card>
         <CardContent className="p-4">
           <DataTable
+            pageKey="adminUserPage"
             columns={columns}
             data={users}
             totalCount={totalCount}

@@ -402,6 +402,7 @@ export default function StockMovements() {
 
         {/* Movements Table */}
         <DataTable
+        pageKey="inventoryStockmovments"
           columns={columns}
           data={filteredMovements}
           totalCount={filteredMovements?.length || 0}

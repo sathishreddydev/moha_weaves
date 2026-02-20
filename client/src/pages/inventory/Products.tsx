@@ -292,6 +292,7 @@ export default function InventoryProducts() {
   } = useDataTable<ProductWithDetails>({
     queryKey: "/api/inventory/getProducts",
     initialPageSize: 10,
+    pageKey:'inventoryProducts'
   });
 
   const deleteMutation = useMutation({
@@ -685,6 +686,7 @@ export default function InventoryProducts() {
         </div>
 
         <DataTable
+          pageKey="inventoryProducts"
           columns={columns}
           data={products}
           totalCount={totalCount}

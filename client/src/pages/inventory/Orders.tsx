@@ -58,6 +58,7 @@ export default function InventoryOrders() {
   } = useDataTable<OrderWithItems>({
     queryKey: "/api/inventory/orders",
     initialPageSize: 10,
+    pageKey:'inventoryOnlineOrders'
   });
 
   const updateItemStatusMutation = useMutation({
@@ -286,6 +287,7 @@ export default function InventoryOrders() {
     <div className="min-h-screen bg-slate-50 p-4 md:p-8 font-sans text-slate-900">
       <div className="max-w-6xl mx-auto">
         <DataTable
+          pageKey="inventoryOnlineOrders"
           columns={columns}
           data={orders || []}
           totalCount={totalCount || 0}

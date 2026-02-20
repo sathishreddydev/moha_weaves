@@ -90,6 +90,7 @@ export default function InventoryExchanges() {
   } = useDataTable<OnlineExchangeWithDetails>({
     queryKey: "/api/inventory/online-exchanges",
     initialPageSize: 10,
+    pageKey:'inventoryOnlineExchanges'
   });
 
   const updateStatusMutation = useMutation({
@@ -387,6 +388,7 @@ export default function InventoryExchanges() {
         </div>
 
         <DataTable
+          pageKey="inventoryOnlineExchanges"
           columns={columns}
           data={exchanges || []}
           totalCount={totalCount || 0}

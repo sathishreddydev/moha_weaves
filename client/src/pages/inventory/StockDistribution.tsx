@@ -32,6 +32,7 @@ export default function StockDistribution() {
   } = useDataTable<ProductWithDetails>({
     queryKey: "/api/inventory/getProducts",
     initialPageSize: 10,
+    pageKey:'inventoryStockDistribution'
   });
 
   const formatPrice = (price: string | number) => {
@@ -261,6 +262,7 @@ export default function StockDistribution() {
       <Card>
         <CardContent className="p-4">
           <DataTable
+            pageKey="inventoryStockDistribution"
             columns={columns}
             data={products}
             totalCount={totalCount}
