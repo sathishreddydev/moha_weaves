@@ -9,6 +9,7 @@ import { ProductFormData, StoreAllocation, FiltersData } from "./Types";
 import { calculateStockTotals, validateVariantStockConsistency, validateSimpleStockConsistency } from "./stockCalculations";
 import { ProductForm } from "./ProductForm";
 import { Store } from "@shared/types";
+import { DistributionChannel } from "../utils/enums";
 
 export default function AddProduct() {
     const navigate = useNavigate();
@@ -30,7 +31,7 @@ export default function AddProduct() {
         videoUrl: "",
         totalStock: 0,
         onlineStock: 0,
-        distributionChannel: "both",
+        distributionChannel: DistributionChannel.BOTH,
         isFeatured: false,
         isActive: true,
         // New variant fields

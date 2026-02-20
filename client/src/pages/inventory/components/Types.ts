@@ -1,4 +1,5 @@
 import { Category, Subcategory, Color, Fabric } from "@shared/types";
+import { DistributionChannel } from "../utils/enums";
 
 export interface FiltersData {
     categories: (Category & { subcategories: Subcategory[] })[];
@@ -33,7 +34,7 @@ export interface ProductFormData {
     videoUrl: string;
     totalStock: number;
     onlineStock: number;
-    distributionChannel: "shop" | "online" | "both";
+    distributionChannel: DistributionChannel;
     isFeatured: boolean;
     isActive: boolean;
     // New variant fields

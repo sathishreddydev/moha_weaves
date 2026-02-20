@@ -32,6 +32,7 @@ import * as XLSX from "xlsx";
 import { saveAs } from "file-saver";
 import type { StockMovement } from "@shared/schema";
 import { formatDate } from "@/lib/utils";
+import { DistributionChannel } from "./utils/enums";
 
 interface StockStats {
   totalOnlineCleared: number;
@@ -231,7 +232,7 @@ export default function StockMovements() {
           const source = row.original.source;
           return (
             <div className="flex items-center gap-2">
-              {source === "online" ? (
+              {source === DistributionChannel.ONLINE ? (
                 <ShoppingCart className="h-4 w-4 text-blue-600" />
               ) : (
                 <Store className="h-4 w-4 text-green-600" />
@@ -367,8 +368,8 @@ export default function StockMovements() {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">All Sources</SelectItem>
-                    <SelectItem value="online">Online</SelectItem>
-                    <SelectItem value="store">Store</SelectItem>
+                    <SelectItem value={DistributionChannel.ONLINE}>Online</SelectItem>
+                    <SelectItem value={DistributionChannel.STORE}>Store</SelectItem>
                   </SelectContent>
                 </Select>
               </div>

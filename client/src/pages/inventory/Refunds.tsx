@@ -9,8 +9,16 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
 import { useState } from "react";
 
+// Define refund status enum for type safety
+enum RefundStatus {
+  PENDING = "pending",
+  PROCESSING = "processing",
+  COMPLETED = "completed",
+  FAILED = "failed"
+}
+
 export default function Refunds() {
-  const [statusFilter, setStatusFilter] = useState("all");
+  const [statusFilter, setStatusFilter] = useState<RefundStatus | "all">("all");
   const queryClient = useQueryClient();
   const { toast } = useToast();
 
@@ -33,7 +41,7 @@ export default function Refunds() {
   });
 
   const processRefundMutation = useMutation({
-    mutationFn: async ({ id, status }: { id: string; status: string }) => {
+    mutationFn: async ({ id, status }: { id: string; status: RefundStatus | string }) => {
       const response = await apiRequest("PATCH", `/api/inventory/refunds/${id}/process`, { status });
       return response;
     },
@@ -60,11 +68,11 @@ export default function Refunds() {
     },
   });
 
-  const getStatusColor = (status: string) => {
+  const getStatusColor = (status: RefundStatus) => {
     switch (status) {
-      case "completed": return "bg-green-100 text-green-800";
-      case "failed": return "bg-red-100 text-red-800";
-      case "processing": return "bg-blue-100 text-blue-800";
+      case RefundStatus.COMPLETED: return "bg-green-100 text-green-800";
+      case RefundStatus.FAILED: return "bg-red-100 text-red-800";
+      case RefundStatus.PROCESSING: return "bg-blue-100 text-blue-800";
       default: return "bg-gray-100 text-gray-800";
     }
   };
@@ -75,16 +83,16 @@ export default function Refunds() {
     <div className="p-6 space-y-6">
       <div className="flex justify-between items-center">
         <h1 className="text-3xl font-bold">Refund Management</h1>
-        <Select value={statusFilter} onValueChange={setStatusFilter}>
+        <Select value={statusFilter} onValueChange={(value) => setStatusFilter(value as RefundStatus | "all")}>
           <SelectTrigger className="w-48">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All Status</SelectItem>
-            <SelectItem value="pending">Pending</SelectItem>
-            <SelectItem value="processing">Processing</SelectItem>
-            <SelectItem value="completed">Completed</SelectItem>
-            <SelectItem value="failed">Failed</SelectItem>
+            <SelectItem value={RefundStatus.PENDING}>Pending</SelectItem>
+            <SelectItem value={RefundStatus.PROCESSING}>Processing</SelectItem>
+            <SelectItem value={RefundStatus.COMPLETED}>Completed</SelectItem>
+            <SelectItem value={RefundStatus.FAILED}>Failed</SelectItem>
           </SelectContent>
         </Select>
       </div>
@@ -96,7 +104,7 @@ export default function Refunds() {
               <div className="flex justify-between items-start">
                 <div className="space-y-2">
                   <div className="flex items-center gap-2">
-                    <Badge className={getStatusColor(refund.status)}>
+                    <Badge className={getStatusColor(refund.status as RefundStatus)}>
                       {refund.status}
                     </Badge>
                     <span className="text-sm text-gray-600">
@@ -114,7 +122,7 @@ export default function Refunds() {
                   )}
                 </div>
                 <div className="flex gap-2">
-                  {refund.status === "processing" && (
+                  {refund.status === RefundStatus.PROCESSING && (
                     <Button
                       size="sm"
                       variant="outline"
@@ -124,7 +132,7 @@ export default function Refunds() {
                       Sync Status
                     </Button>
                   )}
-                  {refund.status === "failed" && (
+                  {refund.status === RefundStatus.FAILED && (
                     <Button
                       size="sm"
                       onClick={() => processRefundMutation.mutate({ id: refund.id, status: "retry" })}
@@ -133,10 +141,10 @@ export default function Refunds() {
                       Retry
                     </Button>
                   )}
-                  {refund.status === "pending" && (
+                  {refund.status === RefundStatus.PENDING && (
                     <Button
                       size="sm"
-                      onClick={() => processRefundMutation.mutate({ id: refund.id, status: "processing" })}
+                      onClick={() => processRefundMutation.mutate({ id: refund.id, status: RefundStatus.PROCESSING })}
                       disabled={processRefundMutation.isPending}
                     >
                       Process

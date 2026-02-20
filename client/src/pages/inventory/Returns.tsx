@@ -27,30 +27,28 @@ import {
 import { useMemo, useState } from 'react';
 import { useNavigate } from "react-router-dom";
 import { formatDate, formatPrice } from "@/lib/utils";
+import { ReturnStatus } from "./utils/enums";
+import type { ReturnStatusFlow, StatusBadgeProps } from "./utils/type";
 
-const getReturnStatusFlow = (currentStatus: string) => {
-  const flow: Record<string, string[]> = {
-    return_requested: ["return_approved", "return_rejected"],
-    return_approved: ["return_in_transit"],
-    return_in_transit: ["return_received"],
-    return_received: ["return_inspected"],
-    return_inspected: ["return_completed"],
-    return_completed: [],
-    return_rejected: [],
-    return_cancelled: [],
+const getReturnStatusFlow = (currentStatus: string): ReturnStatus[] => {
+  const flow: Record<ReturnStatus, ReturnStatus[]> = {
+    [ReturnStatus.RETURN_REQUESTED]: [ReturnStatus.RETURN_APPROVED, ReturnStatus.RETURN_REJECTED],
+    [ReturnStatus.RETURN_APPROVED]: [ReturnStatus.RETURN_IN_TRANSIT],
+    [ReturnStatus.RETURN_IN_TRANSIT]: [ReturnStatus.RETURN_RECEIVED],
+    [ReturnStatus.RETURN_RECEIVED]: [ReturnStatus.RETURN_INSPECTED],
+    [ReturnStatus.RETURN_INSPECTED]: [ReturnStatus.RETURN_COMPLETED],
+    [ReturnStatus.RETURN_COMPLETED]: [],
+    [ReturnStatus.RETURN_REJECTED]: [],
+    [ReturnStatus.RETURN_CANCELLED]: [],
   };
-  return flow[currentStatus] || [];
+  return flow[currentStatus as ReturnStatus] || [];
 };
 
 
 
 
-interface StatusBadgeProps {
-  status: string;
-}
-
 const StatusBadge = ({ status }: StatusBadgeProps) => {
-  const config = itemStatusConfig[status] || itemStatusConfig.return_requested;
+  const config = itemStatusConfig[status] || itemStatusConfig[ReturnStatus.RETURN_REQUESTED];
   const StatusIcon = config.icon;
 
   return (
@@ -370,10 +368,10 @@ export default function InventoryReturns() {
         <DialogContent>
           <DialogHeader>
             <DialogTitle>
-              {updateDialog.status === "return_rejected" ? "Reject" : "Update"} Return Request
+              {updateDialog.status === ReturnStatus.RETURN_REJECTED ? "Reject" : "Update"} Return Request
             </DialogTitle>
             <DialogDescription>
-              {updateDialog.status === "return_rejected"
+              {updateDialog.status === ReturnStatus.RETURN_REJECTED
                 ? "Please provide a reason for rejection. This will be shared with the customer."
                 : `Change status to "${itemStatusConfig[updateDialog.status]?.label || updateDialog.status}". Add notes if needed.`}
             </DialogDescription>
@@ -408,7 +406,7 @@ export default function InventoryReturns() {
               value={inspectionNotes}
               onChange={(e) => setInspectionNotes(e.target.value)}
               placeholder={
-                updateDialog.status === "return_rejected"
+                updateDialog.status === ReturnStatus.RETURN_REJECTED
                   ? "Enter reason for rejection..."
                   : "Add inspection notes (optional)..."
               }
@@ -423,11 +421,11 @@ export default function InventoryReturns() {
               Cancel
             </Button>
             <Button
-              variant={updateDialog.status === "return_rejected" ? "destructive" : "default"}
+              variant={updateDialog.status === ReturnStatus.RETURN_REJECTED ? "destructive" : "default"}
               onClick={handleConfirmUpdate}
               disabled={updateStatusMutation.isPending}
             >
-              {updateDialog.status === "return_rejected" ? "Confirm Rejection" : "Update Status"}
+              {updateDialog.status === ReturnStatus.RETURN_REJECTED ? "Confirm Rejection" : "Update Status"}
             </Button>
           </DialogFooter>
         </DialogContent>

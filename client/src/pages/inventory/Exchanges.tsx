@@ -27,30 +27,29 @@ import {
 import { useMemo, useState } from 'react';
 import { useNavigate } from "react-router-dom";
 import { formatDate, formatPrice } from "@/lib/utils";
+import { ExchangeStatus } from "./utils/enums";
+import type { StatusBadgeProps } from "./utils/type";
 
 
-const getExchangeStatusFlow = (currentStatus: string) => {
-  const flow: Record<string, string[]> = {
-    exchange_requested: ["exchange_approved", "exchange_cancelled"],
-    exchange_approved: ["exchange_processing"],
-    exchange_processing: ["exchange_pickup_scheduled"],
-    exchange_pickup_scheduled: ["exchange_picked_up"],
-    exchange_picked_up: ["exchange_in_transit"],
-    exchange_in_transit: ["exchange_received"],
-    exchange_received: ["exchange_inspected"],
-    exchange_inspected: ["exchange_shipped"],
-    exchange_shipped: ["exchange_delivered"],
-    exchange_delivered: ["exchange_completed"],
-    exchange_completed: [],
-    exchange_cancelled: [],
+const getExchangeStatusFlow = (currentStatus: string): ExchangeStatus[] => {
+  const flow: Record<ExchangeStatus, ExchangeStatus[]> = {
+    [ExchangeStatus.EXCHANGE_REQUESTED]: [ExchangeStatus.EXCHANGE_APPROVED, ExchangeStatus.EXCHANGE_CANCELLED],
+    [ExchangeStatus.EXCHANGE_APPROVED]: [ExchangeStatus.EXCHANGE_PROCESSING],
+    [ExchangeStatus.EXCHANGE_PROCESSING]: [ExchangeStatus.EXCHANGE_PICKUP_SCHEDULED],
+    [ExchangeStatus.EXCHANGE_PICKUP_SCHEDULED]: [ExchangeStatus.EXCHANGE_PICKED_UP],
+    [ExchangeStatus.EXCHANGE_PICKED_UP]: [ExchangeStatus.EXCHANGE_IN_TRANSIT],
+    [ExchangeStatus.EXCHANGE_IN_TRANSIT]: [ExchangeStatus.EXCHANGE_RECEIVED],
+    [ExchangeStatus.EXCHANGE_RECEIVED]: [ExchangeStatus.EXCHANGE_INSPECTED],
+    [ExchangeStatus.EXCHANGE_INSPECTED]: [ExchangeStatus.EXCHANGE_SHIPPED],
+    [ExchangeStatus.EXCHANGE_SHIPPED]: [ExchangeStatus.EXCHANGE_DELIVERED],
+    [ExchangeStatus.EXCHANGE_DELIVERED]: [ExchangeStatus.EXCHANGE_COMPLETED],
+    [ExchangeStatus.EXCHANGE_COMPLETED]: [],
+    [ExchangeStatus.EXCHANGE_CANCELLED]: [],
   };
-  return flow[currentStatus] || [];
+  return flow[currentStatus as ExchangeStatus] || [];
 };
 
 
-interface StatusBadgeProps {
-  status: string;
-}
 
 const StatusBadge = ({ status }: StatusBadgeProps) => {
   const config = itemStatusConfig[status] || itemStatusConfig.exchange_requested;
@@ -158,7 +157,7 @@ export default function InventoryExchanges() {
           <Button
             key={status}
             size="sm"
-            variant={status === "exchange_cancelled" ? "destructive" : "default"}
+            variant={status === ExchangeStatus.EXCHANGE_CANCELLED ? "destructive" : "default"}
             onClick={() => handleStatusUpdate(request, status)}
             disabled={updateStatusMutation.isPending}
           >
@@ -411,10 +410,10 @@ export default function InventoryExchanges() {
         <DialogContent>
           <DialogHeader>
             <DialogTitle>
-              {updateDialog.status === "exchange_cancelled" ? "Cancel" : "Update"} Exchange Request
+              {updateDialog.status === ExchangeStatus.EXCHANGE_CANCELLED ? "Cancel" : "Update"} Exchange Request
             </DialogTitle>
             <DialogDescription>
-              {updateDialog.status === "exchange_cancelled"
+              {updateDialog.status === ExchangeStatus.EXCHANGE_CANCELLED
                 ? "Please provide a reason for cancellation. This will be shared with the customer."
                 : `Change status to "${itemStatusConfig[updateDialog.status]?.label || updateDialog.status}". Add notes if needed.`}
             </DialogDescription>
@@ -449,7 +448,7 @@ export default function InventoryExchanges() {
               value={inspectionNotes}
               onChange={(e) => setInspectionNotes(e.target.value)}
               placeholder={
-                updateDialog.status === "exchange_cancelled"
+                updateDialog.status === ExchangeStatus.EXCHANGE_CANCELLED
                   ? "Enter reason for cancellation..."
                   : "Add inspection notes (optional)..."
               }
@@ -464,11 +463,11 @@ export default function InventoryExchanges() {
               Cancel
             </Button>
             <Button
-              variant={updateDialog.status === "exchange_cancelled" ? "destructive" : "default"}
+              variant={updateDialog.status === ExchangeStatus.EXCHANGE_CANCELLED ? "destructive" : "default"}
               onClick={handleConfirmUpdate}
               disabled={updateStatusMutation.isPending}
             >
-              {updateDialog.status === "exchange_cancelled" ? "Confirm Cancellation" : "Update Status"}
+              {updateDialog.status === ExchangeStatus.EXCHANGE_CANCELLED ? "Confirm Cancellation" : "Update Status"}
             </Button>
           </DialogFooter>
         </DialogContent>

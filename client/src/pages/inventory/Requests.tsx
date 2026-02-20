@@ -42,34 +42,44 @@ import {
 } from "lucide-react";
 import { useState } from "react";
 import { formatDate, formatPrice } from "@/lib/utils";
+import { UserRole } from "./utils/enums";
+
+// Define request status enum for type safety
+enum RequestStatus {
+  PENDING = "pending",
+  APPROVED = "approved",
+  REJECTED = "rejected",
+  DISPATCHED = "dispatched",
+  RECEIVED = "received"
+}
 
 
 const statusConfig: Record<
-  string,
+  RequestStatus,
   { icon: typeof Clock; label: string; color: string }
 > = {
-  pending: {
+  [RequestStatus.PENDING]: {
     icon: Clock,
     label: "Pending",
     color:
       "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-100",
   },
-  approved: {
+  [RequestStatus.APPROVED]: {
     icon: CheckCircle,
     label: "Approved",
     color: "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-100",
   },
-  rejected: {
+  [RequestStatus.REJECTED]: {
     icon: XCircle,
     label: "Rejected",
     color: "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-100",
   },
-  dispatched: {
+  [RequestStatus.DISPATCHED]: {
     icon: Truck,
     label: "Dispatched",
     color: "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-100",
   },
-  received: {
+  [RequestStatus.RECEIVED]: {
     icon: Package,
     label: "Received",
     color:
@@ -86,7 +96,7 @@ export default function InventoryRequests() {
   const [selectedRequestId, setSelectedRequestId] = useState<string>("");
   const [rejectionReason, setRejectionReason] = useState("");
 
-  const isInventoryUser = !!user && (user.role === "inventory" || user.role === "admin");
+  const isInventoryUser = !!user && (user.role === UserRole.INVENTORY || user.role === UserRole.ADMIN);
 
   const { data: requests, isLoading } = useQuery<StockRequestWithDetails[]>({
     queryKey: ["/api/inventory/requests"],
@@ -137,7 +147,7 @@ export default function InventoryRequests() {
       });
       return;
     }
-    updateStatusMutation.mutate({ id, status: "approved" });
+    updateStatusMutation.mutate({ id, status: RequestStatus.APPROVED });
   };
 
   const handleReject = (id: string) => {
@@ -164,7 +174,7 @@ export default function InventoryRequests() {
     }
     updateStatusMutation.mutate({
       id: selectedRequestId,
-      status: "rejected",
+      status: RequestStatus.REJECTED,
       rejectionReason,
     });
   };
@@ -192,11 +202,11 @@ export default function InventoryRequests() {
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All Requests</SelectItem>
-            <SelectItem value="pending">Pending</SelectItem>
-            <SelectItem value="approved">Approved</SelectItem>
-            <SelectItem value="rejected">Rejected</SelectItem>
-            <SelectItem value="dispatched">Dispatched</SelectItem>
-            <SelectItem value="received">Received</SelectItem>
+            <SelectItem value={RequestStatus.PENDING}>Pending</SelectItem>
+            <SelectItem value={RequestStatus.APPROVED}>Approved</SelectItem>
+            <SelectItem value={RequestStatus.REJECTED}>Rejected</SelectItem>
+            <SelectItem value={RequestStatus.DISPATCHED}>Dispatched</SelectItem>
+            <SelectItem value={RequestStatus.RECEIVED}>Received</SelectItem>
           </SelectContent>
         </Select>
       </div>
@@ -273,7 +283,7 @@ export default function InventoryRequests() {
                         </Badge>
                       </TableCell>
                       <TableCell>
-                        {request.status === "pending" && (
+                        {request.status === RequestStatus.PENDING && (
                           <div className="flex gap-2">
                             <Button
                               size="sm"
@@ -294,13 +304,13 @@ export default function InventoryRequests() {
                             </Button>
                           </div>
                         )}
-                        {request.status === "approved" && (
+                        {request.status === RequestStatus.APPROVED && (
                           <Button
                             size="sm"
                             onClick={() =>
                               updateStatusMutation.mutate({
                                 id: request.id,
-                                status: "dispatched",
+                                status: RequestStatus.DISPATCHED,
                               })
                             }
                             disabled={updateStatusMutation.isPending}

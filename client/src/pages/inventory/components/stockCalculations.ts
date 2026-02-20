@@ -1,4 +1,5 @@
 import { StoreAllocation } from "./Types";
+import { DistributionChannel } from "../utils/enums";
 
 export interface StockTotals {
   totalStock: number;
@@ -78,7 +79,7 @@ export const calculateStockTotals = (
  */
 export const validateVariantStockConsistency = (
   variants: ProductVariant[],
-  distributionChannel: "shop" | "online" | "both"
+  distributionChannel: DistributionChannel
 ): string[] => {
   const issues: string[] = [];
   
@@ -95,12 +96,12 @@ export const validateVariantStockConsistency = (
     }
 
     // Check distribution channel constraints
-    if (distributionChannel === "online" && variantStoreTotal > 0) {
+    if (distributionChannel === DistributionChannel.ONLINE && variantStoreTotal > 0) {
       issues.push(
         `Size ${variant.size}: Distribution channel is 'Online Only' but has store allocations (${variantStoreTotal})`
       );
     }
-    if (distributionChannel === "shop" && variant.onlineStock > 0) {
+    if (distributionChannel === DistributionChannel.SHOP && variant.onlineStock > 0) {
       issues.push(
         `Size ${variant.size}: Distribution channel is 'Shop Only' but has online stock (${variant.onlineStock})`
       );
@@ -117,18 +118,18 @@ export const validateSimpleStockConsistency = (
   totalStock: number,
   onlineStock: number,
   storeAllocations: StoreAllocation[],
-  distributionChannel: "shop" | "online" | "both"
+  distributionChannel: DistributionChannel
 ): string[] => {
   const issues: string[] = [];
   const totalAllocated = storeAllocations.reduce((sum, a) => sum + a.quantity, 0);
 
-  if (distributionChannel === "shop") {
+  if (distributionChannel === DistributionChannel.SHOP) {
     if (totalAllocated !== totalStock) {
       issues.push(
         `Store allocations (${totalAllocated}) must equal total stock (${totalStock})`
       );
     }
-  } else if (distributionChannel === "both") {
+  } else if (distributionChannel === DistributionChannel.BOTH) {
     if (totalAllocated + onlineStock !== totalStock) {
       issues.push(
         `Online (${onlineStock}) + Store allocations (${totalAllocated}) must equal total stock (${totalStock})`

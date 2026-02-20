@@ -19,10 +19,11 @@ import type {
 import { useQuery } from "@tanstack/react-query";
 import { AlertTriangle, ClipboardList, Truck } from "lucide-react";
 import { Link } from "react-router-dom";
+import { UserRole } from "./utils/enums";
 
 export default function InventoryDashboard() {
   const { user } = useAuth();
-  const isInventoryUser = !!user && (user.role === "inventory" || user.role === "admin");
+  const isInventoryUser = !!user && (user.role === UserRole.INVENTORY || user.role === UserRole.ADMIN);
 
   const { data: lowStockItems, isLoading: loadingStock } = useQuery<
     ProductWithDetails[]

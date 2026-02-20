@@ -13,72 +13,14 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAuth } from "@/lib/auth";
 import { useQuery } from "@tanstack/react-query";
 import { BarChart3, Calendar, Globe, Package, Store, TrendingDown, TrendingUp } from "lucide-react";
+import { ABCClass, TrendType, AnalyticsTab, UserRole, TurnoverHealth } from "./utils/enums";
+import type { StockMovementStats, InventoryTurnover, ABCAnalysis, SeasonalTrend } from "./utils/type";
 
-interface StockMovementStats {
-  totalOnlineCleared: number;
-  totalStoreCleared: number;
-  onlineMovements: {
-    productId: string;
-    productName: string;
-    quantity: number;
-    orderRefId: string;
-    createdAt: string;
-  }[];
-  storeMovements: {
-    productId: string;
-    productName: string;
-    quantity: number;
-    orderRefId: string;
-    storeId: string | null;
-    storeName: string | null;
-    createdAt: string;
-  }[];
-}
-
-interface InventoryTurnover {
-  productId: string;
-  productName: string;
-  sku: string;
-  totalStock: number;
-  averageStock: number;
-  costOfGoodsSold: number;
-  turnoverRatio: number;
-  daysOfSupply: number;
-  category: string;
-}
-
-interface ABCAnalysis {
-  class: 'A' | 'B' | 'C';
-  productId: string;
-  productName: string;
-  sku: string;
-  revenueContribution: number;
-  cumulativeRevenue: number;
-  revenuePercentage: number;
-  quantitySold: number;
-  currentStock: number;
-  category: string;
-}
-
-interface SeasonalTrend {
-  productId: string;
-  productName: string;
-  category: string;
-  monthlyData: {
-    month: string;
-    year: number;
-    quantity: number;
-    revenue: number;
-  }[];
-  trend: 'increasing' | 'decreasing' | 'stable' | 'seasonal';
-  seasonalityIndex: number;
-  peakMonths: string[];
-}
 
 export default function InventoryAnalytics() {
   const { user } = useAuth();
 
-  const isInventoryUser = !!user && (user.role === "inventory" || user.role === "admin");
+  const isInventoryUser = !!user && (user.role === UserRole.INVENTORY || user.role === UserRole.ADMIN);
 
   const { data: stats, isLoading } = useQuery<StockMovementStats>({
     queryKey: ["/api/inventory/stock-stats"],
@@ -151,30 +93,30 @@ export default function InventoryAnalytics() {
     }).format(amount);
   };
 
-  const getABCClassColor = (abcClass: string) => {
+  const getABCClassColor = (abcClass: ABCClass) => {
     switch (abcClass) {
-      case 'A': return 'bg-green-100 text-green-800';
-      case 'B': return 'bg-yellow-100 text-yellow-800';
-      case 'C': return 'bg-red-100 text-red-800';
+      case ABCClass.A: return 'bg-green-100 text-green-800';
+      case ABCClass.B: return 'bg-yellow-100 text-yellow-800';
+      case ABCClass.C: return 'bg-red-100 text-red-800';
       default: return 'bg-gray-100 text-gray-800';
     }
   };
 
-  const getTrendIcon = (trend: string) => {
+  const getTrendIcon = (trend: TrendType) => {
     switch (trend) {
-      case 'increasing': return <TrendingUp className="h-4 w-4 text-green-500" />;
-      case 'decreasing': return <TrendingDown className="h-4 w-4 text-red-500" />;
-      case 'stable': return <BarChart3 className="h-4 w-4 text-blue-500" />;
-      case 'seasonal': return <Calendar className="h-4 w-4 text-purple-500" />;
+      case TrendType.INCREASING: return <TrendingUp className="h-4 w-4 text-green-500" />;
+      case TrendType.DECREASING: return <TrendingDown className="h-4 w-4 text-red-500" />;
+      case TrendType.STABLE: return <BarChart3 className="h-4 w-4 text-blue-500" />;
+      case TrendType.SEASONAL: return <Calendar className="h-4 w-4 text-purple-500" />;
       default: return <BarChart3 className="h-4 w-4 text-gray-500" />;
     }
   };
 
   const getTurnoverHealth = (ratio: number) => {
-    if (ratio >= 4) return { color: 'text-green-600', label: 'Excellent' };
-    if (ratio >= 2) return { color: 'text-blue-600', label: 'Good' };
-    if (ratio >= 1) return { color: 'text-yellow-600', label: 'Average' };
-    return { color: 'text-red-600', label: 'Poor' };
+    if (ratio >= 4) return { color: 'text-green-600', label: TurnoverHealth.EXCELLENT };
+    if (ratio >= 2) return { color: 'text-blue-600', label: TurnoverHealth.GOOD };
+    if (ratio >= 1) return { color: 'text-yellow-600', label: TurnoverHealth.AVERAGE };
+    return { color: 'text-red-600', label: TurnoverHealth.POOR };
   };
 
 
@@ -189,16 +131,16 @@ export default function InventoryAnalytics() {
         </p>
       </div>
 
-      <Tabs defaultValue="overview" className="space-y-6">
+      <Tabs defaultValue={AnalyticsTab.OVERVIEW} className="space-y-6">
         <TabsList className="grid w-full grid-cols-4">
-          <TabsTrigger value="overview">Overview</TabsTrigger>
-          <TabsTrigger value="turnover">Inventory Turnover</TabsTrigger>
-          <TabsTrigger value="abc">ABC Analysis</TabsTrigger>
-          <TabsTrigger value="seasonal">Seasonal Trends</TabsTrigger>
+          <TabsTrigger value={AnalyticsTab.OVERVIEW}>Overview</TabsTrigger>
+          <TabsTrigger value={AnalyticsTab.TURNOVER}>Inventory Turnover</TabsTrigger>
+          <TabsTrigger value={AnalyticsTab.ABC}>ABC Analysis</TabsTrigger>
+          <TabsTrigger value={AnalyticsTab.SEASONAL}>Seasonal Trends</TabsTrigger>
         </TabsList>
 
         {/* Overview Tab */}
-        <TabsContent value="overview" className="space-y-6">
+        <TabsContent value={AnalyticsTab.OVERVIEW} className="space-y-6">
           {isLoading ? (
             <div className="space-y-6">
               {[...Array(3)].map((_, i) => (
@@ -304,7 +246,7 @@ export default function InventoryAnalytics() {
         </TabsContent>
 
         {/* Inventory Turnover Tab */}
-        <TabsContent value="turnover" className="space-y-6">
+        <TabsContent value={AnalyticsTab.TURNOVER} className="space-y-6">
           {turnoverLoading ? (
             <Skeleton className="h-64" />
           ) : (
@@ -365,7 +307,7 @@ export default function InventoryAnalytics() {
         </TabsContent>
 
         {/* ABC Analysis Tab */}
-        <TabsContent value="abc" className="space-y-6">
+        <TabsContent value={AnalyticsTab.ABC} className="space-y-6">
           {abcLoading ? (
             <Skeleton className="h-64" />
           ) : (
@@ -429,7 +371,7 @@ export default function InventoryAnalytics() {
         </TabsContent>
 
         {/* Seasonal Trends Tab */}
-        <TabsContent value="seasonal" className="space-y-6">
+        <TabsContent value={AnalyticsTab.SEASONAL} className="space-y-6">
           {seasonalLoading ? (
             <Skeleton className="h-64" />
           ) : (

@@ -18,6 +18,7 @@ import { GripVertical, ImageIcon, Video, X } from "lucide-react";
 import React, { useState, useCallback, useMemo, useEffect, useRef } from "react";
 import { ProductFormData, ProductVariant, StoreAllocation } from "./Types";
 import { calculateStockTotals, validateVariantStockConsistency, validateSimpleStockConsistency } from "./stockCalculations";
+import { DistributionChannel } from "../utils/enums";
 
 interface ProductFormProps {
   formData: ProductFormData;
@@ -225,7 +226,7 @@ export const ProductForm = ({
       (sum, a) => sum + a.quantity,
       0,
     );
-    return formData.distributionChannel === "shop"
+    return formData.distributionChannel === DistributionChannel.SHOP
       ? stockTotals.totalStock - totalStoreAllocated
       : stockTotals.totalStock - stockTotals.onlineStock - totalStoreAllocated;
   }, [formData.distributionChannel, stockTotals.totalStock, stockTotals.onlineStock, stockTotals.storeAllocations]);
@@ -639,7 +640,7 @@ export const ProductForm = ({
               </div>
 
               {/* Distribution Channel Info */}
-              {formData.distributionChannel === "online" && (
+              {formData.distributionChannel === DistributionChannel.ONLINE && (
                 <div className="p-4 border border-primary/20 rounded-md">
                   <p className="text-sm text-primary">
                     <strong>Online Only:</strong> All {formData.totalStock}{" "}
@@ -649,7 +650,7 @@ export const ProductForm = ({
               )}
 
               {/* Both Channels - Online Stock + Store Allocations */}
-              {formData.distributionChannel === "both" && (
+              {formData.distributionChannel === DistributionChannel.BOTH && (
                 <div className="space-y-4">
                   {/* Online Stock */}
                   <div>
@@ -725,7 +726,7 @@ export const ProductForm = ({
               )}
 
               {/* Shop Only - Store Allocations */}
-              {formData.distributionChannel === "shop" && (
+              {formData.distributionChannel === DistributionChannel.SHOP && (
                 <div className="space-y-3">
                   <Label className="font-medium">Store Allocations</Label>
                   {storeAllocations.length > 0 ? (
@@ -918,7 +919,7 @@ export const ProductForm = ({
                             </div>
 
                             {/* Variant Store Allocations */}
-                            {formData.distributionChannel !== "online" &&
+                            {formData.distributionChannel !== DistributionChannel.ONLINE &&
                               variant.storeAllocations && (
                                 <div className="space-y-2">
                                   <Label className="text-xs font-medium">
@@ -1431,7 +1432,7 @@ export const ProductForm = ({
                   <Label htmlFor="channel" className="text-xs">Distribution Channel</Label>
                   <Select
                     value={formData.distributionChannel}
-                    onValueChange={(value: "shop" | "online" | "both") => {
+                    onValueChange={(value: DistributionChannel) => {
                       setFormData((prev) => ({
                         ...prev,
                         distributionChannel: value,
@@ -1445,9 +1446,9 @@ export const ProductForm = ({
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="shop">Shop Only</SelectItem>
-                      <SelectItem value="online">Online Only</SelectItem>
-                      <SelectItem value="both">Both</SelectItem>
+                      <SelectItem value={DistributionChannel.SHOP}>Shop Only</SelectItem>
+                      <SelectItem value={DistributionChannel.ONLINE}>Online Only</SelectItem>
+                      <SelectItem value={DistributionChannel.BOTH}>Both</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>

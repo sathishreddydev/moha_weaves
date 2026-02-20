@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { ProductVariant, StoreAllocation } from './Types';
+import { DistributionChannel } from '../utils/enums';
 import { validateVariantStockConsistency, validateSimpleStockConsistency } from './stockCalculations';
 
 export interface StockValidationError {
@@ -14,7 +15,7 @@ export const useStockValidation = (
   totalStock: number,
   onlineStock: number,
   storeAllocations: StoreAllocation[],
-  distributionChannel: "shop" | "online" | "both"
+  distributionChannel: DistributionChannel
 ) => {
   const [errors, setErrors] = useState<StockValidationError[]>([]);
 

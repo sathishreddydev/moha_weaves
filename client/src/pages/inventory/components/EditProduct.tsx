@@ -11,6 +11,7 @@ import { useNavigate, useParams } from "react-router-dom";
 import { ProductForm } from "./ProductForm";
 import { FiltersData, ProductFormData, StoreAllocation } from "./Types";
 import { validateVariantStockConsistency, validateSimpleStockConsistency, calculateStockTotals } from "./stockCalculations";
+import { DistributionChannel } from "../utils/enums";
 
 export default function EditProduct() {
   const navigate = useNavigate();
@@ -52,7 +53,7 @@ export default function EditProduct() {
 
     onlineStock: 0,
 
-    distributionChannel: "both",
+    distributionChannel: DistributionChannel.BOTH,
 
     isFeatured: false,
 

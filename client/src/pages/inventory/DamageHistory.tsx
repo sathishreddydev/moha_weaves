@@ -12,75 +12,35 @@ import { ColumnDef } from "@tanstack/react-table";
 import { useMemo, useState } from "react";
 import { FilterItem } from "@/components/Type/type";
 import { transformOptions } from "./components/common";
+import { DamageSource, DamageCategory, DamageSeverity, SeverityColors, UserRole } from "./utils/enums";
+import type { ProductDamage, DamageAnalytics } from "./utils/type";
 
-interface ProductDamage {
-  id: string;
-  productId: string;
-  variantId?: string;
-  source: string;
-  quantity: number;
-  damageCategory: string;
-  damageSeverity: string;
-  reason: string;
-  reportedBy: string;
-  approvedBy?: string;
-  costValue?: string;
-  recoveryValue?: string;
-  disposalMethod?: string;
-  notes?: string;
-  imageUrls?: string[]; // Array of image URLs for damage evidence
-  status: string;
-  createdAt: string;
-  updatedAt: string;
-}
-
-interface DamageAnalytics {
-  totalDamages: number;
-  totalCost: number;
-  totalRecovered: number;
-  damagesBySource: Array<{
-    source: string;
-    count: number;
-    cost: number;
-  }>;
-  damagesByCategory: Array<{
-    category: string;
-    count: number;
-    cost: number;
-  }>;
-  recentDamages: ProductDamage[];
-}
 
 const damageSources = [
-  { value: "store", label: "In-Store" },
-  { value: "warehouse", label: "Warehouse" },
-  { value: "online_return", label: "Online Return" },
-  { value: "shipping", label: "Shipping" },
-  { value: "manufacturing", label: "Manufacturing" },
+  { value: DamageSource.STORE, label: "In-Store" },
+  { value: DamageSource.WAREHOUSE, label: "Warehouse" },
+  { value: DamageSource.ONLINE_RETURN, label: "Online Return" },
+  { value: DamageSource.SHIPPING, label: "Shipping" },
+  { value: DamageSource.MANUFACTURING, label: "Manufacturing" },
 ];
 
 const damageCategories = [
-  { value: "manufacturing_defect", label: "Manufacturing Defect" },
-  { value: "shipping_damage", label: "Shipping Damage" },
-  { value: "storage_damage", label: "Storage Damage" },
-  { value: "handling_damage", label: "Handling Damage" },
-  { value: "customer_damage", label: "Customer Damage" },
-  { value: "expired", label: "Expired" },
-  { value: "theft_loss", label: "Theft/Loss" },
-  { value: "other", label: "Other" },
+  { value: DamageCategory.MANUFACTURING_DEFECT, label: "Manufacturing Defect" },
+  { value: DamageCategory.SHIPPING_DAMAGE, label: "Shipping Damage" },
+  { value: DamageCategory.STORAGE_DAMAGE, label: "Storage Damage" },
+  { value: DamageCategory.HANDLING_DAMAGE, label: "Handling Damage" },
+  { value: DamageCategory.CUSTOMER_DAMAGE, label: "Customer Damage" },
+  { value: DamageCategory.EXPIRED, label: "Expired" },
+  { value: DamageCategory.THEFT_LOSS, label: "Theft/Loss" },
+  { value: DamageCategory.OTHER, label: "Other" },
 ];
 
 const damageSeverities = [
-  { value: "minor", label: "Minor" },
-  { value: "major", label: "Major" },
-  { value: "total_loss", label: "Total Loss" },
+  { value: DamageSeverity.MINOR, label: "Minor" },
+  { value: DamageSeverity.MAJOR, label: "Major" },
+  { value: DamageSeverity.TOTAL_LOSS, label: "Total Loss" },
 ];
 
-const severityColors: Record<string, string> = {
-  minor: "bg-blue-100 text-blue-800",
-  major: "bg-orange-100 text-orange-800",
-  total_loss: "bg-red-100 text-red-800",
-};
 
 export default function DamageHistory() {
   const { user } = useAuth();
@@ -130,7 +90,7 @@ export default function DamageHistory() {
       );
       return response;
     },
-    enabled: !!user && (user.role === "inventory" || user.role === "admin"),
+    enabled: !!user && (user.role === UserRole.INVENTORY || user.role === UserRole.ADMIN),
   });
 
   const columns: ColumnDef<ProductDamage, any>[] = useMemo(
@@ -195,9 +155,9 @@ export default function DamageHistory() {
         accessorKey: "damageSeverity",
         header: "Severity",
         cell: ({ row }) => {
-          const severity = row.getValue("damageSeverity") as string;
+          const severity = row.getValue("damageSeverity") as DamageSeverity;
           return (
-            <Badge className={severityColors[severity] || ""}>
+            <Badge className={SeverityColors[severity] || ""}>
               {damageSeverities.find((s) => s.value === severity)?.label ||
                 severity}
             </Badge>

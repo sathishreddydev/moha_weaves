@@ -7,12 +7,13 @@ import { DataTable } from "@/components/DataTable/DataTable";
 import { useDataTable } from "@/hooks/use-data-table";
 import { ColumnDef } from "@tanstack/react-table";
 import type { ProductWithDetails, Store as StoreType } from "@shared/schema";
+import { UserRole } from "./utils/enums";
 
 export default function StockDistribution() {
   const { user } = useAuth();
 
   const isInventoryUser =
-    !!user && (user.role === "inventory" || user.role === "admin");
+    !!user && (user.role === UserRole.INVENTORY || user.role === UserRole.ADMIN);
   const { data: stores } = useQuery<StoreType[]>({
     queryKey: ["/api/inventory/stores"],
     enabled: isInventoryUser,

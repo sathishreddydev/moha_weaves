@@ -10,6 +10,7 @@ import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { Link, Navigate, useNavigate } from "react-router-dom";
 import { z } from "zod";
+import { UserRole } from "./utils/enums";
 
 const loginSchema = z.object({
   email: z.string().email("Please enter a valid email"),
@@ -33,14 +34,14 @@ export default function InventoryLogin() {
     },
   });
 
-  if (!authLoading && user?.role === "inventory") {
+  if (!authLoading && user?.role === UserRole.INVENTORY) {
     return <Navigate to="/inventory/dashboard" replace />;
   }
 
   const onSubmit = async (values: LoginFormValues) => {
     setIsSubmitting(true);
     try {
-      const result = await login(values.email, values.password, "inventory");
+      const result = await login(values.email, values.password, UserRole.INVENTORY);
       if (result.success) {
         toast({ title: "Welcome!", description: "You have successfully logged in." });
         navigate("/inventory/dashboard");

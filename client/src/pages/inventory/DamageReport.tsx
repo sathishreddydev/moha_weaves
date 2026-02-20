@@ -14,30 +14,31 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { AlertTriangle, Loader2, Package, Camera, X, Upload, Image as ImageIcon } from "lucide-react";
 import React,{ useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
+import { DamageSource, DamageCategory, DamageSeverity, AllocationType, UserRole } from "./utils/enums";
 
 const damageSources = [
-  { value: "store", label: "In-Store" },
-  { value: "warehouse", label: "Warehouse" },
-  { value: "online_return", label: "Online Return" },
-  { value: "shipping", label: "Shipping" },
-  { value: "manufacturing", label: "Manufacturing" },
+  { value: DamageSource.STORE, label: "In-Store" },
+  { value: DamageSource.WAREHOUSE, label: "Warehouse" },
+  { value: DamageSource.ONLINE_RETURN, label: "Online Return" },
+  { value: DamageSource.SHIPPING, label: "Shipping" },
+  { value: DamageSource.MANUFACTURING, label: "Manufacturing" },
 ];
 
 const damageCategories = [
-  { value: "manufacturing_defect", label: "Manufacturing Defect" },
-  { value: "shipping_damage", label: "Shipping Damage" },
-  { value: "storage_damage", label: "Storage Damage" },
-  { value: "handling_damage", label: "Handling Damage" },
-  { value: "customer_damage", label: "Customer Damage" },
-  { value: "expired", label: "Expired" },
-  { value: "theft_loss", label: "Theft/Loss" },
-  { value: "other", label: "Other" },
+  { value: DamageCategory.MANUFACTURING_DEFECT, label: "Manufacturing Defect" },
+  { value: DamageCategory.SHIPPING_DAMAGE, label: "Shipping Damage" },
+  { value: DamageCategory.STORAGE_DAMAGE, label: "Storage Damage" },
+  { value: DamageCategory.HANDLING_DAMAGE, label: "Handling Damage" },
+  { value: DamageCategory.CUSTOMER_DAMAGE, label: "Customer Damage" },
+  { value: DamageCategory.EXPIRED, label: "Expired" },
+  { value: DamageCategory.THEFT_LOSS, label: "Theft/Loss" },
+  { value: DamageCategory.OTHER, label: "Other" },
 ];
 
 const damageSeverities = [
-  { value: "minor", label: "Minor" },
-  { value: "major", label: "Major" },
-  { value: "total_loss", label: "Total Loss" },
+  { value: DamageSeverity.MINOR, label: "Minor" },
+  { value: DamageSeverity.MAJOR, label: "Major" },
+  { value: DamageSeverity.TOTAL_LOSS, label: "Total Loss" },
 ];
 
 interface StockReductions {
@@ -101,7 +102,7 @@ export default function DamageReport() {
   //     const response = await apiRequest("POST", "/api/inventory/getProducts", { page: 1, pageSize: 10 });
   //     return response;
   //   },
-  //   enabled: !!user && (user.role === "inventory" || user.role === "admin") && !sku,
+  //   enabled: !!user && (user.role === UserRole.INVENTORY || user.role === UserRole.ADMIN) && !sku,
   //   retry: 2,
   // });
 
@@ -113,7 +114,7 @@ export default function DamageReport() {
       const response = await apiRequest("GET", `/api/inventory/product-by-sku/${sku}`);
       return response;
     },
-    enabled: !!user && (user.role === "inventory" || user.role === "admin") && !!sku,
+    enabled: !!user && (user.role === UserRole.INVENTORY || user.role === UserRole.ADMIN) && !!sku,
     retry: 2,
   });
 
@@ -306,9 +307,9 @@ export default function DamageReport() {
       let maxStock = 0;
       let stockType = "";
 
-      if (allocationId === "online") {
+      if (allocationId === AllocationType.ONLINE) {
         maxStock = selectedVariant ? (selectedVariant.onlineStock || 0) : (productBySku.onlineStock || 0);
-        stockType = "online";
+        stockType = AllocationType.ONLINE;
       } else {
         const storeAllocation = selectedVariant 
           ? selectedVariant.storeAllocations?.find((s: any) => s.storeId === allocationId)
@@ -563,9 +564,9 @@ export default function DamageReport() {
                       <SelectValue placeholder={formData.productId ? "Select allocation type" : "Select product first"} />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="online">Online Stock Only</SelectItem>
-                      <SelectItem value="store">Store Stock Only</SelectItem>
-                      <SelectItem value="both">Online + Store Stock</SelectItem>
+                      <SelectItem value={AllocationType.ONLINE}>Online Stock Only</SelectItem>
+                      <SelectItem value={AllocationType.STORE}>Store Stock Only</SelectItem>
+                      <SelectItem value={AllocationType.BOTH}>Online + Store Stock</SelectItem>
                     </SelectContent>
                   </Select>
                   {formErrors.allocationType && (
@@ -579,7 +580,7 @@ export default function DamageReport() {
                     <h4 className="text-md font-medium">Enter Damage Quantities</h4>
 
                     {/* Online Stock Input */}
-                    {(formData.allocationType === "online" || formData.allocationType === "both") && (
+                    {(formData.allocationType === AllocationType.ONLINE || formData.allocationType === AllocationType.BOTH) && (
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div className="space-y-2">
                           <Label htmlFor="onlineStock">Online Stock</Label>
@@ -592,7 +593,7 @@ export default function DamageReport() {
                             onChange={(e) => {
                               const value = e.target.value;
                               const maxStock = selectedVariant ? (selectedVariant.onlineStock || 0) : (productBySku.onlineStock || 0);
-                              const error = validateStockReduction("online", value, maxStock);
+                              const error = validateStockReduction(AllocationType.ONLINE, value, maxStock);
                               
                               setFormData({
                                 ...formData,
@@ -709,19 +710,19 @@ export default function DamageReport() {
                       const alerts = [];
 
                       // Online stock validation
-                      if ((formData.allocationType === "online" || formData.allocationType === "both") && formData.stockReductions?.online) {
+                      if ((formData.allocationType === AllocationType.ONLINE || formData.allocationType === AllocationType.BOTH) && formData.stockReductions?.online) {
                         const qty = parseInt(formData.stockReductions.online) || 0;
                         const maxStock = selectedVariant ? (selectedVariant.onlineStock || 0) : (productBySku.onlineStock || 0);
                         if (qty > maxStock) {
                           alerts.push({
-                            type: "online",
+                            type: AllocationType.ONLINE,
                             message: `Online stock: Cannot reduce ${qty} units. Available: ${maxStock} units.`
                           });
                         }
                       }
 
                       // Store stock validation
-                      if (formData.allocationType === "store" || formData.allocationType === "both") {
+                      if (formData.allocationType === AllocationType.STORE || formData.allocationType === AllocationType.BOTH) {
                         const stockSource = selectedVariant || productBySku;
                         const allocations = selectedVariant ? selectedVariant.storeAllocations : productBySku.storeAllocations;
                         
@@ -730,7 +731,7 @@ export default function DamageReport() {
                           const maxStock = store.quantity || 0;
                           if (qty > maxStock) {
                             alerts.push({
-                              type: "store",
+                              type: AllocationType.STORE,
                               message: `${store.storeName}: Cannot reduce ${qty} units. Available: ${maxStock} units.`
                             });
                           }

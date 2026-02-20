@@ -33,6 +33,7 @@ import { useMemo, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import * as XLSX from "xlsx";
 import { ProductPrintDetails } from "./ProductPrintDetails";
+import { DistributionChannel } from "./utils/enums";
 
 const formatPrice = (price: string | number) => {
   const numPrice = typeof price === "string" ? parseFloat(price) : price;
@@ -74,7 +75,7 @@ const ProductAccordionContent = ({
               Distribution Channel:
             </span>
             <p className="font-medium text-xs capitalize">
-              {product.distributionChannel}
+              {DistributionChannel[product.distributionChannel as keyof typeof DistributionChannel] || product.distributionChannel}
             </p>
           </div>
         </div>
@@ -558,7 +559,7 @@ export default function InventoryProducts() {
         header: "Channel",
         cell: ({ row }) => (
           <Badge variant="outline" className="capitalize">
-            {row.original.distributionChannel}
+            {DistributionChannel[row.original.distributionChannel as keyof typeof DistributionChannel] || row.original.distributionChannel}
           </Badge>
         ),
       },
