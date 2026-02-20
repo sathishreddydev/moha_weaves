@@ -53,12 +53,6 @@ export const NavGroups = [
     ]
   },
   {
-    title: "Audit & Compliance",
-    items: [
-      { icon: Activity, label: "Audit Reporting", href: "/inventory/audit-reporting" },
-    ]
-  },
-  {
     title: "Quality & Reports",
     items: [
       { icon: AlertTriangle, label: "Damage Report", href: "/inventory/damage-report" },

@@ -1,4 +1,5 @@
 import {
+  Activity,
   Building2,
   LayoutDashboard,
   Package,
@@ -49,6 +50,12 @@ export const AdminNavGroups = [
     title: "System",
     items: [
       { icon: Settings, label: "Settings", href: "/admin/settings" },
+    ]
+  },
+  {
+    title: "Audit & Compliance",
+    items: [
+      { icon: Activity, label: "Audit Reporting", href: "/admin/audit-reporting" },
     ]
   }
 ];

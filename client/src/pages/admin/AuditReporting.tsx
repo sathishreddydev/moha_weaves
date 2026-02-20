@@ -114,7 +114,7 @@ export default function AuditReporting() {
 
   const dateRange = getDateRange(dateFilter);
 
-  // Fetch audit data
+  // Fetch audit data - Updated to use admin endpoints
   const { data: auditData, isLoading, refetch } = useQuery<{
     data: AuditLogEntry[];
     total: number;
@@ -122,7 +122,7 @@ export default function AuditReporting() {
     pageSize: number;
   }>({
     queryKey: [
-      "/api/inventory/stock-audit",
+      "/api/admin/stock-audit",
       dateRange.dateFrom,
       dateRange.dateTo,
       actionFilter !== "all" ? actionFilter : undefined,
@@ -132,10 +132,10 @@ export default function AuditReporting() {
     refetchInterval: 30000, // Refresh every 30 seconds
   });
 
-  // Generate report mutation
+  // Generate report mutation - Updated to use admin endpoint
   const generateReport = async () => {
     try {
-      const response = await apiRequest("POST", "/api/inventory/stock-audit/report", {
+      const response = await apiRequest("POST", "/api/admin/stock-audit/report", {
         dateFrom: dateRange.dateFrom,
         dateTo: dateRange.dateTo,
         ...(actionFilter !== "all" && { movementType: actionFilter }),
