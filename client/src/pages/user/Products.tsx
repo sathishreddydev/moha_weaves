@@ -25,7 +25,13 @@ import NestedCheckbox, {
   getSelectedTree,
 } from "./common/NestedCheckbox";
 
-const FilterSection = ({ title, children }: { title: string; children: React.ReactNode }) => (
+const FilterSection = ({
+  title,
+  children,
+}: {
+  title: string;
+  children: React.ReactNode;
+}) => (
   <div className="space-y-1">
     <h3 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
       {title}
@@ -200,8 +206,8 @@ export default function Products() {
     () => parseFiltersFromURL(location.search),
     [location.search],
   );
-
   const [filters, setFilters] = useState(initialFilters);
+  console.log("initialFilters", filters);
 
   useEffect(() => {
     const query = serializeFiltersToURL(filters);
@@ -214,16 +220,6 @@ export default function Products() {
       { replace: true },
     );
   }, [filters, navigate, location.pathname]);
-  // const [filters, setFilters] = useState({
-  //   search: "",
-  //   category: [] as string[],
-  //   color: [] as string[],
-  //   fabric: [] as string[],
-  //   featured: false,
-  //   onSale: false,
-  //   priceRange: { min: 0, max: 100000 },
-  //   sort: "newest",
-  // });
 
   const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
 
@@ -395,33 +391,64 @@ export default function Products() {
     }
   };
 
-  const { data: products, isLoading } = useQuery<ProductWithDetails[]>({
-    queryKey: ["products", filters],
-    queryFn: async () => {
-      // Transform filters to match backend expectations
-      const apiFilters = {
-        search: filters.search,
-        categoryIds: filters.category.length > 0 ? filters.category : undefined,
-        subcategoryIds: filters.subcategory.length > 0 ? filters.subcategory : undefined,
-        colorIds: filters.color.length > 0 ? filters.color : undefined,
-        fabricIds: filters.fabric.length > 0 ? filters.fabric : undefined,
-        featured: filters.featured,
-        sort: filters.onSale ? "onSale" : filters.sort,
-        minPrice: filters.priceRange.min,
-        maxPrice: filters.priceRange.max,
-        onSale: filters.onSale,
-      };
-
-      const response = await apiRequest("POST", "/api/getProducts", apiFilters);
-      return response;
-    },
-    placeholderData: (previousData) => previousData,
-  });
-
   const categories = useFilterStore((state) => state.categories);
   const colors = useFilterStore((state) => state.colors);
   const fabrics = useFilterStore((state) => state.fabrics);
   const fetchFilters = useFilterStore((state) => state.fetchFilters);
+const isFilterDataReady =
+  categories.length > 0 &&
+  colors.length > 0 &&
+  fabrics.length > 0;
+ const { data: products, isLoading } = useQuery<ProductWithDetails[]>({
+  queryKey: ["products", filters],
+  queryFn: async () => {
+    const namesToIds = (
+      names: string[],
+      items: { id: string; name: string }[],
+    ) => {
+      return names
+        .map((name) => {
+          const item = items.find(
+            (item) => item.name.toLowerCase() === name.toLowerCase(),
+          );
+          return item ? item.id : undefined;
+        })
+        .filter(Boolean);
+    };
+
+    const apiFilters = {
+      search: filters.search,
+      categoryIds:
+        filters.category.length > 0
+          ? namesToIds(filters.category, categories)
+          : undefined,
+      subcategoryIds:
+        filters.subcategory.length > 0
+          ? namesToIds(
+              filters.subcategory,
+              categories.flatMap((cat) => cat.subcategories || []),
+            )
+          : undefined,
+      colorIds:
+        filters.color.length > 0
+          ? namesToIds(filters.color, colors)
+          : undefined,
+      fabricIds:
+        filters.fabric.length > 0
+          ? namesToIds(filters.fabric, fabrics)
+          : undefined,
+      featured: filters.featured,
+      sort: filters.onSale ? "onSale" : filters.sort,
+      minPrice: filters.priceRange.min,
+      maxPrice: filters.priceRange.max,
+      onSale: filters.onSale,
+    };
+
+    return apiRequest("POST", "/api/getProducts", apiFilters);
+  },
+  enabled: isFilterDataReady, // ⭐ THIS FIXES IT
+  placeholderData: (previousData) => previousData,
+});
 
   // Transform categories to nested checkbox structure
   const categoryOptions: NestedCheckboxOption[] = useMemo(() => {

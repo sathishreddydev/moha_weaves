@@ -33,10 +33,10 @@ export const publicRoutes = (app: Express) => {
     try {
       const {
         search,
-        category,
-        subcategory,
-        color,
-        fabric,
+        categoryIds,
+        subcategoryIds,
+        colorIds,
+        fabricIds,
         featured,
         minPrice,
         maxPrice,
@@ -48,10 +48,10 @@ export const publicRoutes = (app: Express) => {
 
       const filters: ProductFilters = {
         search,
-        categoryIds: category ? [category] : undefined,
-        subcategoryIds: subcategory ? [subcategory] : undefined,
-        colorIds: color ? [color] : undefined,
-        fabricIds: fabric ? [fabric] : undefined,
+        categoryIds: categoryIds && categoryIds.length > 0 ? categoryIds : undefined,
+        subcategoryIds: subcategoryIds && subcategoryIds.length > 0 ? subcategoryIds : undefined,
+        colorIds: colorIds && colorIds.length > 0 ? colorIds : undefined,
+        fabricIds: fabricIds && fabricIds.length > 0 ? fabricIds : undefined,
         featured: featured === true,
         minPrice,
         maxPrice,
@@ -64,6 +64,9 @@ export const publicRoutes = (app: Express) => {
 
       // MIGRATED: Use role-based service for online users (60-70% faster queries)
       const products = await roleBasedProductService.getProductsByRole(filters, "user");
+      
+      // Debug: Log results
+      console.log(`Found ${products.length} products matching filters`);
 
       res.json(products);
     } catch  {

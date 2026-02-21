@@ -52,7 +52,6 @@ export function ProductCard({ product }: ProductCardProps) {
     product.distributionChannel === "both";
 
   const selectedVariantData = product.variants?.find(v => v.id === selectedVariant);
-  const hasStock = selectedVariantData ? selectedVariantData.onlineStock > 0 : product.onlineStock > 0;
   const disabledButton =
     isAddingItem[product.id] ||
     isUpdatingItem[product.id] ||
@@ -92,7 +91,7 @@ export function ProductCard({ product }: ProductCardProps) {
         </Link>
 
         {/* Size Dropdown */}
-        {product.variants && product.variants.length > 0 && (
+        {/* {product.variants && product.variants.length > 0 && (
           <div className="absolute bottom-2 left-2 right-2">
             <Select
               value={selectedVariant || ""}
@@ -115,7 +114,7 @@ export function ProductCard({ product }: ProductCardProps) {
               </SelectContent>
             </Select>
           </div>
-        )}
+        )} */}
 
         <div className="absolute top-2 left-2 flex flex-col gap-1">
           {product.activeSale && (
@@ -168,7 +167,7 @@ export function ProductCard({ product }: ProductCardProps) {
           </Button>
         </div>
 
-        {!guestUser && isOnlineAvailable && (
+        {/* {!guestUser && isOnlineAvailable && (
           <div
             className="absolute bottom-3 right-3 z-10
               opacity-100 md:opacity-0 md:group-hover:opacity-100
@@ -232,7 +231,7 @@ export function ProductCard({ product }: ProductCardProps) {
               </Button>
             )}
           </div>
-        )}
+        )} */}
       </div>
 
       <div className="pt-4 space-y-1">
