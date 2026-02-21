@@ -136,7 +136,7 @@ export default function StoreHistory() {
             </TooltipProvider>
 
             {sale.customerPhone && (
-              <p className="text-xs text-muted-foreground">
+              <p className="text-[10px] text-muted-foreground">
                 {sale.customerPhone}
               </p>
             )}
@@ -312,7 +312,7 @@ export default function StoreHistory() {
         <div className="mb-8 flex items-center justify-between">
           <div>
             <h1
-              className="text-2xl font-semibold"
+              className="text-xl font-semibold"
               data-testid="text-page-title"
             >
               Sales History
@@ -323,7 +323,7 @@ export default function StoreHistory() {
                 Fetching data...
               </div>
             )}
-            <p className="text-muted-foreground">
+            <p className="text-sm text-muted-foreground">
               View all past in-store transactions
             </p>
           </div>

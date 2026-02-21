@@ -198,12 +198,12 @@ export default function StoreRequests() {
         <div className="flex items-center justify-between mb-8">
           <div>
             <h1
-              className="text-2xl font-semibold"
+              className="text-xl font-semibold"
               data-testid="text-page-title"
             >
               Stock Requests
             </h1>
-            <p className="text-muted-foreground">
+            <p className="text-sm text-muted-foreground">
               Request inventory from central warehouse
             </p>
           </div>

@@ -305,8 +305,8 @@ export default function StoreExchangeHistory() {
     <div>
       <div className="max-w-6xl mx-auto">
         <div className="mb-8">
-          <div className="flex items-center justify-between mb-2">
-            <h1 className="text-2xl font-semibold flex items-center gap-2">
+          <div className="flex items-center justify-between">
+            <h1 className="text-xl font-semibold flex items-center gap-2">
               <ArrowLeftRight className="h-6 w-6" />
               Exchange History
             </h1>
@@ -329,7 +329,7 @@ export default function StoreExchangeHistory() {
               Fetching data...
             </div>
           )}
-          <p className="text-muted-foreground">
+          <p className="text-sm text-muted-foreground">
             View all past store exchanges and returns
           </p>
         </div>

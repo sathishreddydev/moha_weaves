@@ -292,7 +292,7 @@ export default function StoreInventoryPage() {
     <div className="max-w-6xl mx-auto">
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-8">
         <div>
-          <h1 className="text-2xl font-semibold" data-testid="text-page-title">
+          <h1 className="text-xl font-semibold" data-testid="text-page-title">
             Shop Products
           </h1>
           {isFetching && (
@@ -301,7 +301,7 @@ export default function StoreInventoryPage() {
               Fetching data...
             </div>
           )}
-          <p className="text-muted-foreground">
+          <p className="text-sm text-muted-foreground">
             All products available for your store
           </p>
         </div>
