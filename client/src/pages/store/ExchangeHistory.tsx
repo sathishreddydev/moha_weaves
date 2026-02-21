@@ -26,7 +26,7 @@ export default function StoreExchangeHistory() {
     initialPageSize: 10,
     pageKey: "storeExchangeHistory",
   });
-  const filters = useMemo(() => createExchangeFilters(), []); 
+  const filters = useMemo(() => createExchangeFilters(), []);
   const parseImages = (value: string) => {
     try {
       const firstParse = JSON.parse(value || "[]");
@@ -43,14 +43,19 @@ export default function StoreExchangeHistory() {
       accessorKey: "id",
       header: "Exchange ID",
       cell: ({ row }) => (
-        <span className="font-mono text-sm">#{row.original.id}</span>
+        <div className="flex flex-col gap-1">
+          <p className="font-mono text-xs">Exch ID: #{row.original.id}</p>
+          <p className="font-mono text-xs">
+            Orig Sale: #{row?.original?.originalSale?.id}
+          </p>
+        </div>
       ),
     },
     {
       accessorKey: "createdAt",
       header: "Date",
       cell: ({ row }) => (
-        <span className="text-sm text-muted-foreground">
+        <span className="text-xs text-muted-foreground">
           {formatDate(row.original.createdAt)}
         </span>
       ),
@@ -62,7 +67,7 @@ export default function StoreExchangeHistory() {
         const exchange = row.original;
         return exchange.customerName ? (
           <div>
-            <p className="font-medium">{exchange.customerName}</p>
+            <p className="font-medium text-xs">{exchange.customerName}</p>
             {exchange.customerPhone && (
               <p className="text-xs text-muted-foreground">
                 {exchange.customerPhone}
@@ -70,18 +75,11 @@ export default function StoreExchangeHistory() {
             )}
           </div>
         ) : (
-          <span className="text-muted-foreground">Walk-in Customer</span>
+          <span className="text-xs text-muted-foreground">
+            Walk-in Customer
+          </span>
         );
       },
-    },
-    {
-      accessorKey: "originalSale",
-      header: "Original Sale",
-      cell: ({ row }) => (
-        <span className="font-mono text-sm">
-          #{row?.original?.originalSale?.id}
-        </span>
-      ),
     },
     {
       accessorKey: "items",
@@ -121,37 +119,19 @@ export default function StoreExchangeHistory() {
     },
     {
       accessorKey: "balanceDirection",
-      header: "Balance",
+      header: "Balance paid",
       cell: ({ row }) => {
         const exchange = row.original;
         const balance = parseFloat(exchange.balanceAmount);
 
         if (exchange.balanceDirection === "due_from_customer") {
-          return (
-            <Badge className="text-orange-600 border-orange-600">
-              Paid {formatPrice(balance)}
-            </Badge>
-          );
+          return <Badge className="text-xs">{formatPrice(balance)}</Badge>;
         } else {
           return <Badge variant="secondary">Even Exchange</Badge>;
         }
       },
     },
-    {
-      accessorKey: "status",
-      header: "Status",
-      cell: ({ row }) => (
-        <Badge
-          variant={
-            row.original.status === "completed" ? "default" : "secondary"
-          }
-        >
-          {row.original.status === "completed"
-            ? "Completed"
-            : row.original.status}
-        </Badge>
-      ),
-    },
+
     {
       accessorKey: "returnItems",
       header: "Reasons",
@@ -355,7 +335,7 @@ export default function StoreExchangeHistory() {
         </div>
 
         <DataTable
-          pageKey='storeExchangeHistory'
+          pageKey="storeExchangeHistory"
           columns={exchangesColumns}
           data={exchanges}
           totalCount={totalCount}
@@ -368,7 +348,6 @@ export default function StoreExchangeHistory() {
           accordion={true}
           accordionContent={renderAccordionContent}
           accordionPosition="inline"
-          
           filters={filters}
         />
       </div>

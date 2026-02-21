@@ -103,14 +103,14 @@ export default function StoreHistory() {
       accessorKey: "id",
       header: "Sale ID",
       cell: ({ row }) => (
-        <span className="font-mono text-sm">#{row.original.id}</span>
+        <span className="font-mono text-xs">#{row.original.id}</span>
       ),
     },
     {
       accessorKey: "createdAt",
       header: "Date",
       cell: ({ row }) => (
-        <span className="text-sm text-muted-foreground">
+        <span className="text-xs text-muted-foreground">
           {formatDate(row.original.createdAt)}
         </span>
       ),
@@ -125,12 +125,12 @@ export default function StoreHistory() {
             <TooltipProvider>
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <p className="font-medium truncate max-w-[150px]">
+                  <p className="font-medium truncate max-w-[150px] text-xs">
                     {sale.customerName.split(" ")[0]}
                   </p>
                 </TooltipTrigger>
                 <TooltipContent>
-                  <span>{sale.customerName}</span> 
+                  <span className="text-xs">{sale.customerName}</span> 
                 </TooltipContent>
               </Tooltip>
             </TooltipProvider>
@@ -142,7 +142,7 @@ export default function StoreHistory() {
             )}
           </div>
         ) : (
-          <span className="text-muted-foreground">Walk-in Customer</span>
+          <span className="text-muted-foreground text-xs">Walk-in Customer</span>
         );
       },
     },
@@ -166,7 +166,7 @@ export default function StoreHistory() {
           return (
             <div
               key={item.id}
-              className="w-10 h-12 rounded overflow-hidden bg-muted relative"
+              className="w-10 h-12 rounded overflow-hidden bg-muted relative text-xs"
               title={`${item.product.name}${variantInfo}`}
             >
               <img
@@ -234,7 +234,7 @@ export default function StoreHistory() {
       accessorKey: "totalAmount",
       header: "Total",
       cell: ({ row }) => (
-        <span className="font-bold text-primary">
+        <span className="font-bold text-primary text-xs">
           {formatPrice(row.original.totalAmount)}
         </span>
       ),
@@ -280,10 +280,12 @@ export default function StoreHistory() {
               variant="outline"
               size="sm"
               onClick={() => setSelectedSale(sale)}
+              className="text-xs"
             >
               View
             </Button>
             <Button
+            className="text-xs"
               variant="outline"
               size="sm"
               onClick={(e) => {

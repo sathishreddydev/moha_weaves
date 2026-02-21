@@ -19,7 +19,6 @@ export default function StoreInventoryPage() {
   const [productData, setProductData] = useState<ProductWithDetails>();
   const { categories, colors, fabrics, fetchFilters } = useFilterStore();
 
-
   useEffect(() => {
     if (!categories.length || !colors.length || !fabrics.length) {
       fetchFilters();
@@ -41,7 +40,7 @@ export default function StoreInventoryPage() {
   } = useDataTable<any>({
     queryKey: "/api/store/getProducts",
     initialPageSize: 10,
-    pageKey:"storeInventory"
+    pageKey: "storeInventory",
   });
 
   const getRequestStatusBadge = useCallback((status: string) => {
@@ -50,7 +49,7 @@ export default function StoreInventoryPage() {
         return (
           <Badge
             variant="secondary"
-            className="bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-100"
+            className="text-xs bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-100"
           >
             Pending
           </Badge>
@@ -59,7 +58,7 @@ export default function StoreInventoryPage() {
         return (
           <Badge
             variant="secondary"
-            className="bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-100"
+            className="text-xs bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-100"
           >
             Approved
           </Badge>
@@ -68,7 +67,7 @@ export default function StoreInventoryPage() {
         return (
           <Badge
             variant="secondary"
-            className="bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-100"
+            className="text-xs bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-100"
           >
             Dispatched
           </Badge>
@@ -77,15 +76,23 @@ export default function StoreInventoryPage() {
         return (
           <Badge
             variant="default"
-            className="bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-100"
+            className="text-xs bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-100"
           >
             Received
           </Badge>
         );
       case "rejected":
-        return <Badge variant="destructive">Rejected</Badge>;
+        return (
+          <Badge variant="destructive" className="text-xs">
+            Rejected
+          </Badge>
+        );
       default:
-        return <Badge variant="outline">{status}</Badge>;
+        return (
+          <Badge variant="outline" className="text-xs">
+            {status}
+          </Badge>
+        );
     }
   }, []);
 
@@ -93,21 +100,21 @@ export default function StoreInventoryPage() {
     switch (channel) {
       case "shop":
         return (
-          <Badge variant="outline" className="gap-1">
+          <Badge variant="outline" className="gap-1 text-xs">
             <Store className="h-3 w-3" />
             Shop Only
           </Badge>
         );
       case "online":
         return (
-          <Badge variant="outline" className="gap-1">
+          <Badge variant="outline" className="gap-1 text-xs">
             <Globe className="h-3 w-3" />
             Online
           </Badge>
         );
       case "both":
         return (
-          <Badge variant="outline" className="gap-1">
+          <Badge variant="outline" className="gap-1 text-xs">
             <ArrowLeftRight className="h-3 w-3" />
             Both
           </Badge>
@@ -135,38 +142,41 @@ export default function StoreInventoryPage() {
                 "https://images.unsplash.com/photo-1610030469983-98e550d6193c?w=50"
               }
               alt=""
-              className="w-10 h-12 rounded object-cover"
+              className="w-8 h-10 rounded object-cover"
             />
-            <span className="font-medium max-w-[200px] truncate">
-              {item.name}
-            </span>
+            <div>
+              <p className="text-xs font-medium max-w-[200px] truncate">
+                {item.name}
+              </p>
+              <p className="text-muted-foreground font-mono text-[10px]">
+                {row.original.sku || "-"}
+              </p>
+            </div>
           </div>
         );
       },
     },
-    {
-      accessorKey: "sku",
-      header: "SKU",
-      cell: ({ row }) => (
-        <span className="text-muted-foreground font-mono text-sm">
-          {row.original.sku || "-"}
-        </span>
-      ),
-    },
+
     {
       accessorKey: "category.name",
       header: "Category",
-      cell: ({ row }) => <span>{row.original.category?.name || "-"}</span>,
+      cell: ({ row }) => (
+        <span className="text-xs">{row.original.category?.name || "-"}</span>
+      ),
     },
     {
       accessorKey: "color.name",
       header: "Color",
-      cell: ({ row }) => <span>{row.original.color?.name || "-"}</span>,
+      cell: ({ row }) => (
+        <span className="text-xs">{row.original.color?.name || "-"}</span>
+      ),
     },
     {
       accessorKey: "fabric.name",
       header: "Fabric",
-      cell: ({ row }) => <span>{row.original.fabric?.name || "-"}</span>,
+      cell: ({ row }) => (
+        <span className="text-xs">{row.original.fabric?.name || "-"}</span>
+      ),
     },
     {
       accessorKey: "price",
@@ -177,7 +187,7 @@ export default function StoreInventoryPage() {
           <div>
             {item.activeSale && item.discountedPrice ? (
               <div className="flex items-center gap-2">
-                <span className="font-semibold text-primary">
+                <span className="text-xs font-semibold text-primary">
                   {formatPrice(item.discountedPrice)}
                 </span>
                 <span className="text-xs text-muted-foreground line-through">
@@ -185,7 +195,9 @@ export default function StoreInventoryPage() {
                 </span>
               </div>
             ) : (
-              <span className="font-medium">{formatPrice(item.price)}</span>
+              <span className="text-xs font-medium">
+                {formatPrice(item.price)}
+              </span>
             )}
           </div>
         );
@@ -206,15 +218,17 @@ export default function StoreInventoryPage() {
             variant={item.totalStock < 5 ? "secondary" : "default"}
             className={
               item.totalStock < 5
-                ? "bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-100"
-                : ""
+                ? "text-xs bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-100"
+                : "text-xs"
             }
           >
             {item.totalStock} in stock
           </Badge>
         ) : (
           <div className="flex items-center gap-2">
-            <Badge variant="destructive">No stock</Badge>
+            <Badge variant="destructive" className="text-xs">
+              No stock
+            </Badge>
           </div>
         );
       },
@@ -235,7 +249,7 @@ export default function StoreInventoryPage() {
         const latestRequest = requests[0];
         return (
           <div className="space-y-1">
-            <div className="text-sm font-medium">
+            <div className="text-xs font-medium">
               {latestRequest.quantity} units
             </div>
             {getRequestStatusBadge(latestRequest.status)}
@@ -255,6 +269,7 @@ export default function StoreInventoryPage() {
 
         return (
           <Button
+            className="text-xs"
             size="sm"
             variant="outline"
             onClick={() => requestDialog(item)}
@@ -269,9 +284,10 @@ export default function StoreInventoryPage() {
     },
   ];
 
-  const filters: FilterItem[] = useMemo(() => 
-     createInventoryFilters(categories, colors, fabrics)
-   , [categories, colors, fabrics]);
+  const filters: FilterItem[] = useMemo(
+    () => createInventoryFilters(categories, colors, fabrics),
+    [categories, colors, fabrics],
+  );
   return (
     <div className="max-w-6xl mx-auto">
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-8">
@@ -355,7 +371,6 @@ export default function StoreInventoryPage() {
         searchPlaceholder="Search by name or SKU..."
         emptyMessage="No products available for shop"
         filters={filters}
-        
       />
       {dialogOpen && (
         <RequestDialog

@@ -195,7 +195,7 @@ export default function StoreSale() {
             "https://images.unsplash.com/photo-1610030469983-98e550d6193c?w=50"
           }
           alt={row.original?.name}
-          className="w-12 h-16 rounded object-cover"
+          className="w-8 h-10 rounded object-cover"
         />
       ),
     },
@@ -204,10 +204,10 @@ export default function StoreSale() {
       header: "Product",
       cell: ({ row }) => (
         <div>
-          <p className="font-medium text-sm line-clamp-1">
+          <p className="font-medium text-xs line-clamp-1">
             {row.original?.name}
           </p>
-          <p className="text-xs text-muted-foreground font-mono">
+          <p className="text-[12px] text-muted-foreground font-mono">
             {row.original?.sku || "-"}
           </p>
         </div>
@@ -217,7 +217,7 @@ export default function StoreSale() {
       accessorKey: "product.category.name",
       header: "Category",
       cell: ({ row }) => (
-        <span className="text-sm">{row.original?.category?.name || "-"}</span>
+        <span className="text-xs">{row.original?.category?.name || "-"}</span>
       ),
     },
     {
@@ -225,14 +225,14 @@ export default function StoreSale() {
       header: "Color",
       cell: ({ row }) => {
         const color = row.original?.color;
-        if (!color) return <span className="text-sm">-</span>;
+        if (!color) return <span className="text-xs">-</span>;
         return (
           <div className="flex items-center gap-2">
             <div
               className="w-4 h-4 rounded border border-gray-300"
               style={{ backgroundColor: color.hexCode }}
             />
-            <span className="text-sm">{color.name}</span>
+            <span className="text-xs">{color.name}</span>
           </div>
         );
       },
@@ -241,7 +241,7 @@ export default function StoreSale() {
       accessorKey: "product.fabric.name",
       header: "Fabric",
       cell: ({ row }) => (
-        <span className="text-sm">{row.original?.fabric?.name || "-"}</span>
+        <span className="text-xs">{row.original?.fabric?.name || "-"}</span>
       ),
     },
     {
@@ -253,7 +253,7 @@ export default function StoreSale() {
           <div>
             {item?.activeSale && item?.discountedPrice ? (
               <div className="flex items-center gap-2">
-                <span className="font-semibold text-primary">
+                <span className="font-semibold text-primary text-xs">
                   {formatPrice(item?.discountedPrice)}
                 </span>
                 <span className="text-xs text-muted-foreground line-through">
@@ -261,7 +261,7 @@ export default function StoreSale() {
                 </span>
               </div>
             ) : (
-              <span className="font-semibold text-primary">
+              <span className="font-semibold text-xs text-primary">
                 {formatPrice(item?.price)}
               </span>
             )}
@@ -310,7 +310,7 @@ export default function StoreSale() {
               >
                 <Minus className="h-3 w-3" />
               </Button>
-              <span className="w-8 text-center text-sm font-medium">
+              <span className="w-8 text-center text-xs font-medium">
                 {cartItem.quantity}
               </span>
               <Button

@@ -775,7 +775,7 @@ function StoreExchange() {
   return (
     <div className="max-w-6xl mx-auto text-sm">
       <div className="mb-8">
-        <div className="flex items-center gap-4 mb-2">
+        <div className="flex items-center gap-4 mb-2 justify-between">
           <div>
             <h1 className="text-xl font-semibold flex items-center gap-2">
               <ArrowLeftRight className="h-5 w-5" />
@@ -784,6 +784,11 @@ function StoreExchange() {
             <p className="text-xs text-muted-foreground">
               Return items from a sale and add new items
             </p>
+          </div>
+          <div>
+            <Button variant={'outline'} onClick={()=>{
+              navigate("/store/exchange")
+            }}>New Exchange</Button>
           </div>
         </div>
       </div>

@@ -19,28 +19,28 @@ const statusConfig: Record<
     icon: Clock,
     label: "Pending",
     color:
-      "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-100",
+      "text-xs bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-100",
   },
   approved: {
     icon: CheckCircle,
     label: "Approved",
-    color: "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-100",
+    color: "text-xs bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-100",
   },
   rejected: {
     icon: XCircle,
     label: "Rejected",
-    color: "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-100",
+    color: "text-xs bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-100",
   },
   dispatched: {
     icon: Package,
     label: "Dispatched",
-    color: "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-100",
+    color: "text-xs bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-100",
   },
   received: {
     icon: CheckCircle,
     label: "Received",
     color:
-      "bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-100",
+      "text-xs bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-100",
   },
 };
 
@@ -109,13 +109,13 @@ export default function StoreRequests() {
                 "https://images.unsplash.com/photo-1610030469983-98e550d6193c?w=50"
               }
               alt=""
-              className="w-10 h-12 rounded object-cover"
+              className="w-8 h-10 rounded object-cover"
             />
             <div>
-              <p className="font-medium line-clamp-1">
+              <p className="text-xs font-medium line-clamp-1">
                 {request.product.name}
               </p>
-              <p className="text-xs text-muted-foreground font-mono">
+              <p className="text-[10px] text-muted-foreground font-mono">
                 {request.product.sku}
               </p>
             </div>
@@ -127,7 +127,7 @@ export default function StoreRequests() {
       accessorKey: "quantity",
       header: "Quantity",
       cell: ({ row }) => (
-        <Badge variant="outline">
+        <Badge variant="outline" className="text-xs">
           {row.original.quantity} units
         </Badge>
       ),
@@ -136,7 +136,7 @@ export default function StoreRequests() {
       accessorKey: "createdAt",
       header: "Requested",
       cell: ({ row }) => (
-        <span className="text-sm text-muted-foreground">
+        <span className="text-xs text-muted-foreground">
           {formatDate(row.original.createdAt)}
         </span>
       ),
@@ -150,7 +150,7 @@ export default function StoreRequests() {
         const StatusIcon = status.icon;
         return (
           <Badge className={status.color}>
-            <StatusIcon className="h-3 w-3 mr-1" />
+            <StatusIcon className="text-xs h-3 w-3 mr-1" />
             {status.label}
           </Badge>
         );
@@ -160,7 +160,7 @@ export default function StoreRequests() {
       accessorKey: "notes",
       header: "Notes",
       cell: ({ row }) => (
-        <span className="max-w-[200px] truncate text-muted-foreground">
+        <span className="text-xs max-w-[200px] truncate text-muted-foreground">
           {row.original.notes || "-"}
         </span>
       ),
@@ -180,6 +180,7 @@ export default function StoreRequests() {
                 }
                 disabled={markReceivedMutation.isPending}
                 data-testid={`button-received-${request.id}`}
+                className="text-xs"
               >
                 Mark Received
               </Button>
