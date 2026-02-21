@@ -1,4 +1,4 @@
-import { insertProductDamageSchema, products, stockMovements } from "@shared/schema";
+import { insertProductDamageSchema, products, stockMovements, stores } from "@shared/schema";
 import { eq } from "drizzle-orm";
 import type { Express } from "express";
 import { productService } from "server/product/productStorage";
@@ -27,6 +27,44 @@ import {
 } from "./errorHandling";
 import { stockAuditService } from "./stockAuditService";
 import { allStoreOrdersService } from "server/store/allStoreOrders";
+// Import notification system
+import { notificationManager } from "../notification";
+
+// Helper function to check and send low stock alerts
+async function checkAndSendLowStockAlert(product: any, previousStock?: number) {
+  try {
+    const currentStock = product.totalStock || 0;
+    const threshold = 10; // Low stock threshold
+    
+    // Check if stock is low or critical
+    if (currentStock <= 5) {
+      // Critical low stock
+      await notificationManager.sendToRole('inventory', 'CRITICAL_LOW_STOCK', {
+        productId: product.id,
+        productName: product.name,
+        currentStock,
+        threshold: 5,
+        storeLocation: 'Main Warehouse',
+        previousStock: previousStock || currentStock,
+        alertTime: new Date().toISOString()
+      });
+    } else if (currentStock <= threshold) {
+      // Regular low stock
+      await notificationManager.sendToRole('inventory', 'LOW_STOCK_ALERT', {
+        productId: product.id,
+        productName: product.name,
+        currentStock,
+        threshold,
+        storeLocation: 'Main Warehouse',
+        previousStock: previousStock || currentStock,
+        alertTime: new Date().toISOString()
+      });
+    }
+  } catch (error) {
+    console.error('Failed to send low stock alert:', error);
+    // Don't fail the main operation if notification fails
+  }
+}
 
 const productWithAllocationsSchema = productBaseSchema.refine(
   (data) => {
@@ -142,7 +180,7 @@ export const inventoryRoutes = (app: Express) => {
                 movementType: "request",
                 source: "online", // Must be "store" | "online" per schema
                 orderRefId: stockRequest.id,
-                notes: `Stock request approved - ${stockRequest.quantity} units allocated to ${stockRequest.store?.name || 'store'}`,
+                notes: `Stock request approved - ${stockRequest.quantity} units allocated to store ${stockRequest.storeId}`,
                 createdAt: new Date()
               });
             });
@@ -159,6 +197,25 @@ export const inventoryRoutes = (app: Express) => {
               // This shouldn't happen if transaction succeeded, but handle gracefully
               console.error("Failed to update stock request status after successful stock deduction");
               throw new DatabaseTransactionError("Failed to update request status");
+            }
+
+            // Send notification for stock request approval
+            try {
+              // Get store details for notification
+              const store = await db.select().from(stores).where(eq(stores.id, updatedRequest.storeId)).limit(1);
+              const storeName = store.length > 0 ? store[0].name : 'Unknown Store';
+              
+              await notificationManager.sendToRole('inventory', 'STOCK_REQUEST_APPROVED', {
+                requestId: updatedRequest.id,
+                productId: updatedRequest.productId,
+                quantity: updatedRequest.quantity,
+                storeName: storeName,
+                approvedBy: (req as any).user?.name || (req as any).user?.email || 'Unknown User',
+                approvedAt: new Date().toISOString()
+              });
+            } catch (notificationError) {
+              console.error('Failed to send stock request approval notification:', notificationError);
+              // Don't fail the request if notification fails
             }
 
             res.json(updatedRequest);
@@ -188,6 +245,28 @@ export const inventoryRoutes = (app: Express) => {
         
         if (!request) {
           return res.status(404).json({ message: "Request not found" });
+        }
+
+        // Send notification for stock request status update
+        try {
+          // Get store details for notification
+          const store = await db.select().from(stores).where(eq(stores.id, request.storeId)).limit(1);
+          const storeName = store.length > 0 ? store[0].name : 'Unknown Store';
+          
+          const eventType = status === 'rejected' ? 'STOCK_REQUEST_REJECTED' : 'STOCK_REQUEST_UPDATED';
+          await notificationManager.sendToRole('inventory', eventType, {
+            requestId: request.id,
+            productId: request.productId,
+            quantity: request.quantity,
+            storeName: storeName,
+            status: request.status,
+            updatedBy: (req as any).user?.name || (req as any).user?.email || 'Unknown User',
+            updatedAt: new Date().toISOString(),
+            rejectionReason: rejectionReason || undefined
+          });
+        } catch (notificationError) {
+          console.error('Failed to send stock request status notification:', notificationError);
+          // Don't fail the request if notification fails
         }
         
         res.json(request);
@@ -335,10 +414,20 @@ export const inventoryRoutes = (app: Express) => {
     async (req, res) => {
       try {
         const { totalStock, onlineStock } = req.body;
+        
+        // Get previous stock for comparison
+        const previousProduct = await productService.getProductById(req.params.id);
+        
         const product = await productService.updateProduct(req.params.id, {
           totalStock,
           onlineStock,
         });
+
+        // Check and send low stock alert if stock decreased
+        if (totalStock !== undefined && totalStock < (previousProduct?.totalStock || 0)) {
+          await checkAndSendLowStockAlert(product, previousProduct?.totalStock);
+        }
+
         res.json(product);
       } catch {
         res.status(500).json({ message: "Failed to update stock" });
@@ -1174,6 +1263,14 @@ export const inventoryRoutes = (app: Express) => {
                 online: updatedProduct.onlineStock
               }
             });
+
+            // Check and send low stock alert if stock decreased
+            if (update.totalStock < currentProduct.totalStock) {
+              // We'll check these after the transaction to avoid failing it
+              setTimeout(async () => {
+                await checkAndSendLowStockAlert(updatedProduct, currentProduct.totalStock);
+              }, 0);
+            }
 
           } catch (error: any) {
             processed.push({

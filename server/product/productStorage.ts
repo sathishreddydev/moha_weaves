@@ -28,6 +28,15 @@ export class productRepository implements IproductRepository {
     return result;
   }
 
+  async getProductById(id: string): Promise<Product | undefined> {
+    const [result] = await db
+      .select()
+      .from(products)
+      .where(eq(products.id, id))
+      .limit(1);
+    return result || undefined;
+  }
+
   async updateProduct(
     id: string,
     data: Partial<InsertProduct>,

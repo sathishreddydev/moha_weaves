@@ -313,9 +313,9 @@ export default function AdminCoupons() {
                           : formatPrice(coupon.value)}
                       </TableCell>
                       <TableCell>
-                        {formatPrice(coupon.minOrderAmount)}
+                        {formatPrice(coupon?.minOrderAmount || "")}
                       </TableCell>
-                      <TableCell>{formatPrice(coupon.maxDiscount)}</TableCell>
+                      <TableCell>{formatPrice(coupon?.maxDiscount || "")}</TableCell>
                       <TableCell>
                         <span className="text-sm">
                           {coupon.usageCount || 0} /{" "}

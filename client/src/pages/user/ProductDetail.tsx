@@ -47,7 +47,7 @@ export default function ProductDetail() {
     queryKey: ["products"],
     queryFn: async () => {
       const response = await apiRequest("POST", "/api/getProducts", {
-        category: [product?.categoryId],
+        categoryIds: product?.categoryId ? [product.categoryId] : undefined,
         limit: 4,
       });
       return response;

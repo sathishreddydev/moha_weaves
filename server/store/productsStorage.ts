@@ -22,6 +22,7 @@ import {
   sql
 } from "drizzle-orm";
 import { db } from "server/db";
+import { roleBasedProductService } from "server/product/roleBasedProductService";
 
 interface IStoreProductsStorage {
   getStoreStats(storeId: string, dateFrom?: Date, dateTo?: Date): Promise<{
@@ -30,6 +31,7 @@ interface IStoreProductsStorage {
     totalInventory: number;
     pendingRequests: number;
   }>;
+  getProductsByStore(storeId: string): Promise<ProductWithDetails[]>;
 }
 
 export class StoreProductsStorage implements IStoreProductsStorage {
@@ -216,6 +218,13 @@ export class StoreProductsStorage implements IStoreProductsStorage {
         isFiltered,
       },
     };
+  }
+
+  async getProductsByStore(storeId: string): Promise<ProductWithDetails[]> {
+    return await roleBasedProductService.getProductsByRole(
+      { storeId },
+      "store"
+    );
   }
 }
 

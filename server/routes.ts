@@ -285,7 +285,7 @@ export async function registerRoutes(
     if (sale.offerType === "category" && sale.categoryId) {
       // Get all products in this category
       products = await roleBasedProductService.getProductsByRole({ 
-        category: [sale.categoryId],
+        categoryIds: [sale.categoryId],
         sort: "onSale"
       }, "admin"); // Admin access for sales management
     } else if (sale.offerType === "product") {

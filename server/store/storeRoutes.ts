@@ -13,6 +13,8 @@ import { storeProductsStorage } from "./productsStorage";
 import { stockRequestService } from "./stockRequestStorage";
 import { storeService } from "./storeStorage";
 import StoreLogger from "./utils/logger";
+// Import notification system
+import { notificationManager } from "../notification";
 
 export const storeRoutes = (app: Express) => {
   const authStore = createAuthMiddleware(["store"]);
@@ -340,6 +342,30 @@ export const storeRoutes = (app: Express) => {
         quantity,
         notes,
       });
+
+      // Send notification for new stock request
+      try {
+        // Get store details
+        const store = await storeService.getStore(user.storeId);
+        // Get product details 
+        const products = await storeProductsStorage.getProductsByStore(user.storeId);
+        const product = products.find(p => p.id === productId);
+        
+        await notificationManager.sendToRole('inventory', 'STOCK_REQUEST_CREATED', {
+          requestId: request.id,
+          productId: request.productId,
+          productName: product?.name || 'Unknown Product',
+          quantity: request.quantity,
+          storeName: store?.name || 'Unknown Store',
+          requestedBy: user.name || user.email || 'Unknown User',
+          notes: notes || undefined,
+          createdAt: new Date().toISOString()
+        });
+      } catch (notificationError) {
+        console.error('Failed to send stock request creation notification:', notificationError);
+        // Don't fail the request if notification fails
+      }
+
       res.json(request);
     } catch {
       res.status(500).json({ message: "Failed to create request" });

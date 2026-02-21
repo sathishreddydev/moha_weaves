@@ -79,7 +79,7 @@ export default function StoreExchangeHistory() {
       header: "Original Sale",
       cell: ({ row }) => (
         <span className="font-mono text-sm">
-          #{row.original.originalSale.id}
+          #{row?.original?.originalSale?.id}
         </span>
       ),
     },
@@ -107,7 +107,7 @@ export default function StoreExchangeHistory() {
                 variant="outline"
                 size="sm"
                 onClick={() =>
-                  navigate(`/store/invoice/${exchange.originalSale.id}`)
+                  navigate(`/store/invoice/${exchange.originalSale?.id}`)
                 }
                 className="ml-2"
               >
@@ -189,7 +189,7 @@ export default function StoreExchangeHistory() {
             variant="outline"
             size="sm"
             onClick={() =>
-              navigate(`/store/invoice/${row.original.originalSale.id}`)
+              navigate(`/store/invoice/${row.original.originalSale?.id}`)
             }
           >
             <Eye className="h-4 w-4" />

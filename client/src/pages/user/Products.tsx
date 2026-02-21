@@ -400,10 +400,16 @@ export default function Products() {
     queryFn: async () => {
       // Transform filters to match backend expectations
       const apiFilters = {
-        ...filters,
+        search: filters.search,
+        categoryIds: filters.category.length > 0 ? filters.category : undefined,
+        subcategoryIds: filters.subcategory.length > 0 ? filters.subcategory : undefined,
+        colorIds: filters.color.length > 0 ? filters.color : undefined,
+        fabricIds: filters.fabric.length > 0 ? filters.fabric : undefined,
+        featured: filters.featured,
         sort: filters.onSale ? "onSale" : filters.sort,
         minPrice: filters.priceRange.min,
         maxPrice: filters.priceRange.max,
+        onSale: filters.onSale,
       };
 
       const response = await apiRequest("POST", "/api/getProducts", apiFilters);

@@ -19,6 +19,7 @@ export interface IFilters {
 
 export interface IproductRepository {
   createProduct(product: InsertProduct): Promise<Product>;
+  getProductById(id: string): Promise<Product | undefined>;
   updateProduct(
     id: string,
     data: Partial<InsertProduct>,

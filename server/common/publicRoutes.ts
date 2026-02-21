@@ -48,10 +48,10 @@ export const publicRoutes = (app: Express) => {
 
       const filters: ProductFilters = {
         search,
-        category,
-        subcategory,
-        color,
-        fabric,
+        categoryIds: category ? [category] : undefined,
+        subcategoryIds: subcategory ? [subcategory] : undefined,
+        colorIds: color ? [color] : undefined,
+        fabricIds: fabric ? [fabric] : undefined,
         featured: featured === true,
         minPrice,
         maxPrice,

@@ -301,18 +301,9 @@ export const adminRoutes = (app: Express) => {
 
       const params = parsePaginationParams(req.query);
 
-      // Convert categoryIds to names for role-based service
-      let categoryNames: string[] = [];
-      if (categoryIds && categoryIds.length > 0) {
-        const categories = await publicStorage.getCategoriesWithSubcategories();
-        categoryNames = categories
-          .filter((cat: any) => categoryIds.includes(cat.id))
-          .map((cat: any) => cat.name);
-      }
-
       const filters: ProductFilters = {
         search,
-        category: categoryNames,
+        categoryIds: categoryIds,
         limit: params.pageSize,
         offset: (params.page - 1) * params.pageSize,
       };
