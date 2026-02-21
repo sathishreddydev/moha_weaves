@@ -796,8 +796,8 @@ function StoreExchange() {
       {!selectedSaleId ? (
         <Card className="max-w-2xl mx-auto">
           <CardHeader>
-            <CardTitle>Find Original Sale</CardTitle>
-            <p className="text-sm text-muted-foreground">
+            <CardTitle className="text-lg font-medium">Find Original Sale</CardTitle>
+            <p className="text-xs text-muted-foreground">
               Search by Sale ID, customer name, or phone number
             </p>
           </CardHeader>

@@ -143,10 +143,10 @@ export default function StockDistribution() {
   return (
     <div className="max-w-full mx-auto">
       <div className="mb-8">
-        <h1 className="text-2xl font-semibold" data-testid="text-page-title">
+        <h1 className="text-xl font-semibold" data-testid="text-page-title">
           Stock Distribution
         </h1>
-        <p className="text-muted-foreground">
+        <p className="text-xs text-muted-foreground">
           View how stock is distributed across channels and stores
         </p>
       </div>
@@ -161,7 +161,7 @@ export default function StockDistribution() {
             <Package className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold" data-testid="text-total-stock">
+            <div className="text-xl font-bold" data-testid="text-total-stock">
               {distributionData?.summary?.totalStock || 0}
             </div>
             <p className="text-xs text-muted-foreground">
@@ -179,7 +179,7 @@ export default function StockDistribution() {
           </CardHeader>
           <CardContent>
             <div
-              className="text-2xl font-bold text-blue-600"
+              className="text-xl font-bold text-blue-600"
               data-testid="text-online-stock"
             >
               {distributionData?.summary?.onlineStock || 0}
@@ -206,7 +206,7 @@ export default function StockDistribution() {
           </CardHeader>
           <CardContent>
             <div
-              className="text-2xl font-bold text-green-600"
+              className="text-xl font-bold text-green-600"
               data-testid="text-store-stock"
             >
               {distributionData?.summary?.storeAllocated || 0}
@@ -233,7 +233,7 @@ export default function StockDistribution() {
           </CardHeader>
           <CardContent>
             <div
-              className="text-2xl font-bold text-orange-600"
+              className="text-xl font-bold text-orange-600"
               data-testid="text-unallocated-stock"
             >
               {distributionData?.summary?.unallocated || 0}

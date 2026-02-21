@@ -345,10 +345,10 @@ export default function InventoryOrders() {
     <div className="max-w-7xl mx-auto">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-4">
         <div>
-          <h1 className="text-2xl font-semibold" data-testid="text-page-title">
+          <h1 className="text-xl font-semibold" data-testid="text-page-title">
             Online Orders
           </h1>
-          <p className="text-muted-foreground">
+          <p className="text-xs text-muted-foreground">
             View all online orders
           </p>
         </div>

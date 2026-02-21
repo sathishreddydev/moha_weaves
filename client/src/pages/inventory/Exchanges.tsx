@@ -375,8 +375,8 @@ export default function InventoryExchanges() {
       <div className="max-w-6xl mx-auto">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
           <div>
-            <h1 className="text-2xl font-semibold">Exchanges</h1>
-            <p className="text-muted-foreground">Manage customer exchange requests</p>
+            <h1 className="text-xl font-semibold">Exchanges</h1>
+            <p className="text-xs text-muted-foreground">Manage customer exchange requests</p>
           </div>
           <div className="flex gap-2">
             <Button variant="outline" size="sm" onClick={() => navigate('/inventory/returns')}>

@@ -212,8 +212,8 @@ export default function StockReconciliation() {
       {/* Header and Stats */}
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-3xl font-bold">Stock Reconciliation</h1>
-          <p className="text-muted-foreground">Identify and fix stock discrepancies across your inventory</p>
+          <h1 className="text-xl font-semibold">Stock Reconciliation</h1>
+          <p className="text-xs text-muted-foreground">Identify and fix stock discrepancies across your inventory</p>
         </div>
         <div className="flex gap-2">
           <Button
@@ -246,7 +246,7 @@ export default function StockReconciliation() {
             <Package className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{stats.total}</div>
+            <div className="text-xl font-bold">{stats.total}</div>
           </CardContent>
         </Card>
         <Card>
@@ -255,7 +255,7 @@ export default function StockReconciliation() {
             <AlertTriangle className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-orange-600">{stats.withDiscrepancies}</div>
+            <div className="text-xl font-bold text-orange-600">{stats.withDiscrepancies}</div>
           </CardContent>
         </Card>
         <Card>
@@ -264,7 +264,7 @@ export default function StockReconciliation() {
             <TrendingUp className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{stats.totalDiscrepancy}</div>
+            <div className="text-xl font-bold">{stats.totalDiscrepancy}</div>
           </CardContent>
         </Card>
         <Card>
@@ -273,7 +273,7 @@ export default function StockReconciliation() {
             <CheckCircle className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-green-600">
+            <div className="text-xl font-bold text-green-600">
               {stats.total > 0 ? Math.round(((stats.total - stats.withDiscrepancies) / stats.total) * 100) : 0}%
             </div>
           </CardContent>
@@ -283,7 +283,7 @@ export default function StockReconciliation() {
       {/* Filters */}
       <Card>
         <CardHeader>
-          <CardTitle>Filters</CardTitle>
+          <CardTitle className="text-lg font-medium">Filters</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="flex gap-4">
@@ -315,7 +315,7 @@ export default function StockReconciliation() {
       {/* Data Table */}
       <Card>
         <CardHeader>
-          <CardTitle>Reconciliation Data ({filteredData.length} products)</CardTitle>
+          <CardTitle className="text-lg font-medium">Reconciliation Data ({filteredData.length} products)</CardTitle>
         </CardHeader>
         <CardContent>
           {isLoading ? (

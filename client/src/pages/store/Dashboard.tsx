@@ -74,7 +74,7 @@ export default function StoreDashboard() {
     <div className="max-w-7xl mx-auto">
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-2xl font-semibold" data-testid="text-page-title">
+          <h1 className="text-xl font-semibold" data-testid="text-page-title">
             Store Dashboard
           </h1>
           {isFetching && (
@@ -83,7 +83,7 @@ export default function StoreDashboard() {
               Fetching data...
             </div>
           )}
-          <p className="text-muted-foreground">
+          <p className="text-xs text-muted-foreground">
             Manage your store sales and inventory
           </p>
         </div>
@@ -316,7 +316,7 @@ export default function StoreDashboard() {
             {/* Quick Actions */}
             <Card>
               <CardHeader>
-                <CardTitle className="flex items-center gap-2">
+                <CardTitle className="text-lg font-medium flex items-center gap-2">
                   <Activity className="h-5 w-5" />
                   Quick Actions
                 </CardTitle>
@@ -354,7 +354,7 @@ export default function StoreDashboard() {
             {/* Top Selling Products */}
             <Card>
               <CardHeader>
-                <CardTitle className="flex items-center gap-2">
+                <CardTitle className="text-lg font-medium flex items-center gap-2">
                   <TrendingUp className="h-5 w-5" />
                   Top Selling Products
                 </CardTitle>
@@ -412,7 +412,7 @@ export default function StoreDashboard() {
           {lowStockProducts && lowStockProducts.length > 0 && (
             <Card>
               <CardHeader>
-                <CardTitle className="flex items-center gap-2 text-amber-600">
+                <CardTitle className="text-lg font-medium flex items-center gap-2 text-amber-600">
                   <AlertTriangle className="h-5 w-5" />
                   Low Stock Alerts
                   <Badge variant="secondary" className="ml-2">
@@ -480,7 +480,7 @@ export default function StoreDashboard() {
         <TabsContent value="sales" className="space-y-6">
           <Card>
             <CardHeader>
-              <CardTitle className="flex items-center gap-2">
+              <CardTitle className="text-lg font-medium flex items-center gap-2">
                 <Receipt className="h-5 w-5" />
                 Recent Sales
               </CardTitle>
@@ -562,7 +562,7 @@ export default function StoreDashboard() {
             {/* Request Status Breakdown */}
             <Card>
               <CardHeader>
-                <CardTitle className="flex items-center gap-2">
+                <CardTitle className="text-lg font-medium flex items-center gap-2">
                   <ClipboardList className="h-5 w-5" />
                   Request Status
                 </CardTitle>
@@ -615,7 +615,7 @@ export default function StoreDashboard() {
             {/* Inventory Metrics */}
             <Card>
               <CardHeader>
-                <CardTitle className="flex items-center gap-2">
+                <CardTitle className="text-lg font-medium flex items-center gap-2">
                   <Package className="h-5 w-5" />
                   Inventory Metrics
                 </CardTitle>
@@ -671,7 +671,7 @@ export default function StoreDashboard() {
         <TabsContent value="activity" className="space-y-6">
           <Card>
             <CardHeader>
-              <CardTitle className="flex items-center gap-2">
+              <CardTitle className="text-lg font-medium flex items-center gap-2">
                 <Clock className="h-5 w-5" />
                 Recent Activity
               </CardTitle>

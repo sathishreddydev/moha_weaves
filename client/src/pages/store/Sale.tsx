@@ -436,7 +436,7 @@ export default function StoreSale() {
     <div className="max-w-7xl mx-auto">
       <div className="mb-4 flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-semibold" data-testid="text-page-title">
+          <h1 className="text-xl font-semibold" data-testid="text-page-title">
             New Sale
           </h1>
           {isFetching && (

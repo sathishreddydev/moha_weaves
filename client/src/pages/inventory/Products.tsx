@@ -652,12 +652,12 @@ export default function InventoryProducts() {
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
           <div>
             <h1
-              className="text-2xl font-semibold"
+              className="text-xl font-semibold"
               data-testid="text-page-title"
             >
               Products
             </h1>
-            <p className="text-muted-foreground">Manage product inventory</p>
+            <p className="text-xs text-muted-foreground">Manage product inventory</p>
             {selectedRows.size > 0 && (
               <p className="text-sm text-primary mt-1">
                 {selectedRows.size} item(s) selected

@@ -82,7 +82,7 @@ export default function Refunds() {
   return (
     <div className="p-6 space-y-6">
       <div className="flex justify-between items-center">
-        <h1 className="text-3xl font-bold">Refund Management</h1>
+        <h1 className="text-xl font-bold">Refund Management</h1>
         <Select value={statusFilter} onValueChange={(value) => setStatusFilter(value as RefundStatus | "all")}>
           <SelectTrigger className="w-48">
             <SelectValue />

@@ -164,10 +164,10 @@ export default function InventoryAnalytics() {
   return (
     <div className="max-w-7xl mx-auto">
       <div className="mb-8">
-        <h1 className="text-2xl font-semibold" data-testid="text-page-title">
+        <h1 className="text-xl font-semibold" data-testid="text-page-title">
           Advanced Inventory Analytics
         </h1>
-        <p className="text-muted-foreground">
+        <p className="text-xs text-muted-foreground">
           Comprehensive insights into inventory performance, ABC analysis, and seasonal trends
         </p>
       </div>

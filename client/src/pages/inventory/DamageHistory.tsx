@@ -254,7 +254,7 @@ export default function DamageHistory() {
           <AlertTriangle className="h-6 w-6 text-orange-500" />
           Damage History
         </h1>
-        <p className="text-muted-foreground">
+        <p className="text-xs text-muted-foreground">
           View and analyze product damage records
         </p>
       </div>

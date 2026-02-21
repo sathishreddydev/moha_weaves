@@ -1,32 +1,6 @@
-import { useState, useMemo } from "react";
-import {
-  Package,
-  Plus,
-  Minus,
-  Upload,
-  Download,
-  Save,
-  AlertTriangle,
-  CheckCircle,
-  XCircle,
-  RefreshCw,
-  Search,
-  TrendingUp,
-  TrendingDown,
-} from "lucide-react";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import {
   Dialog,
   DialogContent,
@@ -36,12 +10,33 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { Textarea } from "@/components/ui/textarea";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
-import * as XLSX from "xlsx";
+import { apiRequest } from "@/lib/queryClient";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { saveAs } from "file-saver";
+import {
+  AlertTriangle,
+  Download,
+  Package,
+  Plus,
+  Save,
+  Search,
+  TrendingUp,
+  Upload,
+  XCircle
+} from "lucide-react";
+import { useMemo, useState } from "react";
+import * as XLSX from "xlsx";
 
 interface BatchStockUpdate {
   productId: string;
@@ -318,8 +313,8 @@ export default function BatchStockOperations() {
       {/* Header */}
       <div className="flex justify-between items-center">
         <div>
-          <h1 className="text-3xl font-bold">Batch Stock Operations</h1>
-          <p className="text-muted-foreground">Update multiple products' stock levels simultaneously</p>
+          <h1 className="text-xl font-bold">Batch Stock Operations</h1>
+          <p className="text-xs text-muted-foreground">Update multiple products' stock levels simultaneously</p>
         </div>
         <div className="flex gap-2">
           <Button onClick={exportTemplate} variant="outline">
@@ -420,7 +415,7 @@ export default function BatchStockOperations() {
       {/* Add Products */}
       <Card>
         <CardHeader>
-          <CardTitle>Add Products</CardTitle>
+          <CardTitle className="text-sm font-medium">Add Products</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
@@ -462,7 +457,7 @@ export default function BatchStockOperations() {
       {updates.length > 0 && (
         <Card>
           <CardHeader>
-            <CardTitle>Updates ({updates.length})</CardTitle>
+            <CardTitle className="text-sm font-medium">Updates ({updates.length})</CardTitle>
           </CardHeader>
           <CardContent>
             <Table>

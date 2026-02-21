@@ -82,10 +82,10 @@ export default function InventoryDashboard() {
   return (
     <div className="max-w-7xl mx-auto">
       <div className="mb-8">
-        <h1 className="text-2xl font-semibold" data-testid="text-page-title">
+        <h1 className="text-xl font-semibold" data-testid="text-page-title">
           Inventory Dashboard
         </h1>
-        <p className="text-muted-foreground">
+        <p className="text-xs text-muted-foreground">
           Manage stock, requests, and online orders
         </p>
       </div>

@@ -378,11 +378,11 @@ export default function DamageReport() {
   return (
     <div className="max-w-4xl mx-auto">
       <div className="mb-8">
-        <h1 className="text-2xl font-semibold flex items-center gap-2">
+        <h1 className="text-xl font-semibold flex items-center gap-2">
           <AlertTriangle className="h-6 w-6 text-orange-500" />
           Report Product Damage
         </h1>
-        <p className="text-muted-foreground">
+        <p className="text-xs text-muted-foreground">
           Report damaged products to maintain accurate inventory records
         </p>
       </div>
