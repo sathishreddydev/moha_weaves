@@ -4,6 +4,7 @@ import { createServer } from "http";
 import cookieParser from "cookie-parser";
 import { registerRoutes } from "./routes";
 import { serveStatic } from "./static";
+import { emailService } from "./services/emailService";
 
 const app = express();
 const httpServer = createServer(app);
@@ -72,6 +73,14 @@ if (process.env.NODE_ENV !== "production") {
 
 
 async function bootstrap() {
+  // Initialize email service
+  try {
+    await emailService.initialize();
+    log("📧 Email service initialized successfully");
+  } catch (error) {
+    console.error("❌ Failed to initialize email service:", error);
+  }
+
   await registerRoutes(httpServer, app);
 
   app.use(
