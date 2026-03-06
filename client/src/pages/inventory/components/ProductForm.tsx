@@ -107,11 +107,16 @@ export const ProductForm = ({
         .replace(/-+/g, '-') // Replace multiple hyphens with single
         .trim();
       
+      // Remove trailing hyphen if exists (always check, not just when truncating)
+      if (generatedSlug.endsWith('-')) {
+        generatedSlug = generatedSlug.slice(0, -1);
+      }
+      
       // Limit to 255 characters
       if (generatedSlug.length > 255) {
         // Truncate and clean up
         generatedSlug = generatedSlug.substring(0, 255);
-        // Remove trailing hyphen if exists
+        // Remove trailing hyphen again after truncation
         if (generatedSlug.endsWith('-')) {
           generatedSlug = generatedSlug.slice(0, -1);
         }
@@ -133,9 +138,15 @@ export const ProductForm = ({
         .replace(/-+/g, '-')
         .trim();
       
+      // Remove trailing hyphen if exists (always check, not just when truncating)
+      if (newSlug.endsWith('-')) {
+        newSlug = newSlug.slice(0, -1);
+      }
+      
       // Limit to 255 characters
       if (newSlug.length > 255) {
         newSlug = newSlug.substring(0, 255);
+        // Remove trailing hyphen again after truncation
         if (newSlug.endsWith('-')) {
           newSlug = newSlug.slice(0, -1);
         }
@@ -157,26 +168,38 @@ export const ProductForm = ({
   }, [formData.name, formData.colorId, colors, editingProduct]);
 
   // Check for duplicate product
-  const checkDuplicateProduct = useCallback(async (name: string, colorId: string) => {
+  const checkDuplicateProduct = useCallback(async (name: string, colorId: string, categoryId?: string, subcategoryId?: string) => {
     if (!name.trim()) return true;
     
     try {
       const color = colors.find(c => c.id === colorId);
+      const category = categories.find(cat => cat.id === categoryId);
+      const subcategory = category?.subcategories.find(sub => sub.id === subcategoryId);
+      
       const response = await apiRequest(
         'POST',
         '/api/inventory/check-product-duplicate',
         { 
           name: name.trim(), 
           color: color?.name || '',
+          categoryId: categoryId || '',
+          subcategoryId: subcategoryId || '',
           excludeId: editingProduct?.id 
         }
       );
+      
+      // Check if same name and color
+      if (response.isSameNameAndColor) {
+        return false; // Prevent same color + name combination
+      }
+      
+      // Check if duplicate exists
       return !response.exists;
     } catch (error) {
       console.error('Error checking duplicate:', error);
       return true; // Allow submission if check fails
     }
-  }, [colors, editingProduct]);
+  }, [colors, categories, editingProduct]);
 
   // Memoized validation functions
   const validateField = useCallback(async (field: string, value: any) => {
@@ -189,10 +212,15 @@ export const ProductForm = ({
         } else if (value.trim().length > 100) {
           error = 'Product name is too long. Please keep it under 100 characters';
         } else if (formData.colorId) {
-          // Check for duplicate product
-          const isUnique = await checkDuplicateProduct(value, formData.colorId);
+          // Check for duplicate product with full combination
+          const isUnique = await checkDuplicateProduct(value, formData.colorId, formData.categoryId, formData.subcategoryId);
           if (!isUnique) {
-            error = 'A product with this name and color already exists';
+            const color = colors.find(c => c.id === formData.colorId);
+            if (color?.name.toLowerCase() === value.trim().toLowerCase()) {
+              error = 'Product name cannot be the same as color name (e.g., "Red" product with "Red" color)';
+            } else {
+              error = 'A product with this name, color, category, and subcategory combination already exists';
+            }
           }
         } else if (!/^[a-zA-Z0-9\s\-]+$/.test(value.trim())) {
           error = 'Product name can only contain letters, numbers, spaces, and hyphens. Remove special characters';
@@ -239,10 +267,15 @@ export const ProductForm = ({
         if (!value) {
           error = 'Please select a color from the dropdown list';
         } else if (formData.name) {
-          // Check for duplicate product when color changes
-          const isUnique = await checkDuplicateProduct(formData.name, value);
+          // Check for duplicate product when color changes with full combination
+          const isUnique = await checkDuplicateProduct(formData.name, value, formData.categoryId, formData.subcategoryId);
           if (!isUnique) {
-            error = 'A product with this name and color already exists';
+            const color = colors.find(c => c.id === value);
+            if (color?.name.toLowerCase() === formData.name.trim().toLowerCase()) {
+              error = 'Product name cannot be the same as color name (e.g., "Red" product with "Red" color)';
+            } else {
+              error = 'A product with this name, color, category, and subcategory combination already exists';
+            }
           }
         }
         break;
@@ -594,26 +627,61 @@ export const ProductForm = ({
     }));
   };
 
-  const validateAndSubmit = (e: React.FormEvent) => {
+  const validateAndSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
     setIsSubmitting(true);
     
-    // Validate form before submission
-    if (!validateForm()) {
+    // Basic form validation first
+    const basicValidation = validateForm();
+    if (!basicValidation) {
       setIsSubmitting(false);
       toast({
         title: "Validation Error",
-        description: "Please fix all errors before submitting",
+        description: "Please fix all required fields before submitting",
         variant: "destructive",
       });
       return;
     }
     
+    // Check full duplicate validation with API
+    const isUnique = await checkDuplicateProduct(
+      formData.name,
+      formData.colorId,
+      formData.categoryId,
+      formData.subcategoryId
+    );
+    
+    if (!isUnique) {
+      setIsSubmitting(false);
+      const color = colors.find(c => c.id === formData.colorId);
+      if (color?.name.toLowerCase() === formData.name.trim().toLowerCase()) {
+        toast({
+          title: "Validation Error",
+          description: "Product name cannot be the same as color name (e.g., 'Red' product with 'Red' color)",
+          variant: "destructive",
+        });
+      } else {
+        toast({
+          title: "Validation Error",
+          description: "A product with this name, color, category, and subcategory combination already exists",
+          variant: "destructive",
+        });
+      }
+      return;
+    }
+    
+    // All validations passed - submit the form
+    toast({
+      title: "Validating Product",
+      description: "Product details are valid. Saving...",
+    });
+    
     // Call original handleSubmit passed from parent
     handleSubmit(e);
   };
-      return (
+
+  return (
     <form onSubmit={validateAndSubmit} className="space-y-6">
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Main Column (Left) - Content */}

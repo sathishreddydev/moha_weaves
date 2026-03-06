@@ -448,7 +448,7 @@ export const inventoryRoutes = (app: Express) => {
   // Check for duplicate product API
   app.post("/api/inventory/check-product-duplicate", authInventory, async (req, res) => {
     try {
-      const { name, color, excludeId } = req.body;
+      const { name, color, categoryId, subcategoryId, excludeId } = req.body;
       
       if (!name) {
         return res.status(400).json({ error: 'Product name is required' });
@@ -477,6 +477,16 @@ export const inventoryRoutes = (app: Express) => {
         whereConditions.push(sql`${products.colorId} IS NULL`);
       }
 
+      // Add category condition if specified
+      if (categoryId) {
+        whereConditions.push(eq(products.categoryId, categoryId));
+      }
+
+      // Add subcategory condition if specified
+      if (subcategoryId) {
+        whereConditions.push(eq(products.subcategoryId, subcategoryId));
+      }
+
       // Exclude current product when editing
       if (excludeId) {
         whereConditions.push(ne(products.id, excludeId));
@@ -488,9 +498,16 @@ export const inventoryRoutes = (app: Express) => {
         .where(and(...whereConditions))
         .limit(1);
 
+      // Check if color name and product name are the same
+      const isSameNameAndColor = color && name.toLowerCase().trim() === color.toLowerCase().trim();
+
       res.json({ 
         exists: existingProduct.length > 0,
-        existingProduct: existingProduct.length > 0 ? existingProduct[0] : null
+        isSameNameAndColor,
+        existingProduct: existingProduct.length > 0 ? existingProduct[0] : null,
+        message: isSameNameAndColor ? 'Product name cannot be the same as color name' : 
+                existingProduct.length > 0 ? 'A product with this combination already exists' : 
+                'Product combination is unique'
       });
     } catch (error) {
       console.error('Error checking duplicate:', error);
