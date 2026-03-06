@@ -1,5 +1,5 @@
-import { insertProductDamageSchema, products, stockMovements, stores } from "@shared/schema";
-import { eq } from "drizzle-orm";
+import { insertProductDamageSchema, products, stockMovements, stores, colors } from "@shared/schema";
+import { eq, ne, and, sql } from "drizzle-orm";
 import type { Express } from "express";
 import { productService } from "server/product/productStorage";
 import { ProductFilters, roleBasedProductService } from "server/product/roleBasedProductService";
@@ -445,6 +445,59 @@ export const inventoryRoutes = (app: Express) => {
     },
   );
 
+  // Check for duplicate product API
+  app.post("/api/inventory/check-product-duplicate", authInventory, async (req, res) => {
+    try {
+      const { name, color, excludeId } = req.body;
+      
+      if (!name) {
+        return res.status(400).json({ error: 'Product name is required' });
+      }
+
+      // Find color ID by color name
+      let colorId = null;
+      if (color) {
+        const colorRecord = await db
+          .select()
+          .from(colors)
+          .where(eq(colors.name, color))
+          .limit(1);
+        colorId = colorRecord.length > 0 ? colorRecord[0].id : null;
+      }
+
+      const whereConditions = [
+        eq(products.name, name),
+        eq(products.isActive, true)
+      ];
+
+      // Add color condition only if color is specified
+      if (colorId) {
+        whereConditions.push(eq(products.colorId, colorId));
+      } else {
+        whereConditions.push(sql`${products.colorId} IS NULL`);
+      }
+
+      // Exclude current product when editing
+      if (excludeId) {
+        whereConditions.push(ne(products.id, excludeId));
+      }
+
+      const existingProduct = await db
+        .select()
+        .from(products)
+        .where(and(...whereConditions))
+        .limit(1);
+
+      res.json({ 
+        exists: existingProduct.length > 0,
+        existingProduct: existingProduct.length > 0 ? existingProduct[0] : null
+      });
+    } catch (error) {
+      console.error('Error checking duplicate:', error);
+      res.status(500).json({ error: 'Failed to check duplicate' });
+    }
+  });
+
   app.post("/api/inventory/products", authInventory, async (req, res) => {
     try {
       const validation = productWithAllocationsSchema.safeParse(req.body);
@@ -455,6 +508,27 @@ export const inventoryRoutes = (app: Express) => {
       }
 
       const { storeAllocations, actualPrice, variants, seoData, ...productData } = validation.data;
+
+      // Check for duplicate product (same name + color)
+      const existingProduct = await db
+        .select()
+        .from(products)
+        .where(
+          and(
+            eq(products.name, productData.name),
+            eq(products.colorId, productData.colorId || ''),
+            eq(products.isActive, true)
+          )
+        )
+        .limit(1);
+
+      if (existingProduct.length > 0) {
+        return res.status(400).json({
+          error: 'Product with this name and color already exists',
+          field: 'name',
+          existingProduct: existingProduct[0]
+        });
+      }
 
       // Handle variant products
       if (productData.hasVariants && variants && variants.length > 0) {
@@ -581,6 +655,41 @@ export const inventoryRoutes = (app: Express) => {
 
       const { storeAllocations, actualPrice, variants, seoData, ...productData } = validation.data;
       const allocations = storeAllocations || [];
+
+      // Check for duplicate product (same name + color) - exclude current product
+      if (productData.name || productData.colorId) {
+        const currentProduct = await db
+          .select()
+          .from(products)
+          .where(eq(products.id, req.params.id))
+          .limit(1);
+
+        if (currentProduct.length > 0) {
+          const nameToCheck = productData.name || currentProduct[0].name;
+          const colorIdToCheck = productData.colorId || currentProduct[0].colorId || '';
+
+          const existingProduct = await db
+            .select()
+            .from(products)
+            .where(
+              and(
+                eq(products.name, nameToCheck),
+                eq(products.colorId, colorIdToCheck),
+                eq(products.isActive, true),
+                ne(products.id, req.params.id)
+              )
+            )
+            .limit(1);
+
+          if (existingProduct.length > 0) {
+            return res.status(400).json({
+              error: 'Product with this name and color already exists',
+              field: 'name',
+              existingProduct: existingProduct[0]
+            });
+          }
+        }
+      }
 
       // Handle variant products
       if (productData.hasVariants && variants && variants.length > 0) {

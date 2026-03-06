@@ -95,8 +95,91 @@ export const ProductForm = ({
     }
   }, [createMutation?.isPending, updateMutation?.isPending]);
 
+  // Auto-generate URL slug from product name + color
+  useEffect(() => {
+    if (formData.name && formData.colorId && !formData.urlSlug) {
+      const color = colors.find(c => c.id === formData.colorId);
+      const colorName = color?.name || '';
+      
+      let generatedSlug = `${colorName.toLowerCase()} ${formData.name.toLowerCase()}`
+        .replace(/[^a-z0-9\s]/g, '') // Remove special characters except spaces
+        .replace(/\s+/g, '-') // Replace spaces with hyphens
+        .replace(/-+/g, '-') // Replace multiple hyphens with single
+        .trim();
+      
+      // Limit to 255 characters
+      if (generatedSlug.length > 255) {
+        // Truncate and clean up
+        generatedSlug = generatedSlug.substring(0, 255);
+        // Remove trailing hyphen if exists
+        if (generatedSlug.endsWith('-')) {
+          generatedSlug = generatedSlug.slice(0, -1);
+        }
+      }
+      
+      setFormData(prev => ({ ...prev, urlSlug: generatedSlug }));
+    }
+  }, [formData.name, formData.colorId, formData.urlSlug, colors]);
+
+  // Update slug when name or color changes (if slug was auto-generated or empty)
+  useEffect(() => {
+    if (formData.name && formData.colorId && formData.urlSlug) {
+      const color = colors.find(c => c.id === formData.colorId);
+      const colorName = color?.name || '';
+      
+      let newSlug = `${colorName.toLowerCase()} ${formData.name.toLowerCase()}`
+        .replace(/[^a-z0-9\s]/g, '')
+        .replace(/\s+/g, '-')
+        .replace(/-+/g, '-')
+        .trim();
+      
+      // Limit to 255 characters
+      if (newSlug.length > 255) {
+        newSlug = newSlug.substring(0, 255);
+        if (newSlug.endsWith('-')) {
+          newSlug = newSlug.slice(0, -1);
+        }
+      }
+      
+      // Update slug if it follows the expected pattern or was auto-generated
+      const expectedPattern = `${colorName.toLowerCase()}-${formData.name.toLowerCase()
+        .replace(/[^a-z0-9\s]/g, '')
+        .replace(/\s+/g, '-')}`;
+      
+      // Always update for existing products when name/color changes
+      if (editingProduct || 
+          formData.urlSlug.startsWith(expectedPattern.split('-')[0]) || 
+          formData.urlSlug === expectedPattern ||
+          !formData.urlSlug.includes('-')) {
+        setFormData(prev => ({ ...prev, urlSlug: newSlug }));
+      }
+    }
+  }, [formData.name, formData.colorId, colors, editingProduct]);
+
+  // Check for duplicate product
+  const checkDuplicateProduct = useCallback(async (name: string, colorId: string) => {
+    if (!name.trim()) return true;
+    
+    try {
+      const color = colors.find(c => c.id === colorId);
+      const response = await apiRequest(
+        'POST',
+        '/api/inventory/check-product-duplicate',
+        { 
+          name: name.trim(), 
+          color: color?.name || '',
+          excludeId: editingProduct?.id 
+        }
+      );
+      return !response.exists;
+    } catch (error) {
+      console.error('Error checking duplicate:', error);
+      return true; // Allow submission if check fails
+    }
+  }, [colors, editingProduct]);
+
   // Memoized validation functions
-  const validateField = useCallback((field: string, value: any) => {
+  const validateField = useCallback(async (field: string, value: any) => {
     let error = '';
     
     switch (field) {
@@ -105,6 +188,12 @@ export const ProductForm = ({
           error = 'Product name must be at least 2 characters (e.g., "Cotton Shirt")';
         } else if (value.trim().length > 100) {
           error = 'Product name is too long. Please keep it under 100 characters';
+        } else if (formData.colorId) {
+          // Check for duplicate product
+          const isUnique = await checkDuplicateProduct(value, formData.colorId);
+          if (!isUnique) {
+            error = 'A product with this name and color already exists';
+          }
         } else if (!/^[a-zA-Z0-9\s\-]+$/.test(value.trim())) {
           error = 'Product name can only contain letters, numbers, spaces, and hyphens. Remove special characters';
         }
@@ -149,6 +238,12 @@ export const ProductForm = ({
       case 'colorId':
         if (!value) {
           error = 'Please select a color from the dropdown list';
+        } else if (formData.name) {
+          // Check for duplicate product when color changes
+          const isUnique = await checkDuplicateProduct(formData.name, value);
+          if (!isUnique) {
+            error = 'A product with this name and color already exists';
+          }
         }
         break;
       case 'fabricId':
@@ -1584,20 +1679,26 @@ export const ProductForm = ({
                   <Input
                     id="urlSlug"
                     value={formData.urlSlug}
-                    onChange={(e) => {
-                      const sanitizedValue = e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '-');
-                      setFormData((prev) => ({ ...prev, urlSlug: sanitizedValue }));
-                      debouncedValidation('urlSlug', sanitizedValue);
-                    }}
-                    placeholder="product-url-slug"
-                    className={`w-full text-sm ${errors.urlSlug ? 'border-red-500' : ''}`}
+                    readOnly
+                    disabled
+                    placeholder="auto-generated-from-color-and-name"
+                    className={`w-full text-sm bg-gray-50 ${errors.urlSlug ? 'border-red-500' : ''}`}
                   />
                   {errors.urlSlug && (
                     <p className="text-xs text-red-500 mt-1">{errors.urlSlug}</p>
                   )}
-                  <p className="text-xs text-muted-foreground mt-1">
-                    URL-friendly version of the product name (auto-generated from product name if empty)
-                  </p>
+                  <div className="flex justify-between items-center mt-1">
+                    <p className="text-xs text-muted-foreground">
+                      Automatically generated from color + product name (e.g., "blue-cotton-shirt")
+                    </p>
+                    <p className={`text-xs ${
+                      formData.urlSlug?.length > 240 ? 'text-orange-500' : 
+                      formData.urlSlug?.length === 255 ? 'text-red-500' : 
+                      'text-muted-foreground'
+                    }`}>
+                      {formData.urlSlug?.length || 0}/255
+                    </p>
+                  </div>
                 </div>
               </div>
             </div>
