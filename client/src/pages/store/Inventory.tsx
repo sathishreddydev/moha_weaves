@@ -9,9 +9,9 @@ import { ColumnDef } from "@tanstack/react-table";
 import { ArrowLeftRight, Globe, Package, RefreshCw, Store } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import { RequestDialog } from "./utils/RequestDialog";
-import { FilterItem, ShopProduct, StoreTreeNode } from "./utils/types";
-import { createInventoryFilters } from "./utils/filterUtils";
+import { RequestDialog } from "./Utils/RequestDialog";
+import { FilterItem, ShopProduct, StoreTreeNode } from "./Utils/types";
+import { createInventoryFilters } from "./Utils/filterUtils";
 import { formatPrice } from "@/lib/utils";
 
 export default function StoreInventoryPage() {

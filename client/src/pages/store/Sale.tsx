@@ -14,14 +14,14 @@ import {
   hasItemsInCart,
   isOutOfStock,
   updateCartItemQuantity
-} from "@/pages/store/utils/cartUtils";
-import { createSaleFilters } from "@/pages/store/utils/filterUtils";
+} from "@/pages/store/Utils/cartUtils";
+import { createSaleFilters } from "@/pages/store/Utils/filterUtils";
 import { ColumnDef } from "@tanstack/react-table";
 import { Camera, Minus, Plus, RefreshCw, ShoppingCart, Trash2 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useStoreCart } from "./Hook/cartForStore";
-import { FilterItem, ShopProduct } from "./utils/types";
+import { FilterItem, ShopProduct } from "./Utils/types";
 import { formatPrice } from "@/lib/utils";
 
 export default function StoreSale() {

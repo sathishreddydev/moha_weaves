@@ -24,7 +24,7 @@ import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { Link, Navigate, useNavigate } from "react-router-dom";
 import { z } from "zod";
-import { LoginFormValues } from "./utils/types";
+import { LoginFormValues } from "./Utils/types";
 
 const loginSchema = z.object({
   email: z.string().email("Please enter a valid email"),

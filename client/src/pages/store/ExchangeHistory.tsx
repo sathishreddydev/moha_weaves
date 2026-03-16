@@ -8,7 +8,7 @@ import { ColumnDef } from "@tanstack/react-table";
 import { ArrowLeftRight, Eye, Package, RefreshCw } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { formatDate, formatPrice } from "@/lib/utils";
-import { createExchangeFilters } from "./utils/filterUtils";
+import { createExchangeFilters } from "./Utils/filterUtils";
 
 export default function StoreExchangeHistory() {
   const navigate = useNavigate();

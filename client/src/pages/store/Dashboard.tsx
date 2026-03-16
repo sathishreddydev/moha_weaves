@@ -34,7 +34,7 @@ import {
 } from "lucide-react";
 import { useState } from "react";
 import { Link } from "react-router-dom";
-import { DashboardData } from "./utils/types";
+import { DashboardData } from "./Utils/types";
 
 export default function StoreDashboard() {
   const { user } = useAuth();

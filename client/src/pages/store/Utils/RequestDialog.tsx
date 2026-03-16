@@ -4,10 +4,9 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
-import { ProductWithDetails } from "@shared/schema";
 import { useMutation } from "@tanstack/react-query";
-import { useState } from "react";
 import type { FormEvent } from "react";
+import { useState } from "react";
 import { AdaptiveModal } from "../../../components/common/AdaptiveModal";
 import { RequestDialogProps } from "./types";
 

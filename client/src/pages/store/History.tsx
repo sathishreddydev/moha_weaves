@@ -19,7 +19,7 @@ import type { StoreSaleWithItems } from "@shared/schema";
 import { ColumnDef } from "@tanstack/react-table";
 import { formatDate, formatPrice } from "@/lib/utils";
 import { saveAs } from "file-saver";
-import { createHistoryFilters } from "./utils/filterUtils";
+import { createHistoryFilters } from "./Utils/filterUtils";
 import {
   AlertCircle,
   ArrowLeftRight,

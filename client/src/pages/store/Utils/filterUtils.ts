@@ -1,4 +1,4 @@
-import { FilterItem } from "@/pages/store/utils/types";
+import { FilterItem } from "@/pages/store/Utils/types";
 import type { CategoryWithSubcategories, Color, Fabric, Subcategory } from "@shared/schema";
 
 export const createSaleFilters = (

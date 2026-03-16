@@ -9,7 +9,7 @@ import type { StockRequestWithDetails } from "@shared/schema";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { ColumnDef } from "@tanstack/react-table";
 import { CheckCircle, Clock, Package, XCircle } from "lucide-react";
-import { createRequestFilters } from "./utils/filterUtils";
+import { createRequestFilters } from "./Utils/filterUtils";
 import { useMemo } from "react";
 const statusConfig: Record<
   string,

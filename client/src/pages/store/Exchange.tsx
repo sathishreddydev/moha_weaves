@@ -35,9 +35,9 @@ import {
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { damageReasons, exchangeTypes, normalExchangeReasons } from "./utils/exchangeReasons";
-import { NewCartItem, ReturnItem, SaleItemWithAvailable, ShopProduct } from "./utils/types";
-import { ExchangeType } from "./utils/enums";
+import { damageReasons, exchangeTypes, normalExchangeReasons } from "./Utils/exchangeReasons";
+import { NewCartItem, ReturnItem, SaleItemWithAvailable, ShopProduct } from "./Utils/types";
+import { ExchangeType } from "./Utils/enums";
 
 
 const getSpecificReasons = (exchangeType: string) => {

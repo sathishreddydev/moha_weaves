@@ -11,7 +11,7 @@ import {
   groupCartItemsByProduct,
   safeParseFloat,
   updateCartItemQuantity
-} from "@/pages/store/utils/cartUtils";
+} from "@/pages/store/Utils/cartUtils";
 import { useQueryClient } from "@tanstack/react-query";
 import { ColumnDef } from "@tanstack/react-table";
 import {
@@ -26,8 +26,8 @@ import {
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { CartItem, useStoreCart } from "./Hook/cartForStore";
-import { PaymentMethod } from "./utils/enums";
-import { Discount, ExistingCustomer, LoyaltyData } from "./utils/types";
+import { PaymentMethod } from "./Utils/enums";
+import { Discount, ExistingCustomer, LoyaltyData } from "./Utils/types";
 import { formatPrice } from "@/lib/utils";
 
 
