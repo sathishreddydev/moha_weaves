@@ -64,15 +64,15 @@ export class OrderRepository implements OrderStorage {
         ...item,
         id: itemId,
         orderId: newOrder.id,
-        status: "pending"
+        status: "confirmed" // 🔄 Changed from "pending" to "confirmed"
       }).returning();
 
       // Create initial item status history
       await storage.itemHistory(
         newOrderItem.id,
-        "pending",
-        "pending",
-        "Order created"
+        "confirmed",
+        "confirmed",
+        "Order placed and confirmed"
       );
 
       // Deduct from online stock and total stock

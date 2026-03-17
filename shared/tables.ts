@@ -254,6 +254,14 @@ export const orders = pgTable("orders", {
   couponId: varchar("coupon_id"),
   notes: text("notes"),
   returnEligibleUntil: timestamp("return_eligible_until"),
+  // Delhivery integration fields
+  shippingMethod: enums.shippingMethodEnum("shipping_method").default("manual"),
+  delhiveryWaybill: text("delhivery_waybill"),
+  delhiveryOrderId: text("delhivery_order_id"),
+  delhiveryStatus: text("delhivery_status"),
+  shipmentType: varchar("shipment_type").default("complete"),
+  totalShipments: integer("total_shipments").default(1),
+  completedShipments: integer("completed_shipments").default(0),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });
@@ -278,6 +286,11 @@ export const orderItems = pgTable("order_items", {
   shippedAt: timestamp("shipped_at"),
   deliveredAt: timestamp("delivered_at"),
   returnEligibleUntil: timestamp("return_eligible_until"),
+  shipmentId: varchar("shipment_id"),
+  delhiveryWaybill: text("delhivery_waybill"),
+  delhiveryPackageId: text("delhivery_package_id"),
+  weight: decimal("weight", { precision: 8, scale: 3 }),
+  dimensions: text("dimensions"), // "LxBxH" format
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });
@@ -852,6 +865,23 @@ export const productDamages = pgTable("product_damages", {
   status: varchar("status").notNull().default("pending"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
+// Shipments table for split orders and Delhivery tracking
+export const shipments = pgTable("shipments", {
+  id: varchar("id")
+    .primaryKey()
+    .default(sql`gen_random_uuid()`),
+  orderId: varchar("order_id")
+    .references(() => orders.id)
+    .notNull(),
+  waybill: varchar("waybill"),
+  status: enums.shipmentStatusEnum("status").default("pending"),
+  items: text("items"), // JSON array of item IDs
+  shippingMethod: enums.shippingMethodEnum("shipping_method").notNull(),
+  createdAt: timestamp("created_at").notNull().defaultNow(),
+  shippedAt: timestamp("shipped_at"),
+  deliveredAt: timestamp("delivered_at"),
 });
 
 // Contact Us Schema

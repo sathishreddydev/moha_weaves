@@ -18,8 +18,13 @@ export const itemStatusEnum = pgEnum("item_status", [
   "pending",
   "confirmed",
   "processing",
+  "dispatched",        // 🆕 Delhivery dispatched
+  "in_transit",        // 🆕 Delhivery in transit
+  "out_for_delivery",  // 🆕 Delhivery out for delivery
   "shipped",
   "delivered",
+  "rto_initiated",     // 🆕 Return to Origin
+  "ndr_pending",       // 🆕 Non-Delivery Report
   'return_requested',
   'exchange_requested',
   "cancelled",
@@ -72,6 +77,27 @@ export const paymentStatusEnum = pgEnum("payment_status", [
 
 export const paymentMethodEnum = pgEnum("payment_method", [
   "razorpay",
+]);
+
+// 🆕 Shipping and Delhivery enums
+export const shippingMethodEnum = pgEnum("shipping_method", [
+  "manual",
+  "delhivery",
+]);
+
+export const shipmentStatusEnum = pgEnum("shipment_status", [
+  "pending",
+  "processing",
+  "dispatched",
+  "in_transit",
+  "out_for_delivery",
+  "delivered",
+  "cancelled",
+]);
+
+export const shipmentTypeEnum = pgEnum("shipment_type", [
+  "complete",
+  "split",
 ]);
 
 // Store and distribution enums

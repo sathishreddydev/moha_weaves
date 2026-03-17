@@ -16,6 +16,7 @@ import { refundRoutes } from "./refund/refundRoutes";
 import { returnRoutes } from "./return/returnRoutes";
 import { reviewRoutes } from "./review/reviewRoutes";
 import { salesService } from "./sales&offer/salesStorage";
+import { shippingRoutes } from "./shipping/shippingRoutes";
 import { storage } from "./storage";
 import { storeCartRoutes } from "./store/StoreCartRoutes";
 import { storeRoutes } from "./store/storeRoutes";
@@ -44,7 +45,8 @@ export async function registerRoutes(
   returnRoutes(app);
   onlineExchangeRoutes(app);
   contactRoutes(app);
-  storeCartRoutes(app)
+  storeCartRoutes(app);
+  shippingRoutes(app);
   // Serve uploaded files
   app.get("/objects/:objectPath(*)", async (req, res) => {
     try {

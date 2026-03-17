@@ -274,6 +274,7 @@ export const orderRoutes = (app: Express) => {
           phone,
           notes,
           status: "created",
+          shippingMethod: "manual", // 🆕 Add default shipping method
         },
         cartItems.cart.map((item) => {
           const originalPrice =
@@ -462,6 +463,7 @@ export const orderRoutes = (app: Express) => {
             paymentStatus: "paid",
             paymentMethod: "razorpay",
             razorpayPaymentId,
+            shippingMethod: "manual", // Add default shipping method
           },
           cartItems.cart.map((item) => {
             // Get variant price if variant exists, otherwise use product price
