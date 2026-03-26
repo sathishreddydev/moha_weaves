@@ -7,7 +7,7 @@ import {
   storeExchanges,
   storeInventory,
   storeSales
-} from "@shared/tables";
+} from "@shared/schema";
 import {
   ProductWithDetails,
   StockRequestWithDetails,

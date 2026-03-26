@@ -1,7 +1,7 @@
 // Import sql for raw queries
 import { sql } from "drizzle-orm";
 
-import { orders } from "@shared/tables";
+import { orders } from "@shared/schema";
 import { db } from "../db";
 
 // Sequential ID Generator for Business Context

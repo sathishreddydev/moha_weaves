@@ -9,6 +9,8 @@ import { createAuthMiddleware } from "../authMiddleware";
 import { cartServices } from "../cart/cartStorage";
 import { paymentInfo } from "./createOrderService";
 import { orderService } from "./orderStorage";
+import { AutomaticShippingService } from "../shipping/automaticShippingService";
+import { NotificationService } from "../services/notificationService";
 
 export const orderRoutes = (app: Express) => {
   const authUser = createAuthMiddleware(["user"]);
@@ -385,6 +387,7 @@ export const orderRoutes = (app: Express) => {
         razorpaySignature,
         shippingAddress,
         phone,
+        email, // 🆕 Add email field
         notes,
         couponId,
       } = req.body;
@@ -458,12 +461,14 @@ export const orderRoutes = (app: Express) => {
             couponId,
             shippingAddress,
             phone,
+            email, // 🆕 Add email field
             notes,
             status: "created",
             paymentStatus: "paid",
             paymentMethod: "razorpay",
             razorpayPaymentId,
-            shippingMethod: "manual", // Add default shipping method
+            shippingMethod: "delhivery", // 🚀 Default to Delhivery for automatic processing
+            autoProcessed: true, // 🆕 Enable automatic processing
           },
           cartItems.cart.map((item) => {
             // Get variant price if variant exists, otherwise use product price
@@ -529,10 +534,60 @@ export const orderRoutes = (app: Express) => {
       // 5️⃣ Clear cart
       await cartServices.clearCart(userId);
 
-      res.json({
-        orderId: order.id,
-        message: "Payment successful, order created",
-      });
+      // 6️⃣ 🚀 AUTOMATIC SHIPPING PROCESSING
+      console.log(`🚀 Starting automatic shipping for order: ${order.id}`);
+      
+      try {
+        // Send order confirmation first
+        await NotificationService.sendOrderConfirmation(order.id);
+        
+        // Process shipping automatically
+        const shippingResult = await AutomaticShippingService.processShippingAutomatically(order.id);
+        
+        if (shippingResult.success) {
+          // Send shipping confirmation
+          await NotificationService.sendShippingConfirmation(
+            order.id, 
+            shippingResult.waybill!, 
+            shippingResult.estimatedDelivery
+          );
+          
+          console.log(`✅ Order ${order.id} processed and shipped successfully`);
+          
+          res.json({
+            orderId: order.id,
+            message: "Payment successful, order created and shipped automatically",
+            shipping: {
+              waybill: shippingResult.waybill,
+              courier: shippingResult.courier,
+              estimatedDelivery: shippingResult.estimatedDelivery
+            }
+          });
+        } else {
+          // Shipping failed but order created
+          await AutomaticShippingService.handleShippingFailure(order.id, new Error(shippingResult.error || "Unknown shipping error"));
+          
+          console.log(`⚠️ Order ${order.id} created but shipping failed: ${shippingResult.error}`);
+          
+          res.json({
+            orderId: order.id,
+            message: "Payment successful, order created (shipping will be processed manually)",
+            shipping: null,
+            note: "Shipping failed - will be processed manually"
+          });
+        }
+      } catch (shippingError) {
+        // Handle any shipping errors gracefully
+        console.error(`❌ Automatic shipping error for order ${order.id}:`, shippingError);
+        await AutomaticShippingService.handleShippingFailure(order.id, shippingError instanceof Error ? shippingError : new Error("Unknown shipping error"));
+        
+        res.json({
+          orderId: order.id,
+          message: "Payment successful, order created (shipping will be processed manually)",
+          shipping: null,
+          note: "Automatic shipping failed - will be processed manually"
+        });
+      }
     } catch (err) {
       console.error(err);
       res.status(500).json({ message: "Payment verification failed" });

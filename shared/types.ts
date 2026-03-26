@@ -170,9 +170,23 @@ export type OrderWithItems = Order & {
     subtype?: string;
     razorpayPaymentId?: string;
   };
+  // Delhivery integration fields
+  delhiveryWaybill?: string;
+  delhiveryStatus?: string;
+  shippingMethod?: string;
+  estimatedDelivery?: string;
+  autoProcessed?: boolean;
+  addressValidated?: boolean;
+  pickupScheduled?: boolean;
+  customerNotified?: boolean;
+  // Legacy tracking field for backward compatibility
+  trackingNumber?: string; // Maps to delhiveryWaybill
   items: (OrderItem & { 
     product: ProductWithDetails;
     returnEligibility?: { itemId: string; eligible: boolean; reason?: string; remainingDays?: number };
+    // Delhivery item fields
+    delhiveryWaybill?: string;
+    shipmentId?: string;
   })[];
 };
 

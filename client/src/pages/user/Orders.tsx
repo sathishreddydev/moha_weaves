@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
+import { TrackingStatus } from "@/components/shipping/TrackingStatus";
 import { getItemStatusConfig, isItemCancelled, isItemDelivered, isItemInProgress, isItemShipped } from "@/constants/itemStatusConfig";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/lib/auth";
@@ -334,11 +335,18 @@ export default function Orders() {
                     </div>
                   </div>
 
-                  {order.trackingNumber ? (
-                    <div className="text-xs text-muted-foreground">
-                      Tracking: <span className="font-medium">{order.trackingNumber}</span>
+                  {/* Enhanced Tracking Status */}
+                  {(order.delhiveryWaybill || order.trackingNumber) && (
+                    <div className="mt-2">
+                      <TrackingStatus
+                        waybill={order.delhiveryWaybill || order.trackingNumber}
+                        status={order.delhiveryStatus}
+                        shippingMethod={order.shippingMethod}
+                        estimatedDelivery={order.estimatedDelivery}
+                        compact={true}
+                      />
                     </div>
-                  ) : null}
+                  )}
                 </div>
 
                 <div className="flex flex-wrap items-center gap-2">
@@ -434,27 +442,28 @@ export default function Orders() {
                   </div>
 
                   <div className="flex flex-col sm:flex-row gap-2 sm:items-center">
-                    {order.trackingNumber ? (
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="w-full sm:w-auto"
-                        onClick={() => handleCopyTracking(order.trackingNumber!)}
-                      >
-                        Copy tracking
-                      </Button>
-                    ) : null}
-
-                    {order.paymentStatus === "paid" ? (
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="w-full sm:w-auto"
-                        onClick={() => handleDownloadInvoice(order.id)}
-                      >
-                        Download invoice
-                      </Button>
-                    ) : null}
+                    {/* Show auto-processed badge if applicable */}
+                    {order.autoProcessed && (
+                      <Badge variant="secondary" className="text-xs bg-green-50 text-green-700 border-green-200">
+                        Auto-processed
+                      </Badge>
+                    )}
+                    
+                    {/* Show shipping method if available */}
+                    {order.shippingMethod && order.shippingMethod !== "manual" && (
+                      <Badge variant="outline" className="text-xs">
+                        {order.shippingMethod.toUpperCase()}
+                      </Badge>
+                    )}
+                    
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleDownloadInvoice(order.id)}
+                      className="w-full sm:w-auto"
+                    >
+                      Download invoice
+                    </Button>
                   </div>
                 </div>
               </div>

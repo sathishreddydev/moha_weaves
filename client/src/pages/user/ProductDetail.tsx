@@ -1,4 +1,5 @@
 import { ProductSharePopover } from "@/components/common/ProductSharePopover";
+import { PincodeChecker } from "@/components/common/PincodeChecker";
 import { ProductCard } from "@/components/product/ProductCard";
 import { ProductImageGallery } from "@/components/product/ProductImageGallery";
 import { Reviews } from "@/components/product/Reviews";
@@ -472,6 +473,19 @@ export default function ProductDetail() {
                 7 Day Returns
               </span>
             </div>
+          </div>
+
+          {/* Pincode Checker */}
+          <div className="mt-6">
+            <PincodeChecker
+              onPincodeValid={(pincode, data) => {
+                console.log("Pincode valid:", pincode, data);
+              }}
+              onPincodeInvalid={(pincode) => {
+                console.log("Pincode invalid:", pincode);
+              }}
+              size="sm"
+            />
           </div>
 
           <Accordion

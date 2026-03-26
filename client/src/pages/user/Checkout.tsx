@@ -14,7 +14,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/lib/auth";
 import { apiRequest } from "@/lib/queryClient";
 import type { Coupon } from "@shared/schema";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueryClient, useQuery } from "@tanstack/react-query";
 import {
   ArrowLeft,
   CreditCard,
@@ -22,12 +22,48 @@ import {
   Plus,
   ShoppingBag,
   Tag,
-  X
+  Truck,
+  X,
+  CheckCircle,
+  AlertTriangle
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { z } from "zod";
 import OrderSuccess from "./OrderSuccess";
+
+// 🆕 Address validation interface
+interface AddressForValidation {
+  name: string;
+  addressLine1: string;
+  city: string;
+  state: string;
+  pincode: string;
+  phone: string;
+}
+
+interface AddressValidationResult {
+  isValid: boolean;
+  isServiceable: boolean;
+  originalAddress?: AddressForValidation;
+  suggestedAddress?: AddressForValidation;
+  requiresCustomerConfirmation?: boolean;
+  validationErrors?: string[];
+  serviceabilityDetails?: {
+    prepaid: boolean;
+    cod: boolean;
+    city: string;
+    state: string;
+    country: string;
+  };
+}
+
+interface ShippingEstimate {
+  canShip: boolean;
+  estimatedCost: number;
+  estimatedDays: number;
+  availableCouriers: string[];
+}
 
 const addressFormSchema = z.object({
   name: z.string().min(2, "Name must be at least 2 characters"),
@@ -50,6 +86,8 @@ export default function Checkout() {
   const [couponCode, setCouponCode] = useState("");
   const [appliedCoupon, setAppliedCoupon] = useState<Coupon | null>(null);
   const [couponError, setCouponError] = useState("");
+  const [addressValidation, setAddressValidation] = useState<AddressValidationResult | null>(null);
+  const [shippingEstimate, setShippingEstimate] = useState<ShippingEstimate | null>(null);
 
   const [newAddress, setNewAddress] = useState({
     name: "",
@@ -83,6 +121,68 @@ export default function Checkout() {
       }
     }
   }, [addresses]);
+
+  // 🆕 Address validation function
+  const validateAddress = async (address: AddressForValidation) => {
+    try {
+      const validation = await apiRequest(
+        "POST", 
+        "/api/shipping/validate-address", 
+        address
+      ) as AddressValidationResult;
+      
+      setAddressValidation(validation);
+      
+      if (validation.suggestedAddress) {
+        toast({
+          title: "Address Suggestion",
+          description: "We've suggested a better address format for faster delivery",
+          variant: "default"
+        });
+      }
+      
+      // Get shipping estimate
+      try {
+        const estimate = await apiRequest(
+          "POST", 
+          "/api/shipping/estimate", 
+          { address, method: "delhivery" }
+        ) as ShippingEstimate;
+        setShippingEstimate(estimate);
+      } catch (error) {
+        console.log("Shipping estimate failed:", error);
+      }
+      
+    } catch (error) {
+      toast({
+        title: "Address Issue",
+        description: "We couldn't validate this address. Please check and try again.",
+        variant: "destructive"
+      });
+      setAddressValidation({ 
+        isValid: false, 
+        isServiceable: false, 
+        validationErrors: ["Validation failed"] 
+      });
+    }
+  };
+
+  // Validate address when selected
+  useEffect(() => {
+    if (selectedAddressId && addresses.length > 0) {
+      const selectedAddress = addresses.find((a) => a.id === selectedAddressId);
+      if (selectedAddress) {
+        validateAddress({
+          name: selectedAddress.name,
+          addressLine1: selectedAddress.locality,
+          city: selectedAddress.city,
+          state: "", // Will be filled by validation
+          pincode: selectedAddress.pincode,
+          phone: selectedAddress.phone
+        });
+      }
+    }
+  }, [selectedAddressId, addresses]);
 
   const applyCouponMutation = useMutation({
     mutationFn: async (code: string) => {
@@ -147,39 +247,6 @@ export default function Checkout() {
       return;
     }
 
-    const pincode = newAddress.pincode;
-    if (pincode.length !== 6) {
-      toast({
-        title: "Invalid Pincode",
-        description: "Please enter a valid 6-digit pincode",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    try {
-      setCheckingPincode(true);
-      const pincodeData = await apiRequest("GET", `/api/pincodes/${pincode}/check`);
-      setCheckingPincode(false);
-
-      if (!pincodeData.available) {
-        toast({
-          title: "Delivery Not Available",
-          description: "We do not deliver to this pincode",
-          variant: "destructive",
-        });
-        return;
-      }
-    } catch {
-      setCheckingPincode(false);
-      toast({
-        title: "Pincode Check Failed",
-        description: "Unable to verify delivery availability. Try again later.",
-        variant: "destructive",
-      });
-      return;
-    }
-
     try {
       await createNewAddresses({ ...newAddress, userId: user!.id });
       setShowNewAddressForm(false);
@@ -195,32 +262,43 @@ export default function Checkout() {
     }
   };
 
-  const openRazorpayCheckout = (params: {
+  const openRazorpayCheckout = ({
+    razorpayOrderId,
+    amount,
+    currency,
+    shippingAddress,
+    phone,
+    email, // 🆕 Add email parameter
+    notes,
+    couponId,
+  }: {
     razorpayOrderId: string;
     amount: number;
     currency: string;
     shippingAddress: string;
     phone: string;
-    notes?: string;
+    email?: string; // 🆕 Make email optional
+    notes: string;
     couponId?: string;
   }) => {
     const options = {
       key: "rzp_test_UxXBzl98ySixq7",
-      amount: params.amount,
-      currency: params.currency,
+      amount: amount,
+      currency: currency,
       name: "Moha Weaves",
       description: "Order Payment",
-      order_id: params.razorpayOrderId,
+      order_id: razorpayOrderId,
 
       handler: async function (response: any) {
         const res = await apiRequest("POST", "/api/user/verify-payment", {
           razorpayOrderId: response.razorpay_order_id,
           razorpayPaymentId: response.razorpay_payment_id,
           razorpaySignature: response.razorpay_signature,
-          shippingAddress: params.shippingAddress,
-          phone: params.phone,
-          notes: params.notes,
-          couponId: params.couponId,
+          shippingAddress: shippingAddress,
+          phone: phone,
+          email: email, // 🆕 Add email to verification
+          notes: notes,
+          couponId: couponId,
         });
 
         const data = res;
@@ -267,6 +345,16 @@ export default function Checkout() {
       return;
     }
 
+    // 🆕 Check address validation before payment
+    if (addressValidation && !addressValidation.isServiceable) {
+      toast({
+        title: "Delivery Not Available",
+        description: "This address is not serviceable by our shipping partners",
+        variant: "destructive",
+      });
+      return;
+    }
+
     const shippingAddress = `${selectedAddress.name}\n${selectedAddress.phone}\n${selectedAddress.locality}\n${selectedAddress.city} - ${selectedAddress.pincode}`;
 
     try {
@@ -280,6 +368,7 @@ export default function Checkout() {
         currency: razorpayOrder.currency,
         shippingAddress,
         phone: selectedAddress.phone,
+        email: user?.email, // 🆕 Add email for notifications
         notes,
         couponId: appliedCoupon?.id,
       });
@@ -662,6 +751,78 @@ export default function Checkout() {
               />
             </CardContent>
           </Card>
+
+          {/* 🆕 Shipping Validation */}
+          {addressValidation && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Truck className="h-5 w-5" />
+                  Shipping Information
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-3">
+                  {addressValidation.isServiceable ? (
+                    <div className="flex items-center gap-2 p-3 bg-green-50 rounded-lg">
+                      <CheckCircle className="h-5 w-5 text-green-600" />
+                      <div>
+                        <p className="font-medium text-green-800">Delivery Available</p>
+                        <p className="text-sm text-green-600">
+                          Your address is serviceable by Delhivery Express
+                        </p>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-2 p-3 bg-red-50 rounded-lg">
+                      <AlertTriangle className="h-5 w-5 text-red-600" />
+                      <div>
+                        <p className="font-medium text-red-800">Delivery Not Available</p>
+                        <p className="text-sm text-red-600">
+                          This address is not serviceable by our shipping partners
+                        </p>
+                      </div>
+                    </div>
+                  )}
+
+                  {shippingEstimate && shippingEstimate.canShip && (
+                    <div className="p-3 bg-blue-50 rounded-lg">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="font-medium text-blue-800">Estimated Delivery</p>
+                          <p className="text-sm text-blue-600">
+                            {shippingEstimate.estimatedDays} business days
+                          </p>
+                        </div>
+                        <div className="text-right">
+                          <p className="font-medium text-blue-800">Shipping Cost</p>
+                          <p className="text-sm text-blue-600">
+                            {formatPrice(shippingEstimate.estimatedCost)}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {addressValidation.suggestedAddress && (
+                    <div className="p-3 bg-yellow-50 rounded-lg">
+                      <p className="font-medium text-yellow-800 mb-2">Address Suggestion</p>
+                      <p className="text-sm text-yellow-700">
+                        We've suggested an optimized address format for faster delivery:
+                      </p>
+                      <div className="mt-2 p-2 bg-white rounded border text-sm">
+                        <p>{addressValidation.suggestedAddress.name}</p>
+                        <p>{addressValidation.suggestedAddress.addressLine1}</p>
+                        <p>
+                          {addressValidation.suggestedAddress.city}, {addressValidation.suggestedAddress.state} - {addressValidation.suggestedAddress.pincode}
+                        </p>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          )}
         </div>
 
         {/* Order Summary */}

@@ -19,6 +19,9 @@ import {
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
+import { TrackingStatus } from "@/components/shipping/TrackingStatus";
+import { ShippingTimeline } from "@/components/shipping/ShippingTimeline";
+import { useRealTimeTracking } from "@/hooks/useRealTimeTracking";
 import { getItemStatusConfig, isItemDelivered, returnReasons } from "@/constants/itemStatusConfig";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/lib/auth";
@@ -27,7 +30,8 @@ import type { OrderWithItems } from "@shared/schema";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import {
   ArrowLeft,
-  Package
+  Package,
+  RefreshCw
 } from "lucide-react";
 import { useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
@@ -39,6 +43,9 @@ export default function OrderDetail() {
   const { user } = useAuth();
   const { toast } = useToast();
   const navigate = useNavigate();
+
+  // Real-time tracking updates
+  const { order: liveOrder, refreshTracking } = useRealTimeTracking(id || "");
 
   const [, setShowStatusDialog] = useState(false);
   const [showReturnDialog, setShowReturnDialog] = useState(false);
@@ -53,10 +60,13 @@ export default function OrderDetail() {
 
   const [modalItemId, setModalItemId] = useState<string | null>(null);
 
-  const { data: order, isLoading } = useQuery<OrderWithItems>({
+  // Use live order data if available, fallback to static query
+  const { data: staticOrder, isLoading } = useQuery<OrderWithItems>({
     queryKey: ["/api/user/orders", id],
-    enabled: !!user && !!id,
+    enabled: !!user && !!id && !liveOrder,
   });
+
+  const order = liveOrder || staticOrder;
 
   // Fetch stock for products in this order to enable/disable exchange
   const { data: productWithStock } = useQuery<
@@ -299,6 +309,18 @@ export default function OrderDetail() {
           </p>
         </div>
         <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2">
+          {/* Refresh tracking button */}
+          {(order.delhiveryWaybill || order.trackingNumber) && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={refreshTracking}
+              className="w-full sm:w-auto"
+            >
+              <RefreshCw className="h-4 w-4 mr-1" />
+              Refresh Tracking
+            </Button>
+          )}
           <Button
             variant="outline"
             size="sm"
@@ -337,28 +359,55 @@ export default function OrderDetail() {
         );
 
         const shippingDeliveryCard = (
-          <Card className="p-4">
-            <h3 className="font-semibold mb-4">Shipping & Delivery</h3>
-            <div className="text-sm space-y-2">
-              <p>
-                <span className="text-muted-foreground">Deliver to:</span> {order.shippingAddress}
-              </p>
-              <p>
-                <span className="text-muted-foreground">Phone:</span> {order.phone}
-              </p>
-              <p>
-                <span className="text-muted-foreground">Tracking:</span> {order.trackingNumber || "—"}
-              </p>
-              <p>
-                <span className="text-muted-foreground">Estimated delivery:</span>{" "}
-                {order.estimatedDelivery ? formatDate(order.estimatedDelivery) : "—"}
-              </p>
-              <p>
-                <span className="text-muted-foreground">Delivered on:</span>{" "}
-                {order.deliveredAt ? formatDate(order.deliveredAt) : "—"}
-              </p>
-            </div>
-          </Card>
+          <div className="space-y-4">
+            {/* Enhanced Tracking Status */}
+            {(order.delhiveryWaybill || order.trackingNumber) && (
+              <TrackingStatus
+                waybill={order.delhiveryWaybill || order.trackingNumber}
+                status={order.delhiveryStatus}
+                shippingMethod={order.shippingMethod}
+                estimatedDelivery={order.estimatedDelivery}
+                showTimeline={false}
+              />
+            )}
+            
+            {/* Shipping Timeline */}
+            {(order.delhiveryStatus || order.shippingMethod === "delhivery") && (
+              <ShippingTimeline
+                status={order.delhiveryStatus}
+                estimatedDelivery={order.estimatedDelivery}
+              />
+            )}
+            
+            {/* Basic Shipping Info */}
+            <Card className="p-4">
+              <h3 className="font-semibold mb-4">Shipping Information</h3>
+              <div className="text-sm space-y-2">
+                <p>
+                  <span className="text-muted-foreground">Deliver to:</span> {order.shippingAddress}
+                </p>
+                <p>
+                  <span className="text-muted-foreground">Phone:</span> {order.phone}
+                </p>
+                <p>
+                  <span className="text-muted-foreground">Shipping Method:</span>{" "}
+                  {order.shippingMethod ? order.shippingMethod.toUpperCase() : "Standard"}
+                </p>
+                {order.autoProcessed && (
+                  <p>
+                    <span className="text-muted-foreground">Processing:</span>{" "}
+                    <Badge variant="secondary" className="text-xs bg-green-50 text-green-700 border-green-200">
+                      Auto-processed
+                    </Badge>
+                  </p>
+                )}
+                <p>
+                  <span className="text-muted-foreground">Delivered on:</span>{" "}
+                  {order.deliveredAt ? formatDate(order.deliveredAt) : "—"}
+                </p>
+              </div>
+            </Card>
+          </div>
         );
 
         const paymentDetailsCard = (

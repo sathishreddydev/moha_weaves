@@ -13,6 +13,7 @@ import {
 } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
+import { TrackingStatus } from "@/components/shipping/TrackingStatus";
 import {
   getItemStatusConfig,
   returnReasons
@@ -342,14 +343,20 @@ export default function ItemOrderDetails() {
                   {displayStatus.label}
                 </Badge>
               </div>
-              {order.trackingNumber && (
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">
-                    Tracking Number:
-                  </span>
-                  <span className="font-medium">{order.trackingNumber}</span>
+              
+              {/* Enhanced Tracking Status */}
+              {(order.delhiveryWaybill || order.trackingNumber || item.delhiveryWaybill) && (
+                <div className="mt-3">
+                  <TrackingStatus
+                    waybill={item.delhiveryWaybill || order.delhiveryWaybill || order.trackingNumber}
+                    status={order.delhiveryStatus}
+                    shippingMethod={order.shippingMethod}
+                    estimatedDelivery={order.estimatedDelivery}
+                    compact={true}
+                  />
                 </div>
               )}
+              
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Shipping Address:</span>
                 <span className="text-right max-w-[60%]">

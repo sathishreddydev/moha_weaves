@@ -127,10 +127,22 @@ export const useAddressStore = create<AddressStore>((set) => ({
   checkPincode: async (pincode) => {
     set({ pincodeLoading: true, pincodeError: null, pincodeInfo: null });
     try {
-      const data = await apiRequest("GET", `/api/pincodes/${pincode}/check`);
-      set({ pincodeInfo: data });
-
-      if (!data.available) {
+      const response = await apiRequest("GET", `/api/shipping/pincode/${pincode}`);
+      
+      if (response.success && response.data && response.data.isServiceable) {
+        const data = {
+          available: true,
+          city: response.data.city,
+          state: response.data.state,
+          deliveryDays: 5, // Default delivery days since API doesn't provide this
+        };
+        set({ pincodeInfo: data });
+      } else {
+        const data = {
+          available: false,
+          message: response.message || "We do not deliver to this pincode"
+        };
+        set({ pincodeInfo: data });
         toast({
           title: "Delivery Unavailable",
           description: data.message,

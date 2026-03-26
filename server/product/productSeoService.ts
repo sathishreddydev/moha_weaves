@@ -1,7 +1,7 @@
 import { db } from "../db";
 import { productSeoSchema } from "../inventory/schema";
 import { eq, and, inArray } from "drizzle-orm";
-import { productSeo } from "@shared/tables";
+import { productSeo } from "@shared/schema";
 
 export interface ProductSEOData {
   productId: string;

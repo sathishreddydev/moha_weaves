@@ -55,7 +55,7 @@ export class DelhiveryService {
   constructor() {
     this.apiToken = process.env.DELHIVERY_API_TOKEN!;
     this.clientId = process.env.DELHIVERY_CLIENT_ID!;
-    this.baseUrl = process.env.NODE_ENV === 'production' 
+    this.baseUrl = process.env.NODE_ENV === 'production'
       ? process.env.DELHIVERY_PRODUCTION_URL!
       : process.env.DELHIVERY_TEST_URL!;
   }
@@ -80,8 +80,9 @@ export class DelhiveryService {
       }
 
       const url = `${this.baseUrl}/c/api/pin-codes/json/`;
-      const params = { pin_codes: pincode };
-      
+      const params = {
+        filter_codes: pincode
+      };
       const response = await axios.get<DelhiveryPincodeResponse>(url, {
         params,
         headers: {
@@ -104,13 +105,30 @@ export class DelhiveryService {
         };
       }
 
-      const pincodeData = response.data.delivery_codes[0].postal_code;
-      
+      const requestedPincode = pincode.toString();
+      const pincodeEntry = response.data.delivery_codes.find(
+        (entry: any) => entry.postal_code.pin.toString() === requestedPincode
+      );
+
+      if (!pincodeEntry) {
+        return {
+          isServiceable: false,
+          prepaid: false,
+          cod: false,
+          city: '',
+          state: '',
+          country: '',
+          error: 'Pincode not found in serviceability data'
+        };
+      }
+
+      const pincodeData = pincodeEntry.postal_code;
+
       // Check if the pincode is currently serviceable by looking at active centers
-      const activeCenters = pincodeData.center.filter((center: any) => 
+      const activeCenters = pincodeData.center.filter((center: any) =>
         center.code !== 'NSZ' && !center.e // NSZ means Not Serviceable Zone, no end date means still active
       );
-      
+
       return {
         isServiceable: activeCenters.length > 0 && (pincodeData.pre_paid === 'Y' || pincodeData.cod === 'Y'),
         prepaid: pincodeData.pre_paid === 'Y',
@@ -122,11 +140,11 @@ export class DelhiveryService {
 
     } catch (error) {
       console.error('Delhivery pincode serviceability check failed:', error);
-      
+
       if (axios.isAxiosError(error)) {
         const status = error.response?.status;
         const message = error.response?.data?.message || error.message;
-        
+
         return {
           isServiceable: false,
           prepaid: false,
@@ -168,7 +186,7 @@ export class DelhiveryService {
 
       const url = `${this.baseUrl}/c/api/pin-codes/json/`;
       const params = { pin_codes: validPincodes.join(',') };
-      
+
       const response = await axios.get<DelhiveryPincodeResponse>(url, {
         params,
         headers: {
@@ -184,13 +202,13 @@ export class DelhiveryService {
 
       for (const pincode of pincodes) {
         const pincodeData = pincodeMap.get(pincode);
-        
+
         if (pincodeData) {
           // Check if the pincode is currently serviceable by looking at active centers
-          const activeCenters = pincodeData.center.filter((center: any) => 
+          const activeCenters = pincodeData.center.filter((center: any) =>
             center.code !== 'NSZ' && !center.e // NSZ means Not Serviceable Zone, no end date means still active
           );
-          
+
           results.push({
             isServiceable: activeCenters.length > 0 && (pincodeData.pre_paid === 'Y' || pincodeData.cod === 'Y'),
             prepaid: pincodeData.pre_paid === 'Y',
@@ -216,7 +234,7 @@ export class DelhiveryService {
 
     } catch (error) {
       console.error('Delhivery multiple pincode serviceability check failed:', error);
-      
+
       // Return error results for all pincodes
       return pincodes.map(pincode => ({
         isServiceable: false,

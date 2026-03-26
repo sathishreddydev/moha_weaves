@@ -1,6 +1,7 @@
 import type { Express } from "express";
 import { createAuthMiddleware } from "../authMiddleware";
 import { delhiveryService, type PincodeServiceabilityResult } from "./delhiveryService";
+import { AddressValidationService } from "./addressValidationService";
 
 export const shippingRoutes = (app: Express) => {
   const authUser = createAuthMiddleware(["user", "admin"]);
@@ -154,6 +155,96 @@ export const shippingRoutes = (app: Express) => {
       res.status(500).json({
         success: false,
         message: "Failed to validate address"
+      });
+    }
+  });
+
+  /**
+   * 🆕 Validate and fix address automatically
+   * POST /api/shipping/validate-address
+   */
+  app.post("/api/shipping/validate-address", authUser, async (req, res) => {
+    try {
+      const address = req.body;
+      
+      if (!address || !address.pincode || !address.city) {
+        return res.status(400).json({
+          success: false,
+          message: "Address with pincode and city is required"
+        });
+      }
+
+      const validationResult = await AddressValidationService.validateAndFixAddress(address);
+      
+      res.json({
+        success: true,
+        data: validationResult
+      });
+    } catch (error) {
+      console.error("Address validation failed:", error);
+      res.status(500).json({
+        success: false,
+        message: "Failed to validate address"
+      });
+    }
+  });
+
+  /**
+   * 🆕 Get shipping estimate for address
+   * POST /api/shipping/estimate
+   */
+  app.post("/api/shipping/estimate", authUser, async (req, res) => {
+    try {
+      const { address, method = "delhivery", weight = 0.5 } = req.body;
+      
+      if (!address || !address.pincode) {
+        return res.status(400).json({
+          success: false,
+          message: "Address with pincode is required"
+        });
+      }
+
+      const estimate = await AddressValidationService.getShippingEstimate(address, weight);
+      
+      res.json({
+        success: true,
+        data: estimate
+      });
+    } catch (error) {
+      console.error("Shipping estimate failed:", error);
+      res.status(500).json({
+        success: false,
+        message: "Failed to get shipping estimate"
+      });
+    }
+  });
+
+  /**
+   * 🆕 Check if address is serviceable
+   * POST /api/shipping/check-serviceability
+   */
+  app.post("/api/shipping/check-serviceability", authUser, async (req, res) => {
+    try {
+      const { address } = req.body;
+      
+      if (!address || !address.pincode) {
+        return res.status(400).json({
+          success: false,
+          message: "Address with pincode is required"
+        });
+      }
+
+      const isServiceable = await AddressValidationService.isAddressServiceable(address);
+      
+      res.json({
+        success: true,
+        data: { isServiceable }
+      });
+    } catch (error) {
+      console.error("Serviceability check failed:", error);
+      res.status(500).json({
+        success: false,
+        message: "Failed to check serviceability"
       });
     }
   });

@@ -1,5 +1,5 @@
-import { insertProductDamageSchema, products, stockMovements, stores, colors } from "@shared/schema";
-import { eq, ne, and, sql } from "drizzle-orm";
+import { insertProductDamageSchema, products, stockMovements, stores, colors, shipments, orders, orderItems } from "@shared/schema";
+import { eq, ne, and, sql, desc } from "drizzle-orm";
 import type { Express } from "express";
 import { productService } from "server/product/productStorage";
 import { ProductFilters, roleBasedProductService } from "server/product/roleBasedProductService";
@@ -26,6 +26,7 @@ import {
   validateDistributionChannel
 } from "./errorHandling";
 import { allStoreOrdersService } from "server/store/allStoreOrders";
+import { delhiveryOrderService } from "../shipping/delhiveryOrderService";
 
 const productWithAllocationsSchema = productBaseSchema.refine(
   (data) => {
@@ -2279,5 +2280,475 @@ export const inventoryRoutes = (app: Express) => {
       }
     },
   );
+
+  // 🆕 Inventory: Update order shipping method
+  app.patch(
+    "/api/inventory/orders/:id/shipping-method",
+    authInventory,
+    async (req, res) => {
+      try {
+        const user = (req as any).user;
+        const { shippingMethod } = req.body; // "manual" | "delhivery"
+
+        if (!shippingMethod || !["manual", "delhivery"].includes(shippingMethod)) {
+          return res.status(400).json({ 
+            message: "Invalid shipping method. Must be 'manual' or 'delhivery'" 
+          });
+        }
+
+        console.log("Updating order shipping method:", {
+          orderId: req.params.id,
+          shippingMethod,
+          userId: user.id,
+        });
+
+        const order = await orderService.getOrder(req.params.id);
+        if (!order) {
+          return res.status(404).json({ message: "Order not found" });
+        }
+
+        // Update order shipping method
+        const [updatedOrder] = await db
+          .update(orders)
+          .set({ 
+            shippingMethod: shippingMethod,
+            updatedAt: new Date()
+          })
+          .where(eq(orders.id, req.params.id))
+          .returning();
+
+        console.log("Order shipping method updated successfully:", updatedOrder.id);
+        res.json({
+          message: `Shipping method updated to ${shippingMethod}`,
+          order: updatedOrder,
+        });
+      } catch (error) {
+        console.error("Error updating order shipping method:", error);
+        const message = error instanceof Error ? error.message : String(error);
+        res.status(500).json({ 
+          message: "Failed to update shipping method", 
+          error: process.env.NODE_ENV === "development" ? message : undefined 
+        });
+      }
+    },
+  );
+
+  // 🆕 Inventory: Process order (create shipment)
+  app.patch(
+    "/api/inventory/orders/:id/process",
+    authInventory,
+    async (req, res) => {
+      try {
+        const user = (req as any).user;
+        const { itemIds, note } = req.body;
+
+        console.log("Processing order:", {
+          orderId: req.params.id,
+          itemIds,
+          note,
+          userId: user.id,
+        });
+
+        const order = await orderService.getOrder(req.params.id);
+        if (!order) {
+          return res.status(404).json({ message: "Order not found" });
+        }
+
+        // Check if order has shipping method set
+        if (!order.shippingMethod) {
+          return res.status(400).json({ 
+            message: "Shipping method not set. Please set shipping method first." 
+          });
+        }
+
+        const itemsToUpdate = itemIds || order.items?.map(item => item.id) || [];
+        
+        if (order.shippingMethod === "delhivery") {
+          // 🚀 Create Delhivery shipment
+          console.log("Creating Delhivery shipment for order:", req.params.id);
+          
+          // Create Delhivery shipment
+          const delhiveryResult = await delhiveryOrderService.createShipment(
+            req.params.id,
+            itemIds // Create shipment for specific items if provided
+          );
+
+          if (delhiveryResult.success) {
+            // Update items to "processing" status
+            const updatedItems = [];
+            for (const orderItemId of itemsToUpdate) {
+              const updatedItem = await orderService.updateItemStatus(
+                orderItemId,
+                "processing",
+                user.id,
+                note || `Order processed for Delhivery shipment - Waybill: ${delhiveryResult.waybill}`
+              );
+              updatedItems.push(updatedItem);
+            }
+
+            res.json({
+              message: "Delhivery shipment created successfully",
+              items: updatedItems,
+              shipment: {
+                shipmentId: delhiveryResult.shipmentId,
+                waybill: delhiveryResult.waybill,
+              },
+            });
+          } else {
+            // Delhivery API failed, still update items but with error note
+            const updatedItems = [];
+            for (const orderItemId of itemsToUpdate) {
+              const updatedItem = await orderService.updateItemStatus(
+                orderItemId,
+                "processing",
+                user.id,
+                note || `Order processed for Delhivery shipment - Error: ${delhiveryResult.error}`
+              );
+              updatedItems.push(updatedItem);
+            }
+
+            res.status(400).json({
+              message: "Order processed but Delhivery shipment failed",
+              items: updatedItems,
+              error: delhiveryResult.error,
+              note: "Items marked as processing, but Delhivery shipment creation failed. Please retry or use manual shipping."
+            });
+          }
+        } else {
+          // 📦 Manual processing
+          const updatedItems = [];
+          for (const orderItemId of itemsToUpdate) {
+            const updatedItem = await orderService.updateItemStatus(
+              orderItemId,
+              "processing",
+              user.id,
+              note || "Order processed for manual shipment"
+            );
+            updatedItems.push(updatedItem);
+          }
+
+          res.json({
+            message: "Order processed for manual shipment",
+            items: updatedItems,
+          });
+        }
+      } catch (error) {
+        console.error("Error processing order:", error);
+        const message = error instanceof Error ? error.message : String(error);
+        res.status(500).json({ 
+          message: "Failed to process order", 
+          error: process.env.NODE_ENV === "development" ? message : undefined 
+        });
+      }
+    },
+  );
+
+  // 🆕 Inventory: Get orders with shipping info
+  app.get("/api/inventory/orders-with-shipping", authInventory, async (req, res) => {
+    try {
+      const { status, limit, shippingMethod } = req.query;
+      
+      const orders = await storage.getAllOrders({
+        status: status as string,
+        limit: limit ? parseInt(limit as string) : undefined,
+      });
+
+      // 🆕 Enhance orders with shipping info
+      const enhancedOrders = orders.map(order => ({
+        ...order,
+        canProcess: order.items?.some(item => item.status === "confirmed"),
+        shippingMethod: order.shippingMethod || "manual",
+        readyForDelhivery: order.shippingMethod === "delhivery" && 
+          order.items?.some(item => item.status === "confirmed"),
+        readyForManual: order.shippingMethod === "manual" && 
+          order.items?.some(item => item.status === "confirmed"),
+        itemCount: order.items?.length || 0,
+        confirmedItemCount: order.items?.filter(item => item.status === "confirmed")?.length || 0,
+        processingItemCount: order.items?.filter(item => item.status === "processing")?.length || 0,
+      }));
+      
+      res.json(enhancedOrders);
+    } catch (error) {
+      console.error("Error fetching orders with shipping info:", error);
+      res.status(500).json({ message: "Failed to fetch orders" });
+    }
+  });
+
+  // 🆕 Inventory: Get single order with shipping details
+  app.get("/api/inventory/orders/:id/shipping-details", authInventory, async (req, res) => {
+    try {
+      const order = await orderService.getOrder(req.params.id);
+      if (!order) {
+        return res.status(404).json({ message: "Order not found" });
+      }
+
+      // 🆕 Enhanced order details for shipping
+      const enhancedOrder = {
+        ...order,
+        shippingMethod: order.shippingMethod || "manual",
+        canChangeShippingMethod: order.items?.every(item => item.status === "confirmed"),
+        canProcess: order.items?.some(item => item.status === "confirmed"),
+        items: order.items?.map(item => ({
+          ...item,
+          canProcess: item.status === "confirmed",
+          weight: item.weight || 0.5, // Default weight if not set
+          dimensions: item.dimensions || "10x10x5", // Default dimensions
+        })) || [],
+      };
+
+      res.json(enhancedOrder);
+    } catch (error) {
+      console.error("Error fetching order shipping details:", error);
+      res.status(500).json({ message: "Failed to fetch order details" });
+    }
+  });
+
+  // 🆕 Inventory: Create shipment (single shipment for now)
+  app.post("/api/inventory/orders/:id/create-shipment", authInventory, async (req, res) => {
+    try {
+      const user = (req as any).user;
+      const { itemIds, shipmentType = "single" } = req.body; // "single" | "multiple"
+
+      const order = await orderService.getOrder(req.params.id);
+      if (!order) {
+        return res.status(404).json({ message: "Order not found" });
+      }
+
+      if (!order.shippingMethod) {
+        return res.status(400).json({ 
+          message: "Shipping method not set. Please set shipping method first." 
+        });
+      }
+
+      // For now, implement single shipment (all items together)
+      if (shipmentType === "single") {
+        const allItemIds = order.items?.map(item => item.id) || [];
+        const shipmentId = `SHP-${Date.now()}`;
+        
+        // Create shipment record
+        const [newShipment] = await db.insert(shipments).values({
+          id: shipmentId,
+          orderId: order.id,
+          waybill: null, // Will be filled by Delhivery later
+          status: "pending",
+          items: JSON.stringify(allItemIds),
+          shippingMethod: order.shippingMethod,
+        }).returning();
+
+        // Update items with shipment ID
+        for (const itemId of allItemIds) {
+          await db
+            .update(orderItems)
+            .set({ 
+              shipmentId: shipmentId,
+              updatedAt: new Date()
+            })
+            .where(eq(orderItems.id, itemId));
+        }
+
+        // Update order
+        await db
+          .update(orders)
+          .set({ 
+            shipmentType: "single",
+            totalShipments: 1,
+            updatedAt: new Date()
+          })
+          .where(eq(orders.id, order.id));
+
+        res.json({
+          message: "Single shipment created successfully",
+          shipment: newShipment,
+          itemCount: allItemIds.length,
+        });
+      } else {
+        // Multiple shipments (Phase 2 feature - for future implementation)
+        res.json({
+          message: "Multiple shipments will be implemented in Phase 2",
+          note: "For now, please use single shipment"
+        });
+      }
+    } catch (error) {
+      console.error("Error creating shipment:", error);
+      res.status(500).json({ message: "Failed to create shipment" });
+    }
+  });
+
+  // 🆕 Inventory: Get shipments for an order
+  app.get("/api/inventory/orders/:id/shipments", authInventory, async (req, res) => {
+    try {
+      const order = await orderService.getOrder(req.params.id);
+      if (!order) {
+        return res.status(404).json({ message: "Order not found" });
+      }
+
+      const orderShipments = await db
+        .select()
+        .from(shipments)
+        .where(eq(shipments.orderId, req.params.id))
+        .orderBy(desc(shipments.createdAt));
+
+      res.json({
+        shipments: orderShipments,
+        order: {
+          id: order.id,
+          shipmentType: order.shipmentType,
+          totalShipments: order.totalShipments,
+          completedShipments: order.completedShipments,
+        }
+      });
+    } catch (error) {
+      console.error("Error fetching shipments:", error);
+      res.status(500).json({ message: "Failed to fetch shipments" });
+    }
+  });
+
+  // 🆕 Inventory: Track Delhivery shipment
+  app.get("/api/inventory/shipments/:waybill/track", authInventory, async (req, res) => {
+    try {
+      const { waybill } = req.params;
+
+      console.log("Tracking Delhivery shipment:", waybill);
+
+      const trackingResult = await delhiveryOrderService.trackShipment(waybill);
+
+      if (trackingResult.success) {
+        res.json({
+          success: true,
+          waybill,
+          status: trackingResult.status,
+          trackingDetails: trackingResult.trackingDetails,
+        });
+      } else {
+        res.status(400).json({
+          success: false,
+          error: trackingResult.error,
+        });
+      }
+    } catch (error) {
+      console.error("Error tracking Delhivery shipment:", error);
+      res.status(500).json({
+        message: "Failed to track shipment",
+        error: process.env.NODE_ENV === "development" ? 
+          (error instanceof Error ? error.message : "Unknown error") : undefined
+      });
+    }
+  });
+
+  // 🆕 Inventory: Cancel Delhivery shipment
+  app.post("/api/inventory/shipments/:waybill/cancel", authInventory, async (req, res) => {
+    try {
+      const { waybill } = req.params;
+      const { reason } = req.body;
+
+      console.log("Cancelling Delhivery shipment:", waybill, "Reason:", reason);
+
+      // Check if shipment exists and belongs to this order
+      const [shipment] = await db
+        .select()
+        .from(shipments)
+        .where(eq(shipments.waybill, waybill));
+
+      if (!shipment) {
+        return res.status(404).json({ message: "Shipment not found" });
+      }
+
+      const cancelResult = await delhiveryOrderService.cancelShipment(waybill);
+
+      if (cancelResult.success) {
+        // Update shipment status in database
+        await db
+          .update(shipments)
+          .set({
+            status: "cancelled",
+          })
+          .where(eq(shipments.waybill, waybill));
+
+        // Update order items status
+        await db
+          .update(orderItems)
+          .set({
+            status: "confirmed", // Reset to confirmed so it can be re-shipped
+            updatedAt: new Date(),
+          })
+          .where(eq(orderItems.shipmentId, shipment.id));
+
+        res.json({
+          message: "Delhivery shipment cancelled successfully",
+          waybill,
+          shipmentId: shipment.id,
+        });
+      } else {
+        res.status(400).json({
+          success: false,
+          error: cancelResult.error,
+        });
+      }
+    } catch (error) {
+      console.error("Error cancelling Delhivery shipment:", error);
+      res.status(500).json({
+        message: "Failed to cancel shipment",
+        error: process.env.NODE_ENV === "development" ? 
+          (error instanceof Error ? error.message : "Unknown error") : undefined
+      });
+    }
+  });
+
+  // 🆕 Inventory: Retry Delhivery shipment creation
+  app.post("/api/inventory/orders/:id/retry-delhivery", authInventory, async (req, res) => {
+    try {
+      const user = (req as any).user;
+      const { itemIds } = req.body;
+
+      console.log("Retrying Delhivery shipment for order:", req.params.id);
+
+      const order = await orderService.getOrder(req.params.id);
+      if (!order) {
+        return res.status(404).json({ message: "Order not found" });
+      }
+
+      if (order.shippingMethod !== "delhivery") {
+        return res.status(400).json({ 
+          message: "Order shipping method is not delhivery" 
+        });
+      }
+
+      // Check if there's already a Delhivery waybill
+      if (order.delhiveryWaybill) {
+        return res.status(400).json({ 
+          message: "Delhivery shipment already exists. Cancel it first or use tracking endpoint.",
+          existingWaybill: order.delhiveryWaybill
+        });
+      }
+
+      // Create new Delhivery shipment
+      const delhiveryResult = await delhiveryOrderService.createShipment(
+        req.params.id,
+        itemIds
+      );
+
+      if (delhiveryResult.success) {
+        res.json({
+          message: "Delhivery shipment created successfully on retry",
+          shipment: {
+            shipmentId: delhiveryResult.shipmentId,
+            waybill: delhiveryResult.waybill,
+          },
+        });
+      } else {
+        res.status(400).json({
+          message: "Delhivery shipment creation failed on retry",
+          error: delhiveryResult.error,
+        });
+      }
+    } catch (error) {
+      console.error("Error retrying Delhivery shipment:", error);
+      res.status(500).json({
+        message: "Failed to retry Delhivery shipment",
+        error: process.env.NODE_ENV === "development" ? 
+          (error instanceof Error ? error.message : "Unknown error") : undefined
+      });
+    }
+  });
 
 };
