@@ -1,10 +1,12 @@
 name: Deploy to Beta/Staging
 
 on:
-  push:
-    branches:
-      - beta
-  workflow_dispatch:
+  workflow_dispatch:  # Only manual trigger
+    inputs:
+      confirm_deployment:
+        description: 'Type "deploy" to confirm beta deployment'
+        required: true
+        default: ''
 
 jobs:
   build-and-deploy:
@@ -14,6 +16,14 @@ jobs:
       id-token: write
 
     steps:
+      - name: Confirm Deployment
+        run: |
+          if [ "${{ github.event.inputs.confirm_deployment }}" != "deploy" ]; then
+            echo "❌ Deployment not confirmed. Type 'deploy' to proceed."
+            exit 1
+          fi
+          echo "✅ Beta deployment confirmed. Proceeding..."
+
       - name: Checkout code
         uses: actions/checkout@v4
 
@@ -26,6 +36,11 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Load environment variables
+        run: |
+          echo "Loading beta environment variables..."
+          cp .env.beta .env
+          
       - name: Run database migrations
         run: npm run db:migrate
         env:
@@ -34,7 +49,7 @@ jobs:
       - name: Build application
         run: npm run build
         env:
-          NODE_ENV: production
+          NODE_ENV: beta
 
       - name: Run tests
         run: npm test --if-present

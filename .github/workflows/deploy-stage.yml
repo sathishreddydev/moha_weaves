@@ -1,9 +1,9 @@
-name: Deploy to Development
+name: Deploy to Stage
 
 on:
   push:
     branches:
-      - develop
+      - stage
   workflow_dispatch:
 
 jobs:
@@ -28,18 +28,18 @@ jobs:
 
       - name: Load environment variables
         run: |
-          echo "Loading development environment variables..."
-          cp .env.development .env
+          echo "Loading stage environment variables..."
+          cp .env.stage .env
           
       - name: Run database migrations
         run: npm run db:migrate
         env:
-          DATABASE_URL: ${{ secrets.DEV_DATABASE_URL }}
+          DATABASE_URL: ${{ secrets.STAGE_DATABASE_URL }}
 
       - name: Build application
         run: npm run build
         env:
-          NODE_ENV: production
+          NODE_ENV: stage
 
       - name: Run tests
         run: npm test --if-present
@@ -47,13 +47,13 @@ jobs:
       - name: Login to Azure
         uses: azure/login@v2
         with:
-          client-id: ${{ secrets.DEV_AZUREAPPSERVICE_CLIENTID }}
-          tenant-id: ${{ secrets.DEV_AZUREAPPSERVICE_TENANTID }}
-          subscription-id: ${{ secrets.DEV_AZUREAPPSERVICE_SUBSCRIPTIONID }}
+          client-id: ${{ secrets.STAGE_AZUREAPPSERVICE_CLIENTID }}
+          tenant-id: ${{ secrets.STAGE_AZUREAPPSERVICE_TENANTID }}
+          subscription-id: ${{ secrets.STAGE_AZUREAPPSERVICE_SUBSCRIPTIONID }}
 
-      - name: Deploy to Azure Dev
+      - name: Deploy to Azure Stage
         uses: azure/webapps-deploy@v3
         with:
-          app-name: 'mohaweaves-dev'
+          app-name: 'mohaweaves-stage'
           slot-name: 'Production'
           package: .

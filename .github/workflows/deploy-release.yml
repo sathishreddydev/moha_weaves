@@ -1,10 +1,14 @@
-name: Deploy to Production (Main Branch)
+name: Deploy Release to Production
 
 on:
   workflow_dispatch:  # Only manual trigger
     inputs:
       confirm_deployment:
         description: 'Type "deploy" to confirm production deployment'
+        required: true
+        default: ''
+      release_version:
+        description: 'Release version (e.g., v1.2.0)'
         required: true
         default: ''
 
@@ -22,7 +26,11 @@ jobs:
             echo "❌ Deployment not confirmed. Type 'deploy' to proceed."
             exit 1
           fi
-          echo "✅ Production deployment confirmed. Proceeding..."
+          if [ -z "${{ github.event.inputs.release_version }}" ]; then
+            echo "❌ Release version is required."
+            exit 1
+          fi
+          echo "✅ Production deployment confirmed for version: ${{ github.event.inputs.release_version }}"
 
       - name: Checkout code
         uses: actions/checkout@v4
@@ -38,7 +46,7 @@ jobs:
 
       - name: Load environment variables
         run: |
-          echo "Loading production environment variables..."
+          echo "Loading production environment variables for release..."
           cp .env.prod .env
           
       - name: Run database migrations
@@ -53,6 +61,15 @@ jobs:
 
       - name: Run tests
         run: npm test --if-present
+
+      - name: Create Release Tag
+        run: |
+          VERSION="${{ github.event.inputs.release_version }}"
+          echo "Creating release tag: $VERSION"
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          git tag -a "$VERSION" -m "Release $VERSION"
+          git push origin "$VERSION"
 
       - name: Login to Azure
         uses: azure/login@v2
