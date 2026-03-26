@@ -6,6 +6,13 @@ import { registerRoutes } from "./routes";
 import { serveStatic } from "./static";
 import { emailService } from "./services/emailService";
 
+// Load environment variables from .env.development for local development
+if (process.env.NODE_ENV !== 'production') {
+  import('dotenv').then(dotenv => {
+    dotenv.config({ path: '.env.development' });
+  });
+}
+
 const app = express();
 const httpServer = createServer(app);
 

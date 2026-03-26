@@ -1,0 +1,69 @@
+name: Deploy to Production (Main Branch)
+
+on:
+  workflow_dispatch:  # Only manual trigger
+    inputs:
+      confirm_deployment:
+        description: 'Type "deploy" to confirm production deployment'
+        required: true
+        default: ''
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+
+    steps:
+      - name: Confirm Deployment
+        run: |
+          if [ "${{ github.event.inputs.confirm_deployment }}" != "deploy" ]; then
+            echo "❌ Deployment not confirmed. Type 'deploy' to proceed."
+            exit 1
+          fi
+          echo "✅ Production deployment confirmed. Proceeding..."
+
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22.x'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Load environment variables
+        run: |
+          echo "Loading production environment variables..."
+          cp .env.prod .env
+          
+      - name: Run database migrations
+        run: npm run db:migrate
+        env:
+          DATABASE_URL: ${{ secrets.PROD_DATABASE_URL }}
+
+      - name: Build application
+        run: npm run build
+        env:
+          NODE_ENV: prod
+
+      - name: Run tests
+        run: npm test --if-present
+
+      - name: Login to Azure
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.PROD_AZUREAPPSERVICE_CLIENTID }}
+          tenant-id: ${{ secrets.PROD_AZUREAPPSERVICE_TENANTID }}
+          subscription-id: ${{ secrets.PROD_AZUREAPPSERVICE_SUBSCRIPTIONID }}
+
+      - name: Deploy to Azure Production
+        uses: azure/webapps-deploy@v3
+        with:
+          app-name: 'mohaweaves-prod'
+          slot-name: 'Production'
+          package: .
