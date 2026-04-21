@@ -7,6 +7,7 @@ export type AddressFormData = {
   locality: string;
   city: string;
   pincode: string;
+  addressType: "home" | "work" | "other";
   isDefault: boolean;
 };
 

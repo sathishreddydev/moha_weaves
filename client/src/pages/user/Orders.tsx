@@ -15,6 +15,8 @@ import { useQuery } from "@tanstack/react-query";
 import {
   ChevronRight,
   Package,
+  Tag,
+  Percent,
 } from "lucide-react";
 import { useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
@@ -335,6 +337,19 @@ export default function Orders() {
                     </div>
                   </div>
 
+                  {/* Coupon Information */}
+                  {order.couponCode && (
+                    <div className="mt-2 flex items-center gap-2 text-sm">
+                      <Tag className="h-4 w-4 text-green-600" />
+                      <span className="text-muted-foreground">Coupon:</span>{" "}
+                      <span className="font-medium text-green-600">
+                        {order.couponCode.toUpperCase()}
+                        {order.couponType === 'percentage' && ` (${order.couponValue}% off)`}
+                        {order.couponType === 'fixed' && ` (₹${order.couponValue} off)`}
+                      </span>
+                    </div>
+                  )}
+
                   {/* Enhanced Tracking Status */}
                   {(order.delhiveryWaybill || order.trackingNumber) && (
                     <div className="mt-2">
@@ -393,6 +408,38 @@ export default function Orders() {
                                 {displayStatus.label}
                               </Badge>
                             </div>
+                            
+                            {/* Offer Details */}
+                            {item.offerDetails && (
+                              <div className="mt-1 flex items-center gap-1 text-xs">
+                                <Percent className="h-3 w-3 text-orange-600" />
+                                <span className="text-orange-600 font-medium">
+                                  {item.offerDetails.name}
+                                  {item.offerDetails.offerType === 'percentage' && ` (${item.offerDetails.discountValue}% off)`}
+                                  {item.offerDetails.offerType === 'flat' && ` (₹${item.offerDetails.discountValue} off)`}
+                                </span>
+                              </div>
+                            )}
+                            
+                            {/* Product Pricing */}
+                            <div className="mt-1 flex items-center gap-2 text-xs">
+                              {item.productPrice && item.productPrice !== item.price && (
+                                <>
+                                  <span className="text-muted-foreground line-through">
+                                    {formatPrice(item.productPrice)}
+                                  </span>
+                                  <span className="text-green-600 font-medium">
+                                    {formatPrice(item.price)}
+                                  </span>
+                                </>
+                              )}
+                              {(!item.productPrice || item.productPrice === item.price) && (
+                                <span className="text-muted-foreground">
+                                  {formatPrice(item.price)}
+                                </span>
+                              )}
+                            </div>
+                            
                             <div className="flex items-center justify-between">
                               <div>
                                 <p className="text-sm text-muted-foreground">

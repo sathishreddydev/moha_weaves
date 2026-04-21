@@ -28,6 +28,7 @@ type AddressFormData = {
   locality: string;
   city: string;
   pincode: string;
+  addressType: "home" | "work" | "other";
   isDefault: boolean;
 };
 
@@ -37,6 +38,7 @@ const defaultFormData: AddressFormData = {
   locality: "",
   city: "",
   pincode: "",
+  addressType:'home',
   isDefault: false,
 };
 
@@ -84,6 +86,7 @@ export default function Addresses() {
         locality: address.locality,
         city: address.city,
         pincode: address.pincode,
+        addressType: address.addressType,
         isDefault: address.isDefault,
       });
     } else {

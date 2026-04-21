@@ -31,7 +31,9 @@ import { useMutation, useQuery } from "@tanstack/react-query";
 import {
   ArrowLeft,
   Package,
-  RefreshCw
+  RefreshCw,
+  Tag,
+  Percent,
 } from "lucide-react";
 import { useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
@@ -337,6 +339,20 @@ export default function OrderDetail() {
           <Card className="p-4">
             <h3 className="font-semibold mb-4">Order Summary</h3>
             <div className="space-y-2 text-sm">
+              {/* Coupon Information */}
+              {order.couponCode && (
+                <div className="flex items-center justify-between p-2 bg-green-50 rounded-md">
+                  <div className="flex items-center gap-2">
+                    <Tag className="h-4 w-4 text-green-600" />
+                    <span className="text-green-700 font-medium">
+                      Coupon Applied: {order.couponCode.toUpperCase()}
+                      {order.couponType === 'percentage' && ` (${order.couponValue}% off)`}
+                      {order.couponType === 'fixed' && ` (₹${order.couponValue} off)`}
+                    </span>
+                  </div>
+                </div>
+              )}
+              
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Subtotal</span>
                 <span>{formatPrice(order.totalAmount)}</span>
@@ -384,7 +400,11 @@ export default function OrderDetail() {
               <h3 className="font-semibold mb-4">Shipping Information</h3>
               <div className="text-sm space-y-2">
                 <p>
-                  <span className="text-muted-foreground">Deliver to:</span> {order.shippingAddress}
+                  <span className="text-muted-foreground">Deliver to:</span> {" "}
+                  {typeof order.shippingAddress === 'string' 
+                    ? order.shippingAddress 
+                    : JSON.stringify(order.shippingAddress)
+                  }
                 </p>
                 <p>
                   <span className="text-muted-foreground">Phone:</span> {order.phone}
@@ -570,6 +590,35 @@ export default function OrderDetail() {
                         </Link>
 
                         <div className="mt-1 text-sm text-muted-foreground space-y-0.5">
+                          {/* Offer Details */}
+                          {item.offerDetails && (
+                            <div className="flex items-center gap-1 text-xs text-orange-600">
+                              <Percent className="h-3 w-3" />
+                              <span>
+                                {item.offerDetails.name}
+                                {item.offerDetails.offerType === 'percentage' && ` (${item.offerDetails.discountValue}% off)`}
+                                {item.offerDetails.offerType === 'flat' && ` (₹${item.offerDetails.discountValue} off)`}
+                              </span>
+                            </div>
+                          )}
+                          
+                          {/* Product Pricing */}
+                          {item.productPrice && item.productPrice !== item.price && (
+                            <div className="flex items-center gap-2 text-xs">
+                              <span className="line-through text-muted-foreground">
+                                {formatPrice(item.productPrice)}
+                              </span>
+                              <span className="text-green-600 font-medium">
+                                {formatPrice(item.price)}
+                              </span>
+                            </div>
+                          )}
+                          {(!item.productPrice || item.productPrice === item.price) && (
+                            <div className="text-xs">
+                              {formatPrice(item.price)}
+                            </div>
+                          )}
+                          
                           <p>Qty: {item.quantity}
                             {(() => {
                               const variant = item.variantId && item.product.variants?.find((v: any) => v.id === item.variantId);
