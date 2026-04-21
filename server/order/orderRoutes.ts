@@ -467,8 +467,8 @@ export const orderRoutes = (app: Express) => {
             paymentStatus: "paid",
             paymentMethod: "razorpay",
             razorpayPaymentId,
-            shippingMethod: "delhivery", // 🚀 Default to Delhivery for automatic processing
-            autoProcessed: true, // 🆕 Enable automatic processing
+            shippingMethod: "manual", // 🚀 Default to manual for automatic processing
+            autoProcessed: false, // 🆕 Enable automatic processing
           },
           cartItems.cart.map((item) => {
             // Get variant price if variant exists, otherwise use product price
@@ -534,60 +534,60 @@ export const orderRoutes = (app: Express) => {
       // 5️⃣ Clear cart
       await cartServices.clearCart(userId);
 
-      // 6️⃣ 🚀 AUTOMATIC SHIPPING PROCESSING
-      console.log(`🚀 Starting automatic shipping for order: ${order.id}`);
+      // // 6️⃣ 🚀 AUTOMATIC SHIPPING PROCESSING
+      // console.log(`🚀 Starting automatic shipping for order: ${order.id}`);
       
-      try {
-        // Send order confirmation first
-        await NotificationService.sendOrderConfirmation(order.id);
+      // try {
+      //   // Send order confirmation first
+      //   await NotificationService.sendOrderConfirmation(order.id);
         
-        // Process shipping automatically
-        const shippingResult = await AutomaticShippingService.processShippingAutomatically(order.id);
+      //   // Process shipping automatically
+      //   const shippingResult = await AutomaticShippingService.processShippingAutomatically(order.id);
         
-        if (shippingResult.success) {
-          // Send shipping confirmation
-          await NotificationService.sendShippingConfirmation(
-            order.id, 
-            shippingResult.waybill!, 
-            shippingResult.estimatedDelivery
-          );
+      //   if (shippingResult.success) {
+      //     // Send shipping confirmation
+      //     await NotificationService.sendShippingConfirmation(
+      //       order.id, 
+      //       shippingResult.waybill!, 
+      //       shippingResult.estimatedDelivery
+      //     );
           
-          console.log(`✅ Order ${order.id} processed and shipped successfully`);
+      //     console.log(`✅ Order ${order.id} processed and shipped successfully`);
           
-          res.json({
-            orderId: order.id,
-            message: "Payment successful, order created and shipped automatically",
-            shipping: {
-              waybill: shippingResult.waybill,
-              courier: shippingResult.courier,
-              estimatedDelivery: shippingResult.estimatedDelivery
-            }
-          });
-        } else {
-          // Shipping failed but order created
-          await AutomaticShippingService.handleShippingFailure(order.id, new Error(shippingResult.error || "Unknown shipping error"));
+      //     res.json({
+      //       orderId: order.id,
+      //       message: "Payment successful, order created and shipped automatically",
+      //       shipping: {
+      //         waybill: shippingResult.waybill,
+      //         courier: shippingResult.courier,
+      //         estimatedDelivery: shippingResult.estimatedDelivery
+      //       }
+      //     });
+      //   } else {
+      //     // Shipping failed but order created
+      //     await AutomaticShippingService.handleShippingFailure(order.id, new Error(shippingResult.error || "Unknown shipping error"));
           
-          console.log(`⚠️ Order ${order.id} created but shipping failed: ${shippingResult.error}`);
+      //     console.log(`⚠️ Order ${order.id} created but shipping failed: ${shippingResult.error}`);
           
-          res.json({
-            orderId: order.id,
-            message: "Payment successful, order created (shipping will be processed manually)",
-            shipping: null,
-            note: "Shipping failed - will be processed manually"
-          });
-        }
-      } catch (shippingError) {
-        // Handle any shipping errors gracefully
-        console.error(`❌ Automatic shipping error for order ${order.id}:`, shippingError);
-        await AutomaticShippingService.handleShippingFailure(order.id, shippingError instanceof Error ? shippingError : new Error("Unknown shipping error"));
+      //     res.json({
+      //       orderId: order.id,
+      //       message: "Payment successful, order created (shipping will be processed manually)",
+      //       shipping: null,
+      //       note: "Shipping failed - will be processed manually"
+      //     });
+      //   }
+      // } catch (shippingError) {
+      //   // Handle any shipping errors gracefully
+      //   console.error(`❌ Automatic shipping error for order ${order.id}:`, shippingError);
+      //   await AutomaticShippingService.handleShippingFailure(order.id, shippingError instanceof Error ? shippingError : new Error("Unknown shipping error"));
         
-        res.json({
-          orderId: order.id,
-          message: "Payment successful, order created (shipping will be processed manually)",
-          shipping: null,
-          note: "Automatic shipping failed - will be processed manually"
-        });
-      }
+      //   res.json({
+      //     orderId: order.id,
+      //     message: "Payment successful, order created (shipping will be processed manually)",
+      //     shipping: null,
+      //     note: "Automatic shipping failed - will be processed manually"
+      //   });
+      // }
     } catch (err) {
       console.error(err);
       res.status(500).json({ message: "Payment verification failed" });

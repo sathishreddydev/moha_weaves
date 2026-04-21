@@ -33,10 +33,16 @@ export const VisualCategoryHero = ({categoriesData}: {categoriesData: any[]}) =>
 
   const handleTouchStart = (e: React.TouchEvent) => {
     touchStartX.current = e.targetTouches[0].clientX;
+    // Reset touch end for new swipe
+    touchEndX.current = e.targetTouches[0].clientX;
   };
 
   const handleTouchMove = (e: React.TouchEvent) => {
     touchEndX.current = e.targetTouches[0].clientX;
+    // Prevent default to avoid browser scroll during swipe
+    if (Math.abs(touchStartX.current - e.targetTouches[0].clientX) > 10) {
+      e.preventDefault();
+    }
   };
 
   const handleTouchEnd = () => {
@@ -51,11 +57,16 @@ export const VisualCategoryHero = ({categoriesData}: {categoriesData: any[]}) =>
     } else if (isRightSwipe) {
       setActiveIndex((prev) => (prev - 1 + categoriesData.length) % categoriesData.length);
     }
+    
+    // Reset values after swipe
+    touchStartX.current = 0;
+    touchEndX.current = 0;
   };
 
   return (
     <section 
       className="relative h-[70vh] w-full bg-zinc-950 overflow-hidden"
+      style={{ touchAction: 'pan-y' }}
       onMouseEnter={() => setIsPaused(true)}
       onMouseLeave={() => setIsPaused(false)}
       onTouchStart={handleTouchStart}
