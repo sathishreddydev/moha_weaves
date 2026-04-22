@@ -1,5 +1,5 @@
-# Use Node.js 18 LTS as base image
-FROM node:18-alpine AS base
+# Use Node.js 20 LTS as base image
+FROM node:20-alpine AS base
 
 # Install dependencies only when needed
 FROM base AS deps
@@ -14,7 +14,11 @@ RUN npm install
 FROM base AS builder
 WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
-COPY . .
+COPY script/ ./script/
+COPY server/ ./server/
+COPY client/ ./client/
+COPY shared/ ./shared/
+COPY package.json package-lock.json tsconfig.json vite.config.ts tailwind.config.ts ./
 
 # Build the application
 RUN npm run build
