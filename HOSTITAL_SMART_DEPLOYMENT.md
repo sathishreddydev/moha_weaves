@@ -78,9 +78,9 @@ docker-compose -f docker-compose.prod.yml restart
 ## Application URLs
 
 After deployment, your application will be accessible at:
-- **Main Site**: https://vps.sathish.com
-- **API**: https://vps.sathish.com/api
-- **Health Check**: https://vps.sathish.com/health
+- **Admin Site**: https://admin.vps.sathish.com
+- **API**: https://admin.vps.sathish.com/api
+- **Health Check**: https://admin.vps.sathish.com/health
 
 ## SSL Certificate Setup
 
@@ -90,7 +90,7 @@ After deployment, your application will be accessible at:
 apt install certbot python3-certbot-nginx
 
 # Get SSL certificate
-certbot --nginx -d vps.sathish.com --non-interactive --agree-tos --email admin@sathish.com
+certbot --nginx -d admin.vps.sathish.com --non-interactive --agree-tos --email admin@sathish.com
 ```
 
 ### Option B: Self-Signed (For Testing)
@@ -99,7 +99,7 @@ certbot --nginx -d vps.sathish.com --non-interactive --agree-tos --email admin@s
 openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
     -keyout /opt/moha-weaves/nginx/ssl/key.pem \
     -out /opt/moha-weaves/nginx/ssl/cert.pem \
-    -subj "/C=IN/ST=State/L=City/O=MohaWeaves/CN=vps.sathish.com"
+    -subj "/C=IN/ST=State/L=City/O=MohaWeaves/CN=admin.vps.sathish.com"
 ```
 
 ## Firewall Configuration
@@ -157,7 +157,7 @@ docker exec -it moha_weaves_postgres psql -U postgres moha_weaves
 ## Monitoring
 
 ### Health Checks
-- Application health: https://vps.sathish.com/health
+- Application health: https://admin.vps.sathish.com/health
 - Container status: `docker ps`
 - Resource usage: `docker stats`
 
@@ -232,7 +232,7 @@ For deployment issues:
 ## Domain Configuration
 
 If you want to use a custom domain instead of vps.sathish.com:
-1. Update DNS A record to point to 103.127.146.58
-2. Update client/.env.production with new domain
+1. Update DNS A record for admin subdomain to point to 103.127.146.58
+2. Update client/.env.production with new admin domain
 3. Rebuild and redeploy application
-4. Update SSL certificate for new domain
+4. Update SSL certificate for admin subdomain
