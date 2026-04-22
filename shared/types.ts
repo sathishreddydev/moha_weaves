@@ -170,6 +170,10 @@ export type OrderWithItems = Order & {
     subtype?: string;
     razorpayPaymentId?: string;
   };
+  // Coupon information
+  couponCode?: string | null;
+  couponType?: string | null;
+  couponValue?: string | null;
   // Delhivery integration fields
   delhiveryWaybill?: string;
   delhiveryStatus?: string;
@@ -184,9 +188,31 @@ export type OrderWithItems = Order & {
   items: (OrderItem & { 
     product: ProductWithDetails;
     returnEligibility?: { itemId: string; eligible: boolean; reason?: string; remainingDays?: number };
+    // Offer details
+    offerDetails?: {
+      id: string;
+      name: string;
+      description: string | null;
+      offerType: "flat" | "percentage" | "category" | "product" | "flash_sale";
+      discountValue: string;
+      categoryId?: string | null;
+      subcategoryId?: string | null;
+      minOrderAmount?: string | null;
+      maxDiscount?: string | null;
+      validFrom: Date;
+      validUntil: Date;
+      isActive: boolean;
+      isFeatured: boolean;
+      bannerImage?: string | null;
+      createdAt: Date;
+      updatedAt: Date;
+    } | null;
+    // Product pricing
+    productPrice?: string | null;
+    discountedPrice?: string | null;
     // Delhivery item fields
-    delhiveryWaybill?: string;
-    shipmentId?: string;
+    delhiveryWaybill?: string | null;
+    shipmentId?: string | null;
   })[];
 };
 

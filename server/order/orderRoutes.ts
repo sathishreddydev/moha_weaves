@@ -9,18 +9,51 @@ import { createAuthMiddleware } from "../authMiddleware";
 import { cartServices } from "../cart/cartStorage";
 import { paymentInfo } from "./createOrderService";
 import { orderService } from "./orderStorage";
-import { AutomaticShippingService } from "../shipping/automaticShippingService";
-import { NotificationService } from "../services/notificationService";
 
 export const orderRoutes = (app: Express) => {
   const authUser = createAuthMiddleware(["user"]);
 
-  // Orders
+  // 🔹 Helper: normalize cart pricing
+  const mapCartWithPrices = (cart: any[]) => {
+    return cart.map((item) => {
+      let price =
+        typeof item.product.price === "string"
+          ? parseFloat(item.product.price)
+          : item.product.price;
+
+      if (item.variantId && item.product.variants) {
+        const variant = item.product.variants.find(
+          (v: any) => v.id === item.variantId
+        );
+        if (variant?.price) {
+          price =
+            typeof variant.price === "string"
+              ? parseFloat(variant.price)
+              : variant.price;
+        }
+      }
+
+      if (
+        item.product.activeSale &&
+        item.product.discountedPrice &&
+        item.product.price
+      ) {
+        const ratio =
+          parseFloat(item.product.discountedPrice.toString()) /
+          parseFloat(item.product.price.toString());
+        price = price * ratio;
+      }
+
+      return { ...item, price };
+    });
+  };
+
+
   app.get("/api/user/orders", authUser, async (req, res) => {
     try {
       const orders = await orderService.getOrders((req as any).user.id);
       res.json(orders);
-    } catch  {
+    } catch {
       res.status(500).json({ message: "Failed to fetch orders" });
     }
   });
@@ -32,7 +65,7 @@ export const orderRoutes = (app: Express) => {
         return res.status(404).json({ message: "Order not found" });
       }
       res.json(order);
-    } catch  {
+    } catch {
       res.status(500).json({ message: "Failed to fetch order" });
     }
   });
@@ -233,28 +266,27 @@ export const orderRoutes = (app: Express) => {
         return res.status(400).json({ message: "Cart is empty" });
       }
 
-      const totalAmount = cartItems.cart.reduce((sum, item) => {
-        const originalPrice =
-          typeof item.product.price === "string"
-            ? parseFloat(item.product.price)
-            : item.product.price;
-        const price = (item.product as any).discountedPrice ?? originalPrice;
-        return sum + price * item.quantity;
-      }, 0);
+      const items = mapCartWithPrices(cartItems.cart);
 
-      // Calculate discount if coupon is provided
+      const totalAmount = items.reduce(
+        (sum, item) => sum + item.price * item.quantity,
+        0
+      );
+
       let discountAmount = 0;
       let validCoupon = null;
+
       if (couponId) {
         const coupon = await couponsService.getCoupon(couponId);
-        if (coupon && coupon.isActive) {
+        if (coupon?.isActive) {
           validCoupon = coupon;
+
           if (coupon.type === "percentage") {
             discountAmount = (totalAmount * parseFloat(coupon.value)) / 100;
             if (coupon.maxDiscount) {
               discountAmount = Math.min(
                 discountAmount,
-                parseFloat(coupon.maxDiscount),
+                parseFloat(coupon.maxDiscount)
               );
             }
           } else {
@@ -276,41 +308,38 @@ export const orderRoutes = (app: Express) => {
           phone,
           notes,
           status: "created",
-          shippingMethod: "manual", // 🆕 Add default shipping method
+          paymentStatus: "pending",
+          paymentMethod: "razorpay",
         },
-        cartItems.cart.map((item) => {
-          const originalPrice =
-            typeof item.product.price === "string"
-              ? parseFloat(item.product.price)
-              : item.product.price;
-          const effectivePrice =
-            (item.product as any).discountedPrice ?? originalPrice;
-          return {
-            productId: item.productId,
-            quantity: item.quantity,
-            price: effectivePrice.toString(),
-          };
-        }),
+        items.map((item) => ({
+          productId: item.productId,
+          variantId: item.variantId,
+          quantity: item.quantity,
+          price: item.price.toString(),
+        }))
       );
 
-      // Record coupon usage after order is created
       if (validCoupon && discountAmount > 0) {
         await couponsService.applyCoupon(
           validCoupon.id,
           userId,
           order.id,
-          discountAmount.toString(),
+          discountAmount.toString()
         );
       }
 
       await cartServices.clearCart(userId);
 
       res.json({ orderId: order.id });
-    } catch  {
+    } catch (err) {
+      console.error(err);
       res.status(500).json({ message: "Failed to place order" });
     }
   });
 
+  // =============================
+  // CREATE RAZORPAY ORDER
+  // =============================
   app.post("/api/user/create-razorpay-order", authUser, async (req, res) => {
     try {
       const { couponId } = req.body;
@@ -320,39 +349,27 @@ export const orderRoutes = (app: Express) => {
       if (cartItems.cart.length === 0) {
         return res.status(400).json({ message: "Cart is empty" });
       }
-      // 1️⃣ Calculate total with variant pricing
-      const totalAmount = cartItems.cart.reduce((sum, item) => {
-        // Get variant price if variant exists, otherwise use product price
-        let price = typeof item.product.price === 'string' ? parseFloat(item.product.price) : item.product.price;
-        
-        if (item.variantId && item.product.variants) {
-          const variant = item.product.variants.find((v: any) => v.id === item.variantId);
-          if (variant && variant.price) {
-            price = typeof variant.price === 'string' ? parseFloat(variant.price) : variant.price;
-          }
-        }
-        
-        // Apply discount if available
-        if (item.product.activeSale && item.product.discountedPrice && item.product.price) {
-          const discountRatio = parseFloat(item.product.discountedPrice.toString()) / parseFloat(item.product.price.toString());
-          price = price * discountRatio;
-        }
-        
-        return sum + price * item.quantity;
-      }, 0);
 
-      // 2️⃣ Calculate discount
+      const items = mapCartWithPrices(cartItems.cart);
+
+      const totalAmount = items.reduce(
+        (sum, item) => sum + item.price * item.quantity,
+        0
+      );
+
       let discountAmount = 0;
+
       if (couponId) {
         const coupon = await couponsService.getCoupon(couponId);
-        if (coupon && coupon.isActive) {
+        if (coupon?.isActive) {
           if (coupon.type === "percentage") {
             discountAmount = (totalAmount * parseFloat(coupon.value)) / 100;
-            if (coupon.maxDiscount)
+            if (coupon.maxDiscount) {
               discountAmount = Math.min(
                 discountAmount,
-                parseFloat(coupon.maxDiscount),
+                parseFloat(coupon.maxDiscount)
               );
+            }
           } else {
             discountAmount = parseFloat(coupon.value);
           }
@@ -361,12 +378,11 @@ export const orderRoutes = (app: Express) => {
 
       const finalAmount = totalAmount - discountAmount;
 
-      // 3️⃣ Create Razorpay order
       const razorpayOrder = await razorpay.orders.create({
-        amount: Math.round(finalAmount * 100), // paise
+        amount: Math.round(finalAmount * 100),
         currency: "INR",
         receipt: `r${Date.now()}`,
-        payment_capture: true, // ✅ boolean
+        payment_capture: true,
       });
 
       res.json({
@@ -379,6 +395,10 @@ export const orderRoutes = (app: Express) => {
       res.status(500).json({ message: "Failed to create Razorpay order" });
     }
   });
+
+  // =============================
+  // VERIFY PAYMENT
+  // =============================
   app.post("/api/user/verify-payment", authUser, async (req, res) => {
     try {
       const {
@@ -387,17 +407,18 @@ export const orderRoutes = (app: Express) => {
         razorpaySignature,
         shippingAddress,
         phone,
-        email, // 🆕 Add email field
+        email,
         notes,
         couponId,
       } = req.body;
 
       const userId = (req as any).user.id;
       const cartItems = await cartServices.getCartItems(userId);
+
       if (cartItems.cart.length === 0) {
         return res.status(400).json({ message: "Cart is empty" });
       }
-      // 1️⃣ Verify Razorpay signature
+
       const generatedSignature = crypto
         .createHmac("sha256", process.env.RAZORPAY_KEY_SECRET!)
         .update(`${razorpayOrderId}|${razorpayPaymentId}`)
@@ -407,40 +428,29 @@ export const orderRoutes = (app: Express) => {
         return res.status(400).json({ message: "Payment verification failed" });
       }
 
-      // 1️⃣ Calculate totals with variant pricing
-      const totalAmount = cartItems.cart.reduce((sum, item) => {
-        // Get variant price if variant exists, otherwise use product price
-        let price = typeof item.product.price === 'string' ? parseFloat(item.product.price) : item.product.price;
-        
-        if (item.variantId && item.product.variants) {
-          const variant = item.product.variants.find((v: any) => v.id === item.variantId);
-          if (variant && variant.price) {
-            price = typeof variant.price === 'string' ? parseFloat(variant.price) : variant.price;
-          }
-        }
-        
-        // Apply discount if available
-        if (item.product.activeSale && item.product.discountedPrice && item.product.price) {
-          const discountRatio = parseFloat(item.product.discountedPrice.toString()) / parseFloat(item.product.price.toString());
-          price = price * discountRatio;
-        }
-        
-        return sum + price * item.quantity;
-      }, 0);
+      const items = mapCartWithPrices(cartItems.cart);
+
+      const totalAmount = items.reduce(
+        (sum, item) => sum + item.price * item.quantity,
+        0
+      );
 
       let discountAmount = 0;
       let validCoupon = null;
+
       if (couponId) {
         const coupon = await couponsService.getCoupon(couponId);
-        if (coupon && coupon.isActive) {
+        if (coupon?.isActive) {
           validCoupon = coupon;
+
           if (coupon.type === "percentage") {
             discountAmount = (totalAmount * parseFloat(coupon.value)) / 100;
-            if (coupon.maxDiscount)
+            if (coupon.maxDiscount) {
               discountAmount = Math.min(
                 discountAmount,
-                parseFloat(coupon.maxDiscount),
+                parseFloat(coupon.maxDiscount)
               );
+            }
           } else {
             discountAmount = parseFloat(coupon.value);
           }
@@ -449,9 +459,7 @@ export const orderRoutes = (app: Express) => {
 
       const finalAmount = totalAmount - discountAmount;
 
-      // 4️⃣ Create order and deduct stock in a transaction
       const order = await db.transaction(async (tx) => {
-        // Create the order first
         const newOrder = await orderService.createOrder(
           {
             userId,
@@ -461,61 +469,36 @@ export const orderRoutes = (app: Express) => {
             couponId,
             shippingAddress,
             phone,
-            email, // 🆕 Add email field
+            email,
             notes,
             status: "created",
             paymentStatus: "paid",
             paymentMethod: "razorpay",
             razorpayPaymentId,
-            shippingMethod: "delhivery", // 🚀 Default to Delhivery for automatic processing
-            autoProcessed: true, // 🆕 Enable automatic processing
           },
-          cartItems.cart.map((item) => {
-            // Get variant price if variant exists, otherwise use product price
-            let price = typeof item.product.price === 'string' ? parseFloat(item.product.price) : item.product.price;
-            
-            if (item.variantId && item.product.variants) {
-              const variant = item.product.variants.find((v: any) => v.id === item.variantId);
-              if (variant && variant.price) {
-                price = typeof variant.price === 'string' ? parseFloat(variant.price) : variant.price;
-              }
-            }
-            
-            // Apply discount if available
-            if (item.product.activeSale && item.product.discountedPrice && item.product.price) {
-              const discountRatio = parseFloat(item.product.discountedPrice.toString()) / parseFloat(item.product.price.toString());
-              price = price * discountRatio;
-            }
-            
-            return {
-              productId: item.productId,
-              variantId: item.variantId, // Include variantId
-              quantity: item.quantity,
-              price: price.toString(),
-            };
-          })
+          items.map((item) => ({
+            productId: item.productId,
+            variantId: item.variantId,
+            quantity: item.quantity,
+            price: item.price.toString(),
+          }))
         );
 
-        // Deduct stock for variants and products
-        for (const cartItem of cartItems.cart) {
-          if (cartItem.variantId) {
-            // Deduct from variant stock
+        for (const item of items) {
+          if (item.variantId) {
             await tx
               .update(productVariants)
               .set({
-                onlineStock: sql`${productVariants.onlineStock} - ${cartItem.quantity}`,
-                stockQuantity: sql`${productVariants.stockQuantity} - ${cartItem.quantity}`,
+                stockQuantity: sql`${productVariants.stockQuantity} - ${item.quantity}`,
               })
-              .where(eq(productVariants.id, cartItem.variantId));
+              .where(eq(productVariants.id, item.variantId));
           } else {
-            // Deduct from product stock
             await tx
               .update(products)
               .set({
-                onlineStock: sql`${products.onlineStock} - ${cartItem.quantity}`,
-                totalStock: sql`${products.totalStock} - ${cartItem.quantity}`,
+                totalStock: sql`${products.totalStock} - ${item.quantity}`,
               })
-              .where(eq(products.id, cartItem.productId));
+              .where(eq(products.id, item.productId));
           }
         }
 
@@ -527,67 +510,66 @@ export const orderRoutes = (app: Express) => {
           validCoupon.id,
           userId,
           order.id,
-          discountAmount.toString(),
+          discountAmount.toString()
         );
       }
 
-      // 5️⃣ Clear cart
       await cartServices.clearCart(userId);
 
-      // 6️⃣ 🚀 AUTOMATIC SHIPPING PROCESSING
-      console.log(`🚀 Starting automatic shipping for order: ${order.id}`);
+      // // 6️⃣ 🚀 AUTOMATIC SHIPPING PROCESSING
+      // console.log(`🚀 Starting automatic shipping for order: ${order.id}`);
       
-      try {
-        // Send order confirmation first
-        await NotificationService.sendOrderConfirmation(order.id);
+      // try {
+      //   // Send order confirmation first
+      //   await NotificationService.sendOrderConfirmation(order.id);
         
-        // Process shipping automatically
-        const shippingResult = await AutomaticShippingService.processShippingAutomatically(order.id);
+      //   // Process shipping automatically
+      //   const shippingResult = await AutomaticShippingService.processShippingAutomatically(order.id);
         
-        if (shippingResult.success) {
-          // Send shipping confirmation
-          await NotificationService.sendShippingConfirmation(
-            order.id, 
-            shippingResult.waybill!, 
-            shippingResult.estimatedDelivery
-          );
+      //   if (shippingResult.success) {
+      //     // Send shipping confirmation
+      //     await NotificationService.sendShippingConfirmation(
+      //       order.id, 
+      //       shippingResult.waybill!, 
+      //       shippingResult.estimatedDelivery
+      //     );
           
-          console.log(`✅ Order ${order.id} processed and shipped successfully`);
+      //     console.log(`✅ Order ${order.id} processed and shipped successfully`);
           
-          res.json({
-            orderId: order.id,
-            message: "Payment successful, order created and shipped automatically",
-            shipping: {
-              waybill: shippingResult.waybill,
-              courier: shippingResult.courier,
-              estimatedDelivery: shippingResult.estimatedDelivery
-            }
-          });
-        } else {
-          // Shipping failed but order created
-          await AutomaticShippingService.handleShippingFailure(order.id, new Error(shippingResult.error || "Unknown shipping error"));
+      //     res.json({
+      //       orderId: order.id,
+      //       message: "Payment successful, order created and shipped automatically",
+      //       shipping: {
+      //         waybill: shippingResult.waybill,
+      //         courier: shippingResult.courier,
+      //         estimatedDelivery: shippingResult.estimatedDelivery
+      //       }
+      //     });
+      //   } else {
+      //     // Shipping failed but order created
+      //     await AutomaticShippingService.handleShippingFailure(order.id, new Error(shippingResult.error || "Unknown shipping error"));
           
-          console.log(`⚠️ Order ${order.id} created but shipping failed: ${shippingResult.error}`);
+      //     console.log(`⚠️ Order ${order.id} created but shipping failed: ${shippingResult.error}`);
           
-          res.json({
-            orderId: order.id,
-            message: "Payment successful, order created (shipping will be processed manually)",
-            shipping: null,
-            note: "Shipping failed - will be processed manually"
-          });
-        }
-      } catch (shippingError) {
-        // Handle any shipping errors gracefully
-        console.error(`❌ Automatic shipping error for order ${order.id}:`, shippingError);
-        await AutomaticShippingService.handleShippingFailure(order.id, shippingError instanceof Error ? shippingError : new Error("Unknown shipping error"));
+      //     res.json({
+      //       orderId: order.id,
+      //       message: "Payment successful, order created (shipping will be processed manually)",
+      //       shipping: null,
+      //       note: "Shipping failed - will be processed manually"
+      //     });
+      //   }
+      // } catch (shippingError) {
+      //   // Handle any shipping errors gracefully
+      //   console.error(`❌ Automatic shipping error for order ${order.id}:`, shippingError);
+      //   await AutomaticShippingService.handleShippingFailure(order.id, shippingError instanceof Error ? shippingError : new Error("Unknown shipping error"));
         
-        res.json({
-          orderId: order.id,
-          message: "Payment successful, order created (shipping will be processed manually)",
-          shipping: null,
-          note: "Automatic shipping failed - will be processed manually"
-        });
-      }
+      //   res.json({
+      //     orderId: order.id,
+      //     message: "Payment successful, order created (shipping will be processed manually)",
+      //     shipping: null,
+      //     note: "Automatic shipping failed - will be processed manually"
+      //   });
+      // }
     } catch (err) {
       console.error(err);
       res.status(500).json({ message: "Payment verification failed" });

@@ -233,3 +233,8 @@ export const damageSourceEnum = pgEnum("damage_source", [
   "shipping",        // Shipping damage
   "manufacturing",   // Manufacturing defect
 ]);
+export const addressTypeEnum = pgEnum("address_type", [
+  "home",
+  "work",
+  "other",
+]);

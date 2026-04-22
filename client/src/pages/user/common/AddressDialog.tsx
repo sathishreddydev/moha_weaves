@@ -5,6 +5,7 @@ import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { AddressDialogProps } from "./Type";
 import { AdaptiveModal } from "../../../components/common/AdaptiveModal";
+import { Home, Briefcase, MapPin } from "lucide-react";
 
 export const AddressDialog = ({
   formData,
@@ -39,8 +40,8 @@ export const AddressDialog = ({
               {isAddNewAddress || isUpdateAddresses
                 ? "Saving..."
                 : editingAddress
-                ? "Update Address"
-                : "Add Address"}
+                  ? "Update Address"
+                  : "Add Address"}
             </Button>
           </div>
         }
@@ -123,6 +124,30 @@ export const AddressDialog = ({
               }
             />
             <Label>Set as default</Label>
+          </div>
+          <div className="space-y-2">
+            <label className="text-sm font-medium">Address Type</label>
+            <div className="grid grid-cols-3 gap-2">
+              {[
+                { value: "home" as const, label: "Home", icon: Home },
+                { value: "work" as const, label: "Work", icon: Briefcase },
+                { value: "other" as const, label: "Other", icon: MapPin },
+              ].map((type) => (
+                <button
+                  key={type.value}
+                  type="button"
+                  onClick={() => setFormData({ ...formData, addressType: type.value })}
+                  className={`p-3 border rounded-lg flex flex-col items-center gap-2 transition-colors ${
+                    formData.addressType === type.value
+                      ? "border-primary bg-primary/10 text-primary"
+                      : "border-gray-200 hover:border-gray-300"
+                  }`}
+                >
+                  <type.icon className="h-5 w-5" />
+                  <span className="text-xs">{type.label}</span>
+                </button>
+              ))}
+            </div>
           </div>
         </form>
       </AdaptiveModal>

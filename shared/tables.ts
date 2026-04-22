@@ -288,6 +288,9 @@ export const orderItems = pgTable("order_items", {
     .references(() => productVariants.id),
   quantity: integer("quantity").notNull(),
   price: decimal("price", { precision: 10, scale: 2 }).notNull(),
+  productPrice: decimal("product_price", { precision: 10, scale: 2 }),
+  discountedPrice: decimal("discounted_price", { precision: 10, scale: 2 }),
+  offerDetails: json("offer_details"),
   status: text("status").notNull().default("pending"),
   trackingNumber: text("tracking_number"),
   shippedAt: timestamp("shipped_at"),
@@ -373,6 +376,7 @@ export const userAddresses = pgTable("user_addresses", {
   locality: text("locality").notNull(),
   city: text("city").notNull(),
   pincode: text("pincode").notNull(),
+  addressType: enums.addressTypeEnum("address_type").notNull().default("home"),
   isDefault: boolean("is_default").notNull().default(false),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });

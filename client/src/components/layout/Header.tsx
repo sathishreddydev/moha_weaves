@@ -28,6 +28,7 @@ import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useCartStore } from "../Store/useCartStore";
 import { useWishlistStore } from "../Store/useWishlistStore";
+import { OffersBanner } from "./OffersBanner";
 
 const navLinks = [
   { href: "/", label: "Home" },
@@ -80,9 +81,11 @@ export function Header() {
   };
 
   return (
-    <header
-      className={`sticky top-0 w-full z-[100] transition-all duration-700 ${scrolled ? "bg-white/95 backdrop-blur-xl py-3 shadow-sm" : "bg-white/95 backdrop-blur-md py-3"}`}
-    >
+    <>
+      <OffersBanner />
+      <header
+        className={`sticky top-0 w-full z-[100] transition-all duration-700 ${scrolled ? "bg-white/95 backdrop-blur-xl py-3 shadow-sm" : "bg-white/95 backdrop-blur-md py-3"}`}
+      >
       <div className="max-w-[1800px] mx-auto px-8 flex justify-between items-center">
         <div className="flex items-center gap-12">
           <div className="flex items-center gap-2">
@@ -249,6 +252,7 @@ export function Header() {
           )}
         </div>
       </div>
-    </header>
+      </header>
+    </>
   );
 }
