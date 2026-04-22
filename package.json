@@ -16,7 +16,6 @@
     "db:studio": "drizzle-kit studio",
     "db:drop": "drizzle-kit drop",
     "create-admin": "tsx script/create-admin.ts",
-    "postinstall": "npm run build",
     "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
     "lint:fix": "eslint . --ext ts,tsx --fix"
   },
