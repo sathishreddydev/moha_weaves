@@ -6,10 +6,14 @@ import { registerRoutes } from "./routes";
 import { serveStatic } from "./static";
 import { emailService } from "./services/emailService";
 
-// Load environment variables from .env.development for local development
+// Load environment variables
 if (process.env.NODE_ENV !== 'production') {
   import('dotenv').then(dotenv => {
     dotenv.config({ path: '.env.development' });
+  });
+} else {
+  import('dotenv').then(dotenv => {
+    dotenv.config({ path: '.env.prod' });
   });
 }
 
