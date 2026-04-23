@@ -63,26 +63,124 @@ docker-compose exec app npm run create-admin
 
 ## 📋 Management Commands
 
+### **🔍 Check Application Status**
 ```bash
-# View logs
+# Check if containers are running
+docker-compose ps
+
+# Check application health
+curl http://103.127.146.58:5000/api/health
+
+# View real-time logs
 docker-compose logs -f app
 
-# Restart application
-docker-compose restart
+# Check specific container logs
+docker-compose logs app
+docker-compose logs postgres
+docker-compose logs redis
+```
 
-# Update application
-git pull
-docker-compose build
+### **⏯️ Start/Stop/Restart Application**
+```bash
+# Start application
 docker-compose up -d
 
 # Stop application
 docker-compose down
 
-# Database access
+# Restart application
+docker-compose restart
+
+# Restart specific service
+docker-compose restart app
+docker-compose restart postgres
+```
+
+### **🔄 Update Application with Changes**
+
+#### **⚡ Quick Update (For Code Changes)**
+```bash
+# Step 1: Pull latest changes
+git pull
+
+# Step 2: Restart app (no rebuild needed)
+docker-compose restart app
+
+# Step 3: Verify update
+curl http://103.127.146.58:5000
+```
+
+#### **🏗️ Full Update (For Dependencies/Config Changes)**
+```bash
+# Step 1: Pull latest changes
+git pull
+
+# Step 2: Build and restart
+docker-compose build app
+docker-compose up -d
+
+# Step 3: Verify update
+docker-compose logs app --tail=20
+curl http://103.127.146.58:5000
+```
+
+#### **🔨 Complete Rebuild (For Major Changes)**
+```bash
+# Step 1: Pull latest changes
+git pull
+
+# Step 2: Full rebuild
+docker-compose build --no-cache
+docker-compose up -d
+
+# Step 3: Verify update
+docker-compose logs app --tail=20
+curl http://103.127.146.58:5000
+```
+
+#### **📋 When to Use Each Method:**
+- **Quick Update**: Code changes, minor fixes
+- **Full Update**: New dependencies, package.json changes
+- **Complete Rebuild**: Dockerfile changes, major config updates
+
+**💡 Pro Tip**: Start with Quick Update. If issues occur, try Full Update.
+
+### **🗄️ Database Operations**
+```bash
+# Access database
 docker-compose exec postgres psql -U postgres -d moha_weaves
+
+# Create new admin user
+docker-compose exec app npm run create-admin
+
+# Database schema update
+docker-compose exec app npm run db:push
 
 # Backup database
 docker-compose exec postgres pg_dump -U postgres moha_weaves > backup.sql
+
+# Restore database
+docker-compose exec -T postgres psql -U postgres -d moha_weaves < backup.sql
+```
+
+### **🔧 Troubleshooting**
+```bash
+# Check container status
+docker-compose ps
+
+# View error logs
+docker-compose logs app --tail=50
+
+# Force rebuild if issues
+docker-compose down
+docker-compose build --no-cache
+docker-compose up -d
+
+# Check disk space
+df -h
+
+# Check memory usage
+docker stats
 ```
 
 ## 🔧 Configuration Summary
