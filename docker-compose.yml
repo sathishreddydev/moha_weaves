@@ -104,11 +104,12 @@ services:
       NODE_ENV: production
       DATABASE_URL: postgresql://postgres:Mohaweaves%40123@postgres:5432/moha_weaves
       REDIS_URL: redis://redis:6379
+      SESSION_SECRET: mohaweaves_secret_key
+      JWT_SECRET: mohaweaves_jwt_secret_key_very_long_and_secure_production
       NEXT_PUBLIC_API_URL: http://103.127.146.58:5000
       NEXT_PUBLIC_IMAGE_URL: http://103.127.146.58:5000/uploads
       NEXTAUTH_URL: http://103.127.146.58:3000
       NEXTAUTH_SECRET: mohaweaves_secret_key_production
-      JWT_SECRET: mohaweaves_jwt_secret_key_very_long_and_secure_production
       ADMIN_API_URL: http://103.127.146.58:5000/api
       ADMIN_API_KEY: your-admin-api-key-here
       CLOUDINARY_CLOUD_NAME: dtnj9soo7

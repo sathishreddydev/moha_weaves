@@ -57,9 +57,31 @@ docker-compose exec app npm run create-admin
 
 ## 🌐 Access URLs
 
-### **Admin Panel**
-- **URL**: `http://103.127.146.58:5000`
-- **API**: `http://103.127.146.58:5000/api/*`
+### **Applications**
+- **Next.js Frontend**: `http://103.127.146.58:3000`
+- **Admin Panel**: `http://103.127.146.58:5000`
+- **API Endpoints**: `http://103.127.146.58:5000/api/*`
+
+### **Architecture Overview**
+```
+┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
+│   Next.js App   │    │  Admin App      │    │   PostgreSQL    │
+│   (Port 3000)   │    │  (Port 5000)    │    │   (Port 5432)   │
+└─────────────────┘    └─────────────────┘    └─────────────────┘
+         │                       │                       │
+         └───────────────────────┼───────────────────────┘
+                                 │
+                    ┌─────────────────┐
+                    │     Redis       │
+                    │   (Port 6379)   │
+                    └─────────────────┘
+```
+
+### **Shared Resources**
+- **Database**: Both apps use same PostgreSQL database
+- **Cache**: Shared Redis instance for sessions and caching
+- **API**: Admin panel provides API endpoints for Next.js
+- **File Uploads**: Shared upload directory accessible by both apps
 
 ## 📋 Management Commands
 
@@ -70,12 +92,15 @@ docker-compose ps
 
 # Check application health
 curl http://103.127.146.58:5000/api/health
+curl http://103.127.146.58:3000
 
 # View real-time logs
 docker-compose logs -f app
+docker-compose logs -f nextjs
 
 # Check specific container logs
 docker-compose logs app
+docker-compose logs nextjs
 docker-compose logs postgres
 docker-compose logs redis
 ```
@@ -93,7 +118,9 @@ docker-compose restart
 
 # Restart specific service
 docker-compose restart app
+docker-compose restart nextjs
 docker-compose restart postgres
+docker-compose restart redis
 ```
 
 ### **🔄 Update Application with Changes**
@@ -103,11 +130,13 @@ docker-compose restart postgres
 # Step 1: Pull latest changes
 git pull
 
-# Step 2: Restart app (no rebuild needed)
+# Step 2: Restart apps (no rebuild needed)
 docker-compose restart app
+docker-compose restart nextjs
 
 # Step 3: Verify update
 curl http://103.127.146.58:5000
+curl http://103.127.146.58:3000
 ```
 
 #### **🏗️ Full Update (For Dependencies/Config Changes)**
@@ -117,11 +146,14 @@ git pull
 
 # Step 2: Build and restart
 docker-compose build app
+docker-compose build nextjs
 docker-compose up -d
 
 # Step 3: Verify update
 docker-compose logs app --tail=20
+docker-compose logs nextjs --tail=20
 curl http://103.127.146.58:5000
+curl http://103.127.146.58:3000
 ```
 
 #### **🔨 Complete Rebuild (For Major Changes)**
@@ -135,7 +167,24 @@ docker-compose up -d
 
 # Step 3: Verify update
 docker-compose logs app --tail=20
+docker-compose logs nextjs --tail=20
 curl http://103.127.146.58:5000
+curl http://103.127.146.58:3000
+```
+
+#### **🔄 Update Next.js Only (From Separate Repo)**
+```bash
+# Step 1: Update Next.js repository
+cd ../moha_weaves_nextjs
+git pull
+cd ../moha_weaves
+
+# Step 2: Build and restart Next.js
+docker-compose build nextjs
+docker-compose restart nextjs
+
+# Step 3: Verify update
+curl http://103.127.146.58:3000
 ```
 
 #### **📋 When to Use Each Method:**

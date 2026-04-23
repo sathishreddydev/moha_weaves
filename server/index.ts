@@ -2,6 +2,7 @@ import "dotenv/config";
 import express, { type Request, Response, NextFunction } from "express";
 import { createServer } from "http";
 import cookieParser from "cookie-parser";
+import cors from "cors";
 import { registerRoutes } from "./routes";
 import { serveStatic } from "./static";
 import { emailService } from "./services/emailService";
@@ -28,6 +29,14 @@ declare module "http" {
 
 
 app.use(cookieParser());
+
+// CORS configuration for cross-origin requests
+app.use(cors({
+  origin: ['http://103.127.146.58:3000', 'http://localhost:3000', 'http://103.127.146.58:5000', 'http://localhost:5000'],
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'Cookie', 'Set-Cookie']
+}));
 
 // Health check endpoint for Render
 app.get('/health', (req, res) => {
