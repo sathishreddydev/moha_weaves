@@ -67,6 +67,7 @@ services:
       - ./shared:/app/shared:ro
       - ./migrations:/app/migrations:ro
       - ./script:/app/script:ro
+      - ./server:/app/server:ro
       - uploads:/app/uploads
     depends_on:
       - postgres
