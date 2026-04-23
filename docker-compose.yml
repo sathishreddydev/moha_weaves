@@ -63,6 +63,9 @@ services:
     ports:
       - "5000:5000"
     volumes:
+      - ./drizzle.config.ts:/app/drizzle.config.ts:ro
+      - ./shared:/app/shared:ro
+      - ./migrations:/app/migrations:ro
       - uploads:/app/uploads
     depends_on:
       - postgres
