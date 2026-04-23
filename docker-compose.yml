@@ -75,7 +75,7 @@ services:
     networks:
       - moha_weaves_network
 
-nextjs:
+  nextjs:
     build:
       context: ./nextjs-app
       dockerfile: Dockerfile
