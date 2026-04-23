@@ -1,4 +1,4 @@
-# Multi-stage build for Moha Weaves application
+# Multi-stage build for Moha Weaves monolithic application
 FROM node:18-alpine AS base
 
 # Install dependencies only when needed
@@ -9,15 +9,15 @@ WORKDIR /app
 
 # Install dependencies based on the preferred package manager
 COPY package.json package-lock.json* ./
-RUN npm ci --only=production
+RUN npm ci
 
-# Build stage for frontend
+# Build stage
 FROM base AS builder
 WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 
-# Build the application
+# Build the application (both frontend and backend)
 RUN npm run build
 
 # Production stage
@@ -27,7 +27,7 @@ WORKDIR /app
 ENV NODE_ENV=production
 
 RUN addgroup --system --gid 1001 nodejs
-RUN adduser --system --uid 1001 nextjs
+RUN adduser --system --uid 1001 nodejs
 
 # Copy built application
 COPY --from=builder /app/dist ./dist
@@ -35,9 +35,9 @@ COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/package.json ./package.json
 
 # Create uploads directory for file storage
-RUN mkdir -p /app/uploads && chown -R nextjs:nodejs /app/uploads
+RUN mkdir -p /app/uploads && chown -R nodejs:nodejs /app/uploads
 
-USER nextjs
+USER nodejs
 
 EXPOSE 3000
 

@@ -31,12 +31,12 @@ services:
     networks:
       - moha_weaves_network
 
-  # Backend API
-  backend:
+  # Application (monolithic - contains both frontend and backend)
+  app:
     build:
       context: .
-      dockerfile: Dockerfile.backend
-    container_name: moha_weaves_backend
+      dockerfile: Dockerfile
+    container_name: moha_weaves_app
     restart: unless-stopped
     environment:
       NODE_ENV: production
@@ -85,7 +85,7 @@ services:
     volumes:
       - ./nginx/ssl:/etc/nginx/ssl:ro
     depends_on:
-      - backend
+      - app
     networks:
       - moha_weaves_network
 
