@@ -9,7 +9,7 @@ WORKDIR /app
 
 # Install dependencies based on the preferred package manager
 COPY package.json package-lock.json* ./
-RUN npm ci && npm install -g cross-env
+RUN npm ci && npm install -g cross-env tsx
 
 # Build stage
 FROM base AS builder
@@ -20,6 +20,9 @@ COPY . .
 # Build the application (both frontend and backend)
 RUN npm run build
 
+# Verify build output
+RUN ls -la /app/dist/
+
 # Production stage
 FROM base AS runner
 WORKDIR /app
@@ -29,8 +32,8 @@ ENV NODE_ENV=production
 RUN addgroup --system --gid 1001 nodejs
 RUN adduser --system --uid 1001 nodejs
 
-# Install cross-env globally
-RUN npm install -g cross-env
+# Install cross-env and tsx globally
+RUN npm install -g cross-env tsx
 
 # Copy built application
 COPY --from=builder /app/dist ./dist
