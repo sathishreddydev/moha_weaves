@@ -77,27 +77,26 @@ docker-compose logs -f
 ## Step 5: Setup SSL Certificates
 
 ```bash
-# Stop frontend container to free port 80
-docker-compose stop frontend
+# Stop app container to free port 80
+docker-compose stop app
 
-# Get SSL certificate from Let's Encrypt
+# Get SSL certificate from Let's Encrypt (admin only)
 certbot certonly --standalone \
     --email sathishreddy.k0337@gmail.com \
     --agree-tos \
     --no-eff-email \
-    -d vps.sathish.com \
     -d admin.vps.sathish.com
 
 # Create SSL directory and copy certificates
 mkdir -p nginx/ssl
-cp /etc/letsencrypt/live/vps.sathish.com/fullchain.pem nginx/ssl/cert.pem
-cp /etc/letsencrypt/live/vps.sathish.com/privkey.pem nginx/ssl/key.pem
+cp /etc/letsencrypt/live/admin.vps.sathish.com/fullchain.pem nginx/ssl/cert.pem
+cp /etc/letsencrypt/live/admin.vps.sathish.com/privkey.pem nginx/ssl/key.pem
 
 # Setup automatic SSL renewal (runs daily at 12 PM)
-echo "0 12 * * * /usr/bin/certbot renew --quiet && docker-compose restart frontend" | crontab -
+echo "0 12 * * * /usr/bin/certbot renew --quiet && docker-compose restart app" | crontab -
 
-# Restart frontend with SSL configuration
-docker-compose start frontend
+# Restart app with SSL configuration
+docker-compose start app
 ```
 
 ## Step 6: Verify Deployment
@@ -106,29 +105,30 @@ docker-compose start frontend
 # Check all containers are running
 docker-compose ps
 
-# Test backend health
-curl -k https://vps.sathish.com/api/health
+# Test admin panel health
+curl -k https://admin.vps.sathish.com/api/health
 
-# Test frontend
-curl -k https://vps.sathish.com
+# Test admin panel
+curl -k https://admin.vps.sathish.com
+
+# Test direct app access
+curl -k http://admin.vps.sathish.com:5000
 
 # Check logs for any errors
-docker-compose logs backend
-docker-compose logs frontend
+docker-compose logs app
 ```
 
 ## Step 7: Final Setup and Verification
 
 ```bash
 # Run database migrations (if needed)
-docker-compose exec backend npm run db:migrate
+docker-compose exec app npm run db:migrate
 
 # Create admin user (if needed)
-docker-compose exec backend npm run create-admin
+docker-compose exec app npm run create-admin
 
 # Test the application in browser:
-# - Main site: https://vps.sathish.com
-# - Admin panel: https://admin.vps.sathish.com
+# - Admin Panel: https://admin.vps.sathish.com
 ```
 
 ## Quick One-Command Deployment (Alternative)
@@ -147,7 +147,7 @@ This script will perform all the above steps automatically.
 
 ```bash
 # View logs
-docker-compose logs -f
+docker-compose logs -f app
 
 # Restart services
 docker-compose restart
@@ -172,10 +172,10 @@ docker-compose exec postgres pg_dump -U postgres moha_weaves > backup.sql
 If containers fail to start:
 ```bash
 # Check logs
-docker-compose logs <service-name>
+docker-compose logs app
 
-# Rebuild specific service
-docker-compose build --no-cache <service-name>
+# Rebuild app service
+docker-compose build --no-cache app
 
 # Reset everything
 docker-compose down -v
