@@ -21,8 +21,8 @@ const REFRESH_TOKEN_EXPIRY_DAYS = 30; // Refresh token valid for 30 days
 const isProduction = process.env.NODE_ENV === "production";
 const cookieOptions = {
   httpOnly: true,
-  secure: isProduction,
-  sameSite: "strict" as const,
+  secure: false, // Disabled for HTTP (required for sameSite=none)
+  sameSite: "lax" as const, // Use lax for HTTP cross-origin
   path: "/",
 };
 
