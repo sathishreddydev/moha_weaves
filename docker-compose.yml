@@ -63,6 +63,7 @@ services:
     ports:
       - "5000:5000"
     volumes:
+      - .:/app 
       - uploads:/app/uploads
     depends_on:
       - postgres
