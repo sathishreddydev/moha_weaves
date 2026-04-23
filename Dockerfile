@@ -39,9 +39,9 @@ RUN mkdir -p /app/uploads && chown -R nodejs:nodejs /app/uploads
 
 USER nodejs
 
-EXPOSE 3000
+EXPOSE 5000
 
-ENV PORT=3000
+ENV PORT=5000
 ENV HOSTNAME="0.0.0.0"
 
 CMD ["npm", "start"]
