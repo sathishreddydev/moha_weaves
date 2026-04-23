@@ -75,6 +75,38 @@ services:
     networks:
       - moha_weaves_network
 
+nextjs:
+    build:
+      context: ./nextjs-app
+      dockerfile: Dockerfile
+    container_name: moha_weaves_frontend
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      NODE_ENV: production
+      DATABASE_URL: postgresql://postgres:Mohaweaves%40123@postgres:5432/moha_weaves
+      REDIS_URL: redis://redis:6379
+      NEXT_PUBLIC_API_URL: http://103.127.146.58:5000
+      NEXT_PUBLIC_IMAGE_URL: http://103.127.146.58:5000/uploads
+      NEXTAUTH_URL: http://103.127.146.58:3000
+      NEXTAUTH_SECRET: mohaweaves_secret_key_production
+      JWT_SECRET: mohaweaves_jwt_secret_key_very_long_and_secure_production
+      ADMIN_API_URL: http://103.127.146.58:5000/api
+      ADMIN_API_KEY: your-admin-api-key-here
+      CLOUDINARY_CLOUD_NAME: dtnj9soo7
+      CLOUDINARY_API_KEY: 162729439253832
+      CLOUDINARY_API_SECRET: -J68bCqXcCft9WS3338T7Cyw8zs
+      RAZORPAY_KEY_ID: rzp_test_UxXBzl98ySixq7
+      RAZORPAY_KEY_SECRET: n78QX7ZaxGndqCdRryofDbNU
+      RAZORPAY_WEBHOOK_SECRET: Ksr@0337
+      NEXT_PUBLIC_RAZORPAY_KEY_ID: rzp_test_UxXBzl98ySixq7
+    depends_on:
+      - postgres
+      - redis
+    networks:
+      - moha_weaves_network
+
 volumes:
   postgres_data:
   redis_data:
