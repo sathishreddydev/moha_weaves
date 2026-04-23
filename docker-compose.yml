@@ -62,10 +62,8 @@ services:
       DELHIVERY_PRODUCTION_URL: https://track.delhivery.com
     ports:
       - "5000:5000"
-      - "443:443"
     volumes:
       - uploads:/app/uploads
-      - ./nginx/ssl:/etc/nginx/ssl:ro
     depends_on:
       - postgres
       - redis

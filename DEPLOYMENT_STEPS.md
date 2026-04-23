@@ -74,45 +74,17 @@ docker-compose ps
 docker-compose logs -f
 ```
 
-## Step 5: Setup SSL Certificates
-
-```bash
-# Stop app container to free port 80
-docker-compose stop app
-
-# Get SSL certificate from Let's Encrypt (admin only)
-certbot certonly --standalone \
-    --email sathishreddy.k0337@gmail.com \
-    --agree-tos \
-    --no-eff-email \
-    -d admin.vps.sathish.com
-
-# Create SSL directory and copy certificates
-mkdir -p nginx/ssl
-cp /etc/letsencrypt/live/admin.vps.sathish.com/fullchain.pem nginx/ssl/cert.pem
-cp /etc/letsencrypt/live/admin.vps.sathish.com/privkey.pem nginx/ssl/key.pem
-
-# Setup automatic SSL renewal (runs daily at 12 PM)
-echo "0 12 * * * /usr/bin/certbot renew --quiet && docker-compose restart app" | crontab -
-
-# Restart app with SSL configuration
-docker-compose start app
-```
-
-## Step 6: Verify Deployment
+## Step 5: Verify Deployment
 
 ```bash
 # Check all containers are running
 docker-compose ps
 
-# Test admin panel health
-curl -k https://admin.vps.sathish.com/api/health
+# Test application health
+curl http://103.127.146.58:5000/api/health
 
-# Test admin panel
-curl -k https://admin.vps.sathish.com
-
-# Test direct app access
-curl -k http://admin.vps.sathish.com:5000
+# Test frontend
+curl http://103.127.146.58:5000
 
 # Check logs for any errors
 docker-compose logs app
