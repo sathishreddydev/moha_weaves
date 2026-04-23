@@ -77,7 +77,7 @@ services:
 
   nextjs:
     build:
-      context: ./nextjs-app
+      context: ../moha_weaves_nextjs
       dockerfile: Dockerfile
       args:
         DATABASE_URL: postgresql://postgres:Mohaweaves%40123@postgres:5432/moha_weaves
