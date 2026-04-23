@@ -490,6 +490,69 @@ export const adminRoutes = (app: Express) => {
     }
   });
 
+  // Admin subcategory management
+  app.post("/api/admin/subcategories", authAdmin, async (req, res) => {
+    try {
+      const { categoryId, name, description, imageUrl, isActive } = req.body;
+      
+      if (!categoryId || !name) {
+        return res.status(400).json({ 
+          message: "Category ID and name are required" 
+        });
+      }
+      
+      const subcategory = await publicStorage.createSubcategory({
+        categoryId,
+        name,
+        description: description || null,
+        imageUrl: imageUrl || null,
+        isActive: isActive !== undefined ? isActive : true,
+      });
+      res.status(201).json(subcategory);
+    } catch (error) {
+      console.error("Error creating subcategory:", error);
+      const message = error instanceof Error ? error.message : "Unknown error occurred";
+      res.status(500).json({ 
+        message: "Failed to create subcategory", 
+        error: process.env.NODE_ENV === "development" ? message : undefined 
+      });
+    }
+  });
+
+  app.patch("/api/admin/subcategories/:id", authAdmin, async (req, res) => {
+    try {
+      const subcategory = await publicStorage.updateSubcategory(
+        req.params.id,
+        req.body,
+      );
+      if (!subcategory) {
+        return res.status(404).json({ message: "Subcategory not found" });
+      }
+      res.json(subcategory);
+    } catch (error) {
+      console.error("Error updating subcategory:", error);
+      const message = error instanceof Error ? error.message : "Unknown error occurred";
+      res.status(500).json({ 
+        message: "Failed to update subcategory", 
+        error: process.env.NODE_ENV === "development" ? message : undefined 
+      });
+    }
+  });
+
+  app.delete("/api/admin/subcategories/:id", authAdmin, async (req, res) => {
+    try {
+      await publicStorage.deleteSubcategory(req.params.id);
+      res.json({ success: true });
+    } catch (error) {
+      console.error("Error deleting subcategory:", error);
+      const message = error instanceof Error ? error.message : "Unknown error occurred";
+      res.status(500).json({ 
+        message: "Failed to delete subcategory", 
+        error: process.env.NODE_ENV === "development" ? message : undefined 
+      });
+    }
+  });
+
   // Admin color management
   app.post("/api/admin/colors", authAdmin, async (req, res) => {
     try {

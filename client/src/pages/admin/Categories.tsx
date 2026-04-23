@@ -47,6 +47,15 @@ export default function AdminCategories() {
   const [categoryToDelete, setCategoryToDelete] = useState<Category | null>(null);
   const [subcategoryToDelete, setSubcategoryToDelete] = useState<Subcategory | null>(null);
   const [editingCategory, setEditingCategory] = useState<Category | null>(null);
+  const [subcategoryModalOpen, setSubcategoryModalOpen] = useState(false);
+  const [selectedCategory, setSelectedCategory] = useState<Category | null>(null);
+  const [editingSubcategory, setEditingSubcategory] = useState<Subcategory | null>(null);
+  const [subcategoryFormData, setSubcategoryFormData] = useState({
+    name: "",
+    description: "",
+    imageUrl: "",
+    isActive: true,
+  });
   const [formData, setFormData] = useState({
     name: "",
     description: "",
@@ -315,6 +324,70 @@ export default function AdminCategories() {
     }));
   };
 
+  const handleOpenAddSubcategoryModal = (category: Category) => {
+    setSelectedCategory(category);
+    setEditingSubcategory(null);
+    setSubcategoryFormData({
+      name: "",
+      description: "",
+      imageUrl: "",
+      isActive: true,
+    });
+    setSubcategoryModalOpen(true);
+  };
+
+  const handleEditSubcategoryModal = (subcategory: Subcategory) => {
+    setSelectedCategory(null);
+    setEditingSubcategory(subcategory);
+    setSubcategoryFormData({
+      name: subcategory.name,
+      description: subcategory.description || "",
+      imageUrl: subcategory.imageUrl || "",
+      isActive: subcategory.isActive,
+    });
+    setSubcategoryModalOpen(true);
+  };
+
+  const handleCloseSubcategoryModal = () => {
+    setSubcategoryModalOpen(false);
+    setSelectedCategory(null);
+    setEditingSubcategory(null);
+    setSubcategoryFormData({
+      name: "",
+      description: "",
+      imageUrl: "",
+      isActive: true,
+    });
+  };
+
+  const handleSubcategorySubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (editingSubcategory) {
+      // Update existing subcategory
+      updateSubcategoryMutation.mutate({
+        id: editingSubcategory.id,
+        data: {
+          name: subcategoryFormData.name,
+          description: subcategoryFormData.description,
+          imageUrl: subcategoryFormData.imageUrl,
+          isActive: subcategoryFormData.isActive,
+        }
+      });
+    } else if (selectedCategory) {
+      // Create new subcategory
+      createSubcategoryMutation.mutate({
+        categoryId: selectedCategory.id,
+        name: subcategoryFormData.name,
+        description: subcategoryFormData.description,
+        imageUrl: subcategoryFormData.imageUrl,
+        isActive: subcategoryFormData.isActive,
+      });
+    }
+    
+    handleCloseSubcategoryModal();
+  };
+
   const handleEditSubcategory = (subcategory: Subcategory) => {
     setEditingSubcategories(prev => ({
       ...prev,
@@ -493,6 +566,14 @@ export default function AdminCategories() {
           <div className="flex items-center gap-2">
             <Button
               variant="ghost"
+              size="sm"
+              onClick={() => handleOpenAddSubcategoryModal(category)}
+            >
+              <Plus className="h-4 w-4 mr-1" />
+              Add Sub
+            </Button>
+            <Button
+              variant="ghost"
               size="icon"
               onClick={() => handleOpenEdit(category)}
               data-testid={`button-edit-${category.id}`}
@@ -515,300 +596,79 @@ export default function AdminCategories() {
 
   // Subcategories accordion content
   const renderSubcategories = (category: Category & { subcategories?: Subcategory[] }) => {
-    const showAddForm = addSubcategoryForms[category.id] || false;
-    const newSubcategory = newSubcategories[category.id] || {
-      name: "",
-      description: "",
-      imageUrl: "",
-      isActive: true
-    };
-
     if (!category.subcategories || category.subcategories.length === 0) {
       return (
         <div className="text-center py-4 text-muted-foreground">
-          No subcategories found
+          No subcategories found. Click "Add Sub" in the Actions column to add one.
         </div>
       );
     }
 
     return (
-      <div className="space-y-4">
-        {/* Subcategories Table */}
-        <div className="border rounded-lg overflow-hidden">
-          <table className="w-full">
-            <thead className="bg-muted/50">
-              <tr>
-                <th className="text-left p-3 font-medium">Image</th>
-                <th className="text-left p-3 font-medium">Name</th>
-                <th className="text-left p-3 font-medium">Description</th>
-                <th className="text-left p-3 font-medium">Status</th>
-                <th className="text-left p-3 font-medium">Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {category.subcategories.map((subcategory) => {
-                const isEditing = editingSubcategories[subcategory.id];
-                
-                return (
-                  <tr key={subcategory.id} className="border-t">
-                    <td className="p-3">
-                      {isEditing ? (
-                        <div className="flex items-center gap-4">
-                          {isEditing.imageUrl && (
-                            <div className="relative w-16 h-16">
-                              <img
-                                src={isEditing.imageUrl}
-                                alt="Subcategory preview"
-                                className="w-full h-full object-cover rounded"
-                              />
-                              <Button
-                                type="button"
-                                variant="destructive"
-                                size="icon"
-                                className="absolute -top-2 -right-2 h-5 w-5"
-                                onClick={() => setEditingSubcategories(prev => ({
-                                  ...prev,
-                                  [subcategory.id]: { ...isEditing, imageUrl: "" }
-                                }))}
-                              >
-                                <Trash2 className="h-3 w-3" />
-                              </Button>
-                            </div>
-                          )}
-                          <CloudinaryUploader
-                            maxNumberOfFiles={1}
-                            onComplete={(urls) => {
-                              if (urls.length > 0) {
-                                setEditingSubcategories(prev => ({
-                                  ...prev,
-                                  [subcategory.id]: { ...isEditing, imageUrl: urls[0] }
-                                }));
-                              }
-                            }}
-                            buttonVariant="outline"
-                          >
-                            <Upload className="h-3 w-3 mr-2" />
-                            {isEditing.imageUrl ? "Change" : "Upload"}
-                          </CloudinaryUploader>
-                        </div>
-                      ) : (
-                        subcategory.imageUrl ? (
-                          <img
-                            src={subcategory.imageUrl}
-                            alt={subcategory.name}
-                            className="w-12 h-12 object-cover rounded"
-                          />
-                        ) : (
-                          <div className="w-12 h-12 bg-muted rounded flex items-center justify-center">
-                            <Tags className="h-5 w-5 text-muted-foreground" />
-                          </div>
-                        )
-                      )}
-                    </td>
-                    <td className="p-3">
-                      {isEditing ? (
-                        <Input
-                          value={isEditing.name || ""}
-                          onChange={(e) => setEditingSubcategories(prev => ({
-                            ...prev,
-                            [subcategory.id]: { ...isEditing, name: e.target.value }
-                          }))}
-                          placeholder="Subcategory name"
-                        />
-                      ) : (
-                        <span className="font-medium">{subcategory.name}</span>
-                      )}
-                    </td>
-                    <td className="p-3">
-                      {isEditing ? (
-                        <Textarea
-                          value={isEditing.description || ""}
-                          onChange={(e) => setEditingSubcategories(prev => ({
-                            ...prev,
-                            [subcategory.id]: { ...isEditing, description: e.target.value }
-                          }))}
-                          placeholder="Brief description"
-                          rows={2}
-                        />
-                      ) : (
-                        <span className="text-muted-foreground">
-                          {subcategory.description || "No description"}
-                        </span>
-                      )}
-                    </td>
-                    <td className="p-3">
-                      {isEditing ? (
-                        <div className="flex items-center gap-2">
-                          <Switch
-                            checked={isEditing.isActive !== false}
-                            onCheckedChange={(checked) => setEditingSubcategories(prev => ({
-                              ...prev,
-                              [subcategory.id]: { ...isEditing, isActive: checked }
-                            }))}
-                          />
-                          <Label>Active</Label>
-                        </div>
-                      ) : (
-                        <Badge variant={subcategory.isActive ? "default" : "secondary"}>
-                          {subcategory.isActive ? "Active" : "Inactive"}
-                        </Badge>
-                      )}
-                    </td>
-                    <td className="p-3">
-                      <div className="flex items-center gap-2">
-                        {isEditing ? (
-                          <>
-                            <Button
-                              size="sm"
-                              onClick={() => handleUpdateSubcategory(subcategory.id)}
-                              disabled={updateSubcategoryMutation.isPending}
-                            >
-                              {updateSubcategoryMutation.isPending ? "Saving..." : "Save"}
-                            </Button>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => handleCancelEditSubcategory(subcategory.id)}
-                            >
-                              Cancel
-                            </Button>
-                          </>
-                        ) : (
-                          <>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => handleEditSubcategory(subcategory)}
-                              disabled={deleteSubcategoryMutation.isPending}
-                            >
-                              <Edit className="h-4 w-4" />
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => handleDeleteSubcategory(subcategory)}
-                              disabled={deleteSubcategoryMutation.isPending}
-                            >
-                              <Trash2 className="h-4 w-4 text-destructive" />
-                            </Button>
-                          </>
-                        )}
-                      </div>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
-
-        {/* Add Subcategory Form */}
-        <div className="mt-4">
-          {!showAddForm ? (
-            <Button
-              onClick={() => toggleAddSubcategoryForm(category.id)}
-              className="w-full"
-              variant="outline"
-              disabled={createSubcategoryMutation.isPending}
-            >
-              <Plus className="h-4 w-4 mr-2" />
-              Add Subcategory
-            </Button>
-          ) : (
-            <div className="border rounded-lg p-4 bg-muted/30 space-y-4">
-              <h4 className="font-medium">Add New Subcategory</h4>
-              
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <Label htmlFor={`subcategory-name-${category.id}`}>Name</Label>
-                  <Input
-                    id={`subcategory-name-${category.id}`}
-                    value={newSubcategory.name || ""}
-                    onChange={(e) => updateNewSubcategory(category.id, "name", e.target.value)}
-                    placeholder="e.g., Kanchipuram silk"
-                  />
-                </div>
-                <div>
-                  <Label htmlFor={`subcategory-description-${category.id}`}>Description</Label>
-                  <Textarea
-                    id={`subcategory-description-${category.id}`}
-                    value={newSubcategory.description || ""}
-                    onChange={(e) => updateNewSubcategory(category.id, "description", e.target.value)}
-                    placeholder="Brief description"
-                    rows={3}
-                  />
-                </div>
-              </div>
-
-              <div>
-                <Label>Subcategory Image</Label>
-                <div className="flex items-center gap-4">
-                  {newSubcategory.imageUrl && (
-                    <div className="relative w-16 h-16">
-                      <img
-                        src={newSubcategory.imageUrl}
-                        alt="Subcategory preview"
-                        className="w-full h-full object-cover rounded"
-                      />
-                      <Button
-                        type="button"
-                        variant="destructive"
-                        size="icon"
-                        className="absolute -top-2 -right-2 h-5 w-5"
-                        onClick={() => updateNewSubcategory(category.id, "imageUrl", "")}
-                      >
-                        <Trash2 className="h-3 w-3" />
-                      </Button>
+      <div className="border rounded-lg overflow-hidden">
+        <table className="w-full">
+          <thead className="bg-muted/50">
+            <tr>
+              <th className="text-left p-3 font-medium">Image</th>
+              <th className="text-left p-3 font-medium">Name</th>
+              <th className="text-left p-3 font-medium">Description</th>
+              <th className="text-left p-3 font-medium">Status</th>
+              <th className="text-left p-3 font-medium">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {category.subcategories.map((subcategory) => (
+              <tr key={subcategory.id} className="border-t">
+                <td className="p-3">
+                  {subcategory.imageUrl ? (
+                    <img
+                      src={subcategory.imageUrl}
+                      alt={subcategory.name}
+                      className="w-12 h-12 object-cover rounded"
+                    />
+                  ) : (
+                    <div className="w-12 h-12 bg-muted rounded flex items-center justify-center">
+                      <Tags className="h-5 w-5 text-muted-foreground" />
                     </div>
                   )}
-                  <CloudinaryUploader
-                    maxNumberOfFiles={1}
-                    onComplete={(urls) => {
-                      if (urls.length > 0) {
-                        updateNewSubcategory(category.id, "imageUrl", urls[0]);
-                      }
-                    }}
-                    buttonVariant="outline"
-                  >
-                    <Upload className="h-3 w-3 mr-2" />
-                    {newSubcategory.imageUrl ? "Change" : "Upload"}
-                  </CloudinaryUploader>
-                </div>
-              </div>
-
-              <div className="flex items-center gap-2">
-                <Switch
-                  id={`subcategory-active-${category.id}`}
-                  checked={newSubcategory.isActive !== false}
-                  onCheckedChange={(checked) => updateNewSubcategory(category.id, "isActive", checked)}
-                />
-                <Label htmlFor={`subcategory-active-${category.id}`}>Active</Label>
-              </div>
-
-              <div className="flex gap-2">
-                <Button 
-                  onClick={() => handleAddSubcategory(category.id)}
-                  disabled={createSubcategoryMutation.isPending}
-                >
-                  {createSubcategoryMutation.isPending ? (
-                    <>
-                      <div className="animate-spin h-4 w-4 mr-2 border-2 border-transparent border-t-current border-r-current rounded-full" />
-                      Adding...
-                    </>
-                  ) : (
-                    <>
-                      <Plus className="h-4 w-4 mr-2" />
-                      Add Subcategory
-                    </>
-                  )}
-                </Button>
-                <Button variant="outline" onClick={() => handleCancelAddSubcategory(category.id)}>
-                  Cancel
-                </Button>
-              </div>
-            </div>
-          )}
-        </div>
+                </td>
+                <td className="p-3">
+                  <span className="font-medium">{subcategory.name}</span>
+                </td>
+                <td className="p-3">
+                  <span className="text-muted-foreground">
+                    {subcategory.description || "No description"}
+                  </span>
+                </td>
+                <td className="p-3">
+                  <Badge variant={subcategory.isActive ? "default" : "secondary"}>
+                    {subcategory.isActive ? "Active" : "Inactive"}
+                  </Badge>
+                </td>
+                <td className="p-3">
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => handleEditSubcategoryModal(subcategory)}
+                      disabled={updateSubcategoryMutation.isPending}
+                    >
+                      <Edit className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => handleDeleteSubcategory(subcategory)}
+                      disabled={deleteSubcategoryMutation.isPending}
+                    >
+                      <Trash2 className="h-4 w-4 text-destructive" />
+                    </Button>
+                  </div>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
       </div>
     );
   };
@@ -1084,6 +944,125 @@ export default function AdminCategories() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Subcategory Modal */}
+      <Dialog open={subcategoryModalOpen} onOpenChange={setSubcategoryModalOpen}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>
+              {editingSubcategory ? "Edit Subcategory" : "Add Subcategory"}
+              {selectedCategory && (
+                <span className="text-sm font-normal text-muted-foreground ml-2">
+                  for {selectedCategory.name}
+                </span>
+              )}
+            </DialogTitle>
+            <DialogDescription>
+              {editingSubcategory 
+                ? "Update subcategory details" 
+                : selectedCategory 
+                  ? `Create a new subcategory for ${selectedCategory.name}`
+                  : "Create a new subcategory"
+              }
+            </DialogDescription>
+          </DialogHeader>
+          <form onSubmit={handleSubcategorySubmit} className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <Label htmlFor="subcategory-name">Name *</Label>
+                <Input
+                  id="subcategory-name"
+                  value={subcategoryFormData.name}
+                  onChange={(e) =>
+                    setSubcategoryFormData({ ...subcategoryFormData, name: e.target.value })
+                  }
+                  placeholder="e.g., Kanchipuram silk"
+                  required
+                />
+              </div>
+              <div>
+                <Label htmlFor="subcategory-description">Description</Label>
+                <Textarea
+                  id="subcategory-description"
+                  value={subcategoryFormData.description}
+                  onChange={(e) =>
+                    setSubcategoryFormData({ ...subcategoryFormData, description: e.target.value })
+                  }
+                  placeholder="Brief description of the subcategory"
+                  rows={3}
+                />
+              </div>
+            </div>
+
+            <div>
+              <Label>Subcategory Image</Label>
+              <div className="flex items-center gap-4">
+                {subcategoryFormData.imageUrl && (
+                  <div className="relative w-20 h-20">
+                    <img
+                      src={subcategoryFormData.imageUrl}
+                      alt="Subcategory preview"
+                      className="w-full h-full object-cover rounded"
+                    />
+                    <Button
+                      type="button"
+                      variant="destructive"
+                      size="icon"
+                      className="absolute -top-2 -right-2 h-6 w-6"
+                      onClick={() => setSubcategoryFormData({ ...subcategoryFormData, imageUrl: "" })}
+                    >
+                      <Trash2 className="h-3 w-3" />
+                    </Button>
+                  </div>
+                )}
+                <CloudinaryUploader
+                  maxNumberOfFiles={1}
+                  onComplete={(urls) => {
+                    if (urls.length > 0) {
+                      setSubcategoryFormData({ ...subcategoryFormData, imageUrl: urls[0] });
+                    }
+                  }}
+                  buttonVariant="outline"
+                >
+                  <Upload className="h-4 w-4 mr-2" />
+                  {subcategoryFormData.imageUrl ? "Change Image" : "Upload Image"}
+                </CloudinaryUploader>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <Switch
+                id="subcategory-active"
+                checked={subcategoryFormData.isActive}
+                onCheckedChange={(checked) =>
+                  setSubcategoryFormData({ ...subcategoryFormData, isActive: checked })
+                }
+              />
+              <Label htmlFor="subcategory-active">Active</Label>
+            </div>
+
+            <DialogFooter>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={handleCloseSubcategoryModal}
+              >
+                Cancel
+              </Button>
+              <Button
+                type="submit"
+                disabled={createSubcategoryMutation.isPending || updateSubcategoryMutation.isPending}
+              >
+                {createSubcategoryMutation.isPending || updateSubcategoryMutation.isPending
+                  ? "Saving..."
+                  : editingSubcategory
+                  ? "Update"
+                  : "Create"}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

@@ -9,9 +9,10 @@ import {
   categories,
   colors,
   fabrics,
+  insertSubcategorySchema,
   subcategories
 } from "@shared/schema";
-import { eq } from "drizzle-orm";
+import { eq, and } from "drizzle-orm";
 import { db } from "server/db";
 
 export interface PublicStorage {
@@ -44,6 +45,16 @@ export interface PublicStorage {
     data: Partial<InsertFabric>
   ): Promise<Fabric | undefined>;
   deleteFabric(id: string): Promise<boolean>;
+
+  // Subcategories
+  getSubcategories(): Promise<Subcategory[]>;
+  getSubcategoriesByCategory(categoryId: string): Promise<Subcategory[]>;
+  createSubcategory(subcategory: typeof insertSubcategorySchema._type): Promise<Subcategory>;
+  updateSubcategory(
+    id: string,
+    data: Partial<typeof insertSubcategorySchema._type>
+  ): Promise<Subcategory | undefined>;
+  deleteSubcategory(id: string): Promise<boolean>;
 }
 
 export class PublicRepository implements PublicStorage {
@@ -157,6 +168,46 @@ export class PublicRepository implements PublicStorage {
       .update(fabrics)
       .set({ isActive: false })
       .where(eq(fabrics.id, id))
+      .returning();
+    return !!result;
+  }
+
+  // Subcategories
+  async getSubcategories(): Promise<Subcategory[]> {
+    return db.select().from(subcategories).where(eq(subcategories.isActive, true));
+  }
+
+  async getSubcategoriesByCategory(categoryId: string): Promise<Subcategory[]> {
+    return db.select().from(subcategories).where(
+      and(
+        eq(subcategories.categoryId, categoryId),
+        eq(subcategories.isActive, true)
+      )
+    );
+  }
+
+  async createSubcategory(subcategory: typeof insertSubcategorySchema._type): Promise<Subcategory> {
+    const [result] = await db.insert(subcategories).values(subcategory).returning();
+    return result;
+  }
+
+  async updateSubcategory(
+    id: string,
+    data: Partial<typeof insertSubcategorySchema._type>
+  ): Promise<Subcategory | undefined> {
+    const [result] = await db
+      .update(subcategories)
+      .set(data)
+      .where(eq(subcategories.id, id))
+      .returning();
+    return result || undefined;
+  }
+
+  async deleteSubcategory(id: string): Promise<boolean> {
+    const [result] = await db
+      .update(subcategories)
+      .set({ isActive: false })
+      .where(eq(subcategories.id, id))
       .returning();
     return !!result;
   }
