@@ -16,10 +16,10 @@ import { productDamageService } from "./productDamageService";
 import { productBaseSchema, trackingNumberSchema } from "./schema";
 import { stockRequestService } from "server/store/stockRequestStorage";
 import { stockValidationService } from "./stockValidationService";
-import { 
-  handleInventoryError, 
-  InsufficientStockError, 
-  ProductNotFoundError, 
+import {
+  handleInventoryError,
+  InsufficientStockError,
+  ProductNotFoundError,
   DatabaseTransactionError,
   StockValidationError,
   validateStockAllocation,
@@ -27,6 +27,7 @@ import {
 } from "./errorHandling";
 import { allStoreOrdersService } from "server/store/allStoreOrders";
 import { delhiveryOrderService } from "../shipping/delhiveryOrderService";
+import { RealtimeService } from "server/services/realtimeService";
 
 const productWithAllocationsSchema = productBaseSchema.refine(
   (data) => {
@@ -166,7 +167,7 @@ export const inventoryRoutes = (app: Express) => {
 
           } catch (transactionError: any) {
             console.error("Transaction failed during stock request approval:", transactionError);
-            
+
             // Use proper error handling
             const errorResponse = handleInventoryError(transactionError, process.env.NODE_ENV === "development");
             return res.status(errorResponse.statusCode).json(errorResponse);
@@ -185,16 +186,16 @@ export const inventoryRoutes = (app: Express) => {
           (req as any).user.id,
           rejectionReason,
         );
-        
+
         if (!request) {
           return res.status(404).json({ message: "Request not found" });
         }
 
         res.json(request);
-        
+
       } catch (error: any) {
         console.error("Error updating stock request status:", error);
-        
+
         // Use proper error handling
         const errorResponse = handleInventoryError(error, process.env.NODE_ENV === "development");
         res.status(errorResponse.statusCode).json(errorResponse);
@@ -241,20 +242,20 @@ export const inventoryRoutes = (app: Express) => {
     try {
       const { status, limit } = req.query;
       console.log("Fetching orders with filters:", { status, limit });
-      
+
       const orders = await storage.getAllOrders({
         status: status as string,
         limit: limit ? parseInt(limit as string) : undefined,
       });
-      
+
       console.log("Successfully fetched orders:", orders.length);
       res.json(orders);
     } catch (error: any) {
       console.error("Error fetching orders:", error);
       const message = error instanceof Error ? error.message : "Unknown error occurred";
-      res.status(500).json({ 
-        message: "Failed to fetch orders", 
-        error: process.env.NODE_ENV === "development" ? message : undefined 
+      res.status(500).json({
+        message: "Failed to fetch orders",
+        error: process.env.NODE_ENV === "development" ? message : undefined
       });
     }
   });
@@ -335,10 +336,10 @@ export const inventoryRoutes = (app: Express) => {
     async (req, res) => {
       try {
         const { totalStock, onlineStock } = req.body;
-        
+
         // Get previous stock for comparison
         const previousProduct = await productService.getProductById(req.params.id);
-        
+
         const product = await productService.updateProduct(req.params.id, {
           totalStock,
           onlineStock,
@@ -450,7 +451,7 @@ export const inventoryRoutes = (app: Express) => {
   app.post("/api/inventory/check-product-duplicate", authInventory, async (req, res) => {
     try {
       const { name, color, categoryId, subcategoryId, excludeId } = req.body;
-      
+
       if (!name) {
         return res.status(400).json({ error: 'Product name is required' });
       }
@@ -502,13 +503,13 @@ export const inventoryRoutes = (app: Express) => {
       // Check if color name and product name are the same
       const isSameNameAndColor = color && name.toLowerCase().trim() === color.toLowerCase().trim();
 
-      res.json({ 
+      res.json({
         exists: existingProduct.length > 0,
         isSameNameAndColor,
         existingProduct: existingProduct.length > 0 ? existingProduct[0] : null,
-        message: isSameNameAndColor ? 'Product name cannot be the same as color name' : 
-                existingProduct.length > 0 ? 'A product with this combination already exists' : 
-                'Product combination is unique'
+        message: isSameNameAndColor ? 'Product name cannot be the same as color name' :
+          existingProduct.length > 0 ? 'A product with this combination already exists' :
+            'Product combination is unique'
       });
     } catch (error) {
       console.error('Error checking duplicate:', error);
@@ -625,10 +626,10 @@ export const inventoryRoutes = (app: Express) => {
           (sum, a) => sum + a.quantity,
           0,
         );
-        
+
         validateStockAllocation(productData.totalStock, productData.onlineStock, allocations);
         validateDistributionChannel(productData.distributionChannel, productData.onlineStock, totalAllocated);
-        
+
         const product = await inventoryService.createProductWithAllocations(
           productData,
           allocations,
@@ -640,20 +641,21 @@ export const inventoryRoutes = (app: Express) => {
         const allocations = storeAllocations || [];
         const storeTotal = allocations.reduce((sum, a) => sum + a.quantity, 0);
         const onlineStock = productData.onlineStock || 0;
-        
+
         validateStockAllocation(productData.totalStock, onlineStock, allocations);
-        
+
         const product = await inventoryService.createProductWithAllocations(
           productData,
           allocations,
           actualPrice,
           seoData
         );
+        RealtimeService.productCreated(product, req.user?.id);
         res.json(product);
       }
     } catch (error: any) {
       console.error("Error creating product:", error);
-      
+
       // Use proper error handling
       const errorResponse = handleInventoryError(error, process.env.NODE_ENV === "development");
       res.status(errorResponse.statusCode).json(errorResponse);
@@ -1131,7 +1133,7 @@ export const inventoryRoutes = (app: Express) => {
   );
 
   // Stock Validation and Reconciliation Endpoints
-  
+
   // Validate stock for a specific product
   app.get("/api/inventory/validate-stock/:productId", authInventory, async (req, res) => {
     try {
@@ -1179,18 +1181,18 @@ export const inventoryRoutes = (app: Express) => {
   app.post("/api/inventory/fix-stock-discrepancies", authInventory, async (req, res) => {
     try {
       const { productIds } = req.body;
-      
+
       if (!Array.isArray(productIds) || productIds.length === 0) {
-        return res.status(400).json({ 
-          message: "productIds must be a non-empty array" 
+        return res.status(400).json({
+          message: "productIds must be a non-empty array"
         });
       }
 
       const result = await stockValidationService.fixStockDiscrepancies(productIds);
-      
+
       // Log the action for audit
       console.log(`Stock discrepancy fix attempted by user ${(req as any).user.id}:`, result);
-      
+
       res.json({
         message: "Stock discrepancy fix completed",
         fixed: result.fixed,
@@ -1210,25 +1212,25 @@ export const inventoryRoutes = (app: Express) => {
   app.post("/api/inventory/batch-stock-update", authInventory, async (req, res) => {
     try {
       const { updates } = req.body;
-      
+
       if (!Array.isArray(updates) || updates.length === 0) {
-        return res.status(400).json({ 
-          message: "updates must be a non-empty array" 
+        return res.status(400).json({
+          message: "updates must be a non-empty array"
         });
       }
 
       // Validate update format
       for (const update of updates) {
         if (!update.productId || typeof update.totalStock !== "number" || typeof update.onlineStock !== "number") {
-          return res.status(400).json({ 
-            message: "Invalid update format. Each update must have productId, totalStock, and onlineStock" 
+          return res.status(400).json({
+            message: "Invalid update format. Each update must have productId, totalStock, and onlineStock"
           });
         }
       }
 
       const results = await db.transaction(async (tx) => {
         const processed = [];
-        
+
         for (const update of updates) {
           try {
             // Get current product state
@@ -1353,7 +1355,7 @@ export const inventoryRoutes = (app: Express) => {
       const page = req.body.page || req.query.page;
       const pageSize = req.body.pageSize || req.query.pageSize;
       const { search, source, movementType } = req.body;
-      
+
       const movements = await storage.getStockMovements({
         page: page ? parseInt(page) : 1,
         pageSize: pageSize ? parseInt(pageSize) : 20,
@@ -1361,7 +1363,7 @@ export const inventoryRoutes = (app: Express) => {
         source: source as string,
         movementType: movementType as string,
       });
-      
+
       res.json(movements);
     } catch (error) {
       console.error("Error fetching stock movements:", error);
@@ -1400,21 +1402,21 @@ export const inventoryRoutes = (app: Express) => {
 
       // Get all products with their stock and pricing
       const products = await roleBasedProductService.getProductsByRole({}, "inventory");
-      
+
       // Calculate inventory valuation
       let totalValue = 0;
       let totalStock = 0;
       let totalCostValue = 0;
       const categoryBreakdown: Record<string, { value: number; stock: number; costValue: number; count: number }> = {};
-      
+
       products.forEach(product => {
         const stockValue = (parseFloat(product.price) || 0) * (product.totalStock || 0);
         const costValue = (parseFloat(product.actualPrice || product.price || '0') || 0) * (product.totalStock || 0);
-        
+
         totalValue += stockValue;
         totalCostValue += costValue;
         totalStock += product.totalStock || 0;
-        
+
         const categoryName = product.category?.name || 'Uncategorized';
         if (!categoryBreakdown[categoryName]) {
           categoryBreakdown[categoryName] = {
@@ -1424,20 +1426,20 @@ export const inventoryRoutes = (app: Express) => {
             count: 0
           };
         }
-        
+
         categoryBreakdown[categoryName].value += stockValue;
         categoryBreakdown[categoryName].costValue += costValue;
         categoryBreakdown[categoryName].stock += product.totalStock || 0;
         categoryBreakdown[categoryName].count += 1;
       });
-      
+
       // Calculate profit potential
       const profitPotential = totalValue - totalCostValue;
       const profitMargin = totalValue > 0 ? (profitPotential / totalValue) * 100 : 0;
-      
+
       // Sort categories by value
       const sortedCategories = Object.entries(categoryBreakdown)
-        .sort(([,a], [,b]) => b.value - a.value)
+        .sort(([, a], [, b]) => b.value - a.value)
         .map(([name, data]) => ({
           category: name,
           value: data.value,
@@ -1447,17 +1449,17 @@ export const inventoryRoutes = (app: Express) => {
           avgPricePerUnit: data.stock > 0 ? data.value / data.stock : 0,
           profitPotential: data.value - data.costValue
         }));
-      
+
       // Get low stock valuation (items below 10 units)
       const lowStockItems = products.filter(p => (p.totalStock || 0) <= 10);
-      const lowStockValue = lowStockItems.reduce((sum, item) => 
+      const lowStockValue = lowStockItems.reduce((sum, item) =>
         sum + ((parseFloat(item.price) || 0) * (item.totalStock || 0)), 0
       );
-      
+
       // Get dead stock valuation (items with zero stock)
       const deadStockItems = products.filter(p => (p.totalStock || 0) === 0);
       const deadStockCount = deadStockItems.length;
-      
+
       const valuation = {
         summary: {
           totalValue,
@@ -1496,14 +1498,14 @@ export const inventoryRoutes = (app: Express) => {
           })),
         lastCalculated: new Date().toISOString()
       };
-      
+
       res.json(valuation);
     } catch (error: any) {
       console.error("Error fetching inventory valuation:", error);
       const message = error instanceof Error ? error.message : "Unknown error occurred";
-      res.status(500).json({ 
-        message: "Failed to fetch inventory valuation", 
-        error: process.env.NODE_ENV === "development" ? message : undefined 
+      res.status(500).json({
+        message: "Failed to fetch inventory valuation",
+        error: process.env.NODE_ENV === "development" ? message : undefined
       });
     }
   });
@@ -1988,11 +1990,11 @@ export const inventoryRoutes = (app: Express) => {
   app.post("/api/inventory/store-exchanges", authInventory, async (req, res) => {
     try {
       const { page, pageSize } = req.params;
-      const {search, dateFrom, dateTo, storeId, exchangeType, reason, sort}=req.body
-            // Parse pagination parameters
+      const { search, dateFrom, dateTo, storeId, exchangeType, reason, sort } = req.body
+      // Parse pagination parameters
       const pageNum = page ? parseInt(page as string, 10) : 1;
       const pageSizeNum = pageSize ? parseInt(pageSize as string, 10) : 10;
-      
+
       // Get paginated store exchanges
       const result = await allStoreOrdersService.getAllStoreExchangesPaginated({
         page: pageNum,
@@ -2005,11 +2007,11 @@ export const inventoryRoutes = (app: Express) => {
         reason: reason as string,
         sort: sort as string
       });
-      
+
       res.json(result);
     } catch (error) {
       const errorResponse = handleInventoryError(error, process.env.NODE_ENV === 'development');
-      res.status(errorResponse.statusCode).json({ 
+      res.status(errorResponse.statusCode).json({
         message: errorResponse.message,
         code: errorResponse.code,
         ...(errorResponse.details && { details: errorResponse.details })
@@ -2291,8 +2293,8 @@ export const inventoryRoutes = (app: Express) => {
         const { shippingMethod } = req.body; // "manual" | "delhivery"
 
         if (!shippingMethod || !["manual", "delhivery"].includes(shippingMethod)) {
-          return res.status(400).json({ 
-            message: "Invalid shipping method. Must be 'manual' or 'delhivery'" 
+          return res.status(400).json({
+            message: "Invalid shipping method. Must be 'manual' or 'delhivery'"
           });
         }
 
@@ -2310,7 +2312,7 @@ export const inventoryRoutes = (app: Express) => {
         // Update order shipping method
         const [updatedOrder] = await db
           .update(orders)
-          .set({ 
+          .set({
             shippingMethod: shippingMethod,
             updatedAt: new Date()
           })
@@ -2325,9 +2327,9 @@ export const inventoryRoutes = (app: Express) => {
       } catch (error) {
         console.error("Error updating order shipping method:", error);
         const message = error instanceof Error ? error.message : String(error);
-        res.status(500).json({ 
-          message: "Failed to update shipping method", 
-          error: process.env.NODE_ENV === "development" ? message : undefined 
+        res.status(500).json({
+          message: "Failed to update shipping method",
+          error: process.env.NODE_ENV === "development" ? message : undefined
         });
       }
     },
@@ -2356,17 +2358,17 @@ export const inventoryRoutes = (app: Express) => {
 
         // Check if order has shipping method set
         if (!order.shippingMethod) {
-          return res.status(400).json({ 
-            message: "Shipping method not set. Please set shipping method first." 
+          return res.status(400).json({
+            message: "Shipping method not set. Please set shipping method first."
           });
         }
 
         const itemsToUpdate = itemIds || order.items?.map(item => item.id) || [];
-        
+
         if (order.shippingMethod === "delhivery") {
           // 🚀 Create Delhivery shipment
           console.log("Creating Delhivery shipment for order:", req.params.id);
-          
+
           // Create Delhivery shipment
           const delhiveryResult = await delhiveryOrderService.createShipment(
             req.params.id,
@@ -2435,9 +2437,9 @@ export const inventoryRoutes = (app: Express) => {
       } catch (error) {
         console.error("Error processing order:", error);
         const message = error instanceof Error ? error.message : String(error);
-        res.status(500).json({ 
-          message: "Failed to process order", 
-          error: process.env.NODE_ENV === "development" ? message : undefined 
+        res.status(500).json({
+          message: "Failed to process order",
+          error: process.env.NODE_ENV === "development" ? message : undefined
         });
       }
     },
@@ -2447,7 +2449,7 @@ export const inventoryRoutes = (app: Express) => {
   app.get("/api/inventory/orders-with-shipping", authInventory, async (req, res) => {
     try {
       const { status, limit, shippingMethod } = req.query;
-      
+
       const orders = await storage.getAllOrders({
         status: status as string,
         limit: limit ? parseInt(limit as string) : undefined,
@@ -2458,15 +2460,15 @@ export const inventoryRoutes = (app: Express) => {
         ...order,
         canProcess: order.items?.some(item => item.status === "confirmed"),
         shippingMethod: order.shippingMethod || "manual",
-        readyForDelhivery: order.shippingMethod === "delhivery" && 
+        readyForDelhivery: order.shippingMethod === "delhivery" &&
           order.items?.some(item => item.status === "confirmed"),
-        readyForManual: order.shippingMethod === "manual" && 
+        readyForManual: order.shippingMethod === "manual" &&
           order.items?.some(item => item.status === "confirmed"),
         itemCount: order.items?.length || 0,
         confirmedItemCount: order.items?.filter(item => item.status === "confirmed")?.length || 0,
         processingItemCount: order.items?.filter(item => item.status === "processing")?.length || 0,
       }));
-      
+
       res.json(enhancedOrders);
     } catch (error) {
       console.error("Error fetching orders with shipping info:", error);
@@ -2515,8 +2517,8 @@ export const inventoryRoutes = (app: Express) => {
       }
 
       if (!order.shippingMethod) {
-        return res.status(400).json({ 
-          message: "Shipping method not set. Please set shipping method first." 
+        return res.status(400).json({
+          message: "Shipping method not set. Please set shipping method first."
         });
       }
 
@@ -2524,7 +2526,7 @@ export const inventoryRoutes = (app: Express) => {
       if (shipmentType === "single") {
         const allItemIds = order.items?.map(item => item.id) || [];
         const shipmentId = `SHP-${Date.now()}`;
-        
+
         // Create shipment record
         const [newShipment] = await db.insert(shipments).values({
           id: shipmentId,
@@ -2539,7 +2541,7 @@ export const inventoryRoutes = (app: Express) => {
         for (const itemId of allItemIds) {
           await db
             .update(orderItems)
-            .set({ 
+            .set({
               shipmentId: shipmentId,
               updatedAt: new Date()
             })
@@ -2549,7 +2551,7 @@ export const inventoryRoutes = (app: Express) => {
         // Update order
         await db
           .update(orders)
-          .set({ 
+          .set({
             shipmentType: "single",
             totalShipments: 1,
             updatedAt: new Date()
@@ -2629,7 +2631,7 @@ export const inventoryRoutes = (app: Express) => {
       console.error("Error tracking Delhivery shipment:", error);
       res.status(500).json({
         message: "Failed to track shipment",
-        error: process.env.NODE_ENV === "development" ? 
+        error: process.env.NODE_ENV === "development" ?
           (error instanceof Error ? error.message : "Unknown error") : undefined
       });
     }
@@ -2688,7 +2690,7 @@ export const inventoryRoutes = (app: Express) => {
       console.error("Error cancelling Delhivery shipment:", error);
       res.status(500).json({
         message: "Failed to cancel shipment",
-        error: process.env.NODE_ENV === "development" ? 
+        error: process.env.NODE_ENV === "development" ?
           (error instanceof Error ? error.message : "Unknown error") : undefined
       });
     }
@@ -2708,14 +2710,14 @@ export const inventoryRoutes = (app: Express) => {
       }
 
       if (order.shippingMethod !== "delhivery") {
-        return res.status(400).json({ 
-          message: "Order shipping method is not delhivery" 
+        return res.status(400).json({
+          message: "Order shipping method is not delhivery"
         });
       }
 
       // Check if there's already a Delhivery waybill
       if (order.delhiveryWaybill) {
-        return res.status(400).json({ 
+        return res.status(400).json({
           message: "Delhivery shipment already exists. Cancel it first or use tracking endpoint.",
           existingWaybill: order.delhiveryWaybill
         });
@@ -2745,7 +2747,7 @@ export const inventoryRoutes = (app: Express) => {
       console.error("Error retrying Delhivery shipment:", error);
       res.status(500).json({
         message: "Failed to retry Delhivery shipment",
-        error: process.env.NODE_ENV === "development" ? 
+        error: process.env.NODE_ENV === "development" ?
           (error instanceof Error ? error.message : "Unknown error") : undefined
       });
     }

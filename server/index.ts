@@ -6,6 +6,7 @@ import cors from "cors";
 import { registerRoutes } from "./routes";
 import { serveStatic } from "./static";
 import { emailService } from "./services/emailService";
+import { initializeWebSocket } from "./websocket/websocketServer";
 
 // Load environment variables
 if (process.env.NODE_ENV !== 'production') {
@@ -126,8 +127,12 @@ async function bootstrap() {
 
   const PORT = Number(process.env.PORT) || 5000;
 
+  // Initialize WebSocket server
+  initializeWebSocket(httpServer);
+
   httpServer.listen(PORT, "0.0.0.0", () => {
     log(`🚀 Server running on port ${PORT}`);
+    log(`🔌 WebSocket server initialized for real-time updates`);
   });
 }
 

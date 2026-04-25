@@ -20,7 +20,6 @@
     "lint:fix": "eslint . --ext ts,tsx --fix"
   },
   "dependencies": {
-    "cors": "^2.8.5",
     "@google-cloud/storage": "^7.17.3",
     "@hookform/resolvers": "^3.10.0",
     "@jridgewell/trace-mapping": "^0.3.25",
@@ -72,6 +71,7 @@
     "cmdk": "^1.1.1",
     "connect-pg-simple": "^10.0.0",
     "cookie-parser": "^1.4.7",
+    "cors": "^2.8.5",
     "cross-env": "^10.1.0",
     "date-fns": "^3.6.0",
     "dotenv": "^17.2.3",
@@ -106,6 +106,7 @@
     "react-icons": "^5.4.0",
     "react-resizable-panels": "^2.1.7",
     "react-router-dom": "^7.9.6",
+    "redis": "^4.7.1",
     "socket.io": "^4.8.3",
     "sonner": "^2.0.7",
     "tailwind-merge": "^2.6.0",
