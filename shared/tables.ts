@@ -253,6 +253,9 @@ export const orders = pgTable("orders", {
   estimatedDelivery: timestamp("estimated_delivery"),
   deliveredAt: timestamp("delivered_at"),
   couponId: varchar("coupon_id"),
+  couponCode: varchar("coupon_code"),
+  couponType: varchar("coupon_type"),
+  couponValue: varchar("coupon_value"),
   notes: text("notes"),
   returnEligibleUntil: timestamp("return_eligible_until"),
   // Delhivery integration fields
