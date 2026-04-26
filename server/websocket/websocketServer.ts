@@ -30,35 +30,54 @@ export class WebSocketService {
       transports: ['websocket', 'polling']
     });
 
-    this.redisPublisher = createClient({
-      url: process.env.REDIS_URL || 'redis://redis:6379'
-    });
+    // Only use Redis in production
+    if (process.env.NODE_ENV === 'production') {
+      const redisUrl = process.env.REDIS_URL || 'redis://redis:6379';
+      
+      this.redisPublisher = createClient({
+        url: redisUrl
+      });
 
-    this.redisSubscriber = createClient({
-      url: process.env.REDIS_URL || 'redis://redis:6379'
-    });
+      this.redisSubscriber = createClient({
+        url: redisUrl
+      });
+    } else {
+      // Skip Redis in development
+      console.log('🔧 Development mode: Skipping Redis pub/sub');
+      this.redisPublisher = null as any;
+      this.redisSubscriber = null as any;
+    }
 
     this.initialize();
   }
 
   private async initialize() {
-    try {
-      // Connect Redis clients
-      await this.redisPublisher.connect();
-      await this.redisSubscriber.connect();
+    if (process.env.NODE_ENV === 'production') {
+      try {
+        // Connect Redis clients
+        await this.redisPublisher.connect();
+        await this.redisSubscriber.connect();
 
-      // Set up Redis pub/sub
-      await this.redisSubscriber.subscribe('realtime_updates', (message: string) => {
-        const event: RealtimeEvent = JSON.parse(message);
-        this.broadcastEvent(event);
-      });
+        // Set up Redis pub/sub
+        await this.redisSubscriber.subscribe('realtime_updates', (message: string) => {
+          const event: RealtimeEvent = JSON.parse(message);
+          this.broadcastEvent(event);
+        });
 
-      // Set up Socket.IO connections
+        // Set up Socket.IO connections
+        this.setupSocketHandlers();
+
+        console.log('🚀 WebSocket server initialized with Redis pub/sub');
+      } catch (error) {
+        console.warn('⚠️ Redis not available, WebSocket server running without pub/sub:', error instanceof Error ? error.message : String(error));
+        // Set up Socket.IO connections anyway (without Redis)
+        this.setupSocketHandlers();
+        console.log('🚀 WebSocket server initialized (no Redis pub/sub)');
+      }
+    } else {
+      // Development mode: Skip Redis, just set up Socket.IO
       this.setupSocketHandlers();
-
-      console.log('🚀 WebSocket server initialized with Redis pub/sub');
-    } catch (error) {
-      console.error('❌ Failed to initialize WebSocket service:', error);
+      console.log('🚀 WebSocket server initialized (development mode - no Redis)');
     }
   }
 
@@ -88,9 +107,16 @@ export class WebSocketService {
   // Publish event to Redis
   async publishEvent(event: RealtimeEvent) {
     try {
-      await this.redisPublisher.publish('realtime_updates', JSON.stringify(event));
+      if (this.redisPublisher && this.redisPublisher.isOpen) {
+        await this.redisPublisher.publish('realtime_updates', JSON.stringify(event));
+      } else {
+        // Fallback: broadcast directly without Redis
+        this.broadcastEvent(event);
+      }
     } catch (error) {
       console.error('❌ Failed to publish event:', error);
+      // Fallback: broadcast directly without Redis
+      this.broadcastEvent(event);
     }
   }
 

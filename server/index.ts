@@ -127,12 +127,17 @@ async function bootstrap() {
 
   const PORT = Number(process.env.PORT) || 5000;
 
-  // Initialize WebSocket server
-  initializeWebSocket(httpServer);
-
   httpServer.listen(PORT, "0.0.0.0", () => {
     log(`🚀 Server running on port ${PORT}`);
-    log(`🔌 WebSocket server initialized for real-time updates`);
+    
+    // Initialize WebSocket server after HTTP server starts
+    try {
+      initializeWebSocket(httpServer);
+      log(`🔌 WebSocket server initialized for real-time updates`);
+    } catch (error) {
+      console.error('❌ WebSocket initialization failed:', error);
+      log(`⚠️ WebSocket server not initialized, continuing without real-time updates`);
+    }
   });
 }
 
