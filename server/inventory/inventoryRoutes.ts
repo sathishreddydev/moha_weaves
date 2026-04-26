@@ -27,7 +27,6 @@ import {
 } from "./errorHandling";
 import { allStoreOrdersService } from "server/store/allStoreOrders";
 import { delhiveryOrderService } from "../shipping/delhiveryOrderService";
-import { RealtimeService } from "server/services/realtimeService";
 
 const productWithAllocationsSchema = productBaseSchema.refine(
   (data) => {
@@ -650,7 +649,6 @@ export const inventoryRoutes = (app: Express) => {
           actualPrice,
           seoData
         );
-        RealtimeService.productCreated(product, req.user?.id);
         res.json(product);
       }
     } catch (error: any) {

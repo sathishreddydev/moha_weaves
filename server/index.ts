@@ -6,7 +6,6 @@ import cors from "cors";
 import { registerRoutes } from "./routes";
 import { serveStatic } from "./static";
 import { emailService } from "./services/emailService";
-import { initializeWebSocket } from "./websocket/websocketServer";
 
 // Load environment variables
 if (process.env.NODE_ENV !== 'production') {
@@ -129,15 +128,6 @@ async function bootstrap() {
 
   httpServer.listen(PORT, "0.0.0.0", () => {
     log(`🚀 Server running on port ${PORT}`);
-    
-    // Initialize WebSocket server after HTTP server starts
-    try {
-      initializeWebSocket(httpServer);
-      log(`🔌 WebSocket server initialized for real-time updates`);
-    } catch (error) {
-      console.error('❌ WebSocket initialization failed:', error);
-      log(`⚠️ WebSocket server not initialized, continuing without real-time updates`);
-    }
   });
 }
 
