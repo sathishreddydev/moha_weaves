@@ -1,4 +1,3 @@
-import "dotenv/config";
 import express, { type Request, Response, NextFunction } from "express";
 import { createServer } from "http";
 import cookieParser from "cookie-parser";
@@ -6,21 +5,23 @@ import cors from "cors";
 import { registerRoutes } from "./routes";
 import { serveStatic } from "./static";
 import { emailService } from "./services/emailService";
+import { initSocket } from "../realtime/socket";
+import { initSubscriber } from "../realtime/subscriber";
+import dotenv from "dotenv";
 
 // Load environment variables
-if (process.env.NODE_ENV !== 'production') {
-  import('dotenv').then(dotenv => {
-    dotenv.config({ path: '.env.development' });
+if (process.env.NODE_ENV !== "production") {
+  dotenv.config({
+    path: ".env.development",
   });
 } else {
-  import('dotenv').then(dotenv => {
-    dotenv.config({ path: '.env.prod' });
+  dotenv.config({
+    path: ".env.prod",
   });
 }
 
 const app = express();
 const httpServer = createServer(app);
-
 declare module "http" {
   interface IncomingMessage {
     rawBody?: Buffer;
@@ -40,8 +41,8 @@ app.use(cors({
 
 // Health check endpoint for Render
 app.get('/health', (req, res) => {
-  res.status(200).json({ 
-    status: 'ok', 
+  res.status(200).json({
+    status: 'ok',
     timestamp: new Date().toISOString(),
     uptime: process.uptime()
   });
@@ -102,7 +103,9 @@ async function bootstrap() {
   }
 
   await registerRoutes(httpServer, app);
+  initSocket(httpServer);
 
+  await initSubscriber();
   app.use(
     (err: any, _req: Request, res: Response, _next: NextFunction) => {
       const status = err?.status || err?.statusCode || 500;

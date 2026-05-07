@@ -36,6 +36,8 @@ services:
       dockerfile: Dockerfile
     container_name: moha_weaves_app
     restart: unless-stopped
+    env_file:
+      - .env.prod
     environment:
       NODE_ENV: production
       DATABASE_URL: postgresql://postgres:Mohaweaves%40123@postgres:5432/moha_weaves
@@ -79,7 +81,9 @@ services:
     build:
       context: ../moha_weaves_nextjs
       dockerfile: Dockerfile
-      args:
+    env_file:
+      - .env.prod
+    args:
         DATABASE_URL: postgresql://postgres:Mohaweaves%40123@postgres:5432/moha_weaves
         REDIS_URL: redis://redis:6379
         NEXT_PUBLIC_API_URL: http://103.127.146.58:5000
