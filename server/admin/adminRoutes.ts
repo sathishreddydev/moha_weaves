@@ -493,9 +493,36 @@ export const adminRoutes = (app: Express) => {
   app.delete("/api/admin/categories/:id", authAdmin, async (req, res) => {
     try {
       await publicStorage.deleteCategory(req.params.id);
-      res.json({ success: true });
-    } catch {
-      res.status(500).json({ message: "Failed to delete category" });
+      res.json({ success: true, message: "Category and its subcategories deleted permanently" });
+    } catch (error) {
+      console.error("Error deleting category:", error);
+      const message = error instanceof Error ? error.message : "Unknown error occurred";
+      
+      if (message.includes('Cannot delete category: It is referenced by active products')) {
+        return res.status(400).json({
+          message: message,
+          error: "PRODUCT_DEPENDENCY"
+        });
+      }
+      
+      if (message.includes('Cannot delete category: It is referenced by active sales')) {
+        return res.status(400).json({
+          message: message,
+          error: "SALES_DEPENDENCY"
+        });
+      }
+      
+      if (message.includes('Category not found')) {
+        return res.status(404).json({
+          message: message,
+          error: "CATEGORY_NOT_FOUND"
+        });
+      }
+      
+      res.status(500).json({
+        message: "Failed to delete category",
+        error: process.env.NODE_ENV === "development" ? message : undefined
+      });
     }
   });
 
@@ -517,6 +544,13 @@ export const adminRoutes = (app: Express) => {
         imageUrl: imageUrl || null,
         isActive: isActive !== undefined ? isActive : true,
       });
+      
+      await pub.publish(
+        "realtime",
+        JSON.stringify({
+          type: "category_created"
+        })
+      )
       res.status(201).json(subcategory);
     } catch (error) {
       console.error("Error creating subcategory:", error);
@@ -551,10 +585,18 @@ export const adminRoutes = (app: Express) => {
   app.delete("/api/admin/subcategories/:id", authAdmin, async (req, res) => {
     try {
       await publicStorage.deleteSubcategory(req.params.id);
-      res.json({ success: true });
+      res.json({ success: true, message: "Subcategory deleted permanently" });
     } catch (error) {
       console.error("Error deleting subcategory:", error);
       const message = error instanceof Error ? error.message : "Unknown error occurred";
+      
+      if (message.includes('Cannot delete subcategory: It is referenced by products')) {
+        return res.status(400).json({
+          message: message,
+          error: "FOREIGN_KEY_CONSTRAINT"
+        });
+      }
+      
       res.status(500).json({
         message: "Failed to delete subcategory",
         error: process.env.NODE_ENV === "development" ? message : undefined

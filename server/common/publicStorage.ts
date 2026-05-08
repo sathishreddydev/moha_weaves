@@ -10,9 +10,11 @@ import {
   colors,
   fabrics,
   insertSubcategorySchema,
-  subcategories
+  subcategories,
+  products,
+  sales
 } from "@shared/schema";
-import { eq, and } from "drizzle-orm";
+import { eq, and, sql } from "drizzle-orm";
 import { db } from "server/db";
 
 export interface PublicStorage {
@@ -92,12 +94,79 @@ export class PublicRepository implements PublicStorage {
   }
 
   async deleteCategory(id: string): Promise<boolean> {
-    const [result] = await db
-      .update(categories)
-      .set({ isActive: false })
-      .where(eq(categories.id, id))
-      .returning();
-    return !!result;
+    try {
+      // First check if category exists
+      const [category] = await db
+        .select()
+        .from(categories)
+        .where(eq(categories.id, id));
+      
+      if (!category) {
+        throw new Error('Category not found');
+      }
+
+      // Check for dependencies before deletion
+      const [productCount, salesCount, subcategoryCount] = await Promise.all([
+        // Check for active products in this category
+        db
+          .select({ count: sql<number>`count(*)` })
+          .from(products)
+          .where(and(
+            eq(products.categoryId, id),
+            eq(products.isActive, true)
+          )),
+        // Check for active sales in this category
+        db
+          .select({ count: sql<number>`count(*)` })
+          .from(sales)
+          .where(and(
+            eq(sales.categoryId, id),
+            eq(sales.isActive, true)
+          )),
+        // Check for active subcategories in this category
+        db
+          .select({ count: sql<number>`count(*)` })
+          .from(subcategories)
+          .where(and(
+            eq(subcategories.categoryId, id),
+            eq(subcategories.isActive, true)
+          ))
+      ]);
+
+      // If there are dependencies, prevent deletion
+      if (productCount[0]?.count > 0) {
+        throw new Error('Cannot delete category: It is referenced by active products. Please remove or reassign these products first.');
+      }
+
+      if (salesCount[0]?.count > 0) {
+        throw new Error('Cannot delete category: It is referenced by active sales. Please remove or reassign these sales first.');
+      }
+
+      // If there are subcategories, delete them first
+      if (subcategoryCount[0]?.count > 0) {
+        // Permanently delete all subcategories in this category
+        await db
+          .delete(subcategories)
+          .where(eq(subcategories.categoryId, id));
+      }
+
+      // Permanently delete the category since no dependencies exist
+      const result = await db
+        .delete(categories)
+        .where(eq(categories.id, id));
+
+      return (result.rowCount ?? 0) > 0;
+    } catch (error) {
+      console.error('Error deleting category:', error);
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      
+      // Re-throw specific errors for API handling
+      if (errorMessage.includes('Cannot delete category') || errorMessage.includes('Category not found')) {
+        throw error;
+      }
+      
+      throw new Error('Failed to delete category');
+    }
   }
 
   // Colors
@@ -204,12 +273,23 @@ export class PublicRepository implements PublicStorage {
   }
 
   async deleteSubcategory(id: string): Promise<boolean> {
-    const [result] = await db
-      .update(subcategories)
-      .set({ isActive: false })
-      .where(eq(subcategories.id, id))
-      .returning();
-    return !!result;
+    try {
+      // Permanently delete subcategory
+      const result = await db
+        .delete(subcategories)
+        .where(eq(subcategories.id, id));
+      
+      return (result.rowCount ?? 0) > 0;
+    } catch (error) {
+      console.error('Error deleting subcategory:', error);
+      // If there are foreign key constraints from products,
+      // we need to handle them
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      if (errorMessage.includes('violates foreign key constraint')) {
+        throw new Error('Cannot delete subcategory: It is referenced by products. Please remove or reassign these references first.');
+      }
+      throw error;
+    }
   }
 }
 
