@@ -81,9 +81,7 @@ services:
     build:
       context: ../moha_weaves_nextjs
       dockerfile: Dockerfile
-    env_file:
-      - .env.prod
-    args:
+      args:
         DATABASE_URL: postgresql://postgres:Mohaweaves%40123@postgres:5432/moha_weaves
         REDIS_URL: redis://redis:6379
         NEXT_PUBLIC_API_URL: http://103.127.146.58:5000
@@ -100,6 +98,8 @@ services:
         RAZORPAY_KEY_SECRET: n78QX7ZaxGndqCdRryofDbNU
         RAZORPAY_WEBHOOK_SECRET: Ksr@0337
         NEXT_PUBLIC_RAZORPAY_KEY_ID: rzp_test_UxXBzl98ySixq7
+    env_file:
+      - .env.prod
     container_name: moha_weaves_frontend
     restart: unless-stopped
     ports:
