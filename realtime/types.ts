@@ -21,8 +21,7 @@ export interface RedisMessage {
 }
 
 export interface RealtimeEvent {
-  type: 'user_update' | 'stock_update' | 'order_update' | 'system_notification' | 'category_created'
-  payload: any
+  type: 'user_event' | 'stock_event' | 'order_event' | 'system_event' | 'filter_event'
   target?: {
     userId?: string
     role?: string

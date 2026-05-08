@@ -35,19 +35,19 @@ export class RedisSubscriber {
       const event: RealtimeEvent = JSON.parse(message)
 
       switch (event.type) {
-        case 'user_update':
+        case 'user_event':
           this.handleUserUpdate(event)
           break
-        case 'category_created':
+        case 'filter_event':
           this.handleCategoryCreated(event)
           break
-        case 'stock_update':
+        case 'stock_event':
           this.handleStockUpdate(event)
           break
-        case 'order_update':
+        case 'order_event':
           this.handleOrderUpdate(event)
           break
-        case 'system_notification':
+        case 'system_event':
           this.handleSystemNotification(event)
           break
         default:
@@ -59,61 +59,58 @@ export class RedisSubscriber {
   }
 
   private handleUserUpdate(event: RealtimeEvent): void {
-    const { payload, target } = event
+    const { target } = event
 
     if (target?.userId) {
-      io.to(`user:${target.userId}`).emit("user.updated", payload)
+      io.to(`user:${target.userId}`).emit("user_event", { type: event.type })
     }
 
     if (target?.role === "admin" || !target) {
-      io.to("role:admin").emit("user.updated", payload)
+      io.to("role:admin").emit("user_event", { type: event.type })
     }
   }
   private handleCategoryCreated(event: RealtimeEvent): void {
-
-    const { payload } = event
-
-    io.emit("category.created", payload)
+    io.emit("filter_event", { type: event.type })
   }
 
   private handleStockUpdate(event: RealtimeEvent): void {
-    const { payload, target } = event
+    const { target } = event
 
     if (target?.role === "admin") {
-      io.to("role:admin").emit("stock.updated", payload)
+      io.to("role:admin").emit("stock_event", { type: event.type })
     }
 
     if (target?.userId) {
-      io.to(`user:${target.userId}`).emit("stock.updated", payload)
+      io.to(`user:${target.userId}`).emit("stock_event", { type: event.type })
     }
 
     // Broadcast to all connected clients for general stock updates
     if (!target) {
-      io.emit("stock.updated", payload)
+      io.emit("stock_event", { type: event.type })
     }
   }
 
   private handleOrderUpdate(event: RealtimeEvent): void {
-    const { payload, target } = event
+    const { target } = event
 
     if (target?.userId) {
-      io.to(`user:${target.userId}`).emit("order.updated", payload)
+      io.to(`user:${target.userId}`).emit("order_event", { type: event.type })
     }
 
     if (target?.role === "admin") {
-      io.to("role:admin").emit("order.updated", payload)
+      io.to("role:admin").emit("order_event", { type: event.type })
     }
   }
 
   private handleSystemNotification(event: RealtimeEvent): void {
-    const { payload, target } = event
+    const { target } = event
 
     if (target?.userId) {
-      io.to(`user:${target.userId}`).emit("system.notification", payload)
+      io.to(`user:${target.userId}`).emit("system_event", { type: event.type })
     } else if (target?.role) {
-      io.to(`role:${target.role}`).emit("system.notification", payload)
+      io.to(`role:${target.role}`).emit("system_event", { type: event.type })
     } else {
-      io.emit("system.notification", payload)
+      io.emit("system_event", { type: event.type })
     }
   }
 

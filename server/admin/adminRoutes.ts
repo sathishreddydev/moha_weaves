@@ -463,8 +463,7 @@ export const adminRoutes = (app: Express) => {
       await pub.publish(
         "realtime",
         JSON.stringify({
-          type: "category_created",
-          payload: category
+          type: "filter_event"
         })
       )
       res.json(category);
@@ -548,7 +547,7 @@ export const adminRoutes = (app: Express) => {
       await pub.publish(
         "realtime",
         JSON.stringify({
-          type: "category_created"
+          type: "filter_event"
         })
       )
       res.status(201).json(subcategory);

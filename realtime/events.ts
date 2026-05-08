@@ -8,13 +8,13 @@ interface User {
 export const emitUserUpdated = (user: User): void => {
   // specific user
   io.to(`user:${user.id}`).emit(
-    "user.updated",
-    user
+    "user_event",
+    { type: "user_event" }
   )
 
   // all admins
   io.to("role:admin").emit(
-    "user.updated", 
-    user
+    "user_event", 
+    { type: "user_event" }
   )
 }
