@@ -1,7 +1,7 @@
 import bcrypt from "bcryptjs";
 import type { Express } from "express";
 import { publicStorage } from "server/common/publicStorage";
-import { pub } from "../../realtime/redis";
+import { publishRealtimeEvent } from "../../realtime/events";
 import { couponsService } from "server/coupons/couponsStorage";
 import { productService } from "server/product/productStorage";
 import { ProductFilters, roleBasedProductService } from "server/product/roleBasedProductService";
@@ -460,12 +460,7 @@ export const adminRoutes = (app: Express) => {
 
       const category = await publicStorage.createCategory(validatedData.data);
 
-      await pub.publish(
-        "realtime",
-        JSON.stringify({
-          type: "filter_event"
-        })
-      )
+      await publishRealtimeEvent("filter_event")
       res.json(category);
     } catch (error) {
       console.error("Error creating category:", error);
@@ -483,6 +478,8 @@ export const adminRoutes = (app: Express) => {
         req.params.id,
         req.body,
       );
+      
+      await publishRealtimeEvent("filter_event")
       res.json(category);
     } catch {
       res.status(500).json({ message: "Failed to update category" });
@@ -492,6 +489,8 @@ export const adminRoutes = (app: Express) => {
   app.delete("/api/admin/categories/:id", authAdmin, async (req, res) => {
     try {
       await publicStorage.deleteCategory(req.params.id);
+      
+      await publishRealtimeEvent("filter_event")
       res.json({ success: true, message: "Category and its subcategories deleted permanently" });
     } catch (error) {
       console.error("Error deleting category:", error);
@@ -544,12 +543,7 @@ export const adminRoutes = (app: Express) => {
         isActive: isActive !== undefined ? isActive : true,
       });
       
-      await pub.publish(
-        "realtime",
-        JSON.stringify({
-          type: "filter_event"
-        })
-      )
+      await publishRealtimeEvent("filter_event")
       res.status(201).json(subcategory);
     } catch (error) {
       console.error("Error creating subcategory:", error);
@@ -570,6 +564,8 @@ export const adminRoutes = (app: Express) => {
       if (!subcategory) {
         return res.status(404).json({ message: "Subcategory not found" });
       }
+      
+      await publishRealtimeEvent("filter_event")
       res.json(subcategory);
     } catch (error) {
       console.error("Error updating subcategory:", error);
@@ -584,6 +580,8 @@ export const adminRoutes = (app: Express) => {
   app.delete("/api/admin/subcategories/:id", authAdmin, async (req, res) => {
     try {
       await publicStorage.deleteSubcategory(req.params.id);
+      
+      await publishRealtimeEvent("filter_event")
       res.json({ success: true, message: "Subcategory deleted permanently" });
     } catch (error) {
       console.error("Error deleting subcategory:", error);
@@ -607,6 +605,8 @@ export const adminRoutes = (app: Express) => {
   app.post("/api/admin/colors", authAdmin, async (req, res) => {
     try {
       const color = await publicStorage.createColor(req.body);
+      
+      await publishRealtimeEvent("filter_event")
       res.json(color);
     } catch {
       res.status(500).json({ message: "Failed to create color" });
@@ -616,6 +616,8 @@ export const adminRoutes = (app: Express) => {
   app.patch("/api/admin/colors/:id", authAdmin, async (req, res) => {
     try {
       const color = await publicStorage.updateColor(req.params.id, req.body);
+      
+      await publishRealtimeEvent("filter_event")
       res.json(color);
     } catch {
       res.status(500).json({ message: "Failed to update color" });
@@ -625,6 +627,8 @@ export const adminRoutes = (app: Express) => {
   app.delete("/api/admin/colors/:id", authAdmin, async (req, res) => {
     try {
       await publicStorage.deleteColor(req.params.id);
+      
+      await publishRealtimeEvent("filter_event")
       res.json({ success: true });
     } catch {
       res.status(500).json({ message: "Failed to delete color" });
@@ -635,6 +639,8 @@ export const adminRoutes = (app: Express) => {
   app.post("/api/admin/fabrics", authAdmin, async (req, res) => {
     try {
       const fabric = await publicStorage.createFabric(req.body);
+      
+      await publishRealtimeEvent("filter_event")
       res.json(fabric);
     } catch {
       res.status(500).json({ message: "Failed to create fabric" });
@@ -644,6 +650,8 @@ export const adminRoutes = (app: Express) => {
   app.patch("/api/admin/fabrics/:id", authAdmin, async (req, res) => {
     try {
       const fabric = await publicStorage.updateFabric(req.params.id, req.body);
+      
+      await publishRealtimeEvent("filter_event")
       res.json(fabric);
     } catch {
       res.status(500).json({ message: "Failed to update fabric" });
@@ -653,6 +661,8 @@ export const adminRoutes = (app: Express) => {
   app.delete("/api/admin/fabrics/:id", authAdmin, async (req, res) => {
     try {
       await publicStorage.deleteFabric(req.params.id);
+      
+      await publishRealtimeEvent("filter_event")
       res.json({ success: true });
     } catch {
       res.status(500).json({ message: "Failed to delete fabric" });
