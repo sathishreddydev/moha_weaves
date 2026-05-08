@@ -1,10 +1,11 @@
 import Redis from "ioredis"
 import { config } from "dotenv"
 
-// Load environment variables to ensure they're available
-config({ path: '.env.development' })
+// Load environment variables based on NODE_ENV
+const envFile = process.env.NODE_ENV === 'production' ? '.env.prod' : '.env.development'
+config({ path: envFile })
 
-// Use environment variable for Redis URL, fallback to Redis Cloud
+// Use environment variable for Redis URL, fallback to Redis Cloud for development
 const redisUrl = process.env.REDIS_URL || "redis://default:2uzhKQIdCpNkBnLrOSQ2aLnb2czY0DGh@redis-11945.c52.us-east-1-4.ec2.cloud.redislabs.com:11945"
 
 // Parse Redis URL to use individual connection parameters
