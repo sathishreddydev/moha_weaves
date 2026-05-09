@@ -47,6 +47,9 @@ export class RedisSubscriber {
         case 'order_event':
           this.handleOrderUpdate(event)
           break
+        case 'product_event':
+          this.handleProductUpdate(event)
+          break
         case 'system_event':
           this.handleSystemNotification(event)
           break
@@ -100,6 +103,14 @@ export class RedisSubscriber {
     if (target?.role === "admin") {
       io.to("role:admin").emit("order_event", { type: event.type })
     }
+  }
+
+  private handleProductUpdate(event: RealtimeEvent): void {
+
+
+    io.emit("product_event", { type: event.type })
+
+
   }
 
   private handleSystemNotification(event: RealtimeEvent): void {

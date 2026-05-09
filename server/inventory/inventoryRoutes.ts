@@ -27,6 +27,7 @@ import {
 } from "./errorHandling";
 import { allStoreOrdersService } from "server/store/allStoreOrders";
 import { delhiveryOrderService } from "../shipping/delhiveryOrderService";
+import { publishRealtimeEvent } from "realtime/events";
 
 const productWithAllocationsSchema = productBaseSchema.refine(
   (data) => {
@@ -650,6 +651,8 @@ export const inventoryRoutes = (app: Express) => {
           seoData
         );
         res.json(product);
+
+        await publishRealtimeEvent('product_event')
       }
     } catch (error: any) {
       console.error("Error creating product:", error);
@@ -840,7 +843,9 @@ export const inventoryRoutes = (app: Express) => {
           seoData
         );
         res.json(product);
+
       }
+      await publishRealtimeEvent('product_event')
     } catch {
       res.status(500).json({ message: "Failed to update product" });
     }
@@ -860,6 +865,9 @@ export const inventoryRoutes = (app: Express) => {
         success: true,
         ids: deletedIds,
       });
+
+      await publishRealtimeEvent('product_event')
+
     } catch {
       res.status(500).json({ message: "Failed to delete products" });
     }

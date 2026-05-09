@@ -1,4 +1,4 @@
-import React from 'react'
+import React from "react";
 import { lazy, Suspense } from "react";
 import { Routes, Route, useLocation, Navigate } from "react-router-dom";
 import { queryClient } from "./lib/queryClient";
@@ -13,6 +13,7 @@ import StoreLayout from "./pages/store/Layout";
 import AdminLayout from "./pages/admin/Layout";
 import ProtectedRoute from "./ProtectedRoute";
 import Unauthorized from "./Unauthorized";
+import { SocketProvider } from "./lib/socket-provider";
 
 const NotFound = lazy(() => import("@/pages/not-found"));
 const Home = lazy(() => import("@/pages/user/Home"));
@@ -32,7 +33,7 @@ const UserRegister = lazy(() => import("@/pages/user/Register"));
 const Addresses = lazy(() => import("@/pages/user/Addresses"));
 const ShippingPolicy = lazy(() => import("@/pages/user/ShippingPolicy"));
 const ReturnsExchangePolicy = lazy(
-  () => import("@/pages/user/ReturnsExchangePolicy")
+  () => import("@/pages/user/ReturnsExchangePolicy"),
 );
 const ContactUs = lazy(() => import("@/pages/user/ContactUs"));
 const FAQ = lazy(() => import("@/pages/user/FAQ"));
@@ -60,31 +61,41 @@ const AdminAuditReporting = lazy(() => import("@/pages/admin/AuditReporting"));
 const InventoryLogin = lazy(() => import("@/pages/inventory/Login"));
 const InventoryDashboard = lazy(() => import("@/pages/inventory/Dashboard"));
 const InventoryProducts = lazy(() => import("@/pages/inventory/Products"));
-const InventoryAddProduct = lazy(() => import("@/pages/inventory/components/AddProduct"));
-const InventoryEditProduct = lazy(() => import("@/pages/inventory/components/EditProduct"));
+const InventoryAddProduct = lazy(
+  () => import("@/pages/inventory/components/AddProduct"),
+);
+const InventoryEditProduct = lazy(
+  () => import("@/pages/inventory/components/EditProduct"),
+);
 const InventoryStockDistribution = lazy(
-  () => import("@/pages/inventory/StockDistribution")
+  () => import("@/pages/inventory/StockDistribution"),
 );
 const InventoryAnalytics = lazy(() => import("@/pages/inventory/Analytics"));
 const InventoryRequests = lazy(() => import("@/pages/inventory/Requests"));
 const InventoryOrders = lazy(() => import("@/pages/inventory/Orders"));
 const InventoryOrderDetail = lazy(
-  () => import("@/pages/inventory/OrderDetail")
+  () => import("@/pages/inventory/OrderDetail"),
 );
 const InventoryReturns = lazy(() => import("@/pages/inventory/Returns"));
 const InventoryExchanges = lazy(() => import("@/pages/inventory/Exchanges"));
 const InventoryRefunds = lazy(() => import("@/pages/inventory/Refunds"));
 const InventoryStoreOrders = lazy(
-  () => import("@/pages/inventory/StoreOrders")
+  () => import("@/pages/inventory/StoreOrders"),
 ); // Added new page
 const InventoryStoreExchanges = lazy(
-  () => import("@/pages/inventory/StoreExchanges")
+  () => import("@/pages/inventory/StoreExchanges"),
 ); // Added new page
 const DamageReport = lazy(() => import("@/pages/inventory/DamageReport"));
 const DamageHistory = lazy(() => import("@/pages/inventory/DamageHistory"));
-const InventoryStockMovements = lazy(() => import("@/pages/inventory/StockMovements"));
-const InventoryStockReconciliation = lazy(() => import("@/pages/inventory/StockReconciliation"));
-const InventoryBatchStockOperations = lazy(() => import("@/pages/inventory/BatchStockOperations"));
+const InventoryStockMovements = lazy(
+  () => import("@/pages/inventory/StockMovements"),
+);
+const InventoryStockReconciliation = lazy(
+  () => import("@/pages/inventory/StockReconciliation"),
+);
+const InventoryBatchStockOperations = lazy(
+  () => import("@/pages/inventory/BatchStockOperations"),
+);
 
 const StoreLogin = lazy(() => import("@/pages/store/Login"));
 const StoreDashboard = lazy(() => import("@/pages/store/Dashboard"));
@@ -94,7 +105,9 @@ const StoreInventoryPage = lazy(() => import("@/pages/store/Inventory"));
 const StoreRequests = lazy(() => import("@/pages/store/Requests"));
 const StoreHistory = lazy(() => import("@/pages/store/History"));
 const StoreExchange = lazy(() => import("@/pages/store/Exchange"));
-const StoreExchangeHistory = lazy(() => import("@/pages/store/ExchangeHistory"));
+const StoreExchangeHistory = lazy(
+  () => import("@/pages/store/ExchangeHistory"),
+);
 const StoreInvoice = lazy(() => import("@/pages/store/Invoice"));
 
 function LoadingFallback() {
@@ -136,7 +149,7 @@ function Router() {
     "/inventory/dashboard",
     "/store/dashboard",
   ].some((path) =>
-    location.pathname.startsWith(path.replace("/dashboard", ""))
+    location.pathname.startsWith(path.replace("/dashboard", "")),
   );
 
   if (isLoading) {
@@ -177,7 +190,10 @@ function Router() {
                 <Route path="sales" element={<AdminSales />} />
                 <Route path="reviews" element={<AdminReviews />} />
                 <Route path="settings" element={<AdminSettings />} />
-                <Route path="audit-reporting" element={<AdminAuditReporting />} />
+                <Route
+                  path="audit-reporting"
+                  element={<AdminAuditReporting />}
+                />
               </Route>
             </Route>
           </Route>
@@ -198,8 +214,14 @@ function Router() {
 
                 <Route path="dashboard" element={<InventoryDashboard />} />
                 <Route path="products" element={<InventoryProducts />} />
-                <Route path="products/addProduct" element={<InventoryAddProduct />} />
-                <Route path="products/editProduct/:sku" element={<InventoryEditProduct />} />
+                <Route
+                  path="products/addProduct"
+                  element={<InventoryAddProduct />}
+                />
+                <Route
+                  path="products/editProduct/:sku"
+                  element={<InventoryEditProduct />}
+                />
                 <Route
                   path="distribution"
                   element={<InventoryStockDistribution />}
@@ -209,16 +231,28 @@ function Router() {
                 <Route path="orders" element={<InventoryOrders />} />
                 <Route path="orders/:id" element={<InventoryOrderDetail />} />
                 <Route path="store-orders" element={<InventoryStoreOrders />} />
-                <Route path="store-exchanges" element={<InventoryStoreExchanges />} />
+                <Route
+                  path="store-exchanges"
+                  element={<InventoryStoreExchanges />}
+                />
                 <Route path="returns" element={<InventoryReturns />} />
                 <Route path="exchanges" element={<InventoryExchanges />} />
                 <Route path="refunds" element={<InventoryRefunds />} />
                 <Route path="damage-report" element={<DamageReport />} />
                 <Route path="damage-report/:sku" element={<DamageReport />} />
                 <Route path="damage-history" element={<DamageHistory />} />
-                <Route path="stock-movements" element={<InventoryStockMovements />} />
-                <Route path="stock-reconciliation" element={<InventoryStockReconciliation />} />
-                <Route path="batch-stock-operations" element={<InventoryBatchStockOperations />} />
+                <Route
+                  path="stock-movements"
+                  element={<InventoryStockMovements />}
+                />
+                <Route
+                  path="stock-reconciliation"
+                  element={<InventoryStockReconciliation />}
+                />
+                <Route
+                  path="batch-stock-operations"
+                  element={<InventoryBatchStockOperations />}
+                />
               </Route>
             </Route>
           </Route>
@@ -273,7 +307,10 @@ function Router() {
           <Route path="/user/wishlist" element={<Wishlist />} />
           <Route path="/user/orders" element={<Orders />} />
           <Route path="/user/orders/:id" element={<OrderDetail />} />
-          <Route path="/user/orders/:orderId/items/:itemId" element={<ItemOrderDetails />} />
+          <Route
+            path="/user/orders/:orderId/items/:itemId"
+            element={<ItemOrderDetails />}
+          />
           <Route path="/user/returns" element={<Returns />} />
           <Route path="/user/exchanges" element={<Exchanges />} />
           <Route path="/user/checkout" element={<Checkout />} />
@@ -296,12 +333,14 @@ function Router() {
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
-      <TooltipProvider>
-        <AuthProvider>
-          <Router />
-          <Toaster />
-        </AuthProvider>
-      </TooltipProvider>
+      <SocketProvider>
+        <TooltipProvider>
+          <AuthProvider>
+            <Router />
+            <Toaster />
+          </AuthProvider>
+        </TooltipProvider>
+      </SocketProvider>
     </QueryClientProvider>
   );
 }
