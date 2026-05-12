@@ -37,6 +37,7 @@ import { DistributionChannel } from "./utils/enums";
 import { useFilterStore } from "@/components/Store/useFilterStore";
 import { inventoryFilters } from "./utils/filtersInventory";
 import { FilterItem } from "./utils/type";
+import { useSocket } from "@/stores/socketStore";
 
 const formatPrice = (price: string | number) => {
   const numPrice = typeof price === "string" ? parseFloat(price) : price;
@@ -276,6 +277,8 @@ const ProductAccordionContent = ({
 export default function InventoryProducts() {
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { socket } = useSocket();
+
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [deletingproductId, setDeletingproductId] = useState<string | null>(
     null,
@@ -300,7 +303,19 @@ export default function InventoryProducts() {
     initialPageSize: 10,
     pageKey: "inventoryProducts",
   });
+  useEffect(() => {
+    if (!socket) return;
 
+    const handleOrderEvent = (event: any) => {
+      refetch();
+    };
+
+    socket.on("user_order_created", handleOrderEvent);
+
+    return () => {
+      socket.off("user_order_created", handleOrderEvent);
+    };
+  }, [socket]);
   const deleteMutation = useMutation({
     mutationFn: async (ids: string[]) => {
       const res = await apiRequest("DELETE", "/api/inventory/products", {
@@ -651,13 +666,12 @@ export default function InventoryProducts() {
       <div className="max-w-7xl mx-auto">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
           <div>
-            <h1
-              className="text-xl font-semibold"
-              data-testid="text-page-title"
-            >
+            <h1 className="text-xl font-semibold" data-testid="text-page-title">
               Products
             </h1>
-            <p className="text-xs text-muted-foreground">Manage product inventory</p>
+            <p className="text-xs text-muted-foreground">
+              Manage product inventory
+            </p>
             {selectedRows.size > 0 && (
               <p className="text-sm text-primary mt-1">
                 {selectedRows.size} item(s) selected

@@ -20,7 +20,7 @@ export const emitUserUpdated = (user: User): void => {
 
   // all admins
   io.to("role:admin").emit(
-    "user_event", 
+    "user_event",
     { type: "user_event" }
   )
 }
@@ -30,7 +30,7 @@ export const publishRealtimeEvent = async (eventType: string, data?: any): Promi
     type: eventType,
     ...(data && { data })
   }
-
+  console.log("user_event", eventType)
   await pub.publish(
     "realtime",
     JSON.stringify(event)

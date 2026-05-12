@@ -8,9 +8,10 @@ import type { OrderWithItems } from "@shared/schema";
 import { useMutation } from "@tanstack/react-query";
 import { ColumnDef } from "@tanstack/react-table";
 import { Calendar, ExternalLink, Package, User } from "lucide-react";
-import { useMemo } from "react";
+import { useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { formatDate, formatPrice } from "@/lib/utils";
+import { useSocket } from "@/stores/socketStore";
 
 // Status options provided by user
 const itemStatuses = [
@@ -42,6 +43,7 @@ const StatusBadge = ({ status }: StatusBadgeProps) => {
 export default function InventoryOrders() {
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { socket } = useSocket();
 
   const {
     data: orders,
@@ -122,7 +124,19 @@ export default function InventoryOrders() {
       });
     },
   });
+  useEffect(() => {
+    if (!socket) return;
 
+    const handleOrderEvent = (event: any) => {
+      refetch();
+    };
+
+    socket.on("user_order_created", handleOrderEvent);
+
+    return () => {
+      socket.off("user_order_created", handleOrderEvent);
+    };
+  }, [socket]);
   const updateItemStatus = (
     orderId: string,
     itemId: string,

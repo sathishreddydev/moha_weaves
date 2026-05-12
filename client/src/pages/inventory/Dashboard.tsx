@@ -11,38 +11,55 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { useAuth } from "@/lib/auth";
+import { useSocket } from "@/stores/socketStore";
 import type {
   Order,
   ProductWithDetails,
   StockRequestWithDetails,
 } from "@shared/schema";
 import { useQuery } from "@tanstack/react-query";
-import { AlertTriangle, ClipboardList, Truck, DollarSign, TrendingUp, Package, Store, ArrowLeftRight } from "lucide-react";
+import {
+  AlertTriangle,
+  ArrowLeftRight,
+  ClipboardList,
+  Store,
+  Truck,
+} from "lucide-react";
+import { useEffect } from "react";
 import { Link } from "react-router-dom";
 import { UserRole } from "./utils/enums";
 
 export default function InventoryDashboard() {
   const { user } = useAuth();
-  const isInventoryUser = !!user && (user.role === UserRole.INVENTORY || user.role === UserRole.ADMIN);
+  const socket = useSocket();
+  const isInventoryUser =
+    !!user &&
+    (user.role === UserRole.INVENTORY || user.role === UserRole.ADMIN);
 
-  const { data: lowStockItems, isLoading: loadingStock } = useQuery<
-    ProductWithDetails[]
-  >({
+  const {
+    data: lowStockItems,
+    isLoading: loadingStock,
+    refetch: refetchLowStock,
+  } = useQuery<ProductWithDetails[]>({
     queryKey: ["/api/inventory/low-stock"],
     enabled: isInventoryUser,
   });
 
-  const { data: pendingRequests } = useQuery<StockRequestWithDetails[]>({
+  const { data: pendingRequests, refetch: refetchPendingRequests } = useQuery<
+    StockRequestWithDetails[]
+  >({
     queryKey: ["/api/inventory/requests?status=pending"],
     enabled: isInventoryUser,
   });
 
-  const { data: pendingOrders } = useQuery<Order[]>({
+  const { data: pendingOrders, refetch: refetchPendingOrders } = useQuery<
+    Order[]
+  >({
     queryKey: ["/api/inventory/orders?status=created"],
     enabled: isInventoryUser,
   });
 
-  const { data: storeSalesStats } = useQuery<{
+  const { data: storeSalesStats, refetch: refetchStoreSalesStats } = useQuery<{
     total: number;
     today: number;
     thisWeek: number;
@@ -51,16 +68,21 @@ export default function InventoryDashboard() {
     enabled: isInventoryUser,
   });
 
-  const { data: storeExchangesStats } = useQuery<{
-    total: number;
-    today: number;
-    thisWeek: number;
-  }>({
-    queryKey: ["/api/inventory/store-exchanges-stats"],
-    enabled: isInventoryUser,
-  });
+  const { data: storeExchangesStats, refetch: refetchStoreExchangesStats } =
+    useQuery<{
+      total: number;
+      today: number;
+      thisWeek: number;
+    }>({
+      queryKey: ["/api/inventory/store-exchanges-stats"],
+      enabled: isInventoryUser,
+    });
 
-  const { data: valuation, isLoading: loadingValuation } = useQuery<{
+  const {
+    data: valuation,
+    isLoading: loadingValuation,
+    refetch: refetchValuation,
+  } = useQuery<{
     summary: {
       totalValue: number;
       totalCostValue: number;
@@ -78,6 +100,31 @@ export default function InventoryDashboard() {
     enabled: isInventoryUser,
   });
 
+  useEffect(() => {
+    // Handle product events
+    const handleProductEvent = (data: any) => {
+      console.log(
+        "🔄 Product event received, refreshing dashboard data:",
+        data,
+      );
+
+      // Refetch all dashboard data when product changes
+      refetchLowStock();
+      refetchPendingRequests();
+      refetchPendingOrders();
+      refetchStoreSalesStats();
+      refetchStoreExchangesStats();
+      refetchValuation();
+    };
+
+    // Listen for product events
+    socket.on("product_event", handleProductEvent);
+
+    // Cleanup
+    return () => {
+      socket.off("product_event", handleProductEvent);
+    };
+  }, [socket]);
 
   return (
     <div className="max-w-7xl mx-auto">
@@ -264,7 +311,9 @@ export default function InventoryDashboard() {
                   className="flex items-center justify-between p-3 border rounded-lg"
                 >
                   <div>
-                    <p className="font-medium text-sm">{request.product.name}</p>
+                    <p className="font-medium text-sm">
+                      {request.product.name}
+                    </p>
                     <p className="text-xs text-muted-foreground">
                       {request.store.name} • Qty: {request.quantity}
                     </p>

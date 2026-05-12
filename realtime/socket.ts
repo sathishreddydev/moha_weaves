@@ -24,7 +24,6 @@ export const initSocket = (
         "http://localhost:3000",
         "http://103.127.146.58:3000",
       ],
-
       credentials: true,
     },
   });

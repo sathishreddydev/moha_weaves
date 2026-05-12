@@ -53,6 +53,9 @@ export class RedisSubscriber {
         case 'system_event':
           this.handleSystemNotification(event)
           break
+        case 'user_order_created':
+          this.handleUserOrderCreated(event)
+          break
         default:
           console.warn(`Unknown event type: ${event.type}`)
       }
@@ -60,7 +63,9 @@ export class RedisSubscriber {
       console.error(`Error parsing realtime event:`, error)
     }
   }
-
+  private handleUserOrderCreated(event: RealtimeEvent): void {
+    io.emit("user_order_created", { type: event.type })
+  }
   private handleUserUpdate(event: RealtimeEvent): void {
     const { target } = event
 

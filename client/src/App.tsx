@@ -13,7 +13,6 @@ import StoreLayout from "./pages/store/Layout";
 import AdminLayout from "./pages/admin/Layout";
 import ProtectedRoute from "./ProtectedRoute";
 import Unauthorized from "./Unauthorized";
-import { SocketProvider } from "./lib/socket-provider";
 
 const NotFound = lazy(() => import("@/pages/not-found"));
 const Home = lazy(() => import("@/pages/user/Home"));
@@ -333,14 +332,12 @@ function Router() {
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
-      <SocketProvider>
-        <TooltipProvider>
-          <AuthProvider>
-            <Router />
-            <Toaster />
-          </AuthProvider>
-        </TooltipProvider>
-      </SocketProvider>
+      <TooltipProvider>
+        <AuthProvider>
+          <Router />
+          <Toaster />
+        </AuthProvider>
+      </TooltipProvider>
     </QueryClientProvider>
   );
 }
