@@ -1,7 +1,13 @@
+import {
+  storeExchanges,
+  storeSales,
+} from "@shared/schema";
+import { gte, sql } from "drizzle-orm";
 import type { Express } from "express";
 import { allStoreOrdersService } from "server/store/allStoreOrders";
 import { storeService } from "server/store/storeStorage";
 import { createAuthMiddleware } from "../authMiddleware";
+import { db } from "../db";
 import { parsePaginationParams } from "../paginationHelper";
 import { handleInventoryError } from "./errorHandling";
 
@@ -63,6 +69,72 @@ export const inventoryStoreRoutes = (app: Express) => {
         code: errorResponse.code,
         ...(errorResponse.details && { details: errorResponse.details }),
       });
+    }
+  });
+
+  // Store sales stats (today + this week counts)
+  app.get("/api/inventory/store-sales-stats", authInventory, async (req, res) => {
+    try {
+      const now = new Date();
+      const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+      const startOfWeek = new Date(startOfToday);
+      startOfWeek.setDate(startOfToday.getDate() - startOfToday.getDay());
+
+      const [totalResult] = await db
+        .select({ count: sql<number>`count(*)::int` })
+        .from(storeSales);
+
+      const [todayResult] = await db
+        .select({ count: sql<number>`count(*)::int` })
+        .from(storeSales)
+        .where(gte(storeSales.createdAt, startOfToday));
+
+      const [weekResult] = await db
+        .select({ count: sql<number>`count(*)::int` })
+        .from(storeSales)
+        .where(gte(storeSales.createdAt, startOfWeek));
+
+      res.json({
+        total: totalResult?.count ?? 0,
+        today: todayResult?.count ?? 0,
+        thisWeek: weekResult?.count ?? 0,
+      });
+    } catch (error: any) {
+      console.error("Error fetching store sales stats:", error);
+      res.status(500).json({ message: "Failed to fetch store sales stats" });
+    }
+  });
+
+  // Store exchanges stats (today + this week counts)
+  app.get("/api/inventory/store-exchanges-stats", authInventory, async (req, res) => {
+    try {
+      const now = new Date();
+      const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+      const startOfWeek = new Date(startOfToday);
+      startOfWeek.setDate(startOfToday.getDate() - startOfToday.getDay());
+
+      const [totalResult] = await db
+        .select({ count: sql<number>`count(*)::int` })
+        .from(storeExchanges);
+
+      const [todayResult] = await db
+        .select({ count: sql<number>`count(*)::int` })
+        .from(storeExchanges)
+        .where(gte(storeExchanges.createdAt, startOfToday));
+
+      const [weekResult] = await db
+        .select({ count: sql<number>`count(*)::int` })
+        .from(storeExchanges)
+        .where(gte(storeExchanges.createdAt, startOfWeek));
+
+      res.json({
+        total: totalResult?.count ?? 0,
+        today: todayResult?.count ?? 0,
+        thisWeek: weekResult?.count ?? 0,
+      });
+    } catch (error: any) {
+      console.error("Error fetching store exchanges stats:", error);
+      res.status(500).json({ message: "Failed to fetch store exchanges stats" });
     }
   });
 };

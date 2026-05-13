@@ -1,4 +1,4 @@
-import { colors, products, stockMovements } from "@shared/schema";
+import { colors, orders, products, stockMovements } from "@shared/schema";
 import { and, eq, ne, sql } from "drizzle-orm";
 import type { Express } from "express";
 import { publishRealtimeEvent } from "realtime/events";
@@ -274,6 +274,32 @@ export const inventoryProductRoutes = (app: Express) => {
       return res.json(result);
     } catch {
       res.status(500).json({ message: "Failed to fetch orders" });
+    }
+  });
+
+  // Count orders with at least one item matching the given status
+  // MUST be registered before /:id to avoid Express matching "count" as an id
+  app.get("/api/inventory/orders/count", authInventory, async (req, res) => {
+    try {
+      const { status } = req.query;
+      const conditions: any[] = [];
+      if (status) {
+        conditions.push(
+          sql`EXISTS (
+            SELECT 1 FROM order_items oi
+            WHERE oi.order_id = ${orders.id}
+            AND oi.status = ${status as string}
+          )`
+        );
+      }
+      const [result] = await db
+        .select({ count: sql<number>`count(*)::int` })
+        .from(orders)
+        .where(conditions.length > 0 ? and(...conditions) : undefined);
+      res.json({ count: result?.count ?? 0 });
+    } catch (error: any) {
+      console.error("Error fetching order count:", error);
+      res.status(500).json({ message: "Failed to fetch order count" });
     }
   });
 

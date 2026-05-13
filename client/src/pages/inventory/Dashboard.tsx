@@ -11,9 +11,9 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { useAuth } from "@/lib/auth";
+import { apiRequest } from "@/lib/queryClient";
 import { useSocket } from "@/stores/socketStore";
 import type {
-  Order,
   ProductWithDetails,
   StockRequestWithDetails,
 } from "@shared/schema";
@@ -25,7 +25,7 @@ import {
   Store,
   Truck,
 } from "lucide-react";
-import { useEffect } from "react";
+import { useCallback, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { UserRole } from "./utils/enums";
 
@@ -52,10 +52,11 @@ export default function InventoryDashboard() {
     enabled: isInventoryUser,
   });
 
-  const { data: pendingOrders, refetch: refetchPendingOrders } = useQuery<
-    Order[]
-  >({
-    queryKey: ["/api/inventory/orders?status=created"],
+  const { data: pendingOrders, refetch: refetchPendingOrders } = useQuery<{
+    count: number;
+  }>({
+    queryKey: ["/api/inventory/orders/count", { status: "confirmed" }],
+    queryFn: () => apiRequest("GET", "/api/inventory/orders/count?status=pending"),
     enabled: isInventoryUser,
   });
 
@@ -78,53 +79,28 @@ export default function InventoryDashboard() {
       enabled: isInventoryUser,
     });
 
-  const {
-    data: valuation,
-    isLoading: loadingValuation,
-    refetch: refetchValuation,
-  } = useQuery<{
-    summary: {
-      totalValue: number;
-      totalCostValue: number;
-      profitPotential: number;
-      profitMargin: number;
-      totalStock: number;
-      totalProducts: number;
-      lowStockValue: number;
-      lowStockCount: number;
-      deadStockCount: number;
-      avgValuePerProduct: number;
-    };
-  }>({
-    queryKey: ["/api/inventory/valuation"],
-    enabled: isInventoryUser,
-  });
+  const refetch = useCallback(() => {
+    refetchPendingOrders();
+    refetchLowStock();
+    refetchStoreExchangesStats();
+    refetchStoreSalesStats();
+    refetchPendingRequests();
+  }, [
+    refetchPendingOrders,
+    refetchLowStock,
+    refetchStoreExchangesStats,
+    refetchStoreSalesStats,
+    refetchPendingRequests,
+  ]);
 
   useEffect(() => {
-    // Handle product events
-    const handleProductEvent = (data: any) => {
-      console.log(
-        "🔄 Product event received, refreshing dashboard data:",
-        data,
-      );
-
-      // Refetch all dashboard data when product changes
-      refetchLowStock();
-      refetchPendingRequests();
-      refetchPendingOrders();
-      refetchStoreSalesStats();
-      refetchStoreExchangesStats();
-      refetchValuation();
-    };
-
-    // Listen for product events
-    socket.on("product_event", handleProductEvent);
-
-    // Cleanup
+    socket.on("user_order_created", refetch);
+    socket.on("order_item_status_updated", refetch);
     return () => {
-      socket.off("product_event", handleProductEvent);
+      socket.off("user_order_created", refetch);
+      socket.off("order_item_status_updated", refetch);
     };
-  }, [socket]);
+  }, [socket, refetch]);
 
   return (
     <div className="max-w-7xl mx-auto">
@@ -214,7 +190,7 @@ export default function InventoryDashboard() {
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">
-              {pendingOrders?.length || 0}
+              {pendingOrders?.count ?? 0}
             </div>
             <p className="text-xs text-muted-foreground">Ready for dispatch</p>
           </CardContent>

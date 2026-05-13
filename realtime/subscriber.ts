@@ -56,6 +56,9 @@ export class RedisSubscriber {
         case 'user_order_created':
           this.handleUserOrderCreated(event)
           break
+        case 'order_item_status_updated':
+          this.handleOrderItemStatusUpdated(event)
+          break
         default:
           console.warn(`Unknown event type: ${event.type}`)
       }
@@ -65,6 +68,20 @@ export class RedisSubscriber {
   }
   private handleUserOrderCreated(event: RealtimeEvent): void {
     io.emit("user_order_created", { type: event.type })
+  }
+
+  private handleOrderItemStatusUpdated(event: RealtimeEvent): void {
+    const { userId, orderId, itemId, status } = event.data ?? {}
+    const payload = { type: event.type, data: { userId, orderId, itemId, status } }
+
+    // Notify the customer who owns the order
+    if (userId) {
+      io.to(`user:${userId}`).emit("order_item_status_updated", payload)
+    }
+
+    // Notify inventory and admin roles so their order lists stay in sync
+    io.to("role:inventory").emit("order_item_status_updated", payload)
+    io.to("role:admin").emit("order_item_status_updated", payload)
   }
   private handleUserUpdate(event: RealtimeEvent): void {
     const { target } = event

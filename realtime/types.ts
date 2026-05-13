@@ -21,11 +21,18 @@ export interface RedisMessage {
 }
 
 export interface RealtimeEvent {
-  type: 'user_event' | 'stock_event' | 'order_event' | 'system_event' | 'filter_event' | 'product_event' | 'user_order_created'
+  type: 'user_event' | 'stock_event' | 'order_event' | 'system_event' | 'filter_event' | 'product_event' | 'user_order_created' | 'order_item_status_updated'
   target?: {
     userId?: string
     role?: string
     room?: string
+  }
+  data?: {
+    userId?: string
+    orderId?: string
+    itemId?: string
+    status?: string
+    [key: string]: any
   }
   metadata?: {
     source?: string

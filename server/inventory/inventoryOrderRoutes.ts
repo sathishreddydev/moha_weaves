@@ -1,6 +1,7 @@
 import { orders } from "@shared/schema";
 import { eq } from "drizzle-orm";
 import type { Express } from "express";
+import { publishRealtimeEvent } from "realtime/events";
 import { createAuthMiddleware } from "../authMiddleware";
 import { db } from "../db";
 import { orderService, VALID_ITEM_STATUSES } from "../order/orderStorage";
@@ -57,6 +58,16 @@ export const inventoryOrderRoutes = (app: Express) => {
           } catch (err) {
             console.warn("Failed to sync order-level status:", err);
           }
+        }
+
+        // Emit realtime event for each updated item
+        for (const orderItemId of targetItemIds) {
+          await publishRealtimeEvent("order_item_status_updated", {
+            userId: order.userId,
+            orderId: req.params.id,
+            itemId: orderItemId,
+            status,
+          });
         }
 
         // Order-level notification
@@ -143,6 +154,14 @@ export const inventoryOrderRoutes = (app: Express) => {
         }
 
         res.json({ message: "Item status updated successfully", item: updatedItem });
+
+        // Emit realtime event
+        await publishRealtimeEvent("order_item_status_updated", {
+          userId: orderItem.userId,
+          orderId,
+          itemId,
+          status,
+        });
       } catch (error) {
         console.error("Error updating individual item status:", error);
         const message = error instanceof Error ? error.message : String(error);
