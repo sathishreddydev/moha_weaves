@@ -51,7 +51,8 @@ export const orderRoutes = (app: Express) => {
 
   app.get("/api/user/orders", authUser, async (req, res) => {
     try {
-      const orders = await orderService.getOrders((req as any).user.id);
+      const user = (req as any).user;
+      const orders = await orderService.getOrders(user.id, undefined, undefined, user.role);
       res.json(orders);
     } catch {
       res.status(500).json({ message: "Failed to fetch orders" });
@@ -60,8 +61,9 @@ export const orderRoutes = (app: Express) => {
 
   app.get("/api/user/orders/:id", authUser, async (req, res) => {
     try {
-      const order = await orderService.getOrder(req.params.id);
-      if (!order || order.userId !== (req as any).user.id) {
+      const user = (req as any).user;
+      const order = await orderService.getOrder(req.params.id, user.role);
+      if (!order || order.userId !== user.id) {
         return res.status(404).json({ message: "Order not found" });
       }
       res.json(order);
@@ -72,8 +74,9 @@ export const orderRoutes = (app: Express) => {
 
   app.get("/api/user/orders/:id/invoice", authUser, async (req, res) => {
     try {
-      const order = await orderService.getOrder(req.params.id);
-      if (!order || order.userId !== (req as any).user.id) {
+      const user = (req as any).user;
+      const order = await orderService.getOrder(req.params.id, user.role);
+      if (!order || order.userId !== user.id) {
         return res.status(404).json({ message: "Order not found" });
       }
 
@@ -238,8 +241,9 @@ export const orderRoutes = (app: Express) => {
     authUser,
     async (req, res) => {
       try {
-        const order = await orderService.getOrder(req.params.id);
-        if (!order || order.userId !== (req as any).user.id) {
+        const user = (req as any).user;
+        const order = await orderService.getOrder(req.params.id, user.role);
+        if (!order || order.userId !== user.id) {
           return res.status(404).json({ message: "Order not found" });
         }
 

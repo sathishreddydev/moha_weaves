@@ -111,7 +111,7 @@ export class OnlineExchangeStorage implements IOnlineExchangeStorage {
 
     const result: OnlineExchangeWithDetails[] = [];
     for (const exchange of exchanges) {
-      const orderWithItems = await orderService.getOrder(exchange.orderId);
+      const orderWithItems = await orderService.getOrder(exchange.orderId, "admin");
       const user = await userService.getUser(exchange.userId);
       const items = await db
         .select()
@@ -197,7 +197,7 @@ export class OnlineExchangeStorage implements IOnlineExchangeStorage {
       .where(eq(onlineExchanges.id, id));
     if (!exchange) return undefined;
 
-    const orderWithItems = await orderService.getOrder(exchange.orderId);
+    const orderWithItems = await orderService.getOrder(exchange.orderId, "admin");
     const user = await userService.getUser(exchange.userId);
     if (!orderWithItems || !user) return undefined;
 
@@ -390,7 +390,7 @@ export class OnlineExchangeStorage implements IOnlineExchangeStorage {
     orderId: string,
     orderItemIds?: string[]
   ): Promise<{ eligible: boolean; reason?: string; remainingDays?: number; eligibleItems?: string[] }> {
-    const order = await orderService.getOrder(orderId);
+    const order = await orderService.getOrder(orderId, "admin");
     if (!order) return { eligible: false, reason: "Order not found" };
 
     // If specific order item IDs provided, check only those items

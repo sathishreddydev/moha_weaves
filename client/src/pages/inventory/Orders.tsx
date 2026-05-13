@@ -1,5 +1,12 @@
 import { DataTable } from "@/components/DataTable/DataTable";
 import { Button } from "@/components/ui/button";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { itemStatusConfig } from "@/constants/itemStatusConfig";
 import { useDataTable } from "@/hooks/use-data-table";
 import { useToast } from "@/hooks/use-toast";
@@ -8,19 +15,40 @@ import type { OrderWithItems } from "@shared/schema";
 import { useMutation } from "@tanstack/react-query";
 import { ColumnDef } from "@tanstack/react-table";
 import { Calendar, ExternalLink, Package, User } from "lucide-react";
-import { useEffect, useMemo } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { formatDate, formatPrice } from "@/lib/utils";
 import { useSocket } from "@/stores/socketStore";
 
-// Status options provided by user
-const itemStatuses = [
-  "pending",
+// Statuses the inventory team can manually set — must match VALID_ITEM_STATUSES on the server
+const VALID_ITEM_STATUSES = [
   "confirmed",
   "processing",
   "shipped",
   "delivered",
-];
+  "cancelled",
+  "return_requested",
+  "returned",
+] as const;
+
+type ItemStatus = typeof VALID_ITEM_STATUSES[number];
+
+// Mirrors ALLOWED_TRANSITIONS in orderStorage.ts
+const ALLOWED_TRANSITIONS: Record<string, ItemStatus[]> = {
+  pending:          ["confirmed", "cancelled"],
+  confirmed:        ["processing", "cancelled"],
+  processing:       ["shipped", "cancelled"],
+  shipped:          ["delivered"],
+  delivered:        ["return_requested"],
+  cancelled:        [],
+  return_requested: ["returned", "delivered"],
+  returned:         [],
+};
+
+/** Returns the statuses that can be transitioned to from `currentStatus`. */
+function getAllowedNext(currentStatus: string): ItemStatus[] {
+  return ALLOWED_TRANSITIONS[currentStatus] ?? [];
+}
 
 interface StatusBadgeProps {
   status: string;
@@ -39,6 +67,48 @@ const StatusBadge = ({ status }: StatusBadgeProps) => {
     </span>
   );
 };
+
+/** Shadcn Select that resets to placeholder after each selection. */
+function StatusSelect({
+  allowedNext,
+  disabled,
+  onSelect,
+}: {
+  allowedNext: ItemStatus[];
+  disabled: boolean;
+  onSelect: (status: string) => void;
+}) {
+  const [key, setKey] = useState(0);
+  return (
+    <Select
+      key={key}
+      disabled={disabled}
+      onValueChange={(value) => {
+        onSelect(value);
+        // Reset to placeholder by remounting
+        setKey((k) => k + 1);
+      }}
+    >
+      <SelectTrigger className="w-[160px] text-sm h-9">
+        <SelectValue placeholder="Move to…" />
+      </SelectTrigger>
+      <SelectContent>
+        {allowedNext.map((status) => {
+          const config = itemStatusConfig[status];
+          const Icon = config?.icon;
+          return (
+            <SelectItem key={status} value={status}>
+              <span className="flex items-center gap-2">
+                {Icon && <Icon size={13} />}
+                {config?.label ?? status}
+              </span>
+            </SelectItem>
+          );
+        })}
+      </SelectContent>
+    </Select>
+  );
+}
 
 export default function InventoryOrders() {
   const navigate = useNavigate();
@@ -59,6 +129,10 @@ export default function InventoryOrders() {
     pageKey: "inventoryOnlineOrders",
   });
 
+  // Track which specific item is currently being updated so we can disable
+  // only that item's dropdown, not every dropdown on the page.
+  const pendingItemIdRef = useRef<string | null>(null);
+
   const updateItemStatusMutation = useMutation({
     mutationFn: async ({
       orderId,
@@ -69,6 +143,7 @@ export default function InventoryOrders() {
       itemId: string;
       status: string;
     }) => {
+      pendingItemIdRef.current = itemId;
       const response = await apiRequest(
         "PATCH",
         `/api/inventory/orders/${orderId}/items/${itemId}/status`,
@@ -77,11 +152,14 @@ export default function InventoryOrders() {
       return response;
     },
     onSuccess: () => {
+      pendingItemIdRef.current = null;
       refetch();
       toast({ title: "Success", description: "Item status updated" });
     },
     onError: (err: unknown) => {
+      pendingItemIdRef.current = null;
       const message = err instanceof Error ? err.message : "";
+      // Server sends "INVALID_STATUS_TRANSITION: <reason>" — extract the reason
       const extracted = message.includes(":")
         ? message.split(":").slice(1).join(":").trim()
         : "";
@@ -124,30 +202,27 @@ export default function InventoryOrders() {
       });
     },
   });
+
   useEffect(() => {
     if (!socket) return;
-
-    const handleOrderEvent = (event: any) => {
-      refetch();
-    };
-
+    const handleOrderEvent = () => { refetch(); };
     socket.on("user_order_created", handleOrderEvent);
+    return () => { socket.off("user_order_created", handleOrderEvent); };
+  }, [socket, refetch]);
 
-    return () => {
-      socket.off("user_order_created", handleOrderEvent);
-    };
-  }, [socket]);
-  const updateItemStatus = (
-    orderId: string,
-    itemId: string,
-    newStatus: string,
-  ) => {
-    updateItemStatusMutation.mutate({ orderId, itemId, status: newStatus });
-  };
+  const updateItemStatus = useCallback(
+    (orderId: string, itemId: string, newStatus: string) => {
+      updateItemStatusMutation.mutate({ orderId, itemId, status: newStatus });
+    },
+    [updateItemStatusMutation],
+  );
 
-  const updateAllItemsStatus = (orderId: string, newStatus: string) => {
-    updateAllItemsStatusMutation.mutate({ orderId, status: newStatus });
-  };
+  const updateAllItemsStatus = useCallback(
+    (orderId: string, newStatus: string) => {
+      updateAllItemsStatusMutation.mutate({ orderId, status: newStatus });
+    },
+    [updateAllItemsStatusMutation],
+  );
 
   const columns: ColumnDef<OrderWithItems>[] = useMemo(
     () => [
@@ -235,124 +310,141 @@ export default function InventoryOrders() {
         ),
       },
     ],
-    [
-      navigate,
-      updateAllItemsStatus,
-      updateItemStatus,
-      updateItemStatusMutation.isPending,
-    ],
+    [navigate],
   );
 
-  const accordionContent = (order: OrderWithItems) => (
-    <div className="space-y-4">
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
-        <h3 className="font-bold text-lg flex items-center gap-2">
-          <Package size={20} className="text-slate-400" />
-          Order Details
-        </h3>
-        <div className="flex items-center gap-3 bg-white p-2 rounded-lg border border-slate-200 shadow-sm">
-          <span className="text-xs font-semibold text-slate-500 px-2 uppercase tracking-wider">
-            Bulk Update Order:
-          </span>
-          <div className="flex gap-1">
-            {itemStatuses.map((status) => (
-              <Button
-                variant={"ghost"}
-                key={status}
-                onClick={() => updateAllItemsStatus(order.id, status)}
-              >
-                {status}
-              </Button>
-            ))}
-          </div>
-        </div>
-      </div>
+  const accordionContent = useCallback(
+    (order: OrderWithItems) => {
+      // Compute the intersection of allowed next statuses across all items
+      // to determine which bulk-update buttons are safe to show.
+      const allAllowed = order.items.reduce<ItemStatus[]>(
+        (acc, item) => {
+          const next = getAllowedNext(item.currentStatus || item.status);
+          if (acc.length === 0) return next;
+          return acc.filter((s) => next.includes(s));
+        },
+        [],
+      );
 
-      <div className="space-y-3">
-        {(order.items || []).map((item) => (
-          <div
-            key={item.id}
-            className="flex flex-col md:flex-row md:items-center justify-between p-4 bg-white rounded-xl border border-slate-200 shadow-sm hover:shadow-md transition-shadow"
-          >
-            <div className="flex items-center gap-4 mb-4 md:mb-0">
-              <div className="p-3 bg-slate-50 rounded-lg border border-slate-100 overflow-hidden">
-                <img
-                  src={
-                    item.product?.imageUrl ||
-                    "https://images.unsplash.com/photo-1610030469983-98e550d6193c?w=40"
-                  }
-                  alt={item.product?.name || "Item"}
-                  className="w-8 h-8 object-cover rounded"
-                />
-              </div>
-              <div>
-                <h4 className="font-semibold text-slate-800">
-                  {item.product?.name || "Unknown Item"}
-                </h4>
-                <div className="text-xs text-slate-500 flex items-center gap-2">
-                  <span>SKU: {item.id}</span>
-                  <span className="h-1 w-1 bg-slate-300 rounded-full"></span>
-                  <span>Qty: {item.quantity}</span>
-                  {(() => {
-                    const variant =
-                      item.variantId &&
-                      item.product?.variants?.find(
-                        (v: any) => v.id === item.variantId,
-                      );
-                    return variant ? (
-                      <>
-                        <span className="h-1 w-1 bg-slate-300 rounded-full"></span>
-                        <span>Size: {variant.size}</span>
-                      </>
-                    ) : null;
-                  })()}
-                  <span className="h-1 w-1 bg-slate-300 rounded-full"></span>
-                  <span>{formatPrice(item.price)} each</span>
+      return (
+        <div className="space-y-4">
+          <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
+            <h3 className="font-bold text-lg flex items-center gap-2">
+              <Package size={20} className="text-slate-400" />
+              Order Details
+            </h3>
+            {allAllowed.length > 0 && (
+              <div className="flex items-center gap-3 bg-white p-2 rounded-lg border border-slate-200 shadow-sm">
+                <span className="text-xs font-semibold text-slate-500 px-2 uppercase tracking-wider">
+                  Bulk Update Order:
+                </span>
+                <div className="flex gap-1">
+                  {allAllowed.map((status) => (
+                    <Button
+                      variant="ghost"
+                      key={status}
+                      onClick={() => updateAllItemsStatus(order.id, status)}
+                      disabled={updateAllItemsStatusMutation.isPending}
+                    >
+                      {itemStatusConfig[status]?.label ?? status}
+                    </Button>
+                  ))}
                 </div>
               </div>
-            </div>
-
-            <div className="flex flex-col md:flex-row items-start md:items-center gap-4">
-              <div className="flex flex-col items-start md:items-end">
-                <span className="text-[10px] font-bold text-slate-400 uppercase mb-1">
-                  Current Status
-                </span>
-                <StatusBadge status={item.status} />
-              </div>
-
-              <div className="h-8 w-[1px] bg-slate-200 hidden md:block"></div>
-
-              <div className="w-full md:w-auto">
-                <span className="text-[10px] font-bold text-slate-400 uppercase mb-1 block md:text-right">
-                  Change Status
-                </span>
-                <select
-                  value={item.status}
-                  onChange={(e) =>
-                    updateItemStatus(order.id, item.id, e.target.value)
-                  }
-                  className="w-full md:w-auto text-sm bg-slate-50 border border-slate-200 rounded-lg px-3 py-1.5 focus:outline-none focus:ring-2 focus:ring-blue-500 font-medium"
-                  disabled={updateItemStatusMutation.isPending}
-                >
-                  {itemStatuses.map((status) => {
-                    const config = itemStatusConfig[status];
-                    return (
-                      <option
-                        key={status}
-                        value={status}
-                        className="capitalize"
-                      >
-                        {config?.label || status}
-                      </option>
-                    );
-                  })}
-                </select>
-              </div>
-            </div>
+            )}
           </div>
-        ))}
-      </div>
-    </div>
+
+          <div className="space-y-3">
+            {(order.items || []).map((item) => {
+              // Use currentStatus (from itemStatusHistory) as the source of truth
+              const effectiveStatus = item.currentStatus || item.status;
+              const allowedNext = getAllowedNext(effectiveStatus);
+              const isThisItemPending =
+                updateItemStatusMutation.isPending &&
+                pendingItemIdRef.current === item.id;
+
+              return (
+                <div
+                  key={item.id}
+                  className="flex flex-col md:flex-row md:items-center justify-between p-4 bg-white rounded-xl border border-slate-200 shadow-sm hover:shadow-md transition-shadow"
+                >
+                  <div className="flex items-center gap-4 mb-4 md:mb-0">
+                    <div className="p-3 bg-slate-50 rounded-lg border border-slate-100 overflow-hidden">
+                      <img
+                        src={
+                          item.product?.imageUrl ||
+                          "https://images.unsplash.com/photo-1610030469983-98e550d6193c?w=40"
+                        }
+                        alt={item.product?.name || "Item"}
+                        className="w-8 h-8 object-cover rounded"
+                      />
+                    </div>
+                    <div>
+                      <h4 className="font-semibold text-slate-800">
+                        {item.product?.name || "Unknown Item"}
+                      </h4>
+                      <div className="text-xs text-slate-500 flex items-center gap-2">
+                        <span>SKU: {item.id}</span>
+                        <span className="h-1 w-1 bg-slate-300 rounded-full"></span>
+                        <span>Qty: {item.quantity}</span>
+                        {(() => {
+                          const variant =
+                            item.variantId &&
+                            item.product?.variants?.find(
+                              (v: any) => v.id === item.variantId,
+                            );
+                          return variant ? (
+                            <>
+                              <span className="h-1 w-1 bg-slate-300 rounded-full"></span>
+                              <span>Size: {variant.size}</span>
+                            </>
+                          ) : null;
+                        })()}
+                        <span className="h-1 w-1 bg-slate-300 rounded-full"></span>
+                        <span>{formatPrice(item.price)} each</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="flex flex-col md:flex-row items-start md:items-center gap-4">
+                    <div className="flex flex-col items-start md:items-end">
+                      <span className="text-[10px] font-bold text-slate-400 uppercase mb-1">
+                        Current Status
+                      </span>
+                      {/* Show currentStatus (history-based) as the badge */}
+                      <StatusBadge status={effectiveStatus} />
+                    </div>
+
+                    <div className="h-8 w-[1px] bg-slate-200 hidden md:block"></div>
+
+                    {allowedNext.length > 0 && (
+                    <div className="w-full md:w-auto">
+                      <span className="text-[10px] font-bold text-slate-400 uppercase mb-1 block md:text-right">
+                        Change Status
+                      </span>
+                      <StatusSelect
+                        allowedNext={allowedNext}
+                        disabled={isThisItemPending}
+                        onSelect={(newStatus) =>
+                          updateItemStatus(order.id, item.id, newStatus)
+                        }
+                      />
+                    </div>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      );
+    },
+    [
+      updateItemStatus,
+      updateAllItemsStatus,
+      updateItemStatusMutation.isPending,
+      updateAllItemsStatusMutation.isPending,
+    ],
   );
 
   return (

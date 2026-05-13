@@ -43,6 +43,11 @@ export const itemStatusConfig: Record<
     label: "Cancelled",
     color: "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-100",
   },
+  returned: {
+    icon: RotateCcw,
+    label: "Returned",
+    color: "bg-teal-100 text-teal-800 dark:bg-teal-900 dark:text-teal-100",
+  },
 
   // -------- Return flow --------
   return_requested: {

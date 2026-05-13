@@ -159,7 +159,14 @@ export type CartItemWithProduct = CartItem & {
 export type WishlistItemWithProduct = WishlistItem & {
   product: ProductWithDetails;
 };
-
+export type ShippingAddress = {
+  name?: string;
+  address?: string;
+  locality?: string;
+  city?: string;
+  pincode?: string;
+  phone?: string;
+};
 export type OrderWithItems = Order & {
   customerName?: string;
   paymentId?: string;
@@ -170,49 +177,17 @@ export type OrderWithItems = Order & {
     subtype?: string;
     razorpayPaymentId?: string;
   };
-  // Coupon information
   couponCode?: string | null;
   couponType?: string | null;
   couponValue?: string | null;
-  // Delhivery integration fields
-  delhiveryWaybill?: string;
-  delhiveryStatus?: string;
-  shippingMethod?: string;
-  estimatedDelivery?: string;
-  autoProcessed?: boolean;
-  addressValidated?: boolean;
-  pickupScheduled?: boolean;
-  customerNotified?: boolean;
-  // Legacy tracking field for backward compatibility
-  trackingNumber?: string; // Maps to delhiveryWaybill
-  items: (OrderItem & { 
+  shippingAddress?: string | ShippingAddress;
+  items: (OrderItem & {
     product: ProductWithDetails;
+    currentStatus?: string;
     returnEligibility?: { itemId: string; eligible: boolean; reason?: string; remainingDays?: number };
-    // Offer details
-    offerDetails?: {
-      id: string;
-      name: string;
-      description: string | null;
-      offerType: "flat" | "percentage" | "category" | "product" | "flash_sale";
-      discountValue: string;
-      categoryId?: string | null;
-      subcategoryId?: string | null;
-      minOrderAmount?: string | null;
-      maxDiscount?: string | null;
-      validFrom: Date;
-      validUntil: Date;
-      isActive: boolean;
-      isFeatured: boolean;
-      bannerImage?: string | null;
-      createdAt: Date;
-      updatedAt: Date;
-    } | null;
-    // Product pricing
     productPrice?: string | null;
     discountedPrice?: string | null;
-    // Delhivery item fields
-    delhiveryWaybill?: string | null;
-    shipmentId?: string | null;
+    offerDetails?: any | null;
   })[];
 };
 

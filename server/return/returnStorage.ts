@@ -153,7 +153,7 @@ export class ReturnStorage implements IReturnStorage {
 
     const result: ReturnRequestWithDetails[] = [];
     for (const request of requests) {
-      const orderWithItems = await orderService.getOrder(request.orderId);
+      const orderWithItems = await orderService.getOrder(request.orderId, "admin");
       const user = await userService.getUser(request.userId);
       const items = await db
         .select()
@@ -239,7 +239,7 @@ export class ReturnStorage implements IReturnStorage {
       .where(eq(returnRequests.id, id));
     if (!request) return undefined;
 
-    const orderWithItems = await orderService.getOrder(request.orderId);
+    const orderWithItems = await orderService.getOrder(request.orderId, "admin");
     const user = await userService.getUser(request.userId);
     if (!orderWithItems || !user) return undefined;
 
@@ -512,7 +512,7 @@ export class ReturnStorage implements IReturnStorage {
   }
 
   async getOrder(orderId: string): Promise<any> {
-    return await orderService.getOrder(orderId);
+    return await orderService.getOrder(orderId, "admin");
   }
 }
 

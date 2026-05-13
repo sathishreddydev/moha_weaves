@@ -4,7 +4,10 @@ import { publicStorage } from "server/common/publicStorage";
 import { publishRealtimeEvent } from "../../realtime/events";
 import { couponsService } from "server/coupons/couponsStorage";
 import { productService } from "server/product/productStorage";
-import { ProductFilters, roleBasedProductService } from "server/product/roleBasedProductService";
+import {
+  ProductFilters,
+  roleBasedProductService,
+} from "server/product/roleBasedProductService";
 import { salesService } from "server/sales&offer/salesStorage";
 import { storeService } from "server/store/storeStorage";
 import { z } from "zod";
@@ -15,6 +18,7 @@ import { parsePaginationParams } from "../paginationHelper";
 import { storage } from "../storage";
 import { AdminServices } from "./adminStorage";
 import { stockAuditService } from "../inventory/stockAuditService";
+import { orderService } from "../order/orderStorage";
 
 // Validation schemas
 const createUserSchema = z.object({
@@ -23,18 +27,16 @@ const createUserSchema = z.object({
   name: z.string().min(2, "Name must be at least 2 characters"),
   phone: z.string().optional(),
   role: z.enum(["admin", "inventory", "store"], {
-    errorMap: () => ({ message: "Invalid role" })
+    errorMap: () => ({ message: "Invalid role" }),
   }),
-  storeId: z.string().optional()
+  storeId: z.string().optional(),
 });
 
 const updateUserSchema = createUserSchema.partial().extend({
-  isActive: z.boolean().optional()
+  isActive: z.boolean().optional(),
 });
 
-const updateOrderStatusSchema = z.object({
-  status: z.string().min(1, "Status is required")
-});
+
 
 const createCategorySchema = z.object({
   name: z.string().min(1, "Category name is required"),
@@ -57,9 +59,11 @@ const createProductSchema = z.object({
   totalStock: z.number().min(0, "Stock must be non-negative"),
   onlineStock: z.number().min(0, "Online stock must be non-negative"),
   isActive: z.boolean().optional(),
-  distributionChannel: z.enum(["online", "shop", "both"], {
-    errorMap: () => ({ message: "Invalid distribution channel" })
-  }).optional()
+  distributionChannel: z
+    .enum(["online", "shop", "both"], {
+      errorMap: () => ({ message: "Invalid distribution channel" }),
+    })
+    .optional(),
 });
 
 export const adminRoutes = (app: Express) => {
@@ -74,10 +78,11 @@ export const adminRoutes = (app: Express) => {
       res.json(stats);
     } catch (error) {
       console.error("Error fetching admin stats:", error);
-      const message = error instanceof Error ? error.message : "Unknown error occurred";
+      const message =
+        error instanceof Error ? error.message : "Unknown error occurred";
       res.status(500).json({
         message: "Failed to fetch admin statistics",
-        error: process.env.NODE_ENV === "development" ? message : undefined
+        error: process.env.NODE_ENV === "development" ? message : undefined,
       });
     }
   });
@@ -87,56 +92,24 @@ export const adminRoutes = (app: Express) => {
       const { status, limit, page, pageSize, search, dateFrom, dateTo } =
         req.query;
 
-      if (page && pageSize) {
-        const params = parsePaginationParams(req.query);
-        const result = await storage.getOrdersPaginated({
-          page: params.page,
-          pageSize: params.pageSize,
-          status: status as string,
-          search: search as string,
-          dateFrom: dateFrom as string,
-          dateTo: dateTo as string,
-        });
-        return res.json(result);
-      }
-
-      const orders = await storage.getAllOrders({
+      const params = parsePaginationParams(req.query);
+      const result = await orderService.getOrdersPaginated({
+        page: params.page,
+        pageSize: params.pageSize,
         status: status as string,
-        limit: limit ? parseInt(limit as string) : undefined,
+        search: search as string,
+        dateFrom: dateFrom as string,
+        dateTo: dateTo as string,
+        userRole: "admin",
       });
-      res.json(orders);
+      return res.json(result);
     } catch (error) {
       console.error("Error fetching admin orders:", error);
-      const message = error instanceof Error ? error.message : "Unknown error occurred";
+      const message =
+        error instanceof Error ? error.message : "Unknown error occurred";
       res.status(500).json({
         message: "Failed to fetch orders",
-        error: process.env.NODE_ENV === "development" ? message : undefined
-      });
-    }
-  });
-
-  app.patch("/api/admin/orders/:id/status", authAdmin, async (req, res) => {
-    try {
-      const validatedData = updateOrderStatusSchema.safeParse(req.body);
-      if (!validatedData.success) {
-        return res.status(400).json({
-          message: "Invalid input data",
-          errors: validatedData.error.errors
-        });
-      }
-
-      const { status } = validatedData.data;
-      const order = await storage.updateOrderStatus(req.params.id, status);
-      if (!order) {
-        return res.status(404).json({ message: "Order not found" });
-      }
-      res.json(order);
-    } catch (error) {
-      console.error("Error updating order status:", error);
-      const message = error instanceof Error ? error.message : "Unknown error occurred";
-      res.status(500).json({
-        message: "Failed to update order status",
-        error: process.env.NODE_ENV === "development" ? message : undefined
+        error: process.env.NODE_ENV === "development" ? message : undefined,
       });
     }
   });
@@ -162,143 +135,160 @@ export const adminRoutes = (app: Express) => {
       res.json(users.map(({ ...u }) => u));
     } catch (error) {
       console.error("Error fetching admin users:", error);
-      const message = error instanceof Error ? error.message : "Unknown error occurred";
+      const message =
+        error instanceof Error ? error.message : "Unknown error occurred";
       res.status(500).json({
         message: "Failed to fetch users",
-        error: process.env.NODE_ENV === "development" ? message : undefined
+        error: process.env.NODE_ENV === "development" ? message : undefined,
       });
     }
   });
 
-  app.post("/api/admin/users", authAdmin, sensitiveRateLimit, async (req, res) => {
-    try {
-      const { email, password, name, phone, role, storeId } = req.body;
+  app.post(
+    "/api/admin/users",
+    authAdmin,
+    sensitiveRateLimit,
+    async (req, res) => {
+      try {
+        const { email, password, name, phone, role, storeId } = req.body;
 
-      // Input validation
-      if (!email || !password || !name) {
-        return res.status(400).json({
-          message: "Email, password, and name are required"
+        // Input validation
+        if (!email || !password || !name) {
+          return res.status(400).json({
+            message: "Email, password, and name are required",
+          });
+        }
+
+        if (!role) {
+          return res.status(400).json({
+            message: "User role is required",
+          });
+        }
+
+        if (password.length < 6) {
+          return res.status(400).json({
+            message: "Password must be at least 6 characters long",
+          });
+        }
+
+        const hashedPassword = await bcrypt.hash(password, 10);
+        const user = await userService.createUser({
+          email,
+          password: hashedPassword,
+          name,
+          phone,
+          role,
+          storeId,
+        });
+        const { ...safeUser } = user;
+        res.status(201).json(safeUser);
+      } catch (error) {
+        console.error("Error creating admin user:", error);
+        const message =
+          error instanceof Error ? error.message : "Unknown error occurred";
+
+        // Handle specific database errors
+        if (message.includes("duplicate key") || message.includes("UNIQUE")) {
+          return res.status(409).json({
+            message: "User with this email already exists",
+          });
+        }
+
+        res.status(500).json({
+          message: "Failed to create user",
+          error: process.env.NODE_ENV === "development" ? message : undefined,
         });
       }
+    },
+  );
 
-      if (!role) {
-        return res.status(400).json({
-          message: "User role is required"
+  app.patch(
+    "/api/admin/users/:id",
+    authAdmin,
+    sensitiveRateLimit,
+    async (req, res) => {
+      try {
+        const validatedData = updateUserSchema.safeParse(req.body);
+        if (!validatedData.success) {
+          return res.status(400).json({
+            message: "Invalid input data",
+            errors: validatedData.error.errors,
+          });
+        }
+
+        const { email, password, name, phone, role, storeId, isActive } =
+          validatedData.data;
+        const updateData: Record<string, unknown> = {
+          email,
+          name,
+          phone,
+          role,
+          storeId,
+          isActive,
+        };
+
+        if (password) {
+          updateData.password = await bcrypt.hash(password, 10);
+        }
+
+        Object.keys(updateData).forEach(
+          (key) => updateData[key] === undefined && delete updateData[key],
+        );
+
+        const user = await userService.updateUser(req.params.id, updateData);
+        if (!user) {
+          return res.status(404).json({ message: "User not found" });
+        }
+        const { ...safeUser } = user;
+        res.json(safeUser);
+      } catch (error) {
+        console.error("Error updating admin user:", error);
+        const message =
+          error instanceof Error ? error.message : "Unknown error occurred";
+
+        if (message.includes("duplicate key") || message.includes("UNIQUE")) {
+          return res.status(409).json({
+            message: "User with this email already exists",
+          });
+        }
+
+        res.status(500).json({
+          message: "Failed to update user",
+          error: process.env.NODE_ENV === "development" ? message : undefined,
         });
       }
+    },
+  );
 
-      if (password.length < 6) {
-        return res.status(400).json({
-          message: "Password must be at least 6 characters long"
+  app.delete(
+    "/api/admin/users/:id",
+    authAdmin,
+    sensitiveRateLimit,
+    async (req, res) => {
+      try {
+        const user = await userService.updateUser(req.params.id, {
+          isActive: false,
+        });
+        if (!user) {
+          return res.status(404).json({ message: "User not found" });
+        }
+        res.json({ success: true });
+      } catch (error) {
+        console.error("Error deleting admin user:", error);
+        const message =
+          error instanceof Error ? error.message : "Unknown error occurred";
+        res.status(500).json({
+          message: "Failed to delete user",
+          error: process.env.NODE_ENV === "development" ? message : undefined,
         });
       }
-
-      const hashedPassword = await bcrypt.hash(password, 10);
-      const user = await userService.createUser({
-        email,
-        password: hashedPassword,
-        name,
-        phone,
-        role,
-        storeId,
-      });
-      const { ...safeUser } = user;
-      res.status(201).json(safeUser);
-    } catch (error) {
-      console.error("Error creating admin user:", error);
-      const message = error instanceof Error ? error.message : "Unknown error occurred";
-
-      // Handle specific database errors
-      if (message.includes('duplicate key') || message.includes('UNIQUE')) {
-        return res.status(409).json({
-          message: "User with this email already exists"
-        });
-      }
-
-      res.status(500).json({
-        message: "Failed to create user",
-        error: process.env.NODE_ENV === "development" ? message : undefined
-      });
-    }
-  });
-
-  app.patch("/api/admin/users/:id", authAdmin, sensitiveRateLimit, async (req, res) => {
-    try {
-      const validatedData = updateUserSchema.safeParse(req.body);
-      if (!validatedData.success) {
-        return res.status(400).json({
-          message: "Invalid input data",
-          errors: validatedData.error.errors
-        });
-      }
-
-      const { email, password, name, phone, role, storeId, isActive } = validatedData.data;
-      const updateData: Record<string, unknown> = {
-        email,
-        name,
-        phone,
-        role,
-        storeId,
-        isActive,
-      };
-
-      if (password) {
-        updateData.password = await bcrypt.hash(password, 10);
-      }
-
-      Object.keys(updateData).forEach(
-        (key) => updateData[key] === undefined && delete updateData[key],
-      );
-
-      const user = await userService.updateUser(req.params.id, updateData);
-      if (!user) {
-        return res.status(404).json({ message: "User not found" });
-      }
-      const { ...safeUser } = user;
-      res.json(safeUser);
-    } catch (error) {
-      console.error("Error updating admin user:", error);
-      const message = error instanceof Error ? error.message : "Unknown error occurred";
-
-      if (message.includes('duplicate key') || message.includes('UNIQUE')) {
-        return res.status(409).json({
-          message: "User with this email already exists"
-        });
-      }
-
-      res.status(500).json({
-        message: "Failed to update user",
-        error: process.env.NODE_ENV === "development" ? message : undefined
-      });
-    }
-  });
-
-  app.delete("/api/admin/users/:id", authAdmin, sensitiveRateLimit, async (req, res) => {
-    try {
-      const user = await userService.updateUser(req.params.id, {
-        isActive: false,
-      });
-      if (!user) {
-        return res.status(404).json({ message: "User not found" });
-      }
-      res.json({ success: true });
-    } catch (error) {
-      console.error("Error deleting admin user:", error);
-      const message = error instanceof Error ? error.message : "Unknown error occurred";
-      res.status(500).json({
-        message: "Failed to delete user",
-        error: process.env.NODE_ENV === "development" ? message : undefined
-      });
-    }
-  });
+    },
+  );
 
   // Admin product management
   app.post("/api/admin/getProducts", authAdmin, async (req, res) => {
     try {
-      const {
-        search,
-        categoryIds,
-      } = req.body;
+      const { search, categoryIds } = req.body;
 
       const params = parsePaginationParams(req.query);
 
@@ -310,7 +300,10 @@ export const adminRoutes = (app: Express) => {
       };
 
       // MIGRATED: Use role-based service for admin users (full access)
-      const products = await roleBasedProductService.getProductsByRole(filters, "admin");
+      const products = await roleBasedProductService.getProductsByRole(
+        filters,
+        "admin",
+      );
 
       const total = products.length;
       const totalPages = Math.ceil(total / params.pageSize);
@@ -324,111 +317,134 @@ export const adminRoutes = (app: Express) => {
       });
     } catch (error) {
       console.error("Error fetching admin products:", error);
-      const message = error instanceof Error ? error.message : "Unknown error occurred";
+      const message =
+        error instanceof Error ? error.message : "Unknown error occurred";
       res.status(500).json({
         message: "Failed to fetch products",
-        error: process.env.NODE_ENV === "development" ? message : undefined
+        error: process.env.NODE_ENV === "development" ? message : undefined,
       });
     }
   });
 
-  app.post("/api/admin/products", authAdmin, sensitiveRateLimit, async (req, res) => {
-    try {
-      const validatedData = createProductSchema.safeParse(req.body);
-      if (!validatedData.success) {
-        return res.status(400).json({
-          message: "Invalid input data",
-          errors: validatedData.error.errors
+  app.post(
+    "/api/admin/products",
+    authAdmin,
+    sensitiveRateLimit,
+    async (req, res) => {
+      try {
+        const validatedData = createProductSchema.safeParse(req.body);
+        if (!validatedData.success) {
+          return res.status(400).json({
+            message: "Invalid input data",
+            errors: validatedData.error.errors,
+          });
+        }
+
+        const product = await productService.createProduct(validatedData.data);
+        res.status(201).json(product);
+      } catch (error) {
+        console.error("Error creating admin product:", error);
+        const message =
+          error instanceof Error ? error.message : "Unknown error occurred";
+
+        if (message.includes("duplicate key") || message.includes("UNIQUE")) {
+          return res.status(409).json({
+            message: "Product with this SKU already exists",
+          });
+        }
+
+        res.status(500).json({
+          message: "Failed to create product",
+          error: process.env.NODE_ENV === "development" ? message : undefined,
         });
       }
-
-      const product = await productService.createProduct(validatedData.data);
-      res.status(201).json(product);
-    } catch (error) {
-      console.error("Error creating admin product:", error);
-      const message = error instanceof Error ? error.message : "Unknown error occurred";
-
-      if (message.includes('duplicate key') || message.includes('UNIQUE')) {
-        return res.status(409).json({
-          message: "Product with this SKU already exists"
-        });
-      }
-
-      res.status(500).json({
-        message: "Failed to create product",
-        error: process.env.NODE_ENV === "development" ? message : undefined
-      });
-    }
-  });
+    },
+  );
 
   app.get("/api/admin/products/:id", authAdmin, async (req, res) => {
     try {
-      const product = await roleBasedProductService.getProductByRole(req.params.id, 'admin');
-      if (!product) {
-        return res.status(404).json({ message: "Product not found" });
-      }
-      res.json(product);
-    } catch (error) {
-      console.error("Error fetching admin product:", error);
-      const message = error instanceof Error ? error.message : "Unknown error occurred";
-      res.status(500).json({
-        message: "Failed to fetch product",
-        error: process.env.NODE_ENV === "development" ? message : undefined
-      });
-    }
-  });
-
-  app.patch("/api/admin/products/:id", authAdmin, sensitiveRateLimit, async (req, res) => {
-    try {
-      const validatedData = createProductSchema.partial().safeParse(req.body);
-      if (!validatedData.success) {
-        return res.status(400).json({
-          message: "Invalid input data",
-          errors: validatedData.error.errors
-        });
-      }
-
-      const product = await productService.updateProduct(
+      const product = await roleBasedProductService.getProductByRole(
         req.params.id,
-        validatedData.data,
+        "admin",
       );
       if (!product) {
         return res.status(404).json({ message: "Product not found" });
       }
       res.json(product);
     } catch (error) {
-      console.error("Error updating admin product:", error);
-      const message = error instanceof Error ? error.message : "Unknown error occurred";
+      console.error("Error fetching admin product:", error);
+      const message =
+        error instanceof Error ? error.message : "Unknown error occurred";
+      res.status(500).json({
+        message: "Failed to fetch product",
+        error: process.env.NODE_ENV === "development" ? message : undefined,
+      });
+    }
+  });
 
-      if (message.includes('duplicate key') || message.includes('UNIQUE')) {
-        return res.status(409).json({
-          message: "Product with this SKU already exists"
+  app.patch(
+    "/api/admin/products/:id",
+    authAdmin,
+    sensitiveRateLimit,
+    async (req, res) => {
+      try {
+        const validatedData = createProductSchema.partial().safeParse(req.body);
+        if (!validatedData.success) {
+          return res.status(400).json({
+            message: "Invalid input data",
+            errors: validatedData.error.errors,
+          });
+        }
+
+        const product = await productService.updateProduct(
+          req.params.id,
+          validatedData.data,
+        );
+        if (!product) {
+          return res.status(404).json({ message: "Product not found" });
+        }
+        res.json(product);
+      } catch (error) {
+        console.error("Error updating admin product:", error);
+        const message =
+          error instanceof Error ? error.message : "Unknown error occurred";
+
+        if (message.includes("duplicate key") || message.includes("UNIQUE")) {
+          return res.status(409).json({
+            message: "Product with this SKU already exists",
+          });
+        }
+
+        res.status(500).json({
+          message: "Failed to update product",
+          error: process.env.NODE_ENV === "development" ? message : undefined,
         });
       }
+    },
+  );
 
-      res.status(500).json({
-        message: "Failed to update product",
-        error: process.env.NODE_ENV === "development" ? message : undefined
-      });
-    }
-  });
-
-  app.delete("/api/admin/products/:id", authAdmin, sensitiveRateLimit, async (req, res) => {
-    try {
-      const deleted = await productService.deleteProducts([req.params.id]);
-      if (!deleted) {
-        return res.status(404).json({ message: "Product not found" });
+  app.delete(
+    "/api/admin/products/:id",
+    authAdmin,
+    sensitiveRateLimit,
+    async (req, res) => {
+      try {
+        const deleted = await productService.deleteProducts([req.params.id]);
+        if (!deleted) {
+          return res.status(404).json({ message: "Product not found" });
+        }
+        res.json({ success: true });
+      } catch (error) {
+        console.error("Error deleting admin product:", error);
+        const message =
+          error instanceof Error ? error.message : "Unknown error occurred";
+        res.status(500).json({
+          message: "Failed to delete product",
+          error: process.env.NODE_ENV === "development" ? message : undefined,
+        });
       }
-      res.json({ success: true });
-    } catch (error) {
-      console.error("Error deleting admin product:", error);
-      const message = error instanceof Error ? error.message : "Unknown error occurred";
-      res.status(500).json({
-        message: "Failed to delete product",
-        error: process.env.NODE_ENV === "development" ? message : undefined
-      });
-    }
-  });
+    },
+  );
 
   // Admin category management
   app.get("/api/admin/categories", authAdmin, async (req, res) => {
@@ -454,20 +470,21 @@ export const adminRoutes = (app: Express) => {
       if (!validatedData.success) {
         return res.status(400).json({
           message: "Invalid input data",
-          errors: validatedData.error.errors
+          errors: validatedData.error.errors,
         });
       }
 
       const category = await publicStorage.createCategory(validatedData.data);
 
-      await publishRealtimeEvent("filter_event")
+      await publishRealtimeEvent("filter_event");
       res.json(category);
     } catch (error) {
       console.error("Error creating category:", error);
-      const message = error instanceof Error ? error.message : "Unknown error occurred";
+      const message =
+        error instanceof Error ? error.message : "Unknown error occurred";
       res.status(500).json({
         message: "Failed to create category",
-        error: process.env.NODE_ENV === "development" ? message : undefined
+        error: process.env.NODE_ENV === "development" ? message : undefined,
       });
     }
   });
@@ -478,8 +495,8 @@ export const adminRoutes = (app: Express) => {
         req.params.id,
         req.body,
       );
-      
-      await publishRealtimeEvent("filter_event")
+
+      await publishRealtimeEvent("filter_event");
       res.json(category);
     } catch {
       res.status(500).json({ message: "Failed to update category" });
@@ -489,37 +506,49 @@ export const adminRoutes = (app: Express) => {
   app.delete("/api/admin/categories/:id", authAdmin, async (req, res) => {
     try {
       await publicStorage.deleteCategory(req.params.id);
-      
-      await publishRealtimeEvent("filter_event")
-      res.json({ success: true, message: "Category and its subcategories deleted permanently" });
+
+      await publishRealtimeEvent("filter_event");
+      res.json({
+        success: true,
+        message: "Category and its subcategories deleted permanently",
+      });
     } catch (error) {
       console.error("Error deleting category:", error);
-      const message = error instanceof Error ? error.message : "Unknown error occurred";
-      
-      if (message.includes('Cannot delete category: It is referenced by active products')) {
+      const message =
+        error instanceof Error ? error.message : "Unknown error occurred";
+
+      if (
+        message.includes(
+          "Cannot delete category: It is referenced by active products",
+        )
+      ) {
         return res.status(400).json({
           message: message,
-          error: "PRODUCT_DEPENDENCY"
+          error: "PRODUCT_DEPENDENCY",
         });
       }
-      
-      if (message.includes('Cannot delete category: It is referenced by active sales')) {
+
+      if (
+        message.includes(
+          "Cannot delete category: It is referenced by active sales",
+        )
+      ) {
         return res.status(400).json({
           message: message,
-          error: "SALES_DEPENDENCY"
+          error: "SALES_DEPENDENCY",
         });
       }
-      
-      if (message.includes('Category not found')) {
+
+      if (message.includes("Category not found")) {
         return res.status(404).json({
           message: message,
-          error: "CATEGORY_NOT_FOUND"
+          error: "CATEGORY_NOT_FOUND",
         });
       }
-      
+
       res.status(500).json({
         message: "Failed to delete category",
-        error: process.env.NODE_ENV === "development" ? message : undefined
+        error: process.env.NODE_ENV === "development" ? message : undefined,
       });
     }
   });
@@ -531,7 +560,7 @@ export const adminRoutes = (app: Express) => {
 
       if (!categoryId || !name) {
         return res.status(400).json({
-          message: "Category ID and name are required"
+          message: "Category ID and name are required",
         });
       }
 
@@ -542,15 +571,16 @@ export const adminRoutes = (app: Express) => {
         imageUrl: imageUrl || null,
         isActive: isActive !== undefined ? isActive : true,
       });
-      
-      await publishRealtimeEvent("filter_event")
+
+      await publishRealtimeEvent("filter_event");
       res.status(201).json(subcategory);
     } catch (error) {
       console.error("Error creating subcategory:", error);
-      const message = error instanceof Error ? error.message : "Unknown error occurred";
+      const message =
+        error instanceof Error ? error.message : "Unknown error occurred";
       res.status(500).json({
         message: "Failed to create subcategory",
-        error: process.env.NODE_ENV === "development" ? message : undefined
+        error: process.env.NODE_ENV === "development" ? message : undefined,
       });
     }
   });
@@ -564,15 +594,16 @@ export const adminRoutes = (app: Express) => {
       if (!subcategory) {
         return res.status(404).json({ message: "Subcategory not found" });
       }
-      
-      await publishRealtimeEvent("filter_event")
+
+      await publishRealtimeEvent("filter_event");
       res.json(subcategory);
     } catch (error) {
       console.error("Error updating subcategory:", error);
-      const message = error instanceof Error ? error.message : "Unknown error occurred";
+      const message =
+        error instanceof Error ? error.message : "Unknown error occurred";
       res.status(500).json({
         message: "Failed to update subcategory",
-        error: process.env.NODE_ENV === "development" ? message : undefined
+        error: process.env.NODE_ENV === "development" ? message : undefined,
       });
     }
   });
@@ -580,23 +611,28 @@ export const adminRoutes = (app: Express) => {
   app.delete("/api/admin/subcategories/:id", authAdmin, async (req, res) => {
     try {
       await publicStorage.deleteSubcategory(req.params.id);
-      
-      await publishRealtimeEvent("filter_event")
+
+      await publishRealtimeEvent("filter_event");
       res.json({ success: true, message: "Subcategory deleted permanently" });
     } catch (error) {
       console.error("Error deleting subcategory:", error);
-      const message = error instanceof Error ? error.message : "Unknown error occurred";
-      
-      if (message.includes('Cannot delete subcategory: It is referenced by products')) {
+      const message =
+        error instanceof Error ? error.message : "Unknown error occurred";
+
+      if (
+        message.includes(
+          "Cannot delete subcategory: It is referenced by products",
+        )
+      ) {
         return res.status(400).json({
           message: message,
-          error: "FOREIGN_KEY_CONSTRAINT"
+          error: "FOREIGN_KEY_CONSTRAINT",
         });
       }
-      
+
       res.status(500).json({
         message: "Failed to delete subcategory",
-        error: process.env.NODE_ENV === "development" ? message : undefined
+        error: process.env.NODE_ENV === "development" ? message : undefined,
       });
     }
   });
@@ -605,8 +641,8 @@ export const adminRoutes = (app: Express) => {
   app.post("/api/admin/colors", authAdmin, async (req, res) => {
     try {
       const color = await publicStorage.createColor(req.body);
-      
-      await publishRealtimeEvent("filter_event")
+
+      await publishRealtimeEvent("filter_event");
       res.json(color);
     } catch {
       res.status(500).json({ message: "Failed to create color" });
@@ -616,8 +652,8 @@ export const adminRoutes = (app: Express) => {
   app.patch("/api/admin/colors/:id", authAdmin, async (req, res) => {
     try {
       const color = await publicStorage.updateColor(req.params.id, req.body);
-      
-      await publishRealtimeEvent("filter_event")
+
+      await publishRealtimeEvent("filter_event");
       res.json(color);
     } catch {
       res.status(500).json({ message: "Failed to update color" });
@@ -627,8 +663,8 @@ export const adminRoutes = (app: Express) => {
   app.delete("/api/admin/colors/:id", authAdmin, async (req, res) => {
     try {
       await publicStorage.deleteColor(req.params.id);
-      
-      await publishRealtimeEvent("filter_event")
+
+      await publishRealtimeEvent("filter_event");
       res.json({ success: true });
     } catch {
       res.status(500).json({ message: "Failed to delete color" });
@@ -639,8 +675,8 @@ export const adminRoutes = (app: Express) => {
   app.post("/api/admin/fabrics", authAdmin, async (req, res) => {
     try {
       const fabric = await publicStorage.createFabric(req.body);
-      
-      await publishRealtimeEvent("filter_event")
+
+      await publishRealtimeEvent("filter_event");
       res.json(fabric);
     } catch {
       res.status(500).json({ message: "Failed to create fabric" });
@@ -650,8 +686,8 @@ export const adminRoutes = (app: Express) => {
   app.patch("/api/admin/fabrics/:id", authAdmin, async (req, res) => {
     try {
       const fabric = await publicStorage.updateFabric(req.params.id, req.body);
-      
-      await publishRealtimeEvent("filter_event")
+
+      await publishRealtimeEvent("filter_event");
       res.json(fabric);
     } catch {
       res.status(500).json({ message: "Failed to update fabric" });
@@ -661,8 +697,8 @@ export const adminRoutes = (app: Express) => {
   app.delete("/api/admin/fabrics/:id", authAdmin, async (req, res) => {
     try {
       await publicStorage.deleteFabric(req.params.id);
-      
-      await publishRealtimeEvent("filter_event")
+
+      await publishRealtimeEvent("filter_event");
       res.json({ success: true });
     } catch {
       res.status(500).json({ message: "Failed to delete fabric" });
@@ -781,26 +817,26 @@ export const adminRoutes = (app: Express) => {
             : "0",
         minOrderAmount:
           minOrderAmount !== undefined &&
-            minOrderAmount !== null &&
-            minOrderAmount !== ""
+          minOrderAmount !== null &&
+          minOrderAmount !== ""
             ? String(minOrderAmount)
             : null,
         maxDiscount:
           maxDiscount !== undefined &&
-            maxDiscount !== null &&
-            maxDiscount !== ""
+          maxDiscount !== null &&
+          maxDiscount !== ""
             ? String(maxDiscount)
             : null,
         usageLimit:
           maxUsageLimit !== undefined &&
-            maxUsageLimit !== null &&
-            maxUsageLimit !== ""
+          maxUsageLimit !== null &&
+          maxUsageLimit !== ""
             ? Number(maxUsageLimit)
             : null,
         perUserLimit:
           perUserLimit !== undefined &&
-            perUserLimit !== null &&
-            perUserLimit !== ""
+          perUserLimit !== null &&
+          perUserLimit !== ""
             ? Number(perUserLimit)
             : null,
         validFrom: validFrom ? new Date(validFrom) : now,
@@ -931,7 +967,7 @@ export const adminRoutes = (app: Express) => {
         offerType,
         targetType,
         categoryId,
-        productIds
+        productIds,
       );
 
       res.json(conflictCheck);
@@ -965,7 +1001,14 @@ export const adminRoutes = (app: Express) => {
         targetType,
       } = req.body;
 
-      if (!name || !offerType || !discountValue || !startDate || !endDate || !targetType) {
+      if (
+        !name ||
+        !offerType ||
+        !discountValue ||
+        !startDate ||
+        !endDate ||
+        !targetType
+      ) {
         return res.status(400).json({ message: "Missing required fields" });
       }
 
@@ -974,18 +1017,21 @@ export const adminRoutes = (app: Express) => {
         offerType,
         targetType,
         categoryId,
-        productIds
+        productIds,
       );
 
       if (conflictCheck.hasConflict) {
-        const conflictDetails = conflictCheck.conflictingSales.map(sale =>
-          `- "${sale.name}" (${sale.offerType} on ${sale.targetType})`
-        ).join('\n');
+        const conflictDetails = conflictCheck.conflictingSales
+          .map(
+            (sale) =>
+              `- "${sale.name}" (${sale.offerType} on ${sale.targetType})`,
+          )
+          .join("\n");
 
         return res.status(400).json({
           message: `Cannot create sale: Products already have active ${offerType} sales`,
           conflicts: conflictCheck.conflictingSales,
-          conflictDetails: `Conflicting sales:\n${conflictDetails}`
+          conflictDetails: `Conflicting sales:\n${conflictDetails}`,
         });
       }
 
@@ -995,7 +1041,8 @@ export const adminRoutes = (app: Express) => {
         offerType,
         discountValue: String(discountValue),
         categoryId: categoryId || null,
-        subcategoryId: subcategoryId === "all" || !subcategoryId ? null : subcategoryId,
+        subcategoryId:
+          subcategoryId === "all" || !subcategoryId ? null : subcategoryId,
         minOrderAmount: minOrderAmount ? String(minOrderAmount) : null,
         maxDiscount: maxDiscount ? String(maxDiscount) : null,
         validFrom: new Date(startDate),
@@ -1053,7 +1100,8 @@ export const adminRoutes = (app: Express) => {
         updateData.discountValue = String(discountValue);
       if (categoryId !== undefined) updateData.categoryId = categoryId || null;
       if (subcategoryId !== undefined)
-        updateData.subcategoryId = subcategoryId === "all" || !subcategoryId ? null : subcategoryId;
+        updateData.subcategoryId =
+          subcategoryId === "all" || !subcategoryId ? null : subcategoryId;
       if (minOrderAmount !== undefined)
         updateData.minOrderAmount = minOrderAmount
           ? String(minOrderAmount)
@@ -1161,7 +1209,7 @@ export const adminRoutes = (app: Express) => {
         dateTo,
         search,
         page = 1,
-        pageSize = 20
+        pageSize = 20,
       } = req.query;
 
       const history = await stockAuditService.getStockMovementHistory({
@@ -1173,67 +1221,78 @@ export const adminRoutes = (app: Express) => {
         dateTo: dateTo as string,
         search: search as string,
         page: parseInt(page as string),
-        pageSize: parseInt(pageSize as string)
+        pageSize: parseInt(pageSize as string),
       });
 
       res.json(history);
     } catch (error: any) {
       console.error("Error fetching stock audit history:", error);
-      const message = error instanceof Error ? error.message : "Unknown error occurred";
+      const message =
+        error instanceof Error ? error.message : "Unknown error occurred";
       res.status(500).json({
         message: "Failed to fetch audit history",
-        error: process.env.NODE_ENV === "development" ? message : undefined
+        error: process.env.NODE_ENV === "development" ? message : undefined,
       });
     }
   });
 
   // Get user-specific audit trail
-  app.get("/api/admin/stock-audit/user/:userId", authAdmin, async (req, res) => {
-    try {
-      const { userId } = req.params;
-      const { dateFrom, dateTo, page = 1, pageSize = 20 } = req.query;
+  app.get(
+    "/api/admin/stock-audit/user/:userId",
+    authAdmin,
+    async (req, res) => {
+      try {
+        const { userId } = req.params;
+        const { dateFrom, dateTo, page = 1, pageSize = 20 } = req.query;
 
-      const trail = await stockAuditService.getUserAuditTrail(userId, {
-        dateFrom: dateFrom as string,
-        dateTo: dateTo as string,
-        page: parseInt(page as string),
-        pageSize: parseInt(pageSize as string)
-      });
+        const trail = await stockAuditService.getUserAuditTrail(userId, {
+          dateFrom: dateFrom as string,
+          dateTo: dateTo as string,
+          page: parseInt(page as string),
+          pageSize: parseInt(pageSize as string),
+        });
 
-      res.json(trail);
-    } catch (error: any) {
-      console.error("Error fetching user audit trail:", error);
-      const message = error instanceof Error ? error.message : "Unknown error occurred";
-      res.status(500).json({
-        message: "Failed to fetch user audit trail",
-        error: process.env.NODE_ENV === "development" ? message : undefined
-      });
-    }
-  });
+        res.json(trail);
+      } catch (error: any) {
+        console.error("Error fetching user audit trail:", error);
+        const message =
+          error instanceof Error ? error.message : "Unknown error occurred";
+        res.status(500).json({
+          message: "Failed to fetch user audit trail",
+          error: process.env.NODE_ENV === "development" ? message : undefined,
+        });
+      }
+    },
+  );
 
   // Get product-specific audit trail
-  app.get("/api/admin/stock-audit/product/:productId", authAdmin, async (req, res) => {
-    try {
-      const { productId } = req.params;
-      const { dateFrom, dateTo, page = 1, pageSize = 20 } = req.query;
+  app.get(
+    "/api/admin/stock-audit/product/:productId",
+    authAdmin,
+    async (req, res) => {
+      try {
+        const { productId } = req.params;
+        const { dateFrom, dateTo, page = 1, pageSize = 20 } = req.query;
 
-      const trail = await stockAuditService.getProductAuditTrail(productId, {
-        dateFrom: dateFrom as string,
-        dateTo: dateTo as string,
-        page: parseInt(page as string),
-        pageSize: parseInt(pageSize as string)
-      });
+        const trail = await stockAuditService.getProductAuditTrail(productId, {
+          dateFrom: dateFrom as string,
+          dateTo: dateTo as string,
+          page: parseInt(page as string),
+          pageSize: parseInt(pageSize as string),
+        });
 
-      res.json(trail);
-    } catch (error: any) {
-      console.error("Error fetching product audit trail:", error);
-      const message = error instanceof Error ? error.message : "Unknown error occurred";
-      res.status(500).json({
-        message: "Failed to fetch product audit trail",
-        error: process.env.NODE_ENV === "development" ? message : undefined
-      });
-    }
-  });
+        res.json(trail);
+      } catch (error: any) {
+        console.error("Error fetching product audit trail:", error);
+        const message =
+          error instanceof Error ? error.message : "Unknown error occurred";
+        res.status(500).json({
+          message: "Failed to fetch product audit trail",
+          error: process.env.NODE_ENV === "development" ? message : undefined,
+        });
+      }
+    },
+  );
 
   // Generate audit report for compliance
   app.post("/api/admin/stock-audit/report", authAdmin, async (req, res) => {
@@ -1242,7 +1301,7 @@ export const adminRoutes = (app: Express) => {
 
       if (!dateFrom || !dateTo) {
         return res.status(400).json({
-          message: "dateFrom and dateTo are required"
+          message: "dateFrom and dateTo are required",
         });
       }
 
@@ -1251,71 +1310,79 @@ export const adminRoutes = (app: Express) => {
         dateTo,
         userId,
         productId,
-        movementType
+        movementType,
       });
 
       // Log report generation for audit
-      console.log(`Audit report generated by admin user ${(req as any).user.id}:`, {
-        dateFrom,
-        dateTo,
-        filters: { userId, productId, movementType },
-        totalMovements: report.summary.totalMovements
-      });
+      console.log(
+        `Audit report generated by admin user ${(req as any).user.id}:`,
+        {
+          dateFrom,
+          dateTo,
+          filters: { userId, productId, movementType },
+          totalMovements: report.summary.totalMovements,
+        },
+      );
 
       res.json(report);
     } catch (error: any) {
       console.error("Error generating audit report:", error);
-      const message = error instanceof Error ? error.message : "Unknown error occurred";
+      const message =
+        error instanceof Error ? error.message : "Unknown error occurred";
       res.status(500).json({
         message: "Failed to generate audit report",
-        error: process.env.NODE_ENV === "development" ? message : undefined
+        error: process.env.NODE_ENV === "development" ? message : undefined,
       });
     }
   });
 
   // Create stock movement with audit trail
-  app.post("/api/admin/stock-movement-with-audit", authAdmin, async (req, res) => {
-    try {
-      const {
-        productId,
-        quantity,
-        movementType,
-        source,
-        orderRefId,
-        notes
-      } = req.body;
+  app.post(
+    "/api/admin/stock-movement-with-audit",
+    authAdmin,
+    async (req, res) => {
+      try {
+        const { productId, quantity, movementType, source, orderRefId, notes } =
+          req.body;
 
-      // Validate required fields
-      if (!productId || typeof quantity !== "number" || !movementType || !source) {
-        return res.status(400).json({
-          message: "productId, quantity, movementType, and source are required"
+        // Validate required fields
+        if (
+          !productId ||
+          typeof quantity !== "number" ||
+          !movementType ||
+          !source
+        ) {
+          return res.status(400).json({
+            message:
+              "productId, quantity, movementType, and source are required",
+          });
+        }
+
+        // Create stock movement with audit
+        await stockAuditService.createStockMovementWithAudit({
+          productId,
+          quantity,
+          movementType,
+          source,
+          userId: (req as any).user.id,
+          orderRefId,
+          notes,
+          ipAddress: req.ip,
+          userAgent: req.get("User-Agent"),
+        });
+
+        res.json({
+          message: "Stock movement created successfully with audit trail",
+        });
+      } catch (error: any) {
+        console.error("Error creating stock movement with audit:", error);
+        const message =
+          error instanceof Error ? error.message : "Unknown error occurred";
+        res.status(500).json({
+          message: "Failed to create stock movement",
+          error: process.env.NODE_ENV === "development" ? message : undefined,
         });
       }
-
-      // Create stock movement with audit
-      await stockAuditService.createStockMovementWithAudit({
-        productId,
-        quantity,
-        movementType,
-        source,
-        userId: (req as any).user.id,
-        orderRefId,
-        notes,
-        ipAddress: req.ip,
-        userAgent: req.get('User-Agent')
-      });
-
-      res.json({
-        message: "Stock movement created successfully with audit trail"
-      });
-    } catch (error: any) {
-      console.error("Error creating stock movement with audit:", error);
-      const message = error instanceof Error ? error.message : "Unknown error occurred";
-      res.status(500).json({
-        message: "Failed to create stock movement",
-        error: process.env.NODE_ENV === "development" ? message : undefined
-      });
-    }
-  });
-
+    },
+  );
 };
