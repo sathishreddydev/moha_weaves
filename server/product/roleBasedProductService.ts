@@ -581,7 +581,6 @@ export class RoleBasedProductService {
         storeId: row.storeId,
         storeName: row.storeName,
         quantity: row.quantity,
-        updatedAt: row.updatedAt,
       });
     }
 

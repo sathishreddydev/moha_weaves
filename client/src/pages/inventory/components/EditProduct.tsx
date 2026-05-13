@@ -269,7 +269,7 @@ export default function EditProduct() {
         data.onlineStock,
         data.hasVariants 
           ? [] // For variants, store allocations come from variants
-          : allocations.filter((a) => a.quantity > 0)
+          : allocations // Send all allocations including zero-quantity ones so backend can clear them
       );
 
       const response = await apiRequest(

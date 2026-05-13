@@ -119,7 +119,7 @@ export default function AddProduct() {
                 data.formData.onlineStock,
                 data.formData.hasVariants 
                     ? [] // For variants, store allocations come from variants
-                    : data.allocations.filter((a) => a.quantity > 0)
+                    : data.allocations // Backend skips zero-quantity entries
             );
 
             const response = await apiRequest("POST", "/api/inventory/products", {

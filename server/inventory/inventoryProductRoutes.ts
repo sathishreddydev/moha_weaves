@@ -1,5 +1,5 @@
-import { colors, orders, products, stockMovements } from "@shared/schema";
-import { and, eq, ne, sql } from "drizzle-orm";
+import { colors, cart, orders, products, productVariants, storeInventory, stockMovements, variantStoreInventory, wishlist } from "@shared/schema";
+import { and, eq, inArray, ne, sql } from "drizzle-orm";
 import type { Express } from "express";
 import { publishRealtimeEvent } from "realtime/events";
 import { productService } from "server/product/productStorage";
@@ -677,6 +677,7 @@ export const inventoryProductRoutes = (app: Express) => {
           seoData,
         );
         res.json(product);
+        await publishRealtimeEvent("product_event");
       } else if (productData.distributionChannel === "shop") {
         productData.onlineStock = 0;
         const allocations = storeAllocations || [];
@@ -703,6 +704,7 @@ export const inventoryProductRoutes = (app: Express) => {
           seoData,
         );
         res.json(product);
+        await publishRealtimeEvent("product_event");
       } else {
         const allocations = storeAllocations || [];
         const storeTotal = allocations.reduce((sum, a) => sum + a.quantity, 0);
@@ -721,7 +723,6 @@ export const inventoryProductRoutes = (app: Express) => {
           seoData,
         );
         res.json(product);
-
         await publishRealtimeEvent("product_event");
       }
     } catch (error: any) {
@@ -872,6 +873,7 @@ export const inventoryProductRoutes = (app: Express) => {
           seoData,
         );
         res.json(product);
+        await publishRealtimeEvent("product_event");
         return;
       }
 
@@ -886,6 +888,7 @@ export const inventoryProductRoutes = (app: Express) => {
           seoData,
         );
         res.json(product);
+        await publishRealtimeEvent("product_event");
       } else if (productData.distributionChannel === "shop") {
         productData.onlineStock = 0;
         const totalAllocated = allocations.reduce(
@@ -908,6 +911,7 @@ export const inventoryProductRoutes = (app: Express) => {
           seoData,
         );
         res.json(product);
+        await publishRealtimeEvent("product_event");
       } else if (productData.distributionChannel === "both") {
         const storeTotal = allocations.reduce(
           (sum: number, a: { quantity: number }) => sum + a.quantity,
@@ -930,6 +934,7 @@ export const inventoryProductRoutes = (app: Express) => {
           seoData,
         );
         res.json(product);
+        await publishRealtimeEvent("product_event");
       } else {
         const product = await inventoryService.updateProductWithAllocations(
           req.params.id,
@@ -939,8 +944,8 @@ export const inventoryProductRoutes = (app: Express) => {
           seoData,
         );
         res.json(product);
+        await publishRealtimeEvent("product_event");
       }
-      await publishRealtimeEvent("product_event");
     } catch {
       res.status(500).json({ message: "Failed to update product" });
     }
@@ -954,13 +959,50 @@ export const inventoryProductRoutes = (app: Express) => {
     }
 
     try {
-      const deletedIds = await productService.deleteProducts(ids);
+      await db.transaction(async (tx) => {
+        // 1. Collect all variant IDs for these products
+        const variants = await tx
+          .select({ id: productVariants.id })
+          .from(productVariants)
+          .where(inArray(productVariants.productId, ids));
 
-      res.json({
-        success: true,
-        ids: deletedIds,
+        const variantIds = variants.map(v => v.id);
+
+        // 2. Delete variant-level store allocations
+        if (variantIds.length > 0) {
+          await tx
+            .delete(variantStoreInventory)
+            .where(inArray(variantStoreInventory.variantId, variantIds));
+        }
+
+        // 3. Delete product variants
+        await tx
+          .delete(productVariants)
+          .where(inArray(productVariants.productId, ids));
+
+        // 4. Delete product-level store allocations
+        await tx
+          .delete(storeInventory)
+          .where(inArray(storeInventory.productId, ids));
+
+        // 5. Remove from online cart
+        await tx
+          .delete(cart)
+          .where(inArray(cart.productId, ids));
+
+        // 6. Remove from wishlists
+        await tx
+          .delete(wishlist)
+          .where(inArray(wishlist.productId, ids));
+
+        // 7. Soft-delete the products
+        await tx
+          .update(products)
+          .set({ isActive: false, updatedAt: new Date() })
+          .where(inArray(products.id, ids));
       });
 
+      res.json({ success: true, ids });
       await publishRealtimeEvent("product_event");
     } catch {
       res.status(500).json({ message: "Failed to delete products" });

@@ -19,7 +19,7 @@ const redisConfig = {
   maxRetriesPerRequest: 3,
   keepAlive: 30000,
   family: 4,
-  keyPrefix: "moha_weaves:",
+  // NOTE: keyPrefix is intentionally removed — it breaks pub/sub channel names
 }
 
 

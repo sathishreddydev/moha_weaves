@@ -56,7 +56,8 @@ export default function InventoryDashboard() {
     count: number;
   }>({
     queryKey: ["/api/inventory/orders/count", { status: "confirmed" }],
-    queryFn: () => apiRequest("GET", "/api/inventory/orders/count?status=pending"),
+    queryFn: () =>
+      apiRequest("GET", "/api/inventory/orders/count?status=pending"),
     enabled: isInventoryUser,
   });
 
