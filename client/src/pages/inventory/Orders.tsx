@@ -19,8 +19,6 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { formatDate, formatPrice } from "@/lib/utils";
 import { useSocket } from "@/stores/socketStore";
-
-// Statuses the inventory team can manually set — must match VALID_ITEM_STATUSES on the server
 const VALID_ITEM_STATUSES = [
   "confirmed",
   "processing",
@@ -31,18 +29,20 @@ const VALID_ITEM_STATUSES = [
   "returned",
 ] as const;
 
-type ItemStatus = typeof VALID_ITEM_STATUSES[number];
+type ItemStatus = (typeof VALID_ITEM_STATUSES)[number];
 
-// Mirrors ALLOWED_TRANSITIONS in orderStorage.ts
+// Statuses the inventory team can manually set — must match VALID_ITEM_STATUSES on the server
+// Inventory can only move items up to "delivered".
+// return_requested and returned are customer/admin actions — shown as read-only.
 const ALLOWED_TRANSITIONS: Record<string, ItemStatus[]> = {
-  pending:          ["confirmed", "cancelled"],
-  confirmed:        ["processing", "cancelled"],
-  processing:       ["shipped", "cancelled"],
-  shipped:          ["delivered"],
-  delivered:        ["return_requested"],
-  cancelled:        [],
-  return_requested: ["returned", "delivered"],
-  returned:         [],
+  pending: ["confirmed", "cancelled"],
+  confirmed: ["processing", "cancelled"],
+  processing: ["shipped", "cancelled"],
+  shipped: ["delivered"],
+  delivered: [],
+  cancelled: [],
+  return_requested: [],
+  returned: [],
 };
 
 /** Returns the statuses that can be transitioned to from `currentStatus`. */
@@ -205,9 +205,13 @@ export default function InventoryOrders() {
 
   useEffect(() => {
     if (!socket) return;
-    const handleOrderEvent = () => { refetch(); };
+    const handleOrderEvent = () => {
+      refetch();
+    };
     socket.on("user_order_created", handleOrderEvent);
-    return () => { socket.off("user_order_created", handleOrderEvent); };
+    return () => {
+      socket.off("user_order_created", handleOrderEvent);
+    };
   }, [socket, refetch]);
 
   const updateItemStatus = useCallback(
@@ -317,14 +321,11 @@ export default function InventoryOrders() {
     (order: OrderWithItems) => {
       // Compute the intersection of allowed next statuses across all items
       // to determine which bulk-update buttons are safe to show.
-      const allAllowed = order.items.reduce<ItemStatus[]>(
-        (acc, item) => {
-          const next = getAllowedNext(item.currentStatus || item.status);
-          if (acc.length === 0) return next;
-          return acc.filter((s) => next.includes(s));
-        },
-        [],
-      );
+      const allAllowed = order.items.reduce<ItemStatus[]>((acc, item) => {
+        const next = getAllowedNext(item.currentStatus || item.status);
+        if (acc.length === 0) return next;
+        return acc.filter((s) => next.includes(s));
+      }, []);
 
       return (
         <div className="space-y-4">
@@ -418,18 +419,18 @@ export default function InventoryOrders() {
                     <div className="h-8 w-[1px] bg-slate-200 hidden md:block"></div>
 
                     {allowedNext.length > 0 && (
-                    <div className="w-full md:w-auto">
-                      <span className="text-[10px] font-bold text-slate-400 uppercase mb-1 block md:text-right">
-                        Change Status
-                      </span>
-                      <StatusSelect
-                        allowedNext={allowedNext}
-                        disabled={isThisItemPending}
-                        onSelect={(newStatus) =>
-                          updateItemStatus(order.id, item.id, newStatus)
-                        }
-                      />
-                    </div>
+                      <div className="w-full md:w-auto">
+                        <span className="text-[10px] font-bold text-slate-400 uppercase mb-1 block md:text-right">
+                          Change Status
+                        </span>
+                        <StatusSelect
+                          allowedNext={allowedNext}
+                          disabled={isThisItemPending}
+                          onSelect={(newStatus) =>
+                            updateItemStatus(order.id, item.id, newStatus)
+                          }
+                        />
+                      </div>
                     )}
                   </div>
                 </div>

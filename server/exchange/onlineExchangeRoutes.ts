@@ -4,9 +4,10 @@ import {
   onlineExchangeStatusEnum
 } from "@shared/schema";
 import type { Express, Request, Response } from "express";
+import { publishRealtimeEvent } from "realtime/events";
 import { z } from "zod";
 import { createAuthMiddleware } from "../authMiddleware";
-import { onlineExchangeStorage } from "./onlineExchangeStorage";
+import { EXCHANGE_TRANSITIONS, onlineExchangeStorage } from "./onlineExchangeStorage";
 
 export const onlineExchangeRoutes = (app: Express) => {
   const authInventory = createAuthMiddleware(["inventory", "admin"]);
@@ -108,6 +109,13 @@ export const onlineExchangeRoutes = (app: Express) => {
       const newExchange = await onlineExchangeStorage.createOnlineExchange(exchangeData, exchangeItems);
 
       res.status(201).json(newExchange);
+
+      // Emit realtime event after response so the client gets the response first
+      await publishRealtimeEvent("exchange_created", {
+        exchangeId: newExchange.id,
+        userId,
+        orderId: newExchange.orderId,
+      });
     } catch (error) {
       console.error("Error creating online exchange:", error);
       res.status(500).json({ error: "Failed to create online exchange" });
@@ -221,7 +229,8 @@ export const onlineExchangeRoutes = (app: Express) => {
     }
   });
 
-  app.patch("/api/inventory/exchanges/:id/status", authInventory, async (req: Request, res: Response) => {
+  // Fix 10: Correct URL — was /api/inventory/exchanges/:id/status, must be /api/inventory/online-exchanges/:id/status
+  app.patch("/api/inventory/online-exchanges/:id/status", authInventory, async (req: Request, res: Response) => {
     try {
       const { id } = req.params;
       const processedBy = req.user?.id;
@@ -245,6 +254,18 @@ export const onlineExchangeRoutes = (app: Express) => {
         });
       }
 
+      // Fix 11: Enforce transition guard before calling storage
+      const existing = await onlineExchangeStorage.getOnlineExchange(id);
+      if (!existing) {
+        return res.status(404).json({ error: "Online exchange not found" });
+      }
+      const allowed = EXCHANGE_TRANSITIONS[existing.status] ?? [];
+      if (!allowed.includes(validation.data.status)) {
+        return res.status(400).json({
+          error: `Invalid status transition: cannot move from "${existing.status}" to "${validation.data.status}"`,
+        });
+      }
+
       const updatedExchange = await onlineExchangeStorage.updateOnlineExchangeStatus(
         id,
         validation.data.status,
@@ -256,6 +277,13 @@ export const onlineExchangeRoutes = (app: Express) => {
       if (!updatedExchange) {
         return res.status(404).json({ error: "Online exchange not found" });
       }
+
+      // Fix 12: Emit realtime event after status update
+      await publishRealtimeEvent("exchange_status_updated", {
+        exchangeId: id,
+        userId: existing.userId,
+        status: validation.data.status,
+      });
 
       // Return exchange without ID as per our design
       const { ...exchangeWithoutId } = updatedExchange;

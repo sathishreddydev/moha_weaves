@@ -23,12 +23,14 @@ export enum SortOption {
 export enum ReturnStatus {
   RETURN_REQUESTED = "return_requested",
   RETURN_APPROVED = "return_approved",
+  RETURN_REJECTED = "return_rejected",
+  RETURN_PICKUP_SCHEDULED = "return_pickup_scheduled",
+  RETURN_PICKED_UP = "return_picked_up",
   RETURN_IN_TRANSIT = "return_in_transit",
   RETURN_RECEIVED = "return_received",
   RETURN_INSPECTED = "return_inspected",
   RETURN_COMPLETED = "return_completed",
-  RETURN_REJECTED = "return_rejected",
-  RETURN_CANCELLED = "return_cancelled"
+  RETURN_CANCELLED = "return_cancelled",
 }
 
 // Filter Keys enum

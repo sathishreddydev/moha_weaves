@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useParams, useNavigate, useSearchParams } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { ArrowLeft, Package, MapPin, CreditCard, Printer } from "lucide-react";
+import { ArrowLeft, Package, MapPin, CreditCard, Printer, Tag } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -10,9 +10,49 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
-import type { ItemStatusHistory, OrderWithItems } from "@shared/schema";
+import type { ItemStatusHistory, OrderWithItems, ShippingAddress } from "@shared/schema";
 import { getItemStatusConfig } from "@/constants/itemStatusConfig";
 import { formatDate, formatPrice } from "@/lib/utils";
+
+/** Normalise shippingAddress — it can be a JSON string, a plain object, or a legacy string. */
+function parseShippingAddress(raw: string | ShippingAddress | undefined | null): ShippingAddress | null {
+  if (!raw) return null;
+  if (typeof raw === "object") return raw as ShippingAddress;
+  try {
+    const parsed = JSON.parse(raw);
+    if (typeof parsed === "object" && parsed !== null) return parsed as ShippingAddress;
+  } catch {
+    // not JSON — treat as a plain address string
+    return { address: raw } as ShippingAddress;
+  }
+  return null;
+}
+
+function ShippingAddressBlock({ raw }: { raw: string | ShippingAddress | undefined | null }) {
+  const addr = parseShippingAddress(raw);
+  if (!addr) return <div className="text-sm text-muted-foreground">No address on file</div>;
+
+  const lines: string[] = [];
+  if (addr.name) lines.push(addr.name);
+  const street = [addr.address, addr.locality].filter(Boolean).join(", ");
+  if (street) lines.push(street);
+  const cityPin = [addr.city, addr.pincode].filter(Boolean).join(" – ");
+  if (cityPin) lines.push(cityPin);
+
+  return (
+    <div className="text-sm space-y-0.5">
+      {lines.map((l, i) => (
+        <div key={i} className={i === 0 ? "font-medium" : "text-muted-foreground"}>{l}</div>
+      ))}
+    </div>
+  );
+}
+
+function ShippingAddressText(raw: string | ShippingAddress | undefined | null): string {
+  const addr = parseShippingAddress(raw);
+  if (!addr) return "No address";
+  return [addr.name, addr.address, addr.locality, addr.city, addr.pincode].filter(Boolean).join(", ");
+}
 
 export default function InventoryOrderDetail() {
   const { id } = useParams();
@@ -186,24 +226,52 @@ export default function InventoryOrderDetail() {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {/* Shipping Info */}
         <Card>
-          <CardContent className="p-4 space-y-2">
+          <CardContent className="p-4 space-y-3">
             <div className="flex items-center gap-2">
               <MapPin className="h-4 w-4 text-muted-foreground" />
               <div className="font-medium">Shipping Info</div>
             </div>
-            <div className="text-sm">{order.shippingAddress}</div>
-            <div className="text-sm text-muted-foreground">Phone: {order.phone}</div>
-            {order.trackingNumber ? (
-              <div className="text-sm text-muted-foreground">Tracking: {order.trackingNumber}</div>
+
+            <ShippingAddressBlock raw={order.shippingAddress} />
+
+            <div className="text-sm text-muted-foreground">
+              Phone: <span className="text-foreground font-medium">{order.phone || "—"}</span>
+            </div>
+
+            {order.shippingMethod ? (
+              <div className="text-sm text-muted-foreground">
+                Method:{" "}
+                <span className="text-foreground capitalize">{String(order.shippingMethod).replace(/_/g, " ")}</span>
+              </div>
             ) : null}
+
+            {order.trackingNumber ? (
+              <div className="text-sm text-muted-foreground">
+                Tracking: <span className="font-mono text-foreground">{order.trackingNumber}</span>
+              </div>
+            ) : null}
+
+            {order.delhiveryWaybill ? (
+              <div className="text-sm text-muted-foreground">
+                Waybill: <span className="font-mono text-foreground">{order.delhiveryWaybill}</span>
+              </div>
+            ) : null}
+
             {order.estimatedDelivery ? (
               <div className="text-sm text-muted-foreground">
                 ETA: {formatDate(order.estimatedDelivery)}
               </div>
             ) : null}
 
-            <div className="pt-2">
+            {order.deliveredAt ? (
+              <div className="text-sm text-muted-foreground">
+                Delivered: {formatDate(order.deliveredAt)}
+              </div>
+            ) : null}
+
+            <div className="pt-1">
               <div className="text-xs text-muted-foreground mb-1">Update Tracking Number</div>
               <div className="flex items-center gap-2">
                 <Input
@@ -225,22 +293,110 @@ export default function InventoryOrderDetail() {
           </CardContent>
         </Card>
 
+        {/* Payment Info */}
         <Card>
-          <CardContent className="p-4 space-y-2">
+          <CardContent className="p-4 space-y-3">
             <div className="flex items-center gap-2">
               <CreditCard className="h-4 w-4 text-muted-foreground" />
               <div className="font-medium">Payment Info</div>
             </div>
+
             <div className="text-sm text-muted-foreground">
-              Method: {String(order.paymentMethod || "—").toUpperCase()}
+              Method:{" "}
+              <span className="text-foreground font-medium">
+                {order.paymentDetails?.display ||
+                  String(order.paymentMethod || "—").toUpperCase()}
+              </span>
             </div>
-            <div className="text-sm text-muted-foreground">Status: {String(order.paymentStatus || "—")}</div>
-            {order.razorpayPaymentId ? (
-              <div className="text-sm text-muted-foreground">Razorpay: {order.razorpayPaymentId}</div>
+
+            <div className="text-sm text-muted-foreground">
+              Status:{" "}
+              <Badge
+                variant="outline"
+                className={
+                  order.paymentStatus === "paid"
+                    ? "border-green-500 text-green-700 bg-green-50"
+                    : order.paymentStatus === "pending"
+                    ? "border-yellow-500 text-yellow-700 bg-yellow-50"
+                    : "border-red-400 text-red-700 bg-red-50"
+                }
+              >
+                {String(order.paymentStatus || "—").toUpperCase()}
+              </Badge>
+            </div>
+
+            {order.paymentDetails?.razorpayPaymentId ? (
+              <div className="text-sm text-muted-foreground">
+                Payment ID:{" "}
+                <span className="font-mono text-foreground">{order.paymentDetails.razorpayPaymentId}</span>
+              </div>
+            ) : order.razorpayPaymentId ? (
+              <div className="text-sm text-muted-foreground">
+                Payment ID:{" "}
+                <span className="font-mono text-foreground">{order.razorpayPaymentId}</span>
+              </div>
             ) : null}
-            {order.paymentId ? (
-              <div className="text-sm text-muted-foreground">Payment Ref: {order.paymentId}</div>
+
+            {order.couponCode ? (
+              <div className="flex items-center gap-1 text-sm text-muted-foreground">
+                <Tag className="h-3.5 w-3.5" />
+                Coupon:{" "}
+                <span className="font-mono text-foreground">{order.couponCode}</span>
+                {order.couponValue ? (
+                  <span className="text-green-600 font-medium ml-1">
+                    ({order.couponType === "percentage" ? `${order.couponValue}%` : formatPrice(order.couponValue)} off)
+                  </span>
+                ) : null}
+              </div>
             ) : null}
+
+            {order.notes ? (
+              <div className="text-sm text-muted-foreground">
+                Notes: <span className="text-foreground">{order.notes}</span>
+              </div>
+            ) : null}
+
+            <Separator />
+
+            {/* Shipment flags */}
+            <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs text-muted-foreground">
+              <div>
+                Shipment:{" "}
+                <span className="text-foreground capitalize">
+                  {String(order.shipmentType || "—").replace(/_/g, " ")}
+                </span>
+              </div>
+              <div>
+                Shipments:{" "}
+                <span className="text-foreground">
+                  {order.completedShipments ?? 0}/{order.totalShipments ?? 1}
+                </span>
+              </div>
+              <div>
+                Auto-processed:{" "}
+                <span className={order.autoProcessed ? "text-green-600" : "text-muted-foreground"}>
+                  {order.autoProcessed ? "Yes" : "No"}
+                </span>
+              </div>
+              <div>
+                Addr validated:{" "}
+                <span className={order.addressValidated ? "text-green-600" : "text-yellow-600"}>
+                  {order.addressValidated ? "Yes" : "No"}
+                </span>
+              </div>
+              <div>
+                Customer notified:{" "}
+                <span className={order.customerNotified ? "text-green-600" : "text-muted-foreground"}>
+                  {order.customerNotified ? "Yes" : "No"}
+                </span>
+              </div>
+              <div>
+                Pickup scheduled:{" "}
+                <span className={order.pickupScheduled ? "text-green-600" : "text-muted-foreground"}>
+                  {order.pickupScheduled ? "Yes" : "No"}
+                </span>
+              </div>
+            </div>
           </CardContent>
         </Card>
       </div>
@@ -261,35 +417,65 @@ export default function InventoryOrderDetail() {
                 updatedAt: order.updatedAt,
               };
               const displayStatus = itemStatus || fallback;
+              const returnElig = item.returnEligibility;
               return (
-                <div key={item.id} className="flex items-center gap-3">
-                  <div className="w-12 h-16 rounded overflow-hidden bg-muted">
+                <div key={item.id} className="flex items-start gap-3 p-3 rounded-lg border bg-muted/30">
+                  <div className="w-14 h-18 rounded overflow-hidden bg-muted flex-shrink-0">
                     <img
                       src={
                         item.product?.imageUrl ||
                         "https://images.unsplash.com/photo-1610030469983-98e550d6193c?w=60"
                       }
                       alt={item.product?.name || "product"}
-                      className="w-full h-full object-cover"
+                      className="w-14 h-18 object-cover"
+                      style={{ height: "72px" }}
                     />
                   </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="font-medium text-sm truncate">{item.product?.name || "Unknown"}</div>
-                    <div className="text-xs text-muted-foreground">
-                      Qty: {item.quantity}
+                  <div className="flex-1 min-w-0 space-y-1">
+                    <div className="font-medium text-sm">{item.product?.name || "Unknown"}</div>
+
+                    {/* Category & Color */}
+                    <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
+                      {item.product?.category?.name ? (
+                        <span className="bg-slate-100 px-2 py-0.5 rounded-full">
+                          {item.product.category.name}
+                        </span>
+                      ) : null}
+                      {item.product?.color?.name ? (
+                        <span className="bg-slate-100 px-2 py-0.5 rounded-full capitalize">
+                          {item.product.color.name}
+                        </span>
+                      ) : null}
                       {(() => {
                         const variant = item.variantId && item.product?.variants?.find((v: any) => v.id === item.variantId);
-                        return variant ? ` • Size: ${variant.size}` : '';
-                      })()} x {formatPrice(item.price)}
+                        return variant ? (
+                          <span className="bg-slate-100 px-2 py-0.5 rounded-full">Size: {variant.size}</span>
+                        ) : null;
+                      })()}
                     </div>
-                    <Badge className={displayStatus.color}>
-                    {displayStatus.label}
-                  </Badge>
+
+                    <div className="text-xs text-muted-foreground">
+                      Qty: <span className="text-foreground font-medium">{item.quantity}</span>
+                      {" × "}
+                      <span className="text-foreground">{formatPrice(item.price)}</span>
+                    </div>
+
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <Badge className={displayStatus.color}>{displayStatus.label}</Badge>
+                      {returnElig && !returnElig.eligible ? (
+                        <span className="text-xs text-muted-foreground italic">{returnElig.reason}</span>
+                      ) : returnElig?.eligible ? (
+                        <span className="text-xs text-green-600">
+                          Return eligible{returnElig.remainingDays != null ? ` (${returnElig.remainingDays}d left)` : ""}
+                        </span>
+                      ) : null}
+                    </div>
+
+                    <div className="text-xs text-muted-foreground">Item ID: <span className="font-mono">{item.id}</span></div>
                   </div>
-                  <div className="text-sm font-medium">
+                  <div className="text-sm font-semibold flex-shrink-0">
                     {formatPrice(Number(item.quantity) * Number(item.price))}
                   </div>
-                  
                 </div>
               )
             })}
@@ -358,7 +544,7 @@ export default function InventoryOrderDetail() {
           <div className="row">
             <div className="col box">
               <div className="h2">Ship To</div>
-              <div>{order.shippingAddress}</div>
+              <div>{ShippingAddressText(order.shippingAddress)}</div>
               <div className="muted">Phone: {order.phone}</div>
             </div>
             <div className="col box">

@@ -36,8 +36,9 @@ export const inventoryRefundRoutes = (app: Express) => {
       }
 
       res.json(updated);
-    } catch {
-      res.status(500).json({ message: "Failed to process refund" });
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Failed to process refund";
+      res.status(500).json({ message });
     }
   });
 
@@ -47,8 +48,9 @@ export const inventoryRefundRoutes = (app: Express) => {
       await refundService.checkRefundStatus(req.params.id);
       const updated = await storage.getRefund(req.params.id);
       res.json(updated);
-    } catch {
-      res.status(500).json({ message: "Failed to check refund status" });
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Failed to check refund status";
+      res.status(500).json({ message });
     }
   });
 };

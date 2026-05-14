@@ -251,6 +251,7 @@ export class ReturnStorage implements IReturnStorage {
       .leftJoin(categories, eq(products.categoryId, categories.id))
       .leftJoin(colors, eq(products.colorId, colors.id))
       .leftJoin(fabrics, eq(products.fabricId, fabrics.id))
+      .leftJoin(productVariants, eq(orderItems.variantId, productVariants.id))
       .where(eq(returnItems.returnRequestId, request.id));
 
     const [refund] = await db
@@ -271,6 +272,7 @@ export class ReturnStorage implements IReturnStorage {
             category: item.categories,
             color: item.colors,
             fabric: item.fabrics,
+            variants: item.product_variants ? [item.product_variants] : undefined,
           },
         },
       })),
@@ -324,9 +326,15 @@ export class ReturnStorage implements IReturnStorage {
           updatedAt: new Date(),
         }).where(eq(orderItems.id, item.orderItemId));
 
+        // Fetch the actual current status rather than hardcoding "delivered"
+        const [currentItem] = await tx
+          .select({ status: orderItems.status })
+          .from(orderItems)
+          .where(eq(orderItems.id, item.orderItemId));
+
         await storage.itemHistory(
           item.orderItemId,
-          "delivered",
+          currentItem?.status ?? "delivered",
           "return_requested",
           "Return request created",
           request.userId
@@ -346,7 +354,11 @@ export class ReturnStorage implements IReturnStorage {
     return await db.transaction(async (tx) => {
       const updateData: any = { status, updatedAt: new Date() };
       if (processedBy) updateData.processedBy = processedBy;
-      if (inspectionNotes) updateData.inspectionNotes = inspectionNotes;
+      if (inspectionNotes !== undefined) updateData.inspectionNotes = inspectionNotes;
+
+      // Stamp timestamp fields based on status
+      if (status === "return_picked_up") updateData.pickedUpAt = new Date();
+      if (status === "return_received") updateData.receivedAt = new Date();
 
       const [result] = await tx
         .update(returnRequests)
@@ -359,21 +371,26 @@ export class ReturnStorage implements IReturnStorage {
       const returnRequest = await this.getReturnRequest(id);
       if (!returnRequest) return result;
 
-      // Map return request status to order item status
+      // Map return request status → order item status
+      // Only statuses that exist in itemStatusEnum are safe to write to orderItems.status.
+      // return_pickup_scheduled / return_picked_up are NOT in itemStatusEnum, so we keep
+      // the item at return_requested for those intermediate logistics steps.
       const statusMap: Record<string, string> = {
         return_requested: "return_requested",
         return_approved: "return_approved",
-        return_pickup_scheduled: "return_pickup_scheduled",
-        return_picked_up: "return_picked_up",
+        return_pickup_scheduled: "return_approved",   // no matching item status — keep approved
+        return_picked_up: "return_approved",           // same
         return_in_transit: "return_in_transit",
         return_received: "return_received",
         return_inspected: "return_inspected",
         return_completed: "return_completed",
+        return_rejected: "return_rejected",
         return_cancelled: "return_cancelled",
       };
 
       for (const item of returnRequest.items) {
-        const newItemStatus = statusMap[status] || "return_requested";
+        const newItemStatus = statusMap[status];
+        if (!newItemStatus) continue; // unknown status — skip rather than corrupt
 
         await tx.update(orderItems).set({
           status: newItemStatus as any,
@@ -384,28 +401,82 @@ export class ReturnStorage implements IReturnStorage {
           item.orderItemId,
           item.orderItem.status,
           newItemStatus,
-          `Return request ${status}${status === "return_completed" ? " - refund initiated" : ""}`,
+          `Return ${status.replace(/_/g, " ")}${status === "return_completed" ? " — refund initiated" : ""}`,
           processedBy
         );
 
         if (status === "return_completed" && item.isRestockable) {
           await tx.insert(stockMovements).values({
             productId: item.orderItem.product.id,
+            variantId: item.orderItem.variantId ?? null,
             quantity: item.quantity,
             movementType: "return",
             source: "online",
             orderRefId: returnRequest.orderId,
             createdAt: new Date(),
           });
+          // Restore actual product stock counts
+          await storage.restoreStockFromReturn(item.orderItem.product.id, item.quantity, returnRequest.orderId);
+        }
+      }
+
+      // Customer notifications for key status changes
+      const customerMessages: Partial<Record<string, { title: string; message: string }>> = {
+        return_approved: {
+          title: "Return Approved",
+          message: "Your return request has been approved. We will schedule a pickup shortly.",
+        },
+        return_pickup_scheduled: {
+          title: "Pickup Scheduled",
+          message: "Your return pickup has been scheduled. Please keep the item ready.",
+        },
+        return_completed: {
+          title: "Return Completed",
+          message: returnRequest.resolution === "refund"
+            ? `Your return is complete. A refund of ₹${returnRequest.refundAmount || "0"} has been initiated.`
+            : "Your return is complete. We will process your resolution shortly.",
+        },
+        return_rejected: {
+          title: "Return Rejected",
+          message: `Your return request has been rejected.${inspectionNotes ? ` Reason: ${inspectionNotes}` : ""}`,
+        },
+        return_cancelled: {
+          title: "Return Cancelled",
+          message: "Your return request has been cancelled.",
+        },
+      };
+
+      const notif = customerMessages[status];
+      if (notif) {
+        try {
+          await storage.createNotification({
+            userId: returnRequest.userId,
+            type: "return",
+            title: notif.title,
+            message: notif.message,
+            relatedId: id,
+            relatedType: "return",
+          });
+        } catch (err) {
+          console.error("Failed to send return notification:", err);
         }
       }
 
       if (status === "return_completed" && returnRequest.resolution === "refund") {
-        try {
-          const refundAmount = returnRequest.refundAmount || 
-            returnRequest.items.reduce((total, item) => {
-              return total + (item.orderItem.price * item.quantity);
-            }, 0).toString();
+        // Idempotency guard — don't create a second refund if one already exists
+        const [existingRefund] = await db
+          .select({ id: refunds.id })
+          .from(refunds)
+          .where(eq(refunds.returnRequestId, id))
+          .limit(1);
+
+        if (!existingRefund) {
+          try {
+          const refundAmount = returnRequest.refundAmount
+            ? String(returnRequest.refundAmount)
+            : returnRequest.items.reduce((total, item) => {
+                return total + parseFloat(String(item.orderItem.price || "0")) * Number(item.quantity);
+              }, 0).toFixed(2);
 
           await refundService.createAndProcessRefund({
             returnRequestId: id,
@@ -417,11 +488,23 @@ export class ReturnStorage implements IReturnStorage {
           });
 
           console.log(`Auto-refund initiated for return request: ${id}, amount: ₹${refundAmount}`);
-        } catch (error) {
-          console.error("Failed to initiate auto-refund for return:", id, error);
+          } catch (error) {
+            // Log but don't swallow — surface the failure so the caller knows
+            console.error("Failed to initiate auto-refund for return:", id, error);
+            // Notify inventory team via a system notification
+            try {
+              await storage.createNotification({
+                userId: processedBy || returnRequest.userId,
+                type: "system",
+                title: "Refund Initiation Failed",
+                message: `Auto-refund for return ${id} failed: ${error instanceof Error ? error.message : "Unknown error"}. Please retry from the Refunds page.`,
+                relatedId: id,
+                relatedType: "return",
+              });
+            } catch { /* best-effort */ }
+          }
         }
       }
-      
 
       return result;
     });

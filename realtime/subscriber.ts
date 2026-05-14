@@ -59,6 +59,18 @@ export class RedisSubscriber {
         case 'order_item_status_updated':
           this.handleOrderItemStatusUpdated(event)
           break
+        case 'return_status_updated':
+          this.handleReturnStatusUpdated(event)
+          break
+        case 'return_created':
+          this.handleReturnCreated(event)
+          break
+        case 'exchange_created':
+          this.handleExchangeCreated(event)
+          break
+        case 'exchange_status_updated':
+          this.handleExchangeStatusUpdated(event)
+          break
         default:
           console.warn(`Unknown event type: ${event.type}`)
       }
@@ -82,6 +94,52 @@ export class RedisSubscriber {
     // Notify inventory and admin roles so their order lists stay in sync
     io.to("role:inventory").emit("order_item_status_updated", payload)
     io.to("role:admin").emit("order_item_status_updated", payload)
+  }
+
+  private handleReturnStatusUpdated(event: RealtimeEvent): void {
+    const { returnId, userId, status } = event.data ?? {}
+    const payload = { type: event.type, data: { returnId, userId, status } }
+
+    // Notify the customer whose return was updated
+    if (userId) {
+      io.to(`user:${userId}`).emit("return_status_updated", payload)
+    }
+
+    // Notify inventory and admin so their returns list refreshes
+    io.to("role:inventory").emit("return_status_updated", payload)
+    io.to("role:admin").emit("return_status_updated", payload)
+  }
+
+  private handleReturnCreated(event: RealtimeEvent): void {
+    const { returnId, userId, orderId } = event.data ?? {}
+    const payload = { type: event.type, data: { returnId, userId, orderId } }
+
+    // Notify inventory and admin of the new return request
+    io.to("role:inventory").emit("return_created", payload)
+    io.to("role:admin").emit("return_created", payload)
+  }
+
+  private handleExchangeCreated(event: RealtimeEvent): void {
+    const { exchangeId, userId, orderId } = event.data ?? {}
+    const payload = { type: event.type, data: { exchangeId, userId, orderId } }
+
+    // Notify inventory and admin of the new exchange request
+    io.to("role:inventory").emit("exchange_created", payload)
+    io.to("role:admin").emit("exchange_created", payload)
+  }
+
+  private handleExchangeStatusUpdated(event: RealtimeEvent): void {
+    const { exchangeId, userId, status } = event.data ?? {}
+    const payload = { type: event.type, data: { exchangeId, userId, status } }
+
+    // Notify the customer whose exchange was updated
+    if (userId) {
+      io.to(`user:${userId}`).emit("exchange_status_updated", payload)
+    }
+
+    // Notify inventory and admin so their exchanges list refreshes
+    io.to("role:inventory").emit("exchange_status_updated", payload)
+    io.to("role:admin").emit("exchange_status_updated", payload)
   }
   private handleUserUpdate(event: RealtimeEvent): void {
     const { target } = event

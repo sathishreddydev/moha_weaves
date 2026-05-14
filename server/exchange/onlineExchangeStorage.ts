@@ -70,16 +70,39 @@ export interface IOnlineExchangeStorage {
   ): Promise<{ eligible: boolean; reason?: string; remainingDays?: number; eligibleItems?: string[] }>;
 }
 
+// Fix 6: Status transition guard
+const EXCHANGE_TRANSITIONS: Record<string, string[]> = {
+  exchange_requested:        ["exchange_approved", "exchange_cancelled"],
+  exchange_approved:         ["exchange_processing", "exchange_cancelled"],
+  exchange_processing:       ["exchange_pickup_scheduled", "exchange_cancelled"],
+  exchange_pickup_scheduled: ["exchange_picked_up", "exchange_cancelled"],
+  exchange_picked_up:        ["exchange_in_transit", "exchange_cancelled"],
+  exchange_in_transit:       ["exchange_received", "exchange_cancelled"],
+  exchange_received:         ["exchange_inspected", "exchange_cancelled"],
+  exchange_inspected:        ["exchange_shipped", "exchange_cancelled"],
+  exchange_shipped:          ["exchange_delivered"],
+  exchange_delivered:        ["exchange_completed"],
+  exchange_completed:        [],
+  exchange_cancelled:        [],
+};
+
+export { EXCHANGE_TRANSITIONS };
+
 export class OnlineExchangeStorage implements IOnlineExchangeStorage {
+  // Fix 1: Use correct DB enum values (with "exchange_" prefix)
+  // Fix 9: Exclude exchange_cancelled from active statuses
   private readonly activeExchangeStatuses = [
-    "requested",
-    "approved",
-    "pickup_scheduled",
-    "picked_up",
-    "in_transit",
-    "received",
-    "inspected",
-    "completed",
+    "exchange_requested",
+    "exchange_approved",
+    "exchange_processing",
+    "exchange_pickup_scheduled",
+    "exchange_picked_up",
+    "exchange_in_transit",
+    "exchange_received",
+    "exchange_inspected",
+    "exchange_shipped",
+    "exchange_delivered",
+    "exchange_completed",
   ] as const;
 
   async getOnlineExchanges(filters?: {
@@ -165,8 +188,8 @@ export class OnlineExchangeStorage implements IOnlineExchangeStorage {
     if (filters?.dateFrom || filters?.dateTo) {
       filteredExchanges = filteredExchanges.filter(exchange => {
         const createdAt = new Date(exchange.createdAt);
-        if (filters.dateFrom && createdAt < new Date(filters.dateFrom)) return false;
-        if (filters.dateTo && createdAt > new Date(filters.dateTo)) return false;
+        if (filters?.dateFrom && createdAt < new Date(filters.dateFrom)) return false;
+        if (filters?.dateTo && createdAt > new Date(filters.dateTo)) return false;
         return true;
       });
     }
@@ -188,6 +211,7 @@ export class OnlineExchangeStorage implements IOnlineExchangeStorage {
     return filteredExchanges;
   }
 
+  // Fix 5: Add productVariants join and include variants in mapped result
   async getOnlineExchange(
     id: string
   ): Promise<OnlineExchangeWithDetails | undefined> {
@@ -209,6 +233,7 @@ export class OnlineExchangeStorage implements IOnlineExchangeStorage {
       .leftJoin(categories, eq(products.categoryId, categories.id))
       .leftJoin(colors, eq(products.colorId, colors.id))
       .leftJoin(fabrics, eq(products.fabricId, fabrics.id))
+      .leftJoin(productVariants, eq(orderItems.variantId, productVariants.id))
       .where(eq(onlineExchangeItems.exchangeId, exchange.id));
 
     return {
@@ -226,6 +251,7 @@ export class OnlineExchangeStorage implements IOnlineExchangeStorage {
               category: item.categories,
               color: item.colors,
               fabric: item.fabrics,
+              variants: item.product_variants ? [item.product_variants] : undefined,
             },
           },
         };
@@ -250,6 +276,14 @@ export class OnlineExchangeStorage implements IOnlineExchangeStorage {
         });
 
         // Update item status to "exchange_requested"
+        // Fix 4: Read the actual current status before updating (fetch current item status)
+        const [currentItem] = await tx
+          .select({ status: orderItems.status })
+          .from(orderItems)
+          .where(eq(orderItems.id, item.orderItemId));
+
+        const previousStatus = currentItem?.status ?? "delivered";
+
         await tx
           .update(orderItems)
           .set({
@@ -261,7 +295,7 @@ export class OnlineExchangeStorage implements IOnlineExchangeStorage {
         // Create item status history
         await storage.itemHistory(
           item.orderItemId,
-          "delivered", // Previous status
+          previousStatus, // Fix 4: use actual previous status
           "exchange_requested",
           "Online exchange created",
           exchange.userId
@@ -280,9 +314,25 @@ export class OnlineExchangeStorage implements IOnlineExchangeStorage {
     exchangeOrderId?: string
   ): Promise<OnlineExchange | undefined> {
     return await db.transaction(async (tx) => {
+      // Fix 6: Enforce status transition guard
+      const [current] = await tx
+        .select({ status: onlineExchanges.status })
+        .from(onlineExchanges)
+        .where(eq(onlineExchanges.id, id));
+
+      if (!current) return undefined;
+
+      const allowed = EXCHANGE_TRANSITIONS[current.status] ?? [];
+      if (!allowed.includes(status)) {
+        throw new Error(
+          `Invalid status transition: cannot move from "${current.status}" to "${status}"`
+        );
+      }
+
       const updateData: any = { status, updatedAt: new Date() };
       if (processedBy) updateData.processedBy = processedBy;
-      if (inspectionNotes) updateData.inspectionNotes = inspectionNotes;
+      // Fix 3: Save inspectionNotes even when empty string
+      if (inspectionNotes !== undefined) updateData.inspectionNotes = inspectionNotes;
       if (exchangeOrderId) updateData.exchangeOrderId = exchangeOrderId;
 
       const [result] = await tx
@@ -326,41 +376,44 @@ export class OnlineExchangeStorage implements IOnlineExchangeStorage {
           `Exchange request ${status}`,
           processedBy
         );
-        await tx.insert(notifications).values({
-          userId: onlineExchange.userId,
-          type: "order",
-          title: "Online Exchange Update",
-          message: `Your online exchange request for order #${String(onlineExchange.orderId)} has been updated to "${String(newItemStatus)}".`,
-          relatedId: onlineExchange.orderId,
-          createdAt: new Date(),
-        });
       }
 
-      for (const item of onlineExchange.items) {
-        if (item.isRestockable) {
-          await tx.insert(stockMovements).values({
-            productId: item.orderItem.product.id,
-            quantity: item.quantity,
-            movementType: "return",
-            source: "online",
-            orderRefId: onlineExchange.orderId,
-            createdAt: new Date(),
-          });
-        }
+      // Fix 8: Send notification once, outside the item loop
+      await tx.insert(notifications).values({
+        userId: onlineExchange.userId,
+        type: "order",
+        title: "Online Exchange Update",
+        message: `Your online exchange request for order #${String(onlineExchange.orderId)} has been updated to "${String(status)}".`,
+        relatedId: onlineExchange.orderId,
+        createdAt: new Date(),
+      });
 
-        if (item.exchangeproductId) {
-          await tx.insert(stockMovements).values({
-            productId: item.exchangeproductId,
-            quantity: -item.quantity,
-            movementType: "sale",
-            source: "online",
-            orderRefId: onlineExchange.orderId,
-            createdAt: new Date(),
-          });
+      // Fix 2: Only fire stock movements when status === "exchange_completed"
+      if (status === "exchange_completed") {
+        for (const item of onlineExchange.items) {
+          if (item.isRestockable) {
+            await tx.insert(stockMovements).values({
+              productId: item.orderItem.product.id,
+              quantity: item.quantity,
+              movementType: "return",
+              source: "online",
+              orderRefId: onlineExchange.orderId,
+              createdAt: new Date(),
+            });
+          }
+
+          if (item.exchangeproductId) {
+            await tx.insert(stockMovements).values({
+              productId: item.exchangeproductId,
+              quantity: -item.quantity,
+              movementType: "sale",
+              source: "online",
+              orderRefId: onlineExchange.orderId,
+              createdAt: new Date(),
+            });
+          }
         }
       }
-
-
 
       return result;
     });
@@ -503,7 +556,7 @@ export class OnlineExchangeStorage implements IOnlineExchangeStorage {
     return { eligible: true, remainingDays };
   }
 
-  // Helper method to get exchanged quantity for a specific order item
+  // Fix 1 & 9: Use correct DB enum values; exclude exchange_cancelled
   private async getExchangedQuantityByOrderItem(
     orderItemId: string
   ): Promise<number> {
@@ -519,7 +572,8 @@ export class OnlineExchangeStorage implements IOnlineExchangeStorage {
       .where(
         and(
           eq(onlineExchangeItems.orderItemId, orderItemId),
-          inArray(onlineExchanges.status, ["exchange_requested",
+          inArray(onlineExchanges.status, [
+            "exchange_requested",
             "exchange_approved",
             "exchange_processing",
             "exchange_pickup_scheduled",
@@ -530,7 +584,8 @@ export class OnlineExchangeStorage implements IOnlineExchangeStorage {
             "exchange_shipped",
             "exchange_delivered",
             "exchange_completed",
-            "exchange_cancelled",])
+            // exchange_cancelled intentionally excluded (fix 9)
+          ])
         )
       );
 

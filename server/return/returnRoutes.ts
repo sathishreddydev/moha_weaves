@@ -6,8 +6,23 @@ import {
   returnStatusEnum
 } from "@shared/schema";
 import type { Express, Request, Response } from "express";
+import { publishRealtimeEvent } from "realtime/events";
 import { createAuthMiddleware } from "../authMiddleware";
 import { returnStorage } from "./returnStorage";
+
+// Valid status transitions — mirrors the frontend flow map
+const RETURN_TRANSITIONS: Record<string, string[]> = {
+  return_requested:       ["return_approved", "return_rejected", "return_cancelled"],
+  return_approved:        ["return_pickup_scheduled", "return_cancelled"],
+  return_pickup_scheduled:["return_picked_up", "return_cancelled"],
+  return_picked_up:       ["return_in_transit", "return_cancelled"],
+  return_in_transit:      ["return_received", "return_cancelled"],
+  return_received:        ["return_inspected", "return_cancelled"],
+  return_inspected:       ["return_completed", "return_cancelled"],
+  return_completed:       [],
+  return_rejected:        [],
+  return_cancelled:       [],
+};
 
 export const returnRoutes = (app: Express) => {
   const authInventory = createAuthMiddleware(["inventory", "admin"]);
@@ -66,6 +81,17 @@ export const returnRoutes = (app: Express) => {
         return res.status(400).json({ message: "Invalid return status" });
       }
 
+      // Enforce transition guard
+      const current = await returnStorage.getReturnRequest(req.params.id);
+      if (!current) return res.status(404).json({ message: "Return request not found" });
+
+      const allowed = RETURN_TRANSITIONS[current.status] ?? [];
+      if (!allowed.includes(status)) {
+        return res.status(400).json({
+          message: `Cannot transition from "${current.status}" to "${status}". Allowed: ${allowed.join(", ") || "none"}`,
+        });
+      }
+
       const updated = await returnStorage.updateReturnRequestStatus(
         req.params.id,
         status,
@@ -76,6 +102,13 @@ export const returnRoutes = (app: Express) => {
       if (!updated) return res.status(404).json({ message: "Return request not found" });
 
       res.json(updated);
+
+      // Emit realtime event so inventory list and customer UI refresh automatically
+      await publishRealtimeEvent("return_status_updated", {
+        returnId: req.params.id,
+        userId: current.userId,
+        status,
+      });
     } catch (error) {
       console.error("Error updating return status:", error);
       res.status(500).json({ message: "Failed to update return status" });
@@ -186,6 +219,13 @@ export const returnRoutes = (app: Express) => {
       const returnWithDetails = await returnStorage.getReturnRequest(newReturn.id);
 
       res.status(201).json(returnWithDetails);
+
+      // Notify inventory team of new return in real time
+      await publishRealtimeEvent("return_created", {
+        returnId: newReturn.id,
+        userId,
+        orderId,
+      });
     } catch (error) {
       console.error("Error creating return request:", error);
       res.status(500).json({ message: "Failed to create return request" });
@@ -242,7 +282,7 @@ export const returnRoutes = (app: Express) => {
         return res.status(400).json({ message: "Cannot cancel return request in current status" });
       }
 
-      const updated = await returnStorage.updateReturnRequestStatus(req.params.id, "cancelled");
+      const updated = await returnStorage.updateReturnRequestStatus(req.params.id, "return_cancelled");
       res.json(updated);
     } catch (error) {
       console.error("Error cancelling return request:", error);
