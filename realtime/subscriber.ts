@@ -75,7 +75,7 @@ export class RedisSubscriber {
         case "exchange_status_updated":
           this.handleExchangeStatusUpdated(event);
           break;
-        case "stock_updated":
+        case "cart_stock_sync":
           this.handleStockUpdated(event);
           break;
         default:
@@ -89,11 +89,11 @@ export class RedisSubscriber {
     getIO().emit("user_order_created", { type: event.type });
   }
   private handleStockUpdated(event: RealtimeEvent): void {
-    const { productId, variantId, newStock } = event.data ?? {};
-    const payload = { productId, variantId, newStock };
+    const { productId, variantId } = event.data ?? {};
+    const payload = { productId, variantId };
 
     if (productId) {
-      getIO().to(`product:${productId}`).emit("stock_updated", payload);
+      getIO().to(`product:${productId}`).emit("cart_stock_sync", payload);
     }
   }
 

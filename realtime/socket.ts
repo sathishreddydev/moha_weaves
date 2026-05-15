@@ -131,40 +131,6 @@ export const initSocket = (
       );
     }
 
-    // ✅ JOIN PRODUCT ROOMS (for cart stock_updated targeting)
-    // Both guests and auth users can subscribe to per-product rooms
-    // so they receive real-time stock updates for items in their cart.
-    socket.on("join_product_rooms", (productIds: string[]) => {
-
-      if (!Array.isArray(productIds)) return;
-
-      productIds.forEach((id) => {
-
-        if (typeof id === "string" && id.trim()) {
-
-          socket.join(`product:${id}`);
-
-          console.log(
-            `Socket ${socket.id} joined product:${id}`
-          );
-        }
-      });
-    });
-
-    // ✅ LEAVE PRODUCT ROOMS (cleanup when items are removed from cart)
-    socket.on("leave_product_rooms", (productIds: string[]) => {
-
-      if (!Array.isArray(productIds)) return;
-
-      productIds.forEach((id) => {
-
-        if (typeof id === "string" && id.trim()) {
-
-          socket.leave(`product:${id}`);
-        }
-      });
-    });
-
     // DISCONNECT
     socket.on("disconnect", () => {
 

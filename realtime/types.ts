@@ -28,7 +28,7 @@ export interface RealtimeEvent {
     | "system_event"
     | "filter_event"
     | "product_event"
-    | "stock_updated"
+    | "cart_stock_sync"
     | "user_order_created"
     | "order_item_status_updated"
     | "return_status_updated"
