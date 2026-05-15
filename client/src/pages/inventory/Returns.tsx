@@ -121,10 +121,10 @@ export default function InventoryReturns() {
   useEffect(() => {
     if (!socket) return;
     const handleRefresh = () => refetch();
-    socket.on("return_created", handleRefresh);
+    socket.on("product_returned", handleRefresh);
     socket.on("return_status_updated", handleRefresh);
     return () => {
-      socket.off("return_created", handleRefresh);
+      socket.off("product_returned", handleRefresh);
       socket.off("return_status_updated", handleRefresh);
     };
   }, [socket, refetch]);

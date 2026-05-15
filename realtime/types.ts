@@ -31,8 +31,8 @@ export interface RealtimeEvent {
     | "product_purchased"
     | "order_item_status_updated"
     | "return_status_updated"
-    | "return_created"
-    | "exchange_created"
+    | "product_returned"
+    | "product_exchanged"
     | "exchange_status_updated";
   target?: {
     userId?: string;

@@ -104,10 +104,10 @@ export default function InventoryExchanges() {
   useEffect(() => {
     if (!socket) return;
     const handleRefresh = () => refetch();
-    socket.on("exchange_created", handleRefresh);
+    socket.on("product_exchanged", handleRefresh);
     socket.on("exchange_status_updated", handleRefresh);
     return () => {
-      socket.off("exchange_created", handleRefresh);
+      socket.off("product_exchanged", handleRefresh);
       socket.off("exchange_status_updated", handleRefresh);
     };
   }, [socket, refetch]);

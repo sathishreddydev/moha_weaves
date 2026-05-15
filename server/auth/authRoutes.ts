@@ -17,8 +17,7 @@ if (!JWT_SECRET) {
 const ACCESS_TOKEN_EXPIRY = "7d"; // 7 days like most e-commerce apps
 const REFRESH_TOKEN_EXPIRY_DAYS = 30; // Refresh token valid for 30 days
 
-// Cookie security settings based on environment
-const isProduction = process.env.NODE_ENV === "production";
+// Cookie security settings
 const cookieOptions = {
   httpOnly: true,
   secure: false, // Disabled for HTTP (required for sameSite=none)

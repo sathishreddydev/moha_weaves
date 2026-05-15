@@ -61,10 +61,10 @@ export class RedisSubscriber {
         case "return_status_updated":
           this.handleReturnStatusUpdated(event);
           break;
-        case "return_created":
+        case "product_returned":
           this.handleReturnCreated(event);
           break;
-        case "exchange_created":
+        case "product_exchanged":
           this.handleExchangeCreated(event);
           break;
         case "exchange_status_updated":
@@ -126,8 +126,8 @@ export class RedisSubscriber {
     const payload = { type: event.type, data: { returnId, userId, orderId } };
 
     // Notify inventory and admin of the new return request
-    getIO().to("role:inventory").emit("return_created", payload);
-    getIO().to("role:admin").emit("return_created", payload);
+    getIO().to("role:inventory").emit("product_returned", payload);
+    getIO().to("role:admin").emit("product_returned", payload);
   }
 
   private handleExchangeCreated(event: RealtimeEvent): void {
@@ -135,8 +135,8 @@ export class RedisSubscriber {
     const payload = { type: event.type, data: { exchangeId, userId, orderId } };
 
     // Notify inventory and admin of the new exchange request
-    getIO().to("role:inventory").emit("exchange_created", payload);
-    getIO().to("role:admin").emit("exchange_created", payload);
+    getIO().to("role:inventory").emit("product_exchanged", payload);
+    getIO().to("role:admin").emit("product_exchanged", payload);
   }
 
   private handleExchangeStatusUpdated(event: RealtimeEvent): void {

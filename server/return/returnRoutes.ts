@@ -221,7 +221,7 @@ export const returnRoutes = (app: Express) => {
       res.status(201).json(returnWithDetails);
 
       // Notify inventory team of new return in real time
-      await publishRealtimeEvent("return_created", {
+      await publishRealtimeEvent("product_returned", {
         returnId: newReturn.id,
         userId,
         orderId,

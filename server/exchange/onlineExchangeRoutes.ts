@@ -111,7 +111,7 @@ export const onlineExchangeRoutes = (app: Express) => {
       res.status(201).json(newExchange);
 
       // Emit realtime event after response so the client gets the response first
-      await publishRealtimeEvent("exchange_created", {
+      await publishRealtimeEvent("product_exchanged", {
         exchangeId: newExchange.id,
         userId,
         orderId: newExchange.orderId,
