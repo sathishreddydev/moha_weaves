@@ -306,7 +306,7 @@ export default function InventoryProducts() {
   useEffect(() => {
     if (!socket) return;
 
-    const handleOrderEvent = (event: any) => {
+    const handleOrderEvent = () => {
       refetch();
     };
 
@@ -315,7 +315,7 @@ export default function InventoryProducts() {
     return () => {
       socket.off("product_purchased", handleOrderEvent);
     };
-  }, [socket]);
+  }, [socket, refetch]);
   const deleteMutation = useMutation({
     mutationFn: async (ids: string[]) => {
       const res = await apiRequest("DELETE", "/api/inventory/products", {

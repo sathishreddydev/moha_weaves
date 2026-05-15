@@ -13,18 +13,14 @@ export class RedisSubscriber {
   private setupRedisSubscriber(): void {
     sub.on("message", (channel: string, message: string) => {
       try {
-        const parsedMessage: RedisMessage = {
-          channel,
-          message,
-          timestamp: new Date(),
-        };
+        // Route the event to the appropriate Socket.io handler
+        this.handleRealtimeEvent(channel, message);
 
+        // Also invoke any per-channel callbacks registered via subscribe()
         const handler = this.subscriptions.get(channel);
         if (handler) {
-          handler(parsedMessage);
+          handler({ channel, message, timestamp: new Date() });
         }
-
-        this.handleRealtimeEvent(channel, message);
       } catch (error) {
         console.error(
           `Error processing Redis message from channel ${channel}:`,
@@ -34,7 +30,7 @@ export class RedisSubscriber {
     });
   }
 
-  private handleRealtimeEvent(channel: string, message: string): void {
+  private handleRealtimeEvent(_channel: string, message: string): void {
     try {
       const event: RealtimeEvent = JSON.parse(message);
 
@@ -74,9 +70,6 @@ export class RedisSubscriber {
           break;
         case "exchange_status_updated":
           this.handleExchangeStatusUpdated(event);
-          break;
-        case "product_purchased":
-          this.handleProductPurchased(event);
           break;
         default:
           console.warn(`Unknown event type: ${event.type}`);
@@ -170,6 +163,7 @@ export class RedisSubscriber {
 
     if (target?.role === "admin" || !target) {
       getIO().to("role:admin").emit("user_event", { type: event.type });
+      getIO().to("role:inventory").emit("user_event", { type: event.type });
     }
   }
   private handleCategoryCreated(event: RealtimeEvent): void {
@@ -206,6 +200,7 @@ export class RedisSubscriber {
   }
 
   private handleProductUpdate(event: RealtimeEvent): void {
+    // Broadcast to all clients — product changes (price, images, etc.) are public
     getIO().emit("product_event", { type: event.type });
   }
 
@@ -223,9 +218,11 @@ export class RedisSubscriber {
 
   public subscribe(
     channel: string,
-    callback: (message: RedisMessage) => void,
+    callback?: (message: RedisMessage) => void,
   ): void {
-    this.subscriptions.set(channel, callback);
+    if (callback) {
+      this.subscriptions.set(channel, callback);
+    }
     sub.subscribe(channel);
   }
 
@@ -247,9 +244,10 @@ export class RedisSubscriber {
 export const redisSubscriber = new RedisSubscriber();
 
 export const initSubscriber = async () => {
-  redisSubscriber.subscribe("realtime", (_message) => {
-    console.log("📡 Redis message received on realtime channel");
-  });
+  // Subscribe to the "realtime" Redis channel.
+  // All routing is handled centrally in handleRealtimeEvent — no per-channel
+  // callback is needed here.
+  redisSubscriber.subscribe("realtime");
 
   console.log("✅ Redis subscriber initialized");
 };
