@@ -33,7 +33,6 @@ export class RedisSubscriber {
   private handleRealtimeEvent(_channel: string, message: string): void {
     try {
       const event: RealtimeEvent = JSON.parse(message);
-
       switch (event.type) {
         case "user_event":
           this.handleUserUpdate(event);
@@ -98,7 +97,6 @@ export class RedisSubscriber {
       type: event.type,
       data: { userId, orderId, itemId, status },
     };
-
     // Notify the customer who owns the order
     if (userId) {
       getIO().to(`user:${userId}`).emit("order_item_status_updated", payload);
@@ -158,7 +156,9 @@ export class RedisSubscriber {
     const { target } = event;
 
     if (target?.userId) {
-      getIO().to(`user:${target.userId}`).emit("user_event", { type: event.type });
+      getIO()
+        .to(`user:${target.userId}`)
+        .emit("user_event", { type: event.type });
     }
 
     if (target?.role === "admin" || !target) {
@@ -178,7 +178,9 @@ export class RedisSubscriber {
     }
 
     if (target?.userId) {
-      getIO().to(`user:${target.userId}`).emit("stock_event", { type: event.type });
+      getIO()
+        .to(`user:${target.userId}`)
+        .emit("stock_event", { type: event.type });
     }
 
     // Broadcast to all connected clients for general stock updates
@@ -191,7 +193,9 @@ export class RedisSubscriber {
     const { target } = event;
 
     if (target?.userId) {
-      getIO().to(`user:${target.userId}`).emit("order_event", { type: event.type });
+      getIO()
+        .to(`user:${target.userId}`)
+        .emit("order_event", { type: event.type });
     }
 
     if (target?.role === "admin") {
@@ -208,9 +212,13 @@ export class RedisSubscriber {
     const { target } = event;
 
     if (target?.userId) {
-      getIO().to(`user:${target.userId}`).emit("system_event", { type: event.type });
+      getIO()
+        .to(`user:${target.userId}`)
+        .emit("system_event", { type: event.type });
     } else if (target?.role) {
-      getIO().to(`role:${target.role}`).emit("system_event", { type: event.type });
+      getIO()
+        .to(`role:${target.role}`)
+        .emit("system_event", { type: event.type });
     } else {
       getIO().emit("system_event", { type: event.type });
     }

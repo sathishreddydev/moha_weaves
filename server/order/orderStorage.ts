@@ -694,6 +694,19 @@ export class OrderRepository implements OrderStorage {
     updatedBy?: string,
     note?: string,
   ): Promise<any | undefined> {
+    // Map item-level statuses to the order_status enum values accepted by the DB:
+    //   order_status enum: 'created' | 'processing' | 'completed' | 'cancelled'
+    const ITEM_TO_ORDER_STATUS: Record<string, string> = {
+      confirmed:        "processing",
+      processing:       "processing",
+      shipped:          "processing",
+      delivered:        "completed",
+      return_requested: "processing",
+      returned:         "completed",
+      cancelled:        "cancelled",
+    };
+    const orderStatus = ITEM_TO_ORDER_STATUS[status] ?? status;
+
     return await db.transaction(async (tx) => {
       const [currentOrder] = await tx
         .select()
@@ -705,20 +718,11 @@ export class OrderRepository implements OrderStorage {
       const [updatedOrder] = await tx
         .update(orders)
         .set({
-          status: status as any,
+          status: orderStatus as any,
           updatedAt: new Date(),
         })
         .where(eq(orders.id, orderId))
         .returning();
-
-      // Record audit history, consistent with updateItemStatus
-      await storage.itemHistory(
-        orderId,
-        currentOrder.status,
-        status,
-        note || `Order status updated to ${status}`,
-        updatedBy
-      );
 
       return updatedOrder;
     });

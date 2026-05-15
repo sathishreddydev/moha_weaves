@@ -43,8 +43,17 @@ export const initSocket = (
 
     try {
 
-      const token =
-        socket.handshake.auth?.token;
+      // Accept token from handshake auth (Next.js app) OR from cookie (React app)
+      let token = socket.handshake.auth?.token;
+
+      if (!token) {
+        // Parse accessToken from the cookie header sent with the handshake
+        const cookieHeader = socket.handshake.headers?.cookie || "";
+        const match = cookieHeader.match(/(?:^|;\s*)accessToken=([^;]+)/);
+        if (match) {
+          token = decodeURIComponent(match[1]);
+        }
+      }
 
       // ✅ GUEST USER
       if (!token) {
@@ -61,10 +70,31 @@ export const initSocket = (
       }
 
       // ✅ AUTH USER
-      const decoded = jwt.verify(
-        token,
-        process.env.JWT_SECRET!
-      ) as UserPayload;
+      // Try SESSION_SECRET first (React app), then JWT_SECRET (Next.js app)
+      let decoded: UserPayload | null = null;
+      const secrets = [
+        process.env.SESSION_SECRET,
+        process.env.JWT_SECRET,
+      ].filter(Boolean) as string[];
+
+      for (const secret of secrets) {
+        try {
+          decoded = jwt.verify(token, secret) as UserPayload;
+          break; // verified successfully
+        } catch {
+          // try next secret
+        }
+      }
+
+      if (!decoded) {
+        console.error("Socket auth error: token could not be verified with any known secret");
+        return next(new Error("Unauthorized"));
+      }
+
+      // Normalise: Next.js auth-service uses `id`, React app uses `userId`
+      if (!decoded.userId && (decoded as any).id) {
+        decoded.userId = (decoded as any).id;
+      }
 
       (
         socket as AuthenticatedSocket

@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from "react";
 import type { User } from "@shared/schema";
 import { apiRequest } from "./queryClient";
+import socketService from "./socket";
 
 interface AuthContextType {
   user: User | null;
@@ -18,6 +19,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
   const isRefreshing = useRef(false);
   const refreshPromise = useRef<Promise<boolean> | null>(null);
+
+  // Reconnect socket whenever auth state changes so it joins the correct rooms
+  const reconnectSocket = useCallback(() => {
+    socketService.disconnect();
+    // Small delay to let the cookie be set before the new handshake
+    setTimeout(() => socketService.connect(), 100);
+  }, []);
 
   const refreshAccessToken = useCallback(async (): Promise<boolean> => {
     if (isRefreshing.current && refreshPromise.current) {
@@ -58,6 +66,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     checkAuth();
   }, [checkAuth]);
+
+  // Reconnect socket whenever user changes (login / logout)
+  useEffect(() => {
+    if (!isLoading) {
+      reconnectSocket();
+    }
+  }, [user?.id, isLoading]);
 
   const login = async (email: string, password: string, role: string) => {
     try {

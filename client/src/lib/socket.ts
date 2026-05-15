@@ -5,8 +5,16 @@ class SocketService {
 
   connect(token?: string): Socket {
 
+    // If already connected, return existing socket
     if (this.socket?.connected) {
       return this.socket;
+    }
+
+    // If socket exists but is disconnected, clean it up before reconnecting
+    if (this.socket) {
+      this.socket.removeAllListeners();
+      this.socket.disconnect();
+      this.socket = null;
     }
 
     this.socket = io("/", {

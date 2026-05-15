@@ -24,6 +24,8 @@ export const useSocketStore = create<SocketStore>((set, get) => ({
   isConnected: false,
 
   initialize: () => {
+    // withCredentials: true on the socket client sends the accessToken cookie
+    // automatically in the handshake — no need to pass it manually here.
     const socketInstance = socketService.connect();
     
     // Set initial connection state
