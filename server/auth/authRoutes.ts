@@ -5,11 +5,11 @@ import jwt from "jsonwebtoken";
 import { createAuthMiddleware } from "../authMiddleware";
 import { userService } from "./authStorage";
 
-// Security: Require SESSION_SECRET environment variable
-const JWT_SECRET = process.env.SESSION_SECRET;
+// Security: Require JWT_SECRET environment variable
+const JWT_SECRET = process.env.JWT_SECRET;
 if (!JWT_SECRET) {
   throw new Error(
-    "SESSION_SECRET environment variable is required for security. Please set it in your environment.",
+    "JWT_SECRET environment variable is required for security. Please set it in your environment.",
   );
 }
 

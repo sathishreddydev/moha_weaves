@@ -69,25 +69,12 @@ export const initSocket = (
         return next();
       }
 
-      // ✅ AUTH USER
-      // Try SESSION_SECRET first (React app), then JWT_SECRET (Next.js app)
+      // ✅ AUTH USER — both apps now sign with JWT_SECRET
       let decoded: UserPayload | null = null;
-      const secrets = [
-        process.env.SESSION_SECRET,
-        process.env.JWT_SECRET,
-      ].filter(Boolean) as string[];
-
-      for (const secret of secrets) {
-        try {
-          decoded = jwt.verify(token, secret) as UserPayload;
-          break; // verified successfully
-        } catch {
-          // try next secret
-        }
-      }
-
-      if (!decoded) {
-        console.error("Socket auth error: token could not be verified with any known secret");
+      try {
+        decoded = jwt.verify(token, process.env.JWT_SECRET!) as UserPayload;
+      } catch {
+        console.error("Socket auth error: invalid token");
         return next(new Error("Unauthorized"));
       }
 
@@ -96,10 +83,7 @@ export const initSocket = (
         decoded.userId = (decoded as any).id;
       }
 
-      (
-        socket as AuthenticatedSocket
-      ).user = decoded;
-
+      (socket as AuthenticatedSocket).user = decoded;
       next();
 
     } catch (err) {
