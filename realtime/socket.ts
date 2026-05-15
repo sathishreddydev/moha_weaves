@@ -4,6 +4,13 @@ import { Server as HttpServer } from "http";
 
 export let io: Server;
 
+export const getIO = (): Server => {
+  if (!io) {
+    throw new Error("Socket.io has not been initialized. Call initSocket first.");
+  }
+  return io;
+};
+
 interface UserPayload {
   userId: string;
   role: string;
@@ -123,6 +130,40 @@ export const initSocket = (
         "Guest user connected"
       );
     }
+
+    // ✅ JOIN PRODUCT ROOMS (for cart stock_updated targeting)
+    // Both guests and auth users can subscribe to per-product rooms
+    // so they receive real-time stock updates for items in their cart.
+    socket.on("join_product_rooms", (productIds: string[]) => {
+
+      if (!Array.isArray(productIds)) return;
+
+      productIds.forEach((id) => {
+
+        if (typeof id === "string" && id.trim()) {
+
+          socket.join(`product:${id}`);
+
+          console.log(
+            `Socket ${socket.id} joined product:${id}`
+          );
+        }
+      });
+    });
+
+    // ✅ LEAVE PRODUCT ROOMS (cleanup when items are removed from cart)
+    socket.on("leave_product_rooms", (productIds: string[]) => {
+
+      if (!Array.isArray(productIds)) return;
+
+      productIds.forEach((id) => {
+
+        if (typeof id === "string" && id.trim()) {
+
+          socket.leave(`product:${id}`);
+        }
+      });
+    });
 
     // DISCONNECT
     socket.on("disconnect", () => {
