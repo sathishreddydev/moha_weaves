@@ -57,8 +57,8 @@ export class RedisSubscriber {
         case "system_event":
           this.handleSystemNotification(event);
           break;
-        case "user_order_created":
-          this.handleUserOrderCreated(event);
+        case "product_purchased":
+          this.handleProductPurchased(event);
           break;
         case "order_item_status_updated":
           this.handleOrderItemStatusUpdated(event);
@@ -75,8 +75,8 @@ export class RedisSubscriber {
         case "exchange_status_updated":
           this.handleExchangeStatusUpdated(event);
           break;
-        case "cart_stock_sync":
-          this.handleStockUpdated(event);
+        case "product_purchased":
+          this.handleProductPurchased(event);
           break;
         default:
           console.warn(`Unknown event type: ${event.type}`);
@@ -85,15 +85,17 @@ export class RedisSubscriber {
       console.error(`Error parsing realtime event:`, error);
     }
   }
-  private handleUserOrderCreated(event: RealtimeEvent): void {
-    getIO().emit("user_order_created", { type: event.type });
-  }
-  private handleStockUpdated(event: RealtimeEvent): void {
+  private handleProductPurchased(event: RealtimeEvent): void {
     const { productId, variantId } = event.data ?? {};
-    const payload = { productId, variantId };
+    const payload = { productId, variantId: variantId ?? null };
 
+    // Notify admin & inventory so their dashboards/orders/products refresh
+    getIO().to("role:admin").emit("product_purchased", payload);
+    getIO().to("role:inventory").emit("product_purchased", payload);
+
+    // Notify anyone viewing this product page so stock updates live
     if (productId) {
-      getIO().to(`product:${productId}`).emit("cart_stock_sync", payload);
+      getIO().to(`product:${productId}`).emit("product_purchased", payload);
     }
   }
 

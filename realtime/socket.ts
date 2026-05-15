@@ -131,6 +131,19 @@ export const initSocket = (
       );
     }
 
+    // ✅ JOIN PRODUCT ROOM (any client can join to receive stock updates)
+    socket.on("join_product_room", (productId: string) => {
+      if (productId) {
+        socket.join(`product:${productId}`);
+      }
+    });
+
+    socket.on("leave_product_room", (productId: string) => {
+      if (productId) {
+        socket.leave(`product:${productId}`);
+      }
+    });
+
     // DISCONNECT
     socket.on("disconnect", () => {
 

@@ -208,9 +208,9 @@ export default function InventoryOrders() {
     const handleOrderEvent = () => {
       refetch();
     };
-    socket.on("user_order_created", handleOrderEvent);
+    socket.on("product_purchased", handleOrderEvent);
     return () => {
-      socket.off("user_order_created", handleOrderEvent);
+      socket.off("product_purchased", handleOrderEvent);
     };
   }, [socket, refetch]);
 

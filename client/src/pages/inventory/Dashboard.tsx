@@ -95,10 +95,10 @@ export default function InventoryDashboard() {
   ]);
 
   useEffect(() => {
-    socket.on("user_order_created", refetch);
+    socket.on("product_purchased", refetch);
     socket.on("order_item_status_updated", refetch);
     return () => {
-      socket.off("user_order_created", refetch);
+      socket.off("product_purchased", refetch);
       socket.off("order_item_status_updated", refetch);
     };
   }, [socket, refetch]);
