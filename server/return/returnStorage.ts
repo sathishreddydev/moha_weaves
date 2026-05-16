@@ -1,9 +1,12 @@
 import {
   categories,
   colors,
+  coupons,
   fabrics,
   InsertReturnItem,
   InsertReturnRequest,
+  onlineExchanges,
+  onlineExchangeItems,
   orderItems,
   products,
   productVariants,
@@ -371,21 +374,19 @@ export class ReturnStorage implements IReturnStorage {
       const returnRequest = await this.getReturnRequest(id);
       if (!returnRequest) return result;
 
-      // Map return request status → order item status
-      // Only statuses that exist in itemStatusEnum are safe to write to orderItems.status.
-      // return_pickup_scheduled / return_picked_up are NOT in itemStatusEnum, so we keep
-      // the item at return_requested for those intermediate logistics steps.
+      // Map return request status → order item status (1:1 — all return sub-statuses
+      // are stored via `as any` so the DB enum constraint doesn't block them).
       const statusMap: Record<string, string> = {
-        return_requested: "return_requested",
-        return_approved: "return_approved",
-        return_pickup_scheduled: "return_approved",   // no matching item status — keep approved
-        return_picked_up: "return_approved",           // same
-        return_in_transit: "return_in_transit",
-        return_received: "return_received",
-        return_inspected: "return_inspected",
-        return_completed: "return_completed",
-        return_rejected: "return_rejected",
-        return_cancelled: "return_cancelled",
+        return_requested:        "return_requested",
+        return_approved:         "return_approved",
+        return_pickup_scheduled: "return_pickup_scheduled",
+        return_picked_up:        "return_picked_up",
+        return_in_transit:       "return_in_transit",
+        return_received:         "return_received",
+        return_inspected:        "return_inspected",
+        return_completed:        "return_completed",
+        return_rejected:         "return_rejected",
+        return_cancelled:        "return_cancelled",
       };
 
       for (const item of returnRequest.items) {
@@ -401,7 +402,15 @@ export class ReturnStorage implements IReturnStorage {
           item.orderItemId,
           item.orderItem.status,
           newItemStatus,
-          `Return ${status.replace(/_/g, " ")}${status === "return_completed" ? " — refund initiated" : ""}`,
+          `Return ${status.replace(/_/g, " ")}${
+            status === "return_completed"
+              ? returnRequest.resolution === "refund"
+                ? " — refund initiated"
+                : returnRequest.resolution === "exchange"
+                ? " — exchange created"
+                : " — store credit issued"
+              : ""
+          }`,
           processedBy
         );
 
@@ -434,7 +443,9 @@ export class ReturnStorage implements IReturnStorage {
           title: "Return Completed",
           message: returnRequest.resolution === "refund"
             ? `Your return is complete. A refund of ₹${returnRequest.refundAmount || "0"} has been initiated.`
-            : "Your return is complete. We will process your resolution shortly.",
+            : returnRequest.resolution === "exchange"
+            ? "Your return is complete. An exchange request has been created — our team will be in touch shortly."
+            : `Your return is complete. A store credit coupon has been issued to your account.`,
         },
         return_rejected: {
           title: "Return Rejected",
@@ -503,6 +514,128 @@ export class ReturnStorage implements IReturnStorage {
               });
             } catch { /* best-effort */ }
           }
+        }
+      }
+
+      // ── Exchange resolution ──────────────────────────────────────────────────
+      // When the return is completed with resolution=exchange, auto-create an
+      // onlineExchange so the admin can process the replacement shipment through
+      // the normal exchange workflow.
+      if (status === "return_completed" && returnRequest.resolution === "exchange") {
+        // Idempotency guard — skip if an exchange was already created for this return
+        const alreadyLinked = returnRequest.exchangeOrderId;
+        if (!alreadyLinked) {
+          try {
+            const [newExchange] = await db
+              .insert(onlineExchanges)
+              .values({
+                orderId: returnRequest.orderId,
+                userId: returnRequest.userId,
+                status: "exchange_requested",
+                reason: returnRequest.reason,
+                reasonDetails: returnRequest.reasonDetails ?? undefined,
+                pickupAddress: returnRequest.pickupAddress ?? undefined,
+                processedBy: processedBy ?? undefined,
+              })
+              .returning();
+
+            // Mirror each return item as an exchange item
+            for (const item of returnRequest.items) {
+              await db.insert(onlineExchangeItems).values({
+                exchangeId: newExchange.id,
+                orderItemId: item.orderItemId,
+                quantity: item.quantity,
+                condition: item.condition ?? undefined,
+                isRestockable: item.isRestockable ?? true,
+                // exchangeproductId left null — admin will set the replacement product
+              });
+            }
+
+            // Store the exchange ID back on the return request for traceability
+            await db
+              .update(returnRequests)
+              .set({ exchangeOrderId: newExchange.id, updatedAt: new Date() })
+              .where(eq(returnRequests.id, id));
+
+            // Update the notification message now that we have the exchange ID
+            await storage.createNotification({
+              userId: returnRequest.userId,
+              type: "return",
+              title: "Exchange Request Created",
+              message: `Your return is complete. An exchange request (#${newExchange.id}) has been created. Our team will contact you to arrange the replacement.`,
+              relatedId: newExchange.id,
+              relatedType: "return",
+            });
+
+            console.log(`Auto-exchange created for return ${id}: exchange ${newExchange.id}`);
+          } catch (error) {
+            console.error("Failed to create auto-exchange for return:", id, error);
+            try {
+              await storage.createNotification({
+                userId: processedBy || returnRequest.userId,
+                type: "system",
+                title: "Exchange Creation Failed",
+                message: `Auto-exchange for return ${id} failed: ${error instanceof Error ? error.message : "Unknown error"}. Please create the exchange manually.`,
+                relatedId: id,
+                relatedType: "return",
+              });
+            } catch { /* best-effort */ }
+          }
+        }
+      }
+
+      // ── Store credit resolution ──────────────────────────────────────────────
+      // No wallet table exists, so store credit is issued as a single-use fixed
+      // coupon valid for 1 year. The coupon code is sent to the customer.
+      if (status === "return_completed" && returnRequest.resolution === "store_credit") {
+        try {
+          const creditAmount = returnRequest.refundAmount
+            ? parseFloat(String(returnRequest.refundAmount))
+            : returnRequest.items.reduce((total, item) => {
+                return total + parseFloat(String(item.orderItem.price || "0")) * Number(item.quantity);
+              }, 0);
+
+          // Generate a unique, human-readable coupon code
+          const couponCode = `CREDIT-${returnRequest.userId.slice(-6).toUpperCase()}-${Date.now().toString(36).toUpperCase()}`;
+
+          const validUntil = new Date();
+          validUntil.setFullYear(validUntil.getFullYear() + 1);
+
+          await db.insert(coupons).values({
+            code: couponCode,
+            name: `Store Credit — Return #${id}`,
+            description: `Store credit issued for return request #${id}. Reason: ${returnRequest.reason}.`,
+            type: "fixed",
+            value: creditAmount.toFixed(2),
+            usageLimit: 1,
+            perUserLimit: 1,
+            validFrom: new Date(),
+            validUntil,
+            isActive: true,
+          });
+
+          await storage.createNotification({
+            userId: returnRequest.userId,
+            type: "return",
+            title: "Store Credit Issued",
+            message: `Your return is complete. A store credit of ₹${creditAmount.toFixed(2)} has been issued. Use coupon code ${couponCode} at checkout. Valid for 1 year.`,
+            relatedId: id,
+            relatedType: "return",
+          });
+
+          console.log(`Store credit coupon ${couponCode} issued for return ${id}, amount: ₹${creditAmount.toFixed(2)}`);
+        } catch (error) {
+          console.error("Failed to issue store credit for return:", id, error);
+          try {
+            await storage.createNotification({
+              userId: processedBy || returnRequest.userId,
+              type: "system",
+              title: "Store Credit Issuance Failed",
+              message: `Store credit for return ${id} failed: ${error instanceof Error ? error.message : "Unknown error"}. Please issue the credit manually.`,
+              relatedId: id,
+              relatedType: "return",
+            });
+          } catch { /* best-effort */ }
         }
       }
 

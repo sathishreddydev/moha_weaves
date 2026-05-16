@@ -122,21 +122,31 @@ export class RedisSubscriber {
   }
 
   private handleReturnCreated(event: RealtimeEvent): void {
-    const { returnId, userId, orderId } = event.data ?? {};
-    const payload = { type: event.type, data: { returnId, userId, orderId } };
+    const { orderId, itemId, userId, status } = event.data ?? {};
+    const payload = { type: event.type, data: { orderId, itemId, userId, status } };
 
     // Notify inventory and admin of the new return request
     getIO().to("role:inventory").emit("product_returned", payload);
     getIO().to("role:admin").emit("product_returned", payload);
+
+    // Notify the customer so their order page can reflect the new status
+    if (userId) {
+      getIO().to(`user:${userId}`).emit("product_returned", payload);
+    }
   }
 
   private handleExchangeCreated(event: RealtimeEvent): void {
-    const { exchangeId, userId, orderId } = event.data ?? {};
-    const payload = { type: event.type, data: { exchangeId, userId, orderId } };
+    const { orderId, itemId, userId, status } = event.data ?? {};
+    const payload = { type: event.type, data: { orderId, itemId, userId, status } };
 
     // Notify inventory and admin of the new exchange request
     getIO().to("role:inventory").emit("product_exchanged", payload);
     getIO().to("role:admin").emit("product_exchanged", payload);
+
+    // Notify the customer so their order page can reflect the new status
+    if (userId) {
+      getIO().to(`user:${userId}`).emit("product_exchanged", payload);
+    }
   }
 
   private handleExchangeStatusUpdated(event: RealtimeEvent): void {

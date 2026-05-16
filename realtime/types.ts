@@ -44,6 +44,10 @@ export interface RealtimeEvent {
     orderId?: string;
     itemId?: string;
     status?: string;
+    /** @deprecated use orderId/itemId/userId/status instead */
+    returnId?: string;
+    /** @deprecated use orderId/itemId/userId/status instead */
+    exchangeId?: string;
     [key: string]: any;
   };
   metadata?: {

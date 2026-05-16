@@ -112,9 +112,10 @@ export const onlineExchangeRoutes = (app: Express) => {
 
       // Emit realtime event after response so the client gets the response first
       await publishRealtimeEvent("product_exchanged", {
-        exchangeId: newExchange.id,
-        userId,
         orderId: newExchange.orderId,
+        itemId: validatedData.items[0]?.orderItemId ?? null,
+        userId,
+        status: "exchange_requested",
       });
     } catch (error) {
       console.error("Error creating online exchange:", error);

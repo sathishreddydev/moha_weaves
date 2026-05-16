@@ -222,9 +222,10 @@ export const returnRoutes = (app: Express) => {
 
       // Notify inventory team of new return in real time
       await publishRealtimeEvent("product_returned", {
-        returnId: newReturn.id,
-        userId,
         orderId,
+        itemId: items[0]?.orderItemId ?? null,
+        userId,
+        status: "return_requested",
       });
     } catch (error) {
       console.error("Error creating return request:", error);
