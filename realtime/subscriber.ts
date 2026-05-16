@@ -70,6 +70,9 @@ export class RedisSubscriber {
         case "exchange_status_updated":
           this.handleExchangeStatusUpdated(event);
           break;
+        case "refund_status_updated":
+          this.handleRefundStatusUpdated(event);
+          break;
         default:
           console.warn(`Unknown event type: ${event.type}`);
       }
@@ -161,6 +164,23 @@ export class RedisSubscriber {
     // Notify inventory and admin so their exchanges list refreshes
     getIO().to("role:inventory").emit("exchange_status_updated", payload);
     getIO().to("role:admin").emit("exchange_status_updated", payload);
+  }
+
+  private handleRefundStatusUpdated(event: RealtimeEvent): void {
+    const { refundId, userId, orderId, status, amount, failureReason, completedAt, initiatedAt } = event.data ?? {};
+    const payload = {
+      type: event.type,
+      data: { refundId, userId, orderId, status, amount, failureReason, completedAt, initiatedAt },
+    };
+
+    // Notify the customer whose refund was updated
+    if (userId) {
+      getIO().to(`user:${userId}`).emit("refund_status_updated", payload);
+    }
+
+    // Notify inventory and admin so their refunds list refreshes
+    getIO().to("role:inventory").emit("refund_status_updated", payload);
+    getIO().to("role:admin").emit("refund_status_updated", payload);
   }
   private handleUserUpdate(event: RealtimeEvent): void {
     const { target } = event;

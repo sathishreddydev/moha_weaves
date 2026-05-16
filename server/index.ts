@@ -7,6 +7,7 @@ import { serveStatic } from "./static";
 import { emailService } from "./services/emailService";
 import { initSocket } from "../realtime/socket";
 import { initSubscriber } from "../realtime/subscriber";
+import { startRefundCron } from "./cron/refundCron";
 import dotenv from "dotenv";
 
 // Load environment variables
@@ -104,8 +105,10 @@ async function bootstrap() {
 
   await registerRoutes(httpServer, app);
   initSocket(httpServer);
-
   await initSubscriber();
+
+  // Start background cron jobs
+  startRefundCron();
   app.use(
     (err: any, _req: Request, res: Response, _next: NextFunction) => {
       const status = err?.status || err?.statusCode || 500;

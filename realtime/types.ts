@@ -33,7 +33,8 @@ export interface RealtimeEvent {
     | "return_status_updated"
     | "product_returned"
     | "product_exchanged"
-    | "exchange_status_updated";
+    | "exchange_status_updated"
+    | "refund_status_updated";
   target?: {
     userId?: string;
     role?: string;

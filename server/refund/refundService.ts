@@ -3,6 +3,7 @@ import { and, eq } from "drizzle-orm";
 import { db } from "../db";
 import { createRefund, getRefundStatus } from "../razorpayClient";
 import { storage } from "../storage";
+import { publishRealtimeEvent } from "../../realtime/events";
 
 export interface RefundProcessingOptions {
   returnRequestId: string;
@@ -115,13 +116,34 @@ export class RefundService {
           relatedId: refund.id,
           relatedType: "refund",
         });
+
+        // Push realtime update to the customer's browser
+        await publishRealtimeEvent("refund_status_updated", {
+          refundId: refund.id,
+          userId: refund.userId,
+          orderId: refund.orderId,
+          status: "completed",
+          amount: refund.amount,
+          completedAt: new Date().toISOString(),
+        });
       } else if (razorpayRefund.status === "failed") {
+        const failureReason = (razorpayRefund as any).error_description || "Refund failed";
         await this.updateRefundStatus(
           refundId,
           "failed",
           undefined,
-          (razorpayRefund as any).error_description || "Refund failed"
+          failureReason
         );
+
+        // Push realtime update to the customer's browser
+        await publishRealtimeEvent("refund_status_updated", {
+          refundId: refund.id,
+          userId: refund.userId,
+          orderId: refund.orderId,
+          status: "failed",
+          amount: refund.amount,
+          failureReason,
+        });
       }
     } catch (error) {
       console.error("Failed to check refund status:", error);
@@ -216,6 +238,16 @@ export class RefundService {
         message: `Your refund of ₹${result.amount} has been processed manually.`,
         relatedId: result.id,
         relatedType: "refund",
+      });
+
+      // Push realtime update to the customer's browser
+      await publishRealtimeEvent("refund_status_updated", {
+        refundId: result.id,
+        userId: result.userId,
+        orderId: result.orderId,
+        status: "completed",
+        amount: result.amount,
+        completedAt: new Date().toISOString(),
       });
     }
 

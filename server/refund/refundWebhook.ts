@@ -4,6 +4,7 @@ import { refundService } from "./refundService";
 import { db } from "../db";
 import { refunds } from "@shared/schema";
 import { eq } from "drizzle-orm";
+import { publishRealtimeEvent } from "../../realtime/events";
 
 export class RefundWebhookService {
   static verifyWebhookSignature(body: string, signature: string, secret: string): boolean {
@@ -104,13 +105,25 @@ export class RefundWebhookService {
         return;
       }
 
+      const failureReason = refundEntity.error_description || "Refund failed via webhook";
+
       await db
         .update(refunds)
         .set({
           status: "failed",
-          failureReason: refundEntity.error_description || "Refund failed via webhook",
+          failureReason,
         })
         .where(eq(refunds.id, refund.id));
+
+      // Push realtime update to the customer's browser
+      await publishRealtimeEvent("refund_status_updated", {
+        refundId: refund.id,
+        userId: refund.userId,
+        orderId: refund.orderId,
+        status: "failed",
+        amount: refund.amount,
+        failureReason,
+      });
 
       console.log(`Refund ${refund.id} marked as failed via webhook`);
     } catch (error) {
