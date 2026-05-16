@@ -67,10 +67,17 @@ interface ShippingEstimate {
 
 const addressFormSchema = z.object({
   name: z.string().min(2, "Name must be at least 2 characters"),
-  phone: z.string().regex(/^[0-9]{10}$/, "Phone must be a 10-digit number"),
-  locality: z.string().min(5, "Locality must be at least 5 characters"),
+  phone: z
+    .string()
+    .regex(
+      /^(\+91[\-\s]?)?[6-9]\d{9}$/,
+      "Enter a valid 10-digit Indian mobile number"
+    ),
+  addressLine1: z.string().min(5, "Address line 1 must be at least 5 characters"),
+  locality: z.string().min(2, "Locality must be at least 2 characters"),
   city: z.string().min(2, "City must be at least 2 characters"),
-  pincode: z.string().regex(/^[0-9]{6}$/, "Pincode must be a 6-digit number"),
+  state: z.string().min(2, "State is required"),
+  pincode: z.string().regex(/^[1-9][0-9]{5}$/, "Enter a valid 6-digit pincode"),
 });
 
 export default function Checkout() {
@@ -92,10 +99,20 @@ export default function Checkout() {
   const [newAddress, setNewAddress] = useState({
     name: "",
     phone: "",
+    addressLine1: "",
     locality: "",
     city: "",
+    state: "",
     pincode: "",
   });
+  const [checkoutPincodeInfo, setCheckoutPincodeInfo] = useState<{
+    available: boolean;
+    city?: string;
+    state?: string;
+    deliveryDays?: number;
+    message?: string;
+  } | null>(null);
+  const [checkoutPincodeLoading, setCheckoutPincodeLoading] = useState(false);
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
   const cartItems = useCartStore((state) => state.cart);
   const isLoadingCart = useCartStore((state) => state.isLoadingCart);
@@ -231,6 +248,26 @@ export default function Checkout() {
     setShowNewAddressForm(false);
   };
 
+  const checkCheckoutPincode = async (pincode: string) => {
+    setCheckoutPincodeLoading(true);
+    setCheckoutPincodeInfo(null);
+    try {
+      const response = await apiRequest("GET", `/api/pincodes/${pincode}/check`);
+      setCheckoutPincodeInfo(response);
+      if (response.available) {
+        setNewAddress((prev) => ({
+          ...prev,
+          city: response.city ?? prev.city,
+          state: response.state ?? prev.state,
+        }));
+      }
+    } catch {
+      setCheckoutPincodeInfo({ available: false, message: "Could not check pincode" });
+    } finally {
+      setCheckoutPincodeLoading(false);
+    }
+  };
+
   const handleNewAddressSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setFormErrors({});
@@ -253,10 +290,13 @@ export default function Checkout() {
       setNewAddress({
         name: "",
         phone: "",
+        addressLine1: "",
         locality: "",
         city: "",
+        state: "",
         pincode: "",
       });
+      setCheckoutPincodeInfo(null);
     } catch {
       //
     }
@@ -355,7 +395,15 @@ export default function Checkout() {
       return;
     }
 
-    const shippingAddress = `${selectedAddress.name}\n${selectedAddress.phone}\n${selectedAddress.locality}\n${selectedAddress.city} - ${selectedAddress.pincode}`;
+    const shippingAddress = [
+      selectedAddress.name,
+      selectedAddress.phone,
+      selectedAddress.addressLine1,
+      selectedAddress.locality,
+      `${selectedAddress.city}${selectedAddress.state ? `, ${selectedAddress.state}` : ""} - ${selectedAddress.pincode}`,
+    ]
+      .filter(Boolean)
+      .join("\n");
 
     try {
       const razorpayOrder = await apiRequest("POST", "/api/user/create-razorpay-order", {
@@ -552,7 +600,9 @@ export default function Checkout() {
                           {address.phone}
                         </p>
                         <p className="text-sm">
-                          {address.locality}, {address.city} - {address.pincode}
+                          {address.addressLine1 ? `${address.addressLine1}, ` : ""}
+                          {address.locality}, {address.city}
+                          {address.state ? `, ${address.state}` : ""} — {address.pincode}
                         </p>
                       </div>
                     </div>
@@ -596,6 +646,7 @@ export default function Checkout() {
                   className="mt-4 p-4 border rounded-lg space-y-4"
                 >
                   <h4 className="font-medium">New Delivery Address</h4>
+                  {/* Name + Phone side by side */}
                   <div className="grid grid-cols-2 gap-3">
                     <div>
                       <Label htmlFor="name">Full Name</Label>
@@ -609,20 +660,18 @@ export default function Checkout() {
                         data-testid="input-new-name"
                       />
                       {formErrors.name && (
-                        <p
-                          className="text-xs text-destructive mt-1"
-                          data-testid="error-name"
-                        >
+                        <p className="text-xs text-destructive mt-1" data-testid="error-name">
                           {formErrors.name}
                         </p>
                       )}
                     </div>
                     <div>
-                      <Label htmlFor="phone">Phone (10 digits)</Label>
+                      <Label htmlFor="phone">Phone</Label>
                       <Input
                         id="phone"
                         type="tel"
                         maxLength={10}
+                        placeholder="Starts with 6–9"
                         value={newAddress.phone}
                         onChange={(e) => {
                           const value = e.target.value.replace(/\D/g, "");
@@ -632,84 +681,111 @@ export default function Checkout() {
                         data-testid="input-new-phone"
                       />
                       {formErrors.phone && (
-                        <p
-                          className="text-xs text-destructive mt-1"
-                          data-testid="error-phone"
-                        >
+                        <p className="text-xs text-destructive mt-1" data-testid="error-phone">
                           {formErrors.phone}
                         </p>
                       )}
                     </div>
                   </div>
+
+                  {/* Address Line 1 */}
                   <div>
-                    <Label htmlFor="locality">Locality / Street</Label>
+                    <Label htmlFor="addressLine1">Address Line 1</Label>
+                    <Input
+                      id="addressLine1"
+                      placeholder="House no., Building, Street"
+                      value={newAddress.addressLine1}
+                      onChange={(e) =>
+                        setNewAddress({ ...newAddress, addressLine1: e.target.value })
+                      }
+                      className={formErrors.addressLine1 ? "border-destructive" : ""}
+                      data-testid="input-new-addressLine1"
+                    />
+                    {formErrors.addressLine1 && (
+                      <p className="text-xs text-destructive mt-1">{formErrors.addressLine1}</p>
+                    )}
+                  </div>
+
+                  {/* Locality */}
+                  <div>
+                    <Label htmlFor="locality">Locality / Area</Label>
                     <Input
                       id="locality"
+                      placeholder="Locality / Colony / Area"
                       value={newAddress.locality}
                       onChange={(e) =>
-                        setNewAddress({
-                          ...newAddress,
-                          locality: e.target.value,
-                        })
+                        setNewAddress({ ...newAddress, locality: e.target.value })
                       }
-                      className={
-                        formErrors.locality ? "border-destructive" : ""
-                      }
+                      className={formErrors.locality ? "border-destructive" : ""}
                       data-testid="input-new-locality"
                     />
                     {formErrors.locality && (
-                      <p
-                        className="text-xs text-destructive mt-1"
-                        data-testid="error-locality"
-                      >
+                      <p className="text-xs text-destructive mt-1" data-testid="error-locality">
                         {formErrors.locality}
                       </p>
                     )}
                   </div>
+
+                  {/* Pincode — auto-fills city + state */}
+                  <div>
+                    <Label htmlFor="pincode">Pincode</Label>
+                    <Input
+                      id="pincode"
+                      maxLength={6}
+                      placeholder="6-digit pincode"
+                      value={newAddress.pincode}
+                      onChange={(e) => {
+                        const value = e.target.value.replace(/\D/g, "");
+                        setNewAddress({ ...newAddress, pincode: value });
+                        if (value.length === 6) checkCheckoutPincode(value);
+                      }}
+                      className={
+                        formErrors.pincode || (checkoutPincodeInfo && !checkoutPincodeInfo.available)
+                          ? "border-destructive"
+                          : ""
+                      }
+                      data-testid="input-new-pincode"
+                    />
+                    {checkoutPincodeLoading && (
+                      <p className="text-xs text-muted-foreground mt-1">Checking availability...</p>
+                    )}
+                    {checkoutPincodeInfo && (
+                      <p className={`text-xs mt-1 ${checkoutPincodeInfo.available ? "text-green-600" : "text-destructive"}`}>
+                        {checkoutPincodeInfo.available
+                          ? `✓ Delivery available — ${checkoutPincodeInfo.city}, ${checkoutPincodeInfo.state}`
+                          : `✗ ${checkoutPincodeInfo.message ?? "Delivery not available"}`}
+                      </p>
+                    )}
+                    {formErrors.pincode && (
+                      <p className="text-xs text-destructive mt-1" data-testid="error-pincode">
+                        {formErrors.pincode}
+                      </p>
+                    )}
+                  </div>
+
+                  {/* City + State — auto-filled, disabled */}
                   <div className="grid grid-cols-2 gap-3">
                     <div>
                       <Label htmlFor="city">City</Label>
                       <Input
                         id="city"
                         value={newAddress.city}
-                        onChange={(e) =>
-                          setNewAddress({ ...newAddress, city: e.target.value })
-                        }
-                        className={formErrors.city ? "border-destructive" : ""}
+                        placeholder="Auto-filled"
+                        disabled
+                        className="bg-muted text-muted-foreground cursor-not-allowed"
                         data-testid="input-new-city"
                       />
-                      {formErrors.city && (
-                        <p
-                          className="text-xs text-destructive mt-1"
-                          data-testid="error-city"
-                        >
-                          {formErrors.city}
-                        </p>
-                      )}
                     </div>
                     <div>
-                      <Label htmlFor="pincode">Pincode (6 digits)</Label>
+                      <Label htmlFor="state">State</Label>
                       <Input
-                        id="pincode"
-                        maxLength={6}
-                        value={newAddress.pincode}
-                        onChange={(e) => {
-                          const value = e.target.value.replace(/\D/g, "");
-                          setNewAddress({ ...newAddress, pincode: value });
-                        }}
-                        className={
-                          formErrors.pincode ? "border-destructive" : ""
-                        }
-                        data-testid="input-new-pincode"
+                        id="state"
+                        value={newAddress.state}
+                        placeholder="Auto-filled"
+                        disabled
+                        className="bg-muted text-muted-foreground cursor-not-allowed"
+                        data-testid="input-new-state"
                       />
-                      {formErrors.pincode && (
-                        <p
-                          className="text-xs text-destructive mt-1"
-                          data-testid="error-pincode"
-                        >
-                          {formErrors.pincode}
-                        </p>
-                      )}
                     </div>
                   </div>
                   <div className="flex gap-2">

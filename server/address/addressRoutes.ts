@@ -4,10 +4,22 @@ import { createAuthMiddleware } from "../authMiddleware";
 import { addressService } from "./addressStorage";
 const addressSchema = z.object({
   name: z.string().min(2, "Name must be at least 2 characters").max(100),
-  phone: z.string().regex(/^[0-9]{10}$/, "Phone must be a 10-digit number"),
-  locality: z.string().min(5, "Locality must be at least 5 characters").max(200),
+  phone: z
+    .string()
+    .regex(
+      /^(\+91[\-\s]?)?[6-9]\d{9}$/,
+      "Enter a valid 10-digit Indian mobile number"
+    ),
+  addressLine1: z
+    .string()
+    .min(5, "Address line 1 must be at least 5 characters")
+    .max(200),
+  locality: z.string().min(2, "Locality must be at least 2 characters").max(200),
   city: z.string().min(2, "City must be at least 2 characters").max(100),
-  pincode: z.string().regex(/^[0-9]{6}$/, "Pincode must be a 6-digit number"),
+  state: z.string().min(2, "State must be at least 2 characters").max(100),
+  pincode: z
+    .string()
+    .regex(/^[1-9][0-9]{5}$/, "Enter a valid 6-digit pincode"),
   isDefault: z.boolean().optional().default(false),
   addressType: z.enum(["home", "work", "other"]).default("home"),
 });
@@ -87,13 +99,19 @@ export const addressRoutes = (app: Express) => {
   // Pincode availability check (public)
   app.get("/api/pincodes/:pincode/check", async (req, res) => {
     try {
-      // const pincode = await addressService.checkPincodeAvailability(req.params.pincode);
-      const postalcodes = await import("postalcodes-india");
-      const info = postalcodes.default.find(req.params.pincode);
+      const { pincode } = req.params;
 
-      if (info) {
+      // Validate format first
+      if (!/^[1-9][0-9]{5}$/.test(pincode)) {
+        return res.status(400).json({ available: false, message: "Invalid pincode format" });
+      }
+
+      const postalcodes = await import("postalcodes-india");
+      const info = postalcodes.default.find(pincode);
+
+      if (info && info.isValid) {
         res.json({
-          available: info.isValid,
+          available: true,
           city: info.place,
           state: info.state,
           deliveryDays: 5,

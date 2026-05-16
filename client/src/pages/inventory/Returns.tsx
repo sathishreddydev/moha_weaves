@@ -36,21 +36,43 @@ import { formatDate, formatPrice } from "@/lib/utils";
 import { ReturnStatus } from "./utils/enums";
 import type { StatusBadgeProps } from "./utils/type";
 import { useSocket } from "@/stores/socketStore";
+import { ShippingAddressBlock } from "./OrderDetail";
 
 // ─── Status flow ────────────────────────────────────────────────────────────
 
 const getReturnStatusFlow = (currentStatus: string): ReturnStatus[] => {
   const flow: Record<ReturnStatus, ReturnStatus[]> = {
-    [ReturnStatus.RETURN_REQUESTED]:        [ReturnStatus.RETURN_APPROVED, ReturnStatus.RETURN_REJECTED],
-    [ReturnStatus.RETURN_APPROVED]:         [ReturnStatus.RETURN_PICKUP_SCHEDULED, ReturnStatus.RETURN_CANCELLED],
-    [ReturnStatus.RETURN_PICKUP_SCHEDULED]: [ReturnStatus.RETURN_PICKED_UP, ReturnStatus.RETURN_CANCELLED],
-    [ReturnStatus.RETURN_PICKED_UP]:        [ReturnStatus.RETURN_IN_TRANSIT, ReturnStatus.RETURN_CANCELLED],
-    [ReturnStatus.RETURN_IN_TRANSIT]:       [ReturnStatus.RETURN_RECEIVED, ReturnStatus.RETURN_CANCELLED],
-    [ReturnStatus.RETURN_RECEIVED]:         [ReturnStatus.RETURN_INSPECTED, ReturnStatus.RETURN_CANCELLED],
-    [ReturnStatus.RETURN_INSPECTED]:        [ReturnStatus.RETURN_COMPLETED, ReturnStatus.RETURN_CANCELLED],
-    [ReturnStatus.RETURN_COMPLETED]:        [],
-    [ReturnStatus.RETURN_REJECTED]:         [],
-    [ReturnStatus.RETURN_CANCELLED]:        [],
+    [ReturnStatus.RETURN_REQUESTED]: [
+      ReturnStatus.RETURN_APPROVED,
+      ReturnStatus.RETURN_REJECTED,
+    ],
+    [ReturnStatus.RETURN_APPROVED]: [
+      ReturnStatus.RETURN_PICKUP_SCHEDULED,
+      ReturnStatus.RETURN_CANCELLED,
+    ],
+    [ReturnStatus.RETURN_PICKUP_SCHEDULED]: [
+      ReturnStatus.RETURN_PICKED_UP,
+      ReturnStatus.RETURN_CANCELLED,
+    ],
+    [ReturnStatus.RETURN_PICKED_UP]: [
+      ReturnStatus.RETURN_IN_TRANSIT,
+      ReturnStatus.RETURN_CANCELLED,
+    ],
+    [ReturnStatus.RETURN_IN_TRANSIT]: [
+      ReturnStatus.RETURN_RECEIVED,
+      ReturnStatus.RETURN_CANCELLED,
+    ],
+    [ReturnStatus.RETURN_RECEIVED]: [
+      ReturnStatus.RETURN_INSPECTED,
+      ReturnStatus.RETURN_CANCELLED,
+    ],
+    [ReturnStatus.RETURN_INSPECTED]: [
+      ReturnStatus.RETURN_COMPLETED,
+      ReturnStatus.RETURN_CANCELLED,
+    ],
+    [ReturnStatus.RETURN_COMPLETED]: [],
+    [ReturnStatus.RETURN_REJECTED]: [],
+    [ReturnStatus.RETURN_CANCELLED]: [],
   };
   return flow[currentStatus as ReturnStatus] || [];
 };
@@ -58,7 +80,8 @@ const getReturnStatusFlow = (currentStatus: string): ReturnStatus[] => {
 // ─── Status badge ────────────────────────────────────────────────────────────
 
 const StatusBadge = ({ status }: StatusBadgeProps) => {
-  const config = itemStatusConfig[status] ?? itemStatusConfig[ReturnStatus.RETURN_REQUESTED];
+  const config =
+    itemStatusConfig[status] ?? itemStatusConfig[ReturnStatus.RETURN_REQUESTED];
   const StatusIcon = config.icon;
   return (
     <span
@@ -79,8 +102,8 @@ function ResolutionBadge({ resolution }: { resolution?: string | null }) {
     resolution === "refund"
       ? "border-green-400 text-green-700 bg-green-50"
       : resolution === "exchange"
-      ? "border-blue-400 text-blue-700 bg-blue-50"
-      : "border-slate-300 text-slate-600 bg-slate-50";
+        ? "border-blue-400 text-blue-700 bg-blue-50"
+        : "border-slate-300 text-slate-600 bg-slate-50";
   return (
     <Badge variant="outline" className={`capitalize text-xs ${color}`}>
       {label}
@@ -130,7 +153,15 @@ export default function InventoryReturns() {
   }, [socket, refetch]);
 
   const updateStatusMutation = useMutation({
-    mutationFn: async ({ id, status, notes }: { id: string; status: string; notes?: string }) => {
+    mutationFn: async ({
+      id,
+      status,
+      notes,
+    }: {
+      id: string;
+      status: string;
+      notes?: string;
+    }) => {
       return await apiRequest("PATCH", `/api/inventory/returns/${id}/status`, {
         status,
         inspectionNotes: notes,
@@ -144,7 +175,9 @@ export default function InventoryReturns() {
     },
     onError: (err: unknown) => {
       const message = err instanceof Error ? err.message : "";
-      const extracted = message.includes(":") ? message.split(":").slice(1).join(":").trim() : "";
+      const extracted = message.includes(":")
+        ? message.split(":").slice(1).join(":").trim()
+        : "";
       toast({
         title: "Error",
         description: extracted || "Failed to update return status",
@@ -219,7 +252,9 @@ export default function InventoryReturns() {
         cell: ({ row }) => (
           <div
             className="font-mono text-sm text-primary cursor-pointer hover:underline flex items-center gap-1"
-            onClick={() => navigate(`/inventory/orders/${row.original.orderId}`)}
+            onClick={() =>
+              navigate(`/inventory/orders/${row.original.orderId}`)
+            }
           >
             #{row.original.orderId}
             <ExternalLink size={11} className="opacity-40" />
@@ -265,7 +300,9 @@ export default function InventoryReturns() {
       {
         accessorKey: "resolution",
         header: "Resolution",
-        cell: ({ row }) => <ResolutionBadge resolution={row.original.resolution} />,
+        cell: ({ row }) => (
+          <ResolutionBadge resolution={row.original.resolution} />
+        ),
       },
       {
         accessorKey: "refundAmount",
@@ -308,7 +345,8 @@ export default function InventoryReturns() {
                   {nextStatuses.map((status) => (
                     <Button
                       variant={
-                        status === ReturnStatus.RETURN_REJECTED || status === ReturnStatus.RETURN_CANCELLED
+                        status === ReturnStatus.RETURN_REJECTED ||
+                        status === ReturnStatus.RETURN_CANCELLED
                           ? "destructive"
                           : "ghost"
                       }
@@ -331,7 +369,9 @@ export default function InventoryReturns() {
             <div className="bg-white p-4 rounded-lg border border-slate-200 space-y-1">
               <div className="flex items-center gap-1.5 mb-2">
                 <User size={14} className="text-slate-400" />
-                <h4 className="font-semibold text-sm text-slate-700">Customer</h4>
+                <h4 className="font-semibold text-sm text-slate-700">
+                  Customer
+                </h4>
               </div>
               <p className="text-sm font-medium">{req.user?.name || "—"}</p>
               <p className="text-xs text-slate-500">{req.user?.email || "—"}</p>
@@ -350,7 +390,9 @@ export default function InventoryReturns() {
             <div className="bg-white p-4 rounded-lg border border-slate-200 space-y-1">
               <div className="flex items-center gap-1.5 mb-2">
                 <RotateCcw size={14} className="text-slate-400" />
-                <h4 className="font-semibold text-sm text-slate-700">Return Info</h4>
+                <h4 className="font-semibold text-sm text-slate-700">
+                  Return Info
+                </h4>
               </div>
               <div className="flex items-center gap-2">
                 <span className="text-xs text-slate-500">Status:</span>
@@ -362,15 +404,20 @@ export default function InventoryReturns() {
               </div>
               <p className="text-sm">
                 <span className="text-slate-500 text-xs">Reason: </span>
-                <span className="capitalize">{req.reason?.replace(/_/g, " ") || "—"}</span>
+                <span className="capitalize">
+                  {req.reason?.replace(/_/g, " ") || "—"}
+                </span>
               </p>
               <p className="text-sm">
                 <span className="text-slate-500 text-xs">Amount: </span>
-                <span className="font-semibold">{formatPrice(req.refundAmount || 0)}</span>
+                <span className="font-semibold">
+                  {formatPrice(req.refundAmount || 0)}
+                </span>
               </p>
               {req.processedBy ? (
                 <p className="text-xs text-slate-500">
-                  Processed by: <span className="text-slate-700">{req.processedBy}</span>
+                  Processed by:{" "}
+                  <span className="text-slate-700">{req.processedBy}</span>
                 </p>
               ) : null}
               {req.exchangeOrderId ? (
@@ -378,7 +425,9 @@ export default function InventoryReturns() {
                   Exchange order:{" "}
                   <span
                     className="text-primary cursor-pointer hover:underline font-mono"
-                    onClick={() => navigate(`/inventory/orders/${req.exchangeOrderId}`)}
+                    onClick={() =>
+                      navigate(`/inventory/orders/${req.exchangeOrderId}`)
+                    }
                   >
                     #{req.exchangeOrderId}
                   </span>
@@ -390,12 +439,18 @@ export default function InventoryReturns() {
             <div className="bg-white p-4 rounded-lg border border-slate-200 space-y-1">
               <div className="flex items-center gap-1.5 mb-2">
                 <MapPin size={14} className="text-slate-400" />
-                <h4 className="font-semibold text-sm text-slate-700">Logistics</h4>
+                <h4 className="font-semibold text-sm text-slate-700">
+                  Logistics
+                </h4>
               </div>
-              {req.pickupAddress ? (
-                <p className="text-sm text-slate-700">{req.pickupAddress}</p>
+              {req.order?.shippingAddress ? (
+               <>
+               <ShippingAddressBlock raw={req.order.shippingAddress}  />
+               </>
               ) : (
-                <p className="text-xs text-slate-400 italic">No pickup address set</p>
+                <p className="text-xs text-slate-400 italic">
+                  No pickup address set
+                </p>
               )}
               {req.pickupScheduledAt ? (
                 <p className="text-xs text-slate-500">
@@ -425,20 +480,28 @@ export default function InventoryReturns() {
               <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-sm">
                 <div>
                   <div className="text-xs text-slate-500">Amount</div>
-                  <div className="font-semibold">{formatPrice(req.refund.amount || 0)}</div>
+                  <div className="font-semibold">
+                    {formatPrice(req.refund.amount || 0)}
+                  </div>
                 </div>
                 <div>
                   <div className="text-xs text-slate-500">Status</div>
-                  <div className="capitalize">{String(req.refund.status || "—").replace(/_/g, " ")}</div>
+                  <div className="capitalize">
+                    {String(req.refund.status || "—").replace(/_/g, " ")}
+                  </div>
                 </div>
                 <div>
                   <div className="text-xs text-slate-500">Method</div>
-                  <div className="capitalize">{String(req.refund.refundMethod || "—").replace(/_/g, " ")}</div>
+                  <div className="capitalize">
+                    {String(req.refund.refundMethod || "—").replace(/_/g, " ")}
+                  </div>
                 </div>
                 {req.refund.razorpayRefundId ? (
                   <div>
                     <div className="text-xs text-slate-500">Razorpay Ref</div>
-                    <div className="font-mono text-xs">{req.refund.razorpayRefundId}</div>
+                    <div className="font-mono text-xs">
+                      {req.refund.razorpayRefundId}
+                    </div>
                   </div>
                 ) : null}
               </div>
@@ -491,7 +554,9 @@ export default function InventoryReturns() {
                         ) : null;
                       })()}
                       <span className="h-1 w-1 bg-slate-300 rounded-full" />
-                      <span>{formatPrice(item.orderItem?.price || 0)} each</span>
+                      <span>
+                        {formatPrice(item.orderItem?.price || 0)} each
+                      </span>
                     </div>
 
                     {/* Condition & restockable */}
@@ -510,7 +575,9 @@ export default function InventoryReturns() {
                           }`}
                         >
                           <CheckCircle2 size={10} />
-                          {item.isRestockable ? "Restockable" : "Not restockable"}
+                          {item.isRestockable
+                            ? "Restockable"
+                            : "Not restockable"}
                         </span>
                       ) : null}
                     </div>
@@ -518,7 +585,9 @@ export default function InventoryReturns() {
                 </div>
 
                 <div className="flex flex-col items-start md:items-end gap-1">
-                  <span className="text-[10px] font-bold text-slate-400 uppercase">Status</span>
+                  <span className="text-[10px] font-bold text-slate-400 uppercase">
+                    Status
+                  </span>
                   <StatusBadge status={req.status} />
                 </div>
               </div>
@@ -530,14 +599,20 @@ export default function InventoryReturns() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {req.reasonDetails ? (
                 <div className="bg-white p-4 rounded-lg border border-slate-200">
-                  <h4 className="font-semibold text-sm text-slate-700 mb-2">Customer Notes</h4>
+                  <h4 className="font-semibold text-sm text-slate-700 mb-2">
+                    Customer Notes
+                  </h4>
                   <p className="text-sm text-slate-600">{req.reasonDetails}</p>
                 </div>
               ) : null}
               {req.inspectionNotes ? (
                 <div className="bg-white p-4 rounded-lg border border-slate-200">
-                  <h4 className="font-semibold text-sm text-slate-700 mb-2">Inspection Notes</h4>
-                  <p className="text-sm text-slate-600">{req.inspectionNotes}</p>
+                  <h4 className="font-semibold text-sm text-slate-700 mb-2">
+                    Inspection Notes
+                  </h4>
+                  <p className="text-sm text-slate-600">
+                    {req.inspectionNotes}
+                  </p>
                 </div>
               ) : null}
             </div>
@@ -555,10 +630,16 @@ export default function InventoryReturns() {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-4">
         <div>
           <h1 className="text-xl font-semibold">Returns</h1>
-          <p className="text-xs text-muted-foreground">Manage customer return requests</p>
+          <p className="text-xs text-muted-foreground">
+            Manage customer return requests
+          </p>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" size="sm" onClick={() => navigate("/inventory/exchanges")}>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => navigate("/inventory/exchanges")}
+          >
             <ArrowLeftRight className="h-4 w-4 mr-2" />
             View Exchanges
           </Button>
@@ -592,15 +673,15 @@ export default function InventoryReturns() {
               {updateDialog.status === ReturnStatus.RETURN_REJECTED
                 ? "Reject Return Request"
                 : updateDialog.status === ReturnStatus.RETURN_CANCELLED
-                ? "Cancel Return Request"
-                : "Update Return Request"}
+                  ? "Cancel Return Request"
+                  : "Update Return Request"}
             </DialogTitle>
             <DialogDescription>
               {updateDialog.status === ReturnStatus.RETURN_REJECTED
                 ? "Provide a reason for rejection — this will be shared with the customer."
                 : updateDialog.status === ReturnStatus.RETURN_CANCELLED
-                ? "Provide a reason for cancellation — this will be shared with the customer."
-                : `Change status to "${itemStatusConfig[updateDialog.status]?.label ?? updateDialog.status}". Add notes if needed.`}
+                  ? "Provide a reason for cancellation — this will be shared with the customer."
+                  : `Change status to "${itemStatusConfig[updateDialog.status]?.label ?? updateDialog.status}". Add notes if needed.`}
             </DialogDescription>
           </DialogHeader>
 
@@ -609,15 +690,20 @@ export default function InventoryReturns() {
               <div className="flex items-center gap-3">
                 <img
                   src={
-                    updateDialog.request.items[0]?.orderItem?.product?.imageUrl ||
+                    updateDialog.request.items[0]?.orderItem?.product
+                      ?.imageUrl ||
                     "https://images.unsplash.com/photo-1610030469983-98e550d6193c?w=60"
                   }
                   alt=""
                   className="w-12 h-12 rounded object-cover"
                 />
                 <div>
-                  <p className="font-medium">{updateDialog.request.user?.name}</p>
-                  <p className="text-sm text-muted-foreground">{updateDialog.request.user?.email}</p>
+                  <p className="font-medium">
+                    {updateDialog.request.user?.name}
+                  </p>
+                  <p className="text-sm text-muted-foreground">
+                    {updateDialog.request.user?.email}
+                  </p>
                 </div>
               </div>
               <p className="text-sm">
@@ -632,7 +718,9 @@ export default function InventoryReturns() {
               </div>
               {updateDialog.request.reasonDetails && (
                 <p className="text-sm">
-                  <span className="text-muted-foreground">Customer Notes: </span>
+                  <span className="text-muted-foreground">
+                    Customer Notes:{" "}
+                  </span>
                   {updateDialog.request.reasonDetails}
                 </p>
               )}
@@ -657,7 +745,9 @@ export default function InventoryReturns() {
           <DialogFooter>
             <Button
               variant="outline"
-              onClick={() => setUpdateDialog({ open: false, request: null, status: "" })}
+              onClick={() =>
+                setUpdateDialog({ open: false, request: null, status: "" })
+              }
             >
               Cancel
             </Button>
@@ -674,8 +764,8 @@ export default function InventoryReturns() {
               {updateDialog.status === ReturnStatus.RETURN_REJECTED
                 ? "Confirm Rejection"
                 : updateDialog.status === ReturnStatus.RETURN_CANCELLED
-                ? "Confirm Cancellation"
-                : "Update Status"}
+                  ? "Confirm Cancellation"
+                  : "Update Status"}
             </Button>
           </DialogFooter>
         </DialogContent>

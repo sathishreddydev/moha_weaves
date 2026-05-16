@@ -35,23 +35,48 @@ import { formatDate, formatPrice } from "@/lib/utils";
 import { ExchangeStatus } from "./utils/enums";
 import type { StatusBadgeProps } from "./utils/type";
 import { useSocket } from "@/stores/socketStore";
+import { ShippingAddressBlock } from "./OrderDetail";
 
 // ─── Status flow ─────────────────────────────────────────────────────────────
 
 const getExchangeStatusFlow = (currentStatus: string): ExchangeStatus[] => {
   const flow: Record<ExchangeStatus, ExchangeStatus[]> = {
-    [ExchangeStatus.EXCHANGE_REQUESTED]:        [ExchangeStatus.EXCHANGE_APPROVED, ExchangeStatus.EXCHANGE_CANCELLED],
-    [ExchangeStatus.EXCHANGE_APPROVED]:         [ExchangeStatus.EXCHANGE_PROCESSING, ExchangeStatus.EXCHANGE_CANCELLED],
-    [ExchangeStatus.EXCHANGE_PROCESSING]:       [ExchangeStatus.EXCHANGE_PICKUP_SCHEDULED, ExchangeStatus.EXCHANGE_CANCELLED],
-    [ExchangeStatus.EXCHANGE_PICKUP_SCHEDULED]: [ExchangeStatus.EXCHANGE_PICKED_UP, ExchangeStatus.EXCHANGE_CANCELLED],
-    [ExchangeStatus.EXCHANGE_PICKED_UP]:        [ExchangeStatus.EXCHANGE_IN_TRANSIT, ExchangeStatus.EXCHANGE_CANCELLED],
-    [ExchangeStatus.EXCHANGE_IN_TRANSIT]:       [ExchangeStatus.EXCHANGE_RECEIVED, ExchangeStatus.EXCHANGE_CANCELLED],
-    [ExchangeStatus.EXCHANGE_RECEIVED]:         [ExchangeStatus.EXCHANGE_INSPECTED, ExchangeStatus.EXCHANGE_CANCELLED],
-    [ExchangeStatus.EXCHANGE_INSPECTED]:        [ExchangeStatus.EXCHANGE_SHIPPED, ExchangeStatus.EXCHANGE_CANCELLED],
-    [ExchangeStatus.EXCHANGE_SHIPPED]:          [ExchangeStatus.EXCHANGE_DELIVERED],
-    [ExchangeStatus.EXCHANGE_DELIVERED]:        [ExchangeStatus.EXCHANGE_COMPLETED],
-    [ExchangeStatus.EXCHANGE_COMPLETED]:        [],
-    [ExchangeStatus.EXCHANGE_CANCELLED]:        [],
+    [ExchangeStatus.EXCHANGE_REQUESTED]: [
+      ExchangeStatus.EXCHANGE_APPROVED,
+      ExchangeStatus.EXCHANGE_CANCELLED,
+    ],
+    [ExchangeStatus.EXCHANGE_APPROVED]: [
+      ExchangeStatus.EXCHANGE_PROCESSING,
+      ExchangeStatus.EXCHANGE_CANCELLED,
+    ],
+    [ExchangeStatus.EXCHANGE_PROCESSING]: [
+      ExchangeStatus.EXCHANGE_PICKUP_SCHEDULED,
+      ExchangeStatus.EXCHANGE_CANCELLED,
+    ],
+    [ExchangeStatus.EXCHANGE_PICKUP_SCHEDULED]: [
+      ExchangeStatus.EXCHANGE_PICKED_UP,
+      ExchangeStatus.EXCHANGE_CANCELLED,
+    ],
+    [ExchangeStatus.EXCHANGE_PICKED_UP]: [
+      ExchangeStatus.EXCHANGE_IN_TRANSIT,
+      ExchangeStatus.EXCHANGE_CANCELLED,
+    ],
+    [ExchangeStatus.EXCHANGE_IN_TRANSIT]: [
+      ExchangeStatus.EXCHANGE_RECEIVED,
+      ExchangeStatus.EXCHANGE_CANCELLED,
+    ],
+    [ExchangeStatus.EXCHANGE_RECEIVED]: [
+      ExchangeStatus.EXCHANGE_INSPECTED,
+      ExchangeStatus.EXCHANGE_CANCELLED,
+    ],
+    [ExchangeStatus.EXCHANGE_INSPECTED]: [
+      ExchangeStatus.EXCHANGE_SHIPPED,
+      ExchangeStatus.EXCHANGE_CANCELLED,
+    ],
+    [ExchangeStatus.EXCHANGE_SHIPPED]: [ExchangeStatus.EXCHANGE_DELIVERED],
+    [ExchangeStatus.EXCHANGE_DELIVERED]: [ExchangeStatus.EXCHANGE_COMPLETED],
+    [ExchangeStatus.EXCHANGE_COMPLETED]: [],
+    [ExchangeStatus.EXCHANGE_CANCELLED]: [],
   };
   return flow[currentStatus as ExchangeStatus] || [];
 };
@@ -59,7 +84,9 @@ const getExchangeStatusFlow = (currentStatus: string): ExchangeStatus[] => {
 // ─── Status badge ─────────────────────────────────────────────────────────────
 
 const StatusBadge = ({ status }: StatusBadgeProps) => {
-  const config = itemStatusConfig[status] ?? itemStatusConfig[ExchangeStatus.EXCHANGE_REQUESTED];
+  const config =
+    itemStatusConfig[status] ??
+    itemStatusConfig[ExchangeStatus.EXCHANGE_REQUESTED];
   const StatusIcon = config.icon;
   return (
     <span
@@ -113,11 +140,23 @@ export default function InventoryExchanges() {
   }, [socket, refetch]);
 
   const updateStatusMutation = useMutation({
-    mutationFn: async ({ id, status, notes }: { id: string; status: string; notes?: string }) => {
-      return await apiRequest("PATCH", `/api/inventory/online-exchanges/${id}/status`, {
-        status,
-        inspectionNotes: notes,
-      });
+    mutationFn: async ({
+      id,
+      status,
+      notes,
+    }: {
+      id: string;
+      status: string;
+      notes?: string;
+    }) => {
+      return await apiRequest(
+        "PATCH",
+        `/api/inventory/online-exchanges/${id}/status`,
+        {
+          status,
+          inspectionNotes: notes,
+        },
+      );
     },
     onSuccess: () => {
       refetch();
@@ -127,7 +166,9 @@ export default function InventoryExchanges() {
     },
     onError: (err: unknown) => {
       const message = err instanceof Error ? err.message : "";
-      const extracted = message.includes(":") ? message.split(":").slice(1).join(":").trim() : "";
+      const extracted = message.includes(":")
+        ? message.split(":").slice(1).join(":").trim()
+        : "";
       toast({
         title: "Error",
         description: extracted || "Failed to update exchange status",
@@ -167,7 +208,9 @@ export default function InventoryExchanges() {
           <div>
             <div
               className="font-bold text-primary flex items-center gap-1 cursor-pointer hover:underline"
-              onClick={() => navigate(`/inventory/exchanges/${row.original.id}`)}
+              onClick={() =>
+                navigate(`/inventory/exchanges/${row.original.id}`)
+              }
             >
               #{row.original.id}
               <ExternalLink size={12} className="opacity-40" />
@@ -205,7 +248,9 @@ export default function InventoryExchanges() {
         cell: ({ row }) => (
           <div
             className="font-mono text-sm text-primary cursor-pointer hover:underline flex items-center gap-1"
-            onClick={() => navigate(`/inventory/orders/${row.original.orderId}`)}
+            onClick={() =>
+              navigate(`/inventory/orders/${row.original.orderId}`)
+            }
           >
             #{row.original.orderId}
             <ExternalLink size={11} className="opacity-40" />
@@ -282,7 +327,11 @@ export default function InventoryExchanges() {
                   {nextStatuses.map((status) => (
                     <Button
                       // Fix 14: cancel uses "destructive", others use "ghost"
-                      variant={status === ExchangeStatus.EXCHANGE_CANCELLED ? "destructive" : "ghost"}
+                      variant={
+                        status === ExchangeStatus.EXCHANGE_CANCELLED
+                          ? "destructive"
+                          : "ghost"
+                      }
                       key={status}
                       size="sm"
                       onClick={() => handleStatusUpdate(exchange, status)}
@@ -302,15 +351,23 @@ export default function InventoryExchanges() {
             <div className="bg-white p-4 rounded-lg border border-slate-200 space-y-1">
               <div className="flex items-center gap-1.5 mb-2">
                 <User size={14} className="text-slate-400" />
-                <h4 className="font-semibold text-sm text-slate-700">Customer</h4>
+                <h4 className="font-semibold text-sm text-slate-700">
+                  Customer
+                </h4>
               </div>
-              <p className="text-sm font-medium">{exchange.user?.name || "—"}</p>
-              <p className="text-xs text-slate-500">{exchange.user?.email || "—"}</p>
+              <p className="text-sm font-medium">
+                {exchange.user?.name || "—"}
+              </p>
+              <p className="text-xs text-slate-500">
+                {exchange.user?.email || "—"}
+              </p>
               <p className="text-xs text-slate-500">
                 Order:{" "}
                 <span
                   className="text-primary cursor-pointer hover:underline font-mono"
-                  onClick={() => navigate(`/inventory/orders/${exchange.orderId}`)}
+                  onClick={() =>
+                    navigate(`/inventory/orders/${exchange.orderId}`)
+                  }
                 >
                   #{exchange.orderId}
                 </span>
@@ -321,7 +378,9 @@ export default function InventoryExchanges() {
             <div className="bg-white p-4 rounded-lg border border-slate-200 space-y-1">
               <div className="flex items-center gap-1.5 mb-2">
                 <ArrowLeftRight size={14} className="text-slate-400" />
-                <h4 className="font-semibold text-sm text-slate-700">Exchange Info</h4>
+                <h4 className="font-semibold text-sm text-slate-700">
+                  Exchange Info
+                </h4>
               </div>
               <div className="flex items-center gap-2">
                 <span className="text-xs text-slate-500">Status:</span>
@@ -329,11 +388,14 @@ export default function InventoryExchanges() {
               </div>
               <p className="text-sm">
                 <span className="text-slate-500 text-xs">Reason: </span>
-                <span className="capitalize">{exchange.reason?.replace(/_/g, " ") || "—"}</span>
+                <span className="capitalize">
+                  {exchange.reason?.replace(/_/g, " ") || "—"}
+                </span>
               </p>
               {exchange.processedBy ? (
                 <p className="text-xs text-slate-500">
-                  Processed by: <span className="text-slate-700">{exchange.processedBy}</span>
+                  Processed by:{" "}
+                  <span className="text-slate-700">{exchange.processedBy}</span>
                 </p>
               ) : null}
               {exchange.exchangeOrderId ? (
@@ -341,7 +403,9 @@ export default function InventoryExchanges() {
                   Exchange order:{" "}
                   <span
                     className="text-primary cursor-pointer hover:underline font-mono"
-                    onClick={() => navigate(`/inventory/orders/${exchange.exchangeOrderId}`)}
+                    onClick={() =>
+                      navigate(`/inventory/orders/${exchange.exchangeOrderId}`)
+                    }
                   >
                     #{exchange.exchangeOrderId}
                   </span>
@@ -353,12 +417,16 @@ export default function InventoryExchanges() {
             <div className="bg-white p-4 rounded-lg border border-slate-200 space-y-1">
               <div className="flex items-center gap-1.5 mb-2">
                 <MapPin size={14} className="text-slate-400" />
-                <h4 className="font-semibold text-sm text-slate-700">Logistics</h4>
+                <h4 className="font-semibold text-sm text-slate-700">
+                  Logistics
+                </h4>
               </div>
-              {exchange.pickupAddress ? (
-                <p className="text-sm text-slate-700">{exchange.pickupAddress}</p>
+              {exchange.order.shippingAddress ? (
+                <ShippingAddressBlock raw={exchange.order.shippingAddress} />
               ) : (
-                <p className="text-xs text-slate-400 italic">No pickup address set</p>
+                <p className="text-xs text-slate-400 italic">
+                  No pickup address set
+                </p>
               )}
               {exchange.pickupScheduledAt ? (
                 <p className="text-xs text-slate-500">
@@ -426,7 +494,9 @@ export default function InventoryExchanges() {
                       })()}
                       <span className="h-1 w-1 bg-slate-300 rounded-full" />
                       {/* Fix 20: price is on orderItem, not product */}
-                      <span>{formatPrice((item.orderItem as any)?.price || 0)} each</span>
+                      <span>
+                        {formatPrice((item.orderItem as any)?.price || 0)} each
+                      </span>
                     </div>
 
                     {/* Condition & restockable */}
@@ -445,21 +515,26 @@ export default function InventoryExchanges() {
                           }`}
                         >
                           <CheckCircle2 size={10} />
-                          {item.isRestockable ? "Restockable" : "Not restockable"}
+                          {item.isRestockable
+                            ? "Restockable"
+                            : "Not restockable"}
                         </span>
                       ) : null}
                     </div>
 
                     {item.exchangeproductId && (
                       <div className="text-xs text-slate-500 flex items-center gap-2 mt-1">
-                        <span className="font-medium">Exchange for:</span> Product ID: {item.exchangeproductId}
+                        <span className="font-medium">Exchange for:</span>{" "}
+                        Product ID: {item.exchangeproductId}
                       </div>
                     )}
                   </div>
                 </div>
 
                 <div className="flex flex-col items-start md:items-end gap-1">
-                  <span className="text-[10px] font-bold text-slate-400 uppercase">Status</span>
+                  <span className="text-[10px] font-bold text-slate-400 uppercase">
+                    Status
+                  </span>
                   <StatusBadge status={exchange.status} />
                 </div>
               </div>
@@ -471,14 +546,22 @@ export default function InventoryExchanges() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {exchange.reasonDetails ? (
                 <div className="bg-white p-4 rounded-lg border border-slate-200">
-                  <h4 className="font-semibold text-sm text-slate-700 mb-2">Customer Notes</h4>
-                  <p className="text-sm text-slate-600">{exchange.reasonDetails}</p>
+                  <h4 className="font-semibold text-sm text-slate-700 mb-2">
+                    Customer Notes
+                  </h4>
+                  <p className="text-sm text-slate-600">
+                    {exchange.reasonDetails}
+                  </p>
                 </div>
               ) : null}
               {exchange.inspectionNotes ? (
                 <div className="bg-white p-4 rounded-lg border border-slate-200">
-                  <h4 className="font-semibold text-sm text-slate-700 mb-2">Inspection Notes</h4>
-                  <p className="text-sm text-slate-600">{exchange.inspectionNotes}</p>
+                  <h4 className="font-semibold text-sm text-slate-700 mb-2">
+                    Inspection Notes
+                  </h4>
+                  <p className="text-sm text-slate-600">
+                    {exchange.inspectionNotes}
+                  </p>
                 </div>
               ) : null}
             </div>
@@ -497,10 +580,16 @@ export default function InventoryExchanges() {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-4">
         <div>
           <h1 className="text-xl font-semibold">Exchanges</h1>
-          <p className="text-xs text-muted-foreground">Manage customer exchange requests</p>
+          <p className="text-xs text-muted-foreground">
+            Manage customer exchange requests
+          </p>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" size="sm" onClick={() => navigate("/inventory/returns")}>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => navigate("/inventory/returns")}
+          >
             <RotateCcw className="h-4 w-4 mr-2" />
             View Returns
           </Button>
@@ -547,15 +636,20 @@ export default function InventoryExchanges() {
               <div className="flex items-center gap-3">
                 <img
                   src={
-                    updateDialog.request.items[0]?.orderItem?.product?.imageUrl ||
+                    updateDialog.request.items[0]?.orderItem?.product
+                      ?.imageUrl ||
                     "https://images.unsplash.com/photo-1610030469983-98e550d6193c?w=60"
                   }
                   alt=""
                   className="w-12 h-12 rounded object-cover"
                 />
                 <div>
-                  <p className="font-medium">{updateDialog.request.user?.name}</p>
-                  <p className="text-sm text-muted-foreground">{updateDialog.request.user?.email}</p>
+                  <p className="font-medium">
+                    {updateDialog.request.user?.name}
+                  </p>
+                  <p className="text-sm text-muted-foreground">
+                    {updateDialog.request.user?.email}
+                  </p>
                 </div>
               </div>
               <p className="text-sm">
@@ -566,7 +660,9 @@ export default function InventoryExchanges() {
               </p>
               {updateDialog.request.reasonDetails && (
                 <p className="text-sm">
-                  <span className="text-muted-foreground">Customer Notes: </span>
+                  <span className="text-muted-foreground">
+                    Customer Notes:{" "}
+                  </span>
                   {updateDialog.request.reasonDetails}
                 </p>
               )}
@@ -591,12 +687,18 @@ export default function InventoryExchanges() {
           <DialogFooter>
             <Button
               variant="outline"
-              onClick={() => setUpdateDialog({ open: false, request: null, status: "" })}
+              onClick={() =>
+                setUpdateDialog({ open: false, request: null, status: "" })
+              }
             >
               Cancel
             </Button>
             <Button
-              variant={updateDialog.status === ExchangeStatus.EXCHANGE_CANCELLED ? "destructive" : "default"}
+              variant={
+                updateDialog.status === ExchangeStatus.EXCHANGE_CANCELLED
+                  ? "destructive"
+                  : "default"
+              }
               onClick={handleConfirmUpdate}
               disabled={updateStatusMutation.isPending}
             >

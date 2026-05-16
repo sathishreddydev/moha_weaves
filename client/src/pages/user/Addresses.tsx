@@ -22,23 +22,17 @@ import { useAuth } from "@/lib/auth";
 import type { UserAddress } from "@shared/schema";
 import { AddressDialog } from "./common/AddressDialog";
 
-type AddressFormData = {
-  name: string;
-  phone: string;
-  locality: string;
-  city: string;
-  pincode: string;
-  addressType: "home" | "work" | "other";
-  isDefault: boolean;
-};
+import type { AddressFormData } from "./common/Type";
 
 const defaultFormData: AddressFormData = {
   name: "",
   phone: "",
+  addressLine1: "",
   locality: "",
   city: "",
+  state: "",
   pincode: "",
-  addressType:'home',
+  addressType: "home",
   isDefault: false,
 };
 
@@ -83,8 +77,10 @@ export default function Addresses() {
       setFormData({
         name: address.name,
         phone: address.phone,
+        addressLine1: address.addressLine1 ?? "",
         locality: address.locality,
         city: address.city,
+        state: address.state ?? "",
         pincode: address.pincode,
         addressType: address.addressType,
         isDefault: address.isDefault,
@@ -183,7 +179,9 @@ export default function Addresses() {
                     {address.phone}
                   </p>
                   <p className="text-sm">
-                    {address.locality}, {address.city} - {address.pincode}
+                    {address.addressLine1 ? `${address.addressLine1}, ` : ""}
+                    {address.locality}, {address.city}
+                    {address.state ? `, ${address.state}` : ""} — {address.pincode}
                   </p>
                 </div>
 

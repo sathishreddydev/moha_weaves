@@ -33,7 +33,7 @@ import { getItemStatusConfig } from "@/constants/itemStatusConfig";
 import { formatDate, formatPrice } from "@/lib/utils";
 
 /** Normalise shippingAddress — it can be a JSON string, a plain object, or a legacy string. */
-function parseShippingAddress(
+export function parseShippingAddress(
   raw: string | ShippingAddress | undefined | null,
 ): ShippingAddress | null {
   if (!raw) return null;
@@ -48,7 +48,7 @@ function parseShippingAddress(
   return null;
 }
 
-function ShippingAddressBlock({
+export function ShippingAddressBlock({
   raw,
 }: {
   raw: string | ShippingAddress | undefined | null;
@@ -80,7 +80,7 @@ function ShippingAddressBlock({
   );
 }
 
-function ShippingAddressText(
+export function ShippingAddressText(
   raw: string | ShippingAddress | undefined | null,
 ): string {
   const addr = parseShippingAddress(raw);
