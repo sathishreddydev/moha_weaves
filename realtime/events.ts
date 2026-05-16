@@ -1,4 +1,4 @@
-import { io } from "./socket";
+import { getIO } from "./socket";
 import { pub } from "./redis";
 
 interface User {
@@ -12,9 +12,9 @@ interface RealtimeEvent {
 }
 
 export const emitUserUpdated = (user: User): void => {
+  const io = getIO();
   // specific user
   io.to(`user:${user.id}`).emit("user_event", { type: "user_event" });
-
   // all admins
   io.to("role:admin").emit("user_event", { type: "user_event" });
 };
