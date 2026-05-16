@@ -388,21 +388,31 @@ export class OnlineExchangeStorage implements IOnlineExchangeStorage {
         createdAt: new Date(),
       });
 
-      // Fix 2: Only fire stock movements when status === "exchange_completed"
+      // Only fire stock movements when status === "exchange_completed"
       if (status === "exchange_completed") {
         for (const item of onlineExchange.items) {
+          // ── Returned item: restore stock columns + record movement ──────────
           if (item.isRestockable) {
-            await tx.insert(stockMovements).values({
-              productId: item.orderItem.product.id,
-              quantity: item.quantity,
-              movementType: "return",
-              source: "online",
-              orderRefId: onlineExchange.orderId,
-              createdAt: new Date(),
-            });
+            // Update actual product stock columns (same as return path)
+            await storage.restoreStockFromReturn(
+              item.orderItem.product.id,
+              item.quantity,
+              onlineExchange.orderId,
+            );
           }
 
+          // ── Replacement item: deduct stock columns + record movement ────────
           if (item.exchangeproductId) {
+            // Deduct online_stock and total_stock on the replacement product
+            await tx
+              .update(products)
+              .set({
+                onlineStock: sql`${products.onlineStock} - ${item.quantity}`,
+                totalStock: sql`${products.totalStock} - ${item.quantity}`,
+              })
+              .where(eq(products.id, item.exchangeproductId));
+
+            // Record the outbound stock movement for the replacement
             await tx.insert(stockMovements).values({
               productId: item.exchangeproductId,
               quantity: -item.quantity,
@@ -411,6 +421,9 @@ export class OnlineExchangeStorage implements IOnlineExchangeStorage {
               orderRefId: onlineExchange.orderId,
               createdAt: new Date(),
             });
+
+            // Alert if replacement product stock is now low
+            await storage.checkAndCreateStockAlert(item.exchangeproductId);
           }
         }
       }
