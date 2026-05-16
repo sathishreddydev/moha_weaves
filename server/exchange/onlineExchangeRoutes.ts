@@ -278,16 +278,16 @@ export const onlineExchangeRoutes = (app: Express) => {
         return res.status(404).json({ error: "Online exchange not found" });
       }
 
-      // Fix 12: Emit realtime event after status update
+      // Return exchange without ID as per our design
+      const { ...exchangeWithoutId } = updatedExchange;
+      res.json(exchangeWithoutId);
+
+      // Emit realtime event after response so the client gets the response first
       await publishRealtimeEvent("exchange_status_updated", {
         exchangeId: id,
         userId: existing.userId,
         status: validation.data.status,
       });
-
-      // Return exchange without ID as per our design
-      const { ...exchangeWithoutId } = updatedExchange;
-      res.json(exchangeWithoutId);
     } catch (error) {
       console.error("Error updating online exchange status:", error);
       res.status(500).json({ error: "Failed to update online exchange status" });

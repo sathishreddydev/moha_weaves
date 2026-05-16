@@ -284,6 +284,13 @@ export const returnRoutes = (app: Express) => {
 
       const updated = await returnStorage.updateReturnRequestStatus(req.params.id, "return_cancelled");
       res.json(updated);
+
+      // Notify inventory/admin that the return was cancelled by the user
+      await publishRealtimeEvent("return_status_updated", {
+        returnId: req.params.id,
+        userId,
+        status: "return_cancelled",
+      });
     } catch (error) {
       console.error("Error cancelling return request:", error);
       res.status(500).json({ message: "Failed to cancel return request" });
