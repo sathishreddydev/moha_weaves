@@ -7,6 +7,7 @@ import {
   orderItems,
   orders,
   products,
+  productVariants,
   stockMovements,
   users,
 } from "@shared/schema";
@@ -18,7 +19,10 @@ import { storage } from "../storage";
 import { createOrderHistoryProduct } from "../order/orderStorage";
 
 export type OnlineExchangeWithDetails = OnlineExchange & {
-  order: any;
+  order: {
+    orderId: string;
+    shippingAddress: any;
+  };
   user: any;
   items: (any & {
     orderItem: {
@@ -247,7 +251,15 @@ export class OnlineExchangeStorage implements IOnlineExchangeStorage {
 
       const items = await buildExchangeItems(exchange.id);
 
-      result.push({ ...exchange, order: orderWithItems, user, items });
+      result.push({
+        ...exchange,
+        order: {
+          orderId: orderWithItems.id,
+          shippingAddress: orderWithItems.shippingAddress,
+        },
+        user,
+        items,
+      });
     }
 
     return result;
@@ -268,7 +280,15 @@ export class OnlineExchangeStorage implements IOnlineExchangeStorage {
 
     const items = await buildExchangeItems(exchange.id);
 
-    return { ...exchange, order: orderWithItems, user, items };
+    return {
+      ...exchange,
+      order: {
+        orderId: orderWithItems.id,
+        shippingAddress: orderWithItems.shippingAddress,
+      },
+      user,
+      items,
+    };
   }
 
   async createOnlineExchange(
@@ -408,6 +428,17 @@ export class OnlineExchangeStorage implements IOnlineExchangeStorage {
 
           // Replacement item: deduct stock
           if (item.exchangeproductId) {
+            // If a specific variant was requested, deduct variant stock too
+            if (item.exchangeVariantId) {
+              await tx
+                .update(productVariants)
+                .set({
+                  stockQuantity: sql`${productVariants.stockQuantity} - ${item.quantity}`,
+                  onlineStock: sql`${productVariants.onlineStock} - ${item.quantity}`,
+                })
+                .where(eq(productVariants.id, item.exchangeVariantId));
+            }
+
             await tx
               .update(products)
               .set({
@@ -418,6 +449,7 @@ export class OnlineExchangeStorage implements IOnlineExchangeStorage {
 
             await tx.insert(stockMovements).values({
               productId: item.exchangeproductId,
+              variantId: item.exchangeVariantId ?? null,
               quantity: -item.quantity,
               movementType: "sale",
               source: "online",

@@ -21,7 +21,10 @@ import { createOrderHistoryProduct, orderService } from "../order/orderStorage";
 import { refundService } from "../refund/refundService";
 
 export type ReturnRequestWithDetails = ReturnRequest & {
-  order: any;
+  order: {
+    orderId: string;
+    shippingAddress: any;
+  };
   user: any;
   items: (any & {
     orderItem: {
@@ -275,7 +278,10 @@ export class ReturnStorage implements IReturnStorage {
 
       result.push({
         ...request,
-        order: orderWithItems,
+        order: {
+          orderId: orderWithItems.id,
+          shippingAddress: orderWithItems.shippingAddress,
+        },
         user,
         items,
         refund: refund ?? undefined,
@@ -307,7 +313,10 @@ export class ReturnStorage implements IReturnStorage {
 
     return {
       ...request,
-      order: orderWithItems,
+      order: {
+        orderId: orderWithItems.id,
+        shippingAddress: orderWithItems.shippingAddress,
+      },
       user,
       items,
       refund: refund ?? undefined,

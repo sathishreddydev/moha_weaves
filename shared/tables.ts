@@ -503,6 +503,7 @@ export const onlineExchangeItems = pgTable("online_exchange_items", {
     .notNull(),
   quantity: integer("quantity").notNull(),
   exchangeproductId: varchar("exchange_product_id").references(() => products.id),
+  exchangeVariantId: varchar("exchange_variant_id").references(() => productVariants.id),
   condition: text("condition"),
   isRestockable: boolean("is_restockable").default(true),
 });

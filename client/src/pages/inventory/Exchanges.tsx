@@ -523,9 +523,34 @@ export default function InventoryExchanges() {
                     </div>
 
                     {item.exchangeproductId && (
-                      <div className="text-xs text-slate-500 flex items-center gap-2 mt-1">
-                        <span className="font-medium">Exchange for:</span>{" "}
-                        Product ID: {item.exchangeproductId}
+                      <div className="text-xs text-slate-500 flex flex-wrap items-center gap-2 mt-1">
+                        <span className="font-medium text-slate-600">Wants replacement:</span>
+                        {(() => {
+                          // Try to resolve the replacement product name from the item's product
+                          const replacementName =
+                            item.exchangeproductId === item.orderItem?.product?.id
+                              ? item.orderItem?.product?.name
+                              : `Product #${item.exchangeproductId}`;
+                          // Resolve the requested replacement variant size
+                          const replacementVariant = (item as any).exchangeVariantId
+                            ? item.orderItem?.product?.variants?.find(
+                                (v: any) => v.id === (item as any).exchangeVariantId,
+                              )
+                            : null;
+                          return (
+                            <>
+                              <span>{replacementName}</span>
+                              {replacementVariant && (
+                                <>
+                                  <span className="h-1 w-1 bg-slate-300 rounded-full" />
+                                  <span className="font-semibold text-blue-600">
+                                    Size: {replacementVariant.size}
+                                  </span>
+                                </>
+                              )}
+                            </>
+                          );
+                        })()}
                       </div>
                     )}
                   </div>
@@ -633,24 +658,34 @@ export default function InventoryExchanges() {
 
           {updateDialog.request && (
             <div className="py-2 border-b space-y-2">
-              <div className="flex items-center gap-3">
-                <img
-                  src={
-                    updateDialog.request.items[0]?.orderItem?.product
-                      ?.imageUrl ||
-                    "https://images.unsplash.com/photo-1610030469983-98e550d6193c?w=60"
-                  }
-                  alt=""
-                  className="w-12 h-12 rounded object-cover"
-                />
-                <div>
-                  <p className="font-medium">
-                    {updateDialog.request.user?.name}
-                  </p>
-                  <p className="text-sm text-muted-foreground">
-                    {updateDialog.request.user?.email}
-                  </p>
-                </div>
+              <p className="text-xs text-muted-foreground font-mono">
+                Exchange #{updateDialog.request.id}
+              </p>
+              <div className="space-y-2">
+                {updateDialog.request.items.map((item, idx) => (
+                  <div key={idx} className="flex items-center gap-3">
+                    <img
+                      src={
+                        item.orderItem?.product?.imageUrl ||
+                        "https://images.unsplash.com/photo-1610030469983-98e550d6193c?w=60"
+                      }
+                      alt={item.orderItem?.product?.name || "Item"}
+                      className="w-12 h-12 rounded object-cover"
+                    />
+                    <div>
+                      <p className="font-medium text-sm">
+                        {item.orderItem?.product?.name || "Unknown Item"}
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        Qty: {item.quantity}
+                        {item.condition ? ` · Condition: ${item.condition}` : ""}
+                      </p>
+                      <p className="font-medium text-xs">
+                        {item.orderItem?.orderId || "Unknown Item"}
+                      </p>
+                    </div>
+                  </div>
+                ))}
               </div>
               <p className="text-sm">
                 <span className="text-muted-foreground">Reason: </span>

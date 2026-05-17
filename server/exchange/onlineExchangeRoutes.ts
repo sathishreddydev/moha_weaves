@@ -74,6 +74,7 @@ export const onlineExchangeRoutes = (app: Express) => {
           orderItemId: z.string().min(1, "Order item ID is required"),
           quantity: z.number().min(1, "Quantity must be at least 1"),
           exchangeproductId: z.string().optional(),
+          exchangeVariantId: z.string().optional(),
           condition: z.string().optional(),
           isRestockable: z.boolean().default(true),
         })).min(1, "At least one item is required"),
@@ -102,6 +103,7 @@ export const onlineExchangeRoutes = (app: Express) => {
         orderItemId: item.orderItemId,
         quantity: item.quantity,
         exchangeproductId: item.exchangeproductId,
+        exchangeVariantId: item.exchangeVariantId,
         condition: item.condition,
         isRestockable: item.isRestockable,
       }));
