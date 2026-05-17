@@ -1,24 +1,21 @@
 import {
-  categories,
-  colors,
-  fabrics,
   InsertOnlineExchange,
   InsertOnlineExchangeItem,
-  notifications,
   OnlineExchange,
   onlineExchangeItems,
   onlineExchanges,
   orderItems,
   orders,
   products,
-  productVariants,
-  stockMovements
+  stockMovements,
+  users,
 } from "@shared/schema";
-import { and, desc, eq, inArray, sql } from "drizzle-orm";
-import { userService } from "../auth/authStorage";
+import { and, desc, eq, gte, inArray, lte, sql } from "drizzle-orm";
 import { db } from "../db";
+import { roleBasedProductService } from "../product/roleBasedProductService";
 import { orderService } from "../order/orderStorage";
 import { storage } from "../storage";
+import { createOrderHistoryProduct } from "../order/orderStorage";
 
 export type OnlineExchangeWithDetails = OnlineExchange & {
   order: any;
@@ -28,7 +25,6 @@ export type OnlineExchangeWithDetails = OnlineExchange & {
       product: any;
     };
   })[];
-
 };
 
 export interface IOnlineExchangeStorage {
@@ -70,7 +66,7 @@ export interface IOnlineExchangeStorage {
   ): Promise<{ eligible: boolean; reason?: string; remainingDays?: number; eligibleItems?: string[] }>;
 }
 
-// Fix 6: Status transition guard
+// Status transition guard
 const EXCHANGE_TRANSITIONS: Record<string, string[]> = {
   exchange_requested:        ["exchange_approved", "exchange_cancelled"],
   exchange_approved:         ["exchange_processing", "exchange_cancelled"],
@@ -88,23 +84,68 @@ const EXCHANGE_TRANSITIONS: Record<string, string[]> = {
 
 export { EXCHANGE_TRANSITIONS };
 
-export class OnlineExchangeStorage implements IOnlineExchangeStorage {
-  // Fix 1: Use correct DB enum values (with "exchange_" prefix)
-  // Fix 9: Exclude exchange_cancelled from active statuses
-  private readonly activeExchangeStatuses = [
-    "exchange_requested",
-    "exchange_approved",
-    "exchange_processing",
-    "exchange_pickup_scheduled",
-    "exchange_picked_up",
-    "exchange_in_transit",
-    "exchange_received",
-    "exchange_inspected",
-    "exchange_shipped",
-    "exchange_delivered",
-    "exchange_completed",
-  ] as const;
+// Active statuses (exchange_cancelled intentionally excluded)
+const ACTIVE_EXCHANGE_STATUSES = [
+  "exchange_requested",
+  "exchange_approved",
+  "exchange_processing",
+  "exchange_pickup_scheduled",
+  "exchange_picked_up",
+  "exchange_in_transit",
+  "exchange_received",
+  "exchange_inspected",
+  "exchange_shipped",
+  "exchange_delivered",
+  "exchange_completed",
+] as const;
 
+// Fetch only the fields needed for display — never expose password/tokenVersion
+async function getSafeUser(userId: string): Promise<{ id: string; name: string; email: string; phone: string | null } | undefined> {
+  const [user] = await db
+    .select({
+      id: users.id,
+      name: users.name,
+      email: users.email,
+      phone: users.phone,
+    })
+    .from(users)
+    .where(eq(users.id, userId))
+    .limit(1);
+  return user ?? undefined;
+}
+
+// Shared helper: fetch exchange items and map products via roleBasedProductService
+async function buildExchangeItems(exchangeId: string): Promise<any[]> {
+  const rawItems = await db
+    .select()
+    .from(onlineExchangeItems)
+    .innerJoin(orderItems, eq(onlineExchangeItems.orderItemId, orderItems.id))
+    .where(eq(onlineExchangeItems.exchangeId, exchangeId));
+
+  if (!rawItems.length) return [];
+
+  const productIds = [...new Set(rawItems.map((r) => r.order_items.productId))];
+
+  const productsData = await roleBasedProductService.getProductsByRole(
+    { ids: productIds },
+    "inventory"
+  );
+
+  const productMap = new Map(productsData.map((p) => [p.id, p]));
+
+  return rawItems.map((row) => {
+    const product = productMap.get(row.order_items.productId);
+    return {
+      ...row.online_exchange_items,
+      orderItem: {
+        ...row.order_items,
+        product: createOrderHistoryProduct(product),
+      },
+    };
+  });
+}
+
+export class OnlineExchangeStorage implements IOnlineExchangeStorage {
   async getOnlineExchanges(filters?: {
     userId?: string;
     status?: string;
@@ -121,142 +162,113 @@ export class OnlineExchangeStorage implements IOnlineExchangeStorage {
     totalPages: number;
   }> {
     const conditions: any[] = [];
+
     if (filters?.userId)
       conditions.push(eq(onlineExchanges.userId, filters.userId));
     if (filters?.status)
       conditions.push(eq(onlineExchanges.status, filters.status as any));
+    if (filters?.dateFrom)
+      conditions.push(gte(onlineExchanges.createdAt, new Date(filters.dateFrom)));
+    if (filters?.dateTo)
+      conditions.push(lte(onlineExchanges.createdAt, new Date(filters.dateTo)));
 
-    const exchanges = await db
-      .select()
-      .from(onlineExchanges)
-      .where(conditions.length > 0 ? and(...conditions) : undefined)
-      .orderBy(desc(onlineExchanges.createdAt));
-
-    const result: OnlineExchangeWithDetails[] = [];
-    for (const exchange of exchanges) {
-      const orderWithItems = await orderService.getOrder(exchange.orderId, "admin");
-      const user = await userService.getUser(exchange.userId);
-      const items = await db
-        .select()
-        .from(onlineExchangeItems)
-        .innerJoin(orderItems, eq(onlineExchangeItems.orderItemId, orderItems.id))
-        .innerJoin(products, eq(orderItems.productId, products.id))
-        .leftJoin(categories, eq(products.categoryId, categories.id))
-        .leftJoin(colors, eq(products.colorId, colors.id))
-        .leftJoin(fabrics, eq(products.fabricId, fabrics.id))
-        .leftJoin(productVariants, eq(orderItems.variantId, productVariants.id))
-        .where(eq(onlineExchangeItems.exchangeId, exchange.id));
-
-      if (orderWithItems && user) {
-        result.push({
-          ...exchange,
-          order: orderWithItems,
-          user,
-          items: items.map((item) => {
-            const { ...itemWithoutId } = item.online_exchange_items;
-            return {
-              ...itemWithoutId,
-              orderItem: {
-                ...item.order_items,
-                product: {
-                  ...item.products,
-                  category: item.categories,
-                  color: item.colors,
-                  fabric: item.fabrics,
-                  variants: item.product_variants ? [item.product_variants] : undefined,
-                },
-              },
-            };
-          }),
-        });
-      }
-    }
-
-    // Apply search filter if provided
-    let filteredExchanges = result;
+    // Search by exchange ID or order ID at DB level
     if (filters?.search) {
-      const searchTerm = filters.search.toLowerCase();
-      filteredExchanges = result.filter(exchange => 
-        exchange.id.toLowerCase().includes(searchTerm) ||
-        exchange.orderId.toLowerCase().includes(searchTerm) ||
-        (exchange.user?.name && exchange.user.name.toLowerCase().includes(searchTerm)) ||
-        (exchange.user?.email && exchange.user.email.toLowerCase().includes(searchTerm))
+      conditions.push(
+        sql`(${onlineExchanges.id} ILIKE ${'%' + filters.search + '%'}
+          OR ${onlineExchanges.orderId} ILIKE ${'%' + filters.search + '%'})`
       );
     }
 
-    // Apply date filters if provided
-    if (filters?.dateFrom || filters?.dateTo) {
-      filteredExchanges = filteredExchanges.filter(exchange => {
-        const createdAt = new Date(exchange.createdAt);
-        if (filters?.dateFrom && createdAt < new Date(filters.dateFrom)) return false;
-        if (filters?.dateTo && createdAt > new Date(filters.dateTo)) return false;
-        return true;
-      });
+    const whereClause = conditions.length > 0 ? and(...conditions) : undefined;
+
+    const isPaginated = filters?.page !== undefined && filters?.pageSize !== undefined;
+
+    if (isPaginated) {
+      const page = filters!.page!;
+      const pageSize = filters!.pageSize!;
+      const offset = (page - 1) * pageSize;
+
+      const [countResult] = await db
+        .select({ count: sql<number>`count(*)` })
+        .from(onlineExchanges)
+        .where(whereClause);
+
+      const total = Number(countResult?.count ?? 0);
+      const totalPages = Math.ceil(total / pageSize);
+
+      const exchangeList = await db
+        .select()
+        .from(onlineExchanges)
+        .where(whereClause)
+        .orderBy(desc(onlineExchanges.createdAt))
+        .limit(pageSize)
+        .offset(offset);
+
+      const data = await this.hydrateExchanges(exchangeList, filters?.search);
+
+      return { data, total, page, pageSize, totalPages };
     }
 
-    // Return paginated response if page and pageSize are provided
-    if (filters?.page && filters?.pageSize) {
-      const offset = (filters.page - 1) * filters.pageSize;
-      const paginatedExchanges = filteredExchanges.slice(offset, offset + filters.pageSize);
-      
-      return {
-        data: paginatedExchanges,
-        total: filteredExchanges.length,
-        page: filters.page,
-        pageSize: filters.pageSize,
-        totalPages: Math.ceil(filteredExchanges.length / filters.pageSize)
-      };
-    }
+    // Non-paginated (e.g. getUserOnlineExchanges)
+    const exchangeList = await db
+      .select()
+      .from(onlineExchanges)
+      .where(whereClause)
+      .orderBy(desc(onlineExchanges.createdAt));
 
-    return filteredExchanges;
+    return this.hydrateExchanges(exchangeList, filters?.search);
   }
 
-  // Fix 5: Add productVariants join and include variants in mapped result
-  async getOnlineExchange(
-    id: string
-  ): Promise<OnlineExchangeWithDetails | undefined> {
+  // Hydrate a list of raw exchange rows into OnlineExchangeWithDetails
+  private async hydrateExchanges(
+    exchangeList: any[],
+    search?: string
+  ): Promise<OnlineExchangeWithDetails[]> {
+    const result: OnlineExchangeWithDetails[] = [];
+
+    for (const exchange of exchangeList) {
+      const orderWithItems = await orderService.getOrder(exchange.orderId, "inventory");
+      const user = await getSafeUser(exchange.userId);
+
+      if (!orderWithItems || !user) continue;
+
+      // Post-fetch search on user name/email (can't be done in SQL without a join)
+      if (search) {
+        const term = search.toLowerCase();
+        const nameMatch = user.name?.toLowerCase().includes(term);
+        const emailMatch = user.email?.toLowerCase().includes(term);
+        // ID/orderId already filtered at DB level; skip if no user match either
+        const idMatch =
+          exchange.id.toLowerCase().includes(term) ||
+          exchange.orderId.toLowerCase().includes(term);
+        if (!nameMatch && !emailMatch && !idMatch) continue;
+      }
+
+      const items = await buildExchangeItems(exchange.id);
+
+      result.push({ ...exchange, order: orderWithItems, user, items });
+    }
+
+    return result;
+  }
+
+  async getOnlineExchange(id: string): Promise<OnlineExchangeWithDetails | undefined> {
     const [exchange] = await db
       .select()
       .from(onlineExchanges)
       .where(eq(onlineExchanges.id, id));
+
     if (!exchange) return undefined;
 
-    const orderWithItems = await orderService.getOrder(exchange.orderId, "admin");
-    const user = await userService.getUser(exchange.userId);
+    const orderWithItems = await orderService.getOrder(exchange.orderId, "inventory");
+    const user = await getSafeUser(exchange.userId);
+
     if (!orderWithItems || !user) return undefined;
 
-    const items = await db
-      .select()
-      .from(onlineExchangeItems)
-      .innerJoin(orderItems, eq(onlineExchangeItems.orderItemId, orderItems.id))
-      .innerJoin(products, eq(orderItems.productId, products.id))
-      .leftJoin(categories, eq(products.categoryId, categories.id))
-      .leftJoin(colors, eq(products.colorId, colors.id))
-      .leftJoin(fabrics, eq(products.fabricId, fabrics.id))
-      .leftJoin(productVariants, eq(orderItems.variantId, productVariants.id))
-      .where(eq(onlineExchangeItems.exchangeId, exchange.id));
+    const items = await buildExchangeItems(exchange.id);
 
-    return {
-      ...exchange,
-      order: orderWithItems,
-      user,
-      items: items.map((item) => {
-        const { ...itemWithoutId } = item.online_exchange_items;
-        return {
-          ...itemWithoutId,
-          orderItem: {
-            ...item.order_items,
-            product: {
-              ...item.products,
-              category: item.categories,
-              color: item.colors,
-              fabric: item.fabrics,
-              variants: item.product_variants ? [item.product_variants] : undefined,
-            },
-          },
-        };
-      }),
-    };
+    return { ...exchange, order: orderWithItems, user, items };
   }
 
   async createOnlineExchange(
@@ -275,8 +287,7 @@ export class OnlineExchangeStorage implements IOnlineExchangeStorage {
           exchangeId: newExchange.id,
         });
 
-        // Update item status to "exchange_requested"
-        // Fix 4: Read the actual current status before updating (fetch current item status)
+        // Read actual current status before updating
         const [currentItem] = await tx
           .select({ status: orderItems.status })
           .from(orderItems)
@@ -286,16 +297,12 @@ export class OnlineExchangeStorage implements IOnlineExchangeStorage {
 
         await tx
           .update(orderItems)
-          .set({
-            status: "exchange_requested",
-            updatedAt: new Date(),
-          })
+          .set({ status: "exchange_requested", updatedAt: new Date() })
           .where(eq(orderItems.id, item.orderItemId));
 
-        // Create item status history
         await storage.itemHistory(
           item.orderItemId,
-          previousStatus, // Fix 4: use actual previous status
+          previousStatus,
           "exchange_requested",
           "Online exchange created",
           exchange.userId
@@ -314,7 +321,7 @@ export class OnlineExchangeStorage implements IOnlineExchangeStorage {
     exchangeOrderId?: string
   ): Promise<OnlineExchange | undefined> {
     return await db.transaction(async (tx) => {
-      // Fix 6: Enforce status transition guard
+      // Enforce status transition guard
       const [current] = await tx
         .select({ status: onlineExchanges.status })
         .from(onlineExchanges)
@@ -331,7 +338,6 @@ export class OnlineExchangeStorage implements IOnlineExchangeStorage {
 
       const updateData: any = { status, updatedAt: new Date() };
       if (processedBy) updateData.processedBy = processedBy;
-      // Fix 3: Save inspectionNotes even when empty string
       if (inspectionNotes !== undefined) updateData.inspectionNotes = inspectionNotes;
       if (exchangeOrderId) updateData.exchangeOrderId = exchangeOrderId;
 
@@ -346,24 +352,24 @@ export class OnlineExchangeStorage implements IOnlineExchangeStorage {
       const onlineExchange = await this.getOnlineExchange(id);
       if (!onlineExchange) return result;
 
-      // Map exchange status to order item status
+      // Map exchange status to order item status (1:1 mapping)
       const statusMap: Record<string, string> = {
-        exchange_requested: "exchange_requested",
-        exchange_approved: "exchange_approved",
-        exchange_processing: "exchange_processing",
+        exchange_requested:        "exchange_requested",
+        exchange_approved:         "exchange_approved",
+        exchange_processing:       "exchange_processing",
         exchange_pickup_scheduled: "exchange_pickup_scheduled",
-        exchange_picked_up: "exchange_picked_up",
-        exchange_in_transit: "exchange_in_transit",
-        exchange_received: "exchange_received",
-        exchange_inspected: "exchange_inspected",
-        exchange_shipped: "exchange_shipped",
-        exchange_delivered: "exchange_delivered",
-        exchange_completed: "exchange_completed",
-        exchange_cancelled: "exchange_cancelled",
+        exchange_picked_up:        "exchange_picked_up",
+        exchange_in_transit:       "exchange_in_transit",
+        exchange_received:         "exchange_received",
+        exchange_inspected:        "exchange_inspected",
+        exchange_shipped:          "exchange_shipped",
+        exchange_delivered:        "exchange_delivered",
+        exchange_completed:        "exchange_completed",
+        exchange_cancelled:        "exchange_cancelled",
       };
 
       for (const item of onlineExchange.items) {
-        const newItemStatus = statusMap[status] || "exchange_requested";
+        const newItemStatus = statusMap[status] ?? "exchange_requested";
         await tx.update(orderItems).set({
           status: newItemStatus as any,
           updatedAt: new Date(),
@@ -378,22 +384,21 @@ export class OnlineExchangeStorage implements IOnlineExchangeStorage {
         );
       }
 
-      // Fix 8: Send notification once, outside the item loop
-      await tx.insert(notifications).values({
+      // Send notification once, outside the item loop
+      await storage.createNotification({
         userId: onlineExchange.userId,
         type: "order",
         title: "Online Exchange Update",
         message: `Your online exchange request for order #${String(onlineExchange.orderId)} has been updated to "${String(status)}".`,
         relatedId: onlineExchange.orderId,
-        createdAt: new Date(),
+        relatedType: "order",
       });
 
-      // Only fire stock movements when status === "exchange_completed"
+      // Fire stock movements only when exchange_completed
       if (status === "exchange_completed") {
         for (const item of onlineExchange.items) {
-          // ── Returned item: restore stock columns + record movement ──────────
+          // Returned item: restore stock
           if (item.isRestockable) {
-            // Update actual product stock columns (same as return path)
             await storage.restoreStockFromReturn(
               item.orderItem.product.id,
               item.quantity,
@@ -401,9 +406,8 @@ export class OnlineExchangeStorage implements IOnlineExchangeStorage {
             );
           }
 
-          // ── Replacement item: deduct stock columns + record movement ────────
+          // Replacement item: deduct stock
           if (item.exchangeproductId) {
-            // Deduct online_stock and total_stock on the replacement product
             await tx
               .update(products)
               .set({
@@ -412,7 +416,6 @@ export class OnlineExchangeStorage implements IOnlineExchangeStorage {
               })
               .where(eq(products.id, item.exchangeproductId));
 
-            // Record the outbound stock movement for the replacement
             await tx.insert(stockMovements).values({
               productId: item.exchangeproductId,
               quantity: -item.quantity,
@@ -422,7 +425,6 @@ export class OnlineExchangeStorage implements IOnlineExchangeStorage {
               createdAt: new Date(),
             });
 
-            // Alert if replacement product stock is now low
             await storage.checkAndCreateStockAlert(item.exchangeproductId);
           }
         }
@@ -431,7 +433,6 @@ export class OnlineExchangeStorage implements IOnlineExchangeStorage {
       return result;
     });
   }
-
 
   async updateOnlineExchange(
     id: string,
@@ -445,21 +446,18 @@ export class OnlineExchangeStorage implements IOnlineExchangeStorage {
     return result || undefined;
   }
 
-  async getUserOnlineExchanges(
-    userId: string
-  ): Promise<OnlineExchangeWithDetails[]> {
+  async getUserOnlineExchanges(userId: string): Promise<OnlineExchangeWithDetails[]> {
     const result = await this.getOnlineExchanges({ userId });
-    return Array.isArray(result) ? result : result.data || [];
+    return Array.isArray(result) ? result : result.data ?? [];
   }
 
   async checkOrderOnlineExchangeEligibility(
     orderId: string,
     orderItemIds?: string[]
   ): Promise<{ eligible: boolean; reason?: string; remainingDays?: number; eligibleItems?: string[] }> {
-    const order = await orderService.getOrder(orderId, "admin");
+    const order = await orderService.getOrder(orderId, "inventory");
     if (!order) return { eligible: false, reason: "Order not found" };
 
-    // If specific order item IDs provided, check only those items
     if (orderItemIds && orderItemIds.length > 0) {
       const eligibleItems: string[] = [];
 
@@ -469,8 +467,8 @@ export class OnlineExchangeStorage implements IOnlineExchangeStorage {
           return { eligible: false, reason: `Order item ${orderItemId} not found` };
         }
 
-        // Check if this specific item is delivered
-        const isDelivered = orderItem.status === "delivered" ||
+        const isDelivered =
+          orderItem.status === "delivered" ||
           orderItem.status === "exchange_completed" ||
           orderItem.status === "return_completed";
 
@@ -478,10 +476,8 @@ export class OnlineExchangeStorage implements IOnlineExchangeStorage {
           return { eligible: false, reason: `Item ${orderItem.product.name} must be delivered to initiate exchange` };
         }
 
-        // Check if this item has already been exchanged
-        const existingExchange = await this.getExchangedQuantityByOrderItem(orderItemId);
-        const purchasedQty = Number(orderItem.quantity || 0);
-        const exchangedQty = Number(existingExchange || 0);
+        const exchangedQty = await this.getExchangedQuantityByOrderItem(orderItemId);
+        const purchasedQty = Number(orderItem.quantity ?? 0);
 
         if (purchasedQty <= exchangedQty) {
           return { eligible: false, reason: `Item ${orderItem.product.name} has already been fully exchanged` };
@@ -490,26 +486,9 @@ export class OnlineExchangeStorage implements IOnlineExchangeStorage {
         eligibleItems.push(orderItemId);
       }
 
-      // Check overall order exchange window
-      let eligibleUntil: Date;
-      if (!order.returnEligibleUntil) {
-        if (order.deliveredAt) {
-          const windowDays = 7; // Default value, could be from settings
-          eligibleUntil = new Date(order.deliveredAt);
-          eligibleUntil.setDate(eligibleUntil.getDate() + windowDays);
-
-          await db
-            .update(orders)
-            .set({ returnEligibleUntil: eligibleUntil })
-            .where(eq(orders.id, orderId));
-        } else {
-          return {
-            eligible: false,
-            reason: "Online exchange window not set - order delivery date missing",
-          };
-        }
-      } else {
-        eligibleUntil = new Date(order.returnEligibleUntil);
+      const eligibleUntil = await this.resolveEligibleUntil(order, orderId);
+      if (!eligibleUntil) {
+        return { eligible: false, reason: "Online exchange window not set - order delivery date missing" };
       }
 
       const now = new Date();
@@ -517,13 +496,15 @@ export class OnlineExchangeStorage implements IOnlineExchangeStorage {
         return { eligible: false, reason: "Online exchange window has expired" };
       }
 
-      const remainingMs = eligibleUntil.getTime() - now.getTime();
-      const remainingDays = Math.max(0, Math.floor(remainingMs / (1000 * 60 * 60 * 24)));
+      const remainingDays = Math.max(
+        0,
+        Math.floor((eligibleUntil.getTime() - now.getTime()) / (1000 * 60 * 60 * 24))
+      );
 
       return { eligible: true, remainingDays, eligibleItems };
     }
 
-    // Original logic for checking entire order (backward compatibility)
+    // Entire-order check (backward compatibility)
     const hasDeliveredItem = order.items.some((item: any) =>
       item.status === "delivered" ||
       item.status === "exchange_completed" ||
@@ -531,31 +512,12 @@ export class OnlineExchangeStorage implements IOnlineExchangeStorage {
     );
 
     if (!hasDeliveredItem) {
-      return {
-        eligible: false,
-        reason: "At least one item must be delivered to initiate online exchange",
-      };
+      return { eligible: false, reason: "At least one item must be delivered to initiate online exchange" };
     }
 
-    let eligibleUntil: Date;
-    if (!order.returnEligibleUntil) {
-      if (order.deliveredAt) {
-        const windowDays = 7;
-        eligibleUntil = new Date(order.deliveredAt);
-        eligibleUntil.setDate(eligibleUntil.getDate() + windowDays);
-
-        await db
-          .update(orders)
-          .set({ returnEligibleUntil: eligibleUntil })
-          .where(eq(orders.id, orderId));
-      } else {
-        return {
-          eligible: false,
-          reason: "Online exchange window not set - order delivery date missing",
-        };
-      }
-    } else {
-      eligibleUntil = new Date(order.returnEligibleUntil);
+    const eligibleUntil = await this.resolveEligibleUntil(order, orderId);
+    if (!eligibleUntil) {
+      return { eligible: false, reason: "Online exchange window not set - order delivery date missing" };
     }
 
     const now = new Date();
@@ -563,16 +525,36 @@ export class OnlineExchangeStorage implements IOnlineExchangeStorage {
       return { eligible: false, reason: "Online exchange window has expired" };
     }
 
-    const remainingMs = eligibleUntil.getTime() - now.getTime();
-    const remainingDays = Math.max(0, Math.floor(remainingMs / (1000 * 60 * 60 * 24)));
+    const remainingDays = Math.max(
+      0,
+      Math.floor((eligibleUntil.getTime() - now.getTime()) / (1000 * 60 * 60 * 24))
+    );
 
     return { eligible: true, remainingDays };
   }
 
-  // Fix 1 & 9: Use correct DB enum values; exclude exchange_cancelled
-  private async getExchangedQuantityByOrderItem(
-    orderItemId: string
-  ): Promise<number> {
+  // Resolve or compute+persist the exchange eligibility window
+  private async resolveEligibleUntil(order: any, orderId: string): Promise<Date | null> {
+    if (order.returnEligibleUntil) {
+      return new Date(order.returnEligibleUntil);
+    }
+
+    if (!order.deliveredAt) return null;
+
+    const windowDays = 7;
+    const eligibleUntil = new Date(order.deliveredAt);
+    eligibleUntil.setDate(eligibleUntil.getDate() + windowDays);
+
+    await db
+      .update(orders)
+      .set({ returnEligibleUntil: eligibleUntil })
+      .where(eq(orders.id, orderId));
+
+    return eligibleUntil;
+  }
+
+  // Sum exchanged quantity for an order item, excluding cancelled exchanges
+  private async getExchangedQuantityByOrderItem(orderItemId: string): Promise<number> {
     const result = await db
       .select({
         qty: sql<number>`sum(${onlineExchangeItems.quantity})::int`,
@@ -585,24 +567,11 @@ export class OnlineExchangeStorage implements IOnlineExchangeStorage {
       .where(
         and(
           eq(onlineExchangeItems.orderItemId, orderItemId),
-          inArray(onlineExchanges.status, [
-            "exchange_requested",
-            "exchange_approved",
-            "exchange_processing",
-            "exchange_pickup_scheduled",
-            "exchange_picked_up",
-            "exchange_in_transit",
-            "exchange_received",
-            "exchange_inspected",
-            "exchange_shipped",
-            "exchange_delivered",
-            "exchange_completed",
-            // exchange_cancelled intentionally excluded (fix 9)
-          ])
+          inArray(onlineExchanges.status, [...ACTIVE_EXCHANGE_STATUSES])
         )
       );
 
-    return Number(result[0]?.qty || 0);
+    return Number(result[0]?.qty ?? 0);
   }
 }
 

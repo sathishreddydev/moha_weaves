@@ -18,7 +18,7 @@ import { storage } from "server/storage";
 import { IdGenerator } from "server/utils/idGenerator";
 import { paymentInfo } from "./createOrderService";
 
-function createOrderHistoryProduct(product: any) {
+export function createOrderHistoryProduct(product: any) {
   if (!product) {
     return {
       id: '',
@@ -687,12 +687,11 @@ export class OrderRepository implements OrderStorage {
     });
   }
 
-  // Fix #6: accept updatedBy and note to match the interface, record audit history
   async updateOrderStatus(
     orderId: string,
     status: string,
-    updatedBy?: string,
-    note?: string,
+    _updatedBy?: string,
+    _note?: string,
   ): Promise<any | undefined> {
     // Map item-level statuses to the order_status enum values accepted by the DB:
     //   order_status enum: 'created' | 'processing' | 'completed' | 'cancelled'
