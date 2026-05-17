@@ -309,11 +309,16 @@ export class OnlineExchangeStorage implements IOnlineExchangeStorage {
 
         // Read actual current status before updating
         const [currentItem] = await tx
-          .select({ status: orderItems.status })
+          .select({ status: orderItems.status, variantId: orderItems.variantId })
           .from(orderItems)
           .where(eq(orderItems.id, item.orderItemId));
 
         const previousStatus = currentItem?.status ?? "delivered";
+        const originalVariantId: string | null = currentItem?.variantId ?? null;
+        const replacementVariantId: string | null = item.exchangeVariantId ?? null;
+        const isDifferentSize =
+          replacementVariantId &&
+          replacementVariantId !== originalVariantId;
 
         await tx
           .update(orderItems)
@@ -327,6 +332,52 @@ export class OnlineExchangeStorage implements IOnlineExchangeStorage {
           "Online exchange created",
           exchange.userId
         );
+
+        // ── Reserve replacement stock immediately for different-size exchanges ──
+        if (isDifferentSize && item.exchangeproductId) {
+          // Validate replacement variant has enough stock before reserving
+          const [replacementVariant] = await tx
+            .select({ onlineStock: productVariants.onlineStock })
+            .from(productVariants)
+            .where(eq(productVariants.id, replacementVariantId!));
+
+          if (!replacementVariant || replacementVariant.onlineStock < item.quantity) {
+            throw new Error(
+              `The selected replacement size is out of stock. Please choose a different size.`
+            );
+          }
+
+          // Deduct variant stock
+          await tx
+            .update(productVariants)
+            .set({
+              stockQuantity: sql`${productVariants.stockQuantity} - ${item.quantity}`,
+              onlineStock: sql`${productVariants.onlineStock} - ${item.quantity}`,
+            })
+            .where(eq(productVariants.id, replacementVariantId!));
+
+          // Deduct product-level stock
+          await tx
+            .update(products)
+            .set({
+              onlineStock: sql`${products.onlineStock} - ${item.quantity}`,
+              totalStock: sql`${products.totalStock} - ${item.quantity}`,
+            })
+            .where(eq(products.id, item.exchangeproductId));
+
+          await tx.insert(stockMovements).values({
+            productId: item.exchangeproductId,
+            variantId: replacementVariantId,
+            quantity: -item.quantity,
+            movementType: "sale",
+            source: "online",
+            orderRefId: newExchange.orderId,
+            notes: "Replacement stock reserved for different-size exchange",
+            createdAt: new Date(),
+          });
+
+          await storage.checkAndCreateStockAlert(item.exchangeproductId);
+        }
       }
 
       return newExchange;
@@ -414,31 +465,143 @@ export class OnlineExchangeStorage implements IOnlineExchangeStorage {
         relatedType: "order",
       });
 
+      // ── Release reservation on cancellation ─────────────────────────────
+      // If a different-size exchange is cancelled, restore the replacement
+      // variant stock that was reserved at creation time.
+      if (status === "exchange_cancelled") {
+        for (const item of onlineExchange.items) {
+          const originalVariantId: string | null = item.orderItem.variantId ?? null;
+          const replacementVariantId: string | null = item.exchangeVariantId ?? null;
+          const isDifferentSize =
+            replacementVariantId && replacementVariantId !== originalVariantId;
+
+          if (isDifferentSize && item.exchangeproductId) {
+            // Restore variant stock
+            await tx
+              .update(productVariants)
+              .set({
+                stockQuantity: sql`${productVariants.stockQuantity} + ${item.quantity}`,
+                onlineStock: sql`${productVariants.onlineStock} + ${item.quantity}`,
+              })
+              .where(eq(productVariants.id, replacementVariantId!));
+
+            // Restore product-level stock
+            await tx
+              .update(products)
+              .set({
+                onlineStock: sql`${products.onlineStock} + ${item.quantity}`,
+                totalStock: sql`${products.totalStock} + ${item.quantity}`,
+              })
+              .where(eq(products.id, item.exchangeproductId));
+
+            await tx.insert(stockMovements).values({
+              productId: item.exchangeproductId,
+              variantId: replacementVariantId,
+              quantity: item.quantity,
+              movementType: "return",
+              source: "online",
+              orderRefId: onlineExchange.orderId,
+              notes: "Reservation released — exchange cancelled",
+              createdAt: new Date(),
+            });
+          }
+        }
+      }
+
       // Fire stock movements only when exchange_completed
       if (status === "exchange_completed") {
         for (const item of onlineExchange.items) {
-          // Returned item: restore stock
-          if (item.isRestockable) {
-            await storage.restoreStockFromReturn(
-              item.orderItem.product.id,
-              item.quantity,
-              onlineExchange.orderId,
-            );
-          }
+          const originalVariantId: string | null = item.orderItem.variantId ?? null;
+          const replacementVariantId: string | null = item.exchangeVariantId ?? null;
+          const isSameVariant =
+            originalVariantId &&
+            replacementVariantId &&
+            originalVariantId === replacementVariantId;
 
-          // Replacement item: deduct stock
-          if (item.exchangeproductId) {
-            // If a specific variant was requested, deduct variant stock too
-            if (item.exchangeVariantId) {
+          // ── Restore returned item stock ──────────────────────────────────
+          // Only restore if the item is restockable
+          if (item.isRestockable) {
+            // Restore product-level stock
+            await tx
+              .update(products)
+              .set({
+                totalStock: sql`${products.totalStock} + ${item.quantity}`,
+                onlineStock: sql`${products.onlineStock} + ${item.quantity}`,
+              })
+              .where(eq(products.id, item.orderItem.product.id));
+
+            // Restore the original variant's stock too (if it had one)
+            if (originalVariantId) {
               await tx
                 .update(productVariants)
                 .set({
-                  stockQuantity: sql`${productVariants.stockQuantity} - ${item.quantity}`,
-                  onlineStock: sql`${productVariants.onlineStock} - ${item.quantity}`,
+                  stockQuantity: sql`${productVariants.stockQuantity} + ${item.quantity}`,
+                  onlineStock: sql`${productVariants.onlineStock} + ${item.quantity}`,
                 })
-                .where(eq(productVariants.id, item.exchangeVariantId));
+                .where(eq(productVariants.id, originalVariantId));
             }
 
+            await tx.insert(stockMovements).values({
+              productId: item.orderItem.product.id,
+              variantId: originalVariantId,
+              quantity: item.quantity,
+              movementType: "return",
+              source: "online",
+              orderRefId: onlineExchange.orderId,
+              notes: "Stock restored from exchange return",
+              createdAt: new Date(),
+            });
+          }
+
+          // ── Replacement stock at completion ──────────────────────────────
+          // Different-size: stock was already reserved at creation time.
+          // Nothing to deduct here — just record a dispatch movement for audit.
+          // Same-size: no reservation was made at creation, so deduct now
+          // (the returned item refills the same slot, net = 0, but we still
+          // record both movements for the audit trail).
+          if (isSameVariant) {
+            // Returned item restores the slot, replacement takes it back out.
+            // Net stock change = 0, but record the dispatch movement.
+            await tx
+              .update(products)
+              .set({
+                totalStock: sql`${products.totalStock} - ${item.quantity}`,
+                onlineStock: sql`${products.onlineStock} - ${item.quantity}`,
+              })
+              .where(eq(products.id, item.orderItem.product.id));
+
+            await tx
+              .update(productVariants)
+              .set({
+                stockQuantity: sql`${productVariants.stockQuantity} - ${item.quantity}`,
+                onlineStock: sql`${productVariants.onlineStock} - ${item.quantity}`,
+              })
+              .where(eq(productVariants.id, replacementVariantId));
+
+            await tx.insert(stockMovements).values({
+              productId: item.orderItem.product.id,
+              variantId: replacementVariantId,
+              quantity: -item.quantity,
+              movementType: "sale",
+              source: "online",
+              orderRefId: onlineExchange.orderId,
+              notes: "Same-size exchange — replacement dispatched",
+              createdAt: new Date(),
+            });
+          } else if (item.exchangeproductId && replacementVariantId) {
+            // Different-size: already reserved at creation — just log dispatch.
+            await tx.insert(stockMovements).values({
+              productId: item.exchangeproductId,
+              variantId: replacementVariantId,
+              quantity: 0, // No stock change — already deducted at creation
+              movementType: "sale",
+              source: "online",
+              orderRefId: onlineExchange.orderId,
+              notes: "Different-size exchange — replacement dispatched (reserved at creation)",
+              createdAt: new Date(),
+            });
+          } else if (item.exchangeproductId && !replacementVariantId) {
+            // No variant specified (non-sized product) — deduct product stock now
             await tx
               .update(products)
               .set({
@@ -449,11 +612,12 @@ export class OnlineExchangeStorage implements IOnlineExchangeStorage {
 
             await tx.insert(stockMovements).values({
               productId: item.exchangeproductId,
-              variantId: item.exchangeVariantId ?? null,
+              variantId: null,
               quantity: -item.quantity,
               movementType: "sale",
               source: "online",
               orderRefId: onlineExchange.orderId,
+              notes: "Exchange completed — replacement dispatched",
               createdAt: new Date(),
             });
 
