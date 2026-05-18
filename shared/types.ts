@@ -106,6 +106,7 @@ export type OnlineExchangeWithDetails = OnlineExchange & {
   user: any;
   items: (Omit<OnlineExchangeItem, 'id'> & {
     orderItem: {
+      orderId: string;
       product: any;
     };
   })[];

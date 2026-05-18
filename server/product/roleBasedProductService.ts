@@ -512,20 +512,30 @@ export class RoleBasedProductService {
 
     if (filters.inStock) {
       results = results.filter(p => {
-        const totalStock = p.variants?.reduce((sum: number, variant: any) => 
-          sum + (variant.onlineStock || 0) + 
-          variant.storeAllocations?.reduce((storeSum: number, allocation: { quantity: number }) => 
-            storeSum + (allocation.quantity || 0), 0) || 0, 0) || 0;
+        if (!p.variants?.length) return (p.onlineStock || 0) > 0;
+        const totalStock = p.variants.reduce((sum: number, variant: any) => {
+          const onlineStock = variant.onlineStock || 0;
+          const storeStock = Array.isArray(variant.storeAllocations)
+            ? variant.storeAllocations.reduce((storeSum: number, allocation: { quantity: number }) =>
+                storeSum + (allocation.quantity || 0), 0)
+            : 0;
+          return sum + onlineStock + storeStock;
+        }, 0);
         return totalStock > 0;
       });
     }
 
     if (filters.minStock !== undefined) {
       results = results.filter(p => {
-        const totalStock = p.variants?.reduce((sum: number, variant: any) => 
-          sum + (variant.onlineStock || 0) + 
-          variant.storeAllocations?.reduce((storeSum: number, allocation: { quantity: number }) => 
-            storeSum + (allocation.quantity || 0), 0) || 0, 0) || 0;
+        if (!p.variants?.length) return (p.onlineStock || 0) >= filters.minStock!;
+        const totalStock = p.variants.reduce((sum: number, variant: any) => {
+          const onlineStock = variant.onlineStock || 0;
+          const storeStock = Array.isArray(variant.storeAllocations)
+            ? variant.storeAllocations.reduce((storeSum: number, allocation: { quantity: number }) =>
+                storeSum + (allocation.quantity || 0), 0)
+            : 0;
+          return sum + onlineStock + storeStock;
+        }, 0);
         return totalStock >= filters.minStock!;
       });
     }
