@@ -278,10 +278,8 @@ async deleteSale(id: string): Promise<void> {
         });
       }
       result.push(...categorySalesWithProducts);
-    } else {
-      // If no category is provided, return an empty array
-      return [];
     }
+    // If no categoryId, we still return any product-specific sales found above
 
     return result;
   }

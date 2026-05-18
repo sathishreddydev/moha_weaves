@@ -39,7 +39,8 @@ import {
   Percent,
   Plus,
   Ticket,
-  Trash2
+  Trash2,
+  Truck,
 } from "lucide-react";
 import { useState } from "react";
 import { formatDate, formatPrice } from "@/lib/utils";
@@ -47,7 +48,7 @@ import { formatDate, formatPrice } from "@/lib/utils";
 
 interface CouponFormData {
   code: string;
-  type: "percentage" | "fixed";
+  type: "percentage" | "fixed" | "free_shipping";
   value: string;
   minOrderAmount: string;
   maxDiscount: string;
@@ -176,7 +177,7 @@ export default function AdminCoupons() {
     setEditingCoupon(coupon);
     setFormData({
       code: coupon.code,
-      type: coupon.type as "percentage" | "fixed",
+      type: coupon.type as "percentage" | "fixed" | "free_shipping",
       value: coupon.value,
       minOrderAmount: coupon.minOrderAmount || "",
       maxDiscount: coupon.maxDiscount || "",
@@ -206,9 +207,10 @@ export default function AdminCoupons() {
     }
 
     if (
-      !formData.value ||
-      isNaN(parseFloat(formData.value)) ||
-      parseFloat(formData.value) <= 0
+      formData.type !== "free_shipping" &&
+      (!formData.value ||
+        isNaN(parseFloat(formData.value)) ||
+        parseFloat(formData.value) <= 0)
     ) {
       toast({
         title: "Error",
@@ -300,6 +302,10 @@ export default function AdminCoupons() {
                             <>
                               <Percent className="h-3 w-3 mr-1" /> Percentage
                             </>
+                          ) : coupon.type === "free_shipping" ? (
+                            <>
+                              <Truck className="h-3 w-3 mr-1" /> Free Shipping
+                            </>
                           ) : (
                             <>
                               <DollarSign className="h-3 w-3 mr-1" /> Fixed
@@ -310,6 +316,8 @@ export default function AdminCoupons() {
                       <TableCell className="font-medium">
                         {coupon.type === "percentage"
                           ? `${coupon.value}%`
+                          : coupon.type === "free_shipping"
+                          ? "—"
                           : formatPrice(coupon.value)}
                       </TableCell>
                       <TableCell>
@@ -400,7 +408,7 @@ export default function AdminCoupons() {
                 <Label htmlFor="type">Discount Type</Label>
                 <Select
                   value={formData.type}
-                  onValueChange={(value: "percentage" | "fixed") =>
+                  onValueChange={(value: "percentage" | "fixed" | "free_shipping") =>
                     setFormData({ ...formData, type: value })
                   }
                 >
@@ -413,12 +421,17 @@ export default function AdminCoupons() {
                   <SelectContent>
                     <SelectItem value="percentage">Percentage (%)</SelectItem>
                     <SelectItem value="fixed">Fixed Amount (₹)</SelectItem>
+                    <SelectItem value="free_shipping">Free Shipping</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
               <div>
                 <Label htmlFor="value">
-                  {formData.type === "percentage" ? "Percentage" : "Amount (₹)"}
+                  {formData.type === "percentage"
+                    ? "Percentage"
+                    : formData.type === "free_shipping"
+                    ? "Value (N/A)"
+                    : "Amount (₹)"}
                 </Label>
                 <Input
                   id="value"
@@ -428,8 +441,13 @@ export default function AdminCoupons() {
                     setFormData({ ...formData, value: e.target.value })
                   }
                   placeholder={
-                    formData.type === "percentage" ? "e.g., 20" : "e.g., 500"
+                    formData.type === "percentage"
+                      ? "e.g., 20"
+                      : formData.type === "free_shipping"
+                      ? "Not required"
+                      : "e.g., 500"
                   }
+                  disabled={formData.type === "free_shipping"}
                   className="mt-1"
                   data-testid="input-coupon-value"
                 />
@@ -553,6 +571,8 @@ export default function AdminCoupons() {
                   <p className="text-sm text-muted-foreground">
                     {coupon.type === "percentage"
                       ? `${coupon.value}% off`
+                      : coupon.type === "free_shipping"
+                      ? "Free shipping"
                       : `₹${coupon.value} off`}
                     {coupon.minOrderAmount &&
                       ` on orders above ₹${coupon.minOrderAmount}`}
