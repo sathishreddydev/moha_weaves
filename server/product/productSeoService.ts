@@ -25,10 +25,11 @@ export interface ProductSEOWithId {
 }
 
 // Create or update SEO data for a product
-export async function createOrUpdateProductSEO(data: ProductSEOData): Promise<ProductSEOWithId> {
+export async function createOrUpdateProductSEO(data: ProductSEOData, txOrDb?: any): Promise<ProductSEOWithId> {
+  const conn = txOrDb || db;
   try {
     // Check if SEO data already exists for this product
-    const existingSEO = await db
+    const existingSEO = await conn
       .select()
       .from(productSeo)
       .where(eq(productSeo.productId, data.productId))
@@ -36,7 +37,7 @@ export async function createOrUpdateProductSEO(data: ProductSEOData): Promise<Pr
 
     if (existingSEO.length > 0) {
       // Update existing SEO data
-      const updatedSEO = await db
+      const updatedSEO = await conn
         .update(productSeo)
         .set({
           seoTitle: data.seoTitle,
@@ -52,7 +53,7 @@ export async function createOrUpdateProductSEO(data: ProductSEOData): Promise<Pr
       return Array.isArray(updatedSEO) ? updatedSEO[0] : updatedSEO;
     } else {
       // Create new SEO data
-      const newSEO = await db
+      const newSEO = await conn
         .insert(productSeo)
         .values({
           productId: data.productId,

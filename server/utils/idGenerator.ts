@@ -13,19 +13,24 @@ export class IdGenerator {
   static async getNextOrderSequence(): Promise<number> {
     try {
       // Get the highest existing sequence from database
+      // Order ID format: MOHAORDYY##### (7 prefix + 2 year + 5 sequence = 14 chars)
+      // SUBSTRING from position 10 extracts the 5-digit sequence number
+      const year = new Date().getFullYear().toString().slice(-2);
+      const prefix = `MOHAORD${year}%`;
+      
       const [{ maxSeq }] = await db
         .select({
-          maxSeq: sql<number>`MAX(CAST(SUBSTRING(${orders.id}, 13) AS INTEGER))`,
+          maxSeq: sql<number>`COALESCE(MAX(CAST(SUBSTRING(${orders.id}, 10) AS INTEGER)), 0)`,
         })
         .from(orders)
-        .where(sql`${orders.id} LIKE 'MOHAORD%'`);
+        .where(sql`${orders.id} LIKE ${prefix}`);
 
 
-      return maxSeq + 1;
+      return (maxSeq ?? 0) + 1;
     } catch (error) {
       console.error("Error getting order sequence:", error);
-      // Fallback to in-memory sequence
-      this.orderSequence++;
+      // Fallback to timestamp-based sequence to avoid collisions
+      this.orderSequence = Date.now() % 100000;
       return this.orderSequence;
     }
   }

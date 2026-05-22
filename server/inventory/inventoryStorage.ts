@@ -244,7 +244,7 @@ export class InventoryRepository implements IStorage {
         await createOrUpdateProductSEO({
           productId: updatedProduct.id,
           ...seoData
-        });
+        }, tx);
       }
 
       return updatedProduct;
@@ -333,7 +333,7 @@ export class InventoryRepository implements IStorage {
       }
 
       if (seoData) {
-        await createOrUpdateProductSEO({ productId: createdProduct.id, ...seoData });
+        await createOrUpdateProductSEO({ productId: createdProduct.id, ...seoData }, tx);
       }
 
       return createdProduct;
@@ -388,7 +388,7 @@ export class InventoryRepository implements IStorage {
       }
 
       if (seoData) {
-        await createOrUpdateProductSEO({ productId: createdProduct.id, ...seoData });
+        await createOrUpdateProductSEO({ productId: createdProduct.id, ...seoData }, tx);
       }
 
       return createdProduct;
@@ -488,7 +488,7 @@ export class InventoryRepository implements IStorage {
         await createOrUpdateProductSEO({
           productId: id,
           ...seoData
-        });
+        }, tx);
       }
 
       return updatedProduct;

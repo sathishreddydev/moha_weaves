@@ -1398,18 +1398,9 @@ export const ProductForm = ({
 
                 {/* Uploaded Video Display */}
                 {formData.videoUrl && (
-                  <div className="space-y-2">
-                    <Label>Uploaded Video</Label>
-                    <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-md">
-                      <Video className="h-8 w-8 text-muted-foreground" />
-                      <div className="flex-1">
-                        <p className="text-sm font-medium truncate">
-                          {formData.videoUrl}
-                        </p>
-                        <p className="text-xs text-muted-foreground">
-                          Video uploaded successfully
-                        </p>
-                      </div>
+                  <div className="space-y-2 mt-3">
+                    <div className="flex items-center justify-between">
+                      <Label className="text-xs font-medium">Uploaded Video</Label>
                       <button
                         type="button"
                         onClick={async () => {
@@ -1440,11 +1431,24 @@ export const ProductForm = ({
                           }
                           setFormData((prev) => ({ ...prev, videoUrl: "" }));
                         }}
-                        className="text-destructive"
+                        className="text-xs text-destructive hover:text-destructive/80 flex items-center gap-1"
                       >
-                        <X className="h-4 w-4" />
+                        <X className="h-3 w-3" />
+                        Remove
                       </button>
                     </div>
+                    <div className="rounded-md overflow-hidden border bg-black">
+                      <video
+                        src={formData.videoUrl}
+                        controls
+                        className="w-full max-h-48 object-contain"
+                        preload="metadata"
+                      />
+                    </div>
+                    <p className="text-xs text-green-600 flex items-center gap-1">
+                      <Video className="h-3 w-3" />
+                      Video uploaded successfully
+                    </p>
                   </div>
                 )}
               </div>
