@@ -34,6 +34,8 @@ export default function AddProduct() {
         distributionChannel: DistributionChannel.BOTH,
         isFeatured: false,
         isActive: true,
+        // Care instructions
+        careInstructions: "",
         // New variant fields
         hasVariants: false,
         variants: [],

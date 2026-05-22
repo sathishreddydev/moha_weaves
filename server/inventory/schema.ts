@@ -75,6 +75,7 @@ export const productBaseSchema = z.object({
   distributionChannel: z.enum(["shop", "online", "both"]),
   isFeatured: z.boolean().optional().default(false),
   isActive: z.boolean().optional().default(true),
+  careInstructions: z.string().max(500, "Care instructions must be 500 characters or less").optional(),
   // Variant support fields
   hasVariants: z.boolean().default(false),
   variants: z.array(productVariantSchema).optional().default([]),

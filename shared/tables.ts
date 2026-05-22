@@ -122,6 +122,7 @@ export const products = pgTable("products", {
     .default("both"),
   isActive: boolean("is_active").notNull().default(false),
   isFeatured: boolean("is_featured").notNull().default(false),
+  careInstructions: text("care_instructions"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });

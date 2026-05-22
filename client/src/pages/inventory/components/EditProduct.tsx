@@ -59,6 +59,9 @@ export default function EditProduct() {
 
     isActive: true,
 
+    // Care instructions
+    careInstructions: "",
+
     // New variant fields
 
     hasVariants: false,
@@ -146,6 +149,8 @@ export default function EditProduct() {
         distributionChannel: product.distributionChannel,
         isFeatured: product.isFeatured,
         isActive: product.isActive,
+        // Care instructions
+        careInstructions: product.careInstructions || "",
 
         // New variant fields
 
