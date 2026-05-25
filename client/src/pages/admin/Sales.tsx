@@ -219,7 +219,7 @@ export default function AdminSales() {
       discountValue: sale.discountValue,
       targetType: sale.categoryId ? "category" : sale.products?.length ? "products" : "all",
       categoryId: sale.categoryId || "",
-      subcategoryId: "all", // Will need to add this to backend schema
+      subcategoryId: sale.subcategoryId || "all",
       productIds: sale.products?.map(p => p.productId) || [],
       minOrderAmount: sale.minOrderAmount || "",
       maxDiscount: sale.maxDiscount || "",
@@ -238,37 +238,46 @@ export default function AdminSales() {
     setConflictWarning("");
   };
 
-  const checkConflicts = async () => {
-    if (!formData.offerType || !formData.targetType) return;
-    
-    try {
-      const response = await apiRequest("POST", "/api/admin/sales/check-conflicts", {
-        offerType: formData.offerType,
-        targetType: formData.targetType,
-        categoryId: formData.categoryId,
-        productIds: formData.productIds
-      });
-      
-      if (response.hasConflict) {
-        const conflictList = response.conflictingSales.map((sale: any) => 
-          `• "${sale.name}" (${sale.offerType})`
-        ).join('\n');
-        setConflictWarning(`Warning: This will conflict with existing sales:\n${conflictList}`);
-      } else {
-        setConflictWarning("");
-      }
-    } catch {
-      // Don't show error for conflict check failures
-      setConflictWarning("");
-    }
-  };
-
   // Check conflicts when relevant fields change
   useEffect(() => {
-    if (dialogOpen && !editingSale) {
-      checkConflicts();
-    }
-  }, [formData.offerType, formData.targetType, formData.categoryId, formData.productIds]);
+    if (!dialogOpen || editingSale) return;
+
+    let cancelled = false;
+
+    const runCheck = async () => {
+      if (!formData.offerType || !formData.targetType) return;
+
+      try {
+        const response = await apiRequest("POST", "/api/admin/sales/check-conflicts", {
+          offerType: formData.offerType,
+          targetType: formData.targetType,
+          categoryId: formData.categoryId,
+          productIds: formData.productIds,
+        });
+
+        if (cancelled) return;
+
+        if (response.hasConflict) {
+          const conflictList = response.conflictingSales
+            .map((sale: any) => `• "${sale.name}" (${sale.offerType})`)
+            .join("\n");
+          setConflictWarning(
+            `Warning: This will conflict with existing sales:\n${conflictList}`
+          );
+        } else {
+          setConflictWarning("");
+        }
+      } catch {
+        if (!cancelled) setConflictWarning("");
+      }
+    };
+
+    runCheck();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [dialogOpen, editingSale, formData.offerType, formData.targetType, formData.categoryId, formData.productIds]);
 
   const handleSubmit = () => {
     if (!formData.name.trim() || !formData.discountValue || !formData.startDate || !formData.endDate) {

@@ -73,6 +73,12 @@ export class RedisSubscriber {
         case "refund_status_updated":
           this.handleRefundStatusUpdated(event);
           break;
+        case "offer_event":
+          this.handleOfferUpdate(event);
+          break;
+        case "coupon_event":
+          this.handleCouponUpdate(event);
+          break;
         default:
           console.warn(`Unknown event type: ${event.type}`);
       }
@@ -181,6 +187,14 @@ export class RedisSubscriber {
     // Notify inventory and admin so their refunds list refreshes
     getIO().to("role:inventory").emit("refund_status_updated", payload);
     getIO().to("role:admin").emit("refund_status_updated", payload);
+  }
+
+  private handleOfferUpdate(_event: RealtimeEvent): void {
+    getIO().emit("offer_event", { type: "offer_event" });
+  }
+
+  private handleCouponUpdate(_event: RealtimeEvent): void {
+    getIO().emit("coupon_event", { type: "coupon_event" });
   }
   private handleUserUpdate(event: RealtimeEvent): void {
     const { target } = event;

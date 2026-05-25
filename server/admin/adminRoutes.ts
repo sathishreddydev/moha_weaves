@@ -845,6 +845,7 @@ export const adminRoutes = (app: Express) => {
       });
 
       res.json(coupon);
+      await publishRealtimeEvent("coupon_event");
     } catch {
       res.status(500).json({ message: "Failed to create coupon" });
     }
@@ -908,6 +909,7 @@ export const adminRoutes = (app: Express) => {
         return res.status(404).json({ message: "Coupon not found" });
       }
       res.json(coupon);
+      await publishRealtimeEvent("coupon_event");
     } catch {
       res.status(500).json({ message: "Failed to update coupon" });
     }
@@ -918,6 +920,7 @@ export const adminRoutes = (app: Express) => {
     try {
       await couponsService.deleteCoupon(req.params.id);
       res.json({ message: "Coupon deleted" });
+      await publishRealtimeEvent("coupon_event");
     } catch {
       res.status(500).json({ message: "Failed to delete coupon" });
     }
@@ -1063,6 +1066,7 @@ export const adminRoutes = (app: Express) => {
       }
 
       res.json(sale);
+      await publishRealtimeEvent("offer_event");
     } catch (error) {
       console.error("Error creating sale:", error);
       res.status(500).json({
@@ -1126,6 +1130,7 @@ export const adminRoutes = (app: Express) => {
       }
 
       res.json(sale);
+      await publishRealtimeEvent("offer_event");
     } catch {
       res.status(500).json({ message: "Failed to update sale" });
     }
@@ -1136,6 +1141,7 @@ export const adminRoutes = (app: Express) => {
     try {
       await salesService.deleteSale(req.params.id);
       res.json({ message: "Sale deleted" });
+      await publishRealtimeEvent("offer_event");
     } catch {
       res.status(500).json({ message: "Failed to delete sale" });
     }

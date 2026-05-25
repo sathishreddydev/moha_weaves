@@ -1,4 +1,4 @@
-import { and, eq, gte, lte, sql } from "drizzle-orm";
+import { and, asc, eq, gte, lte, sql } from "drizzle-orm";
 import { db } from "server/db";
 
 import {
@@ -128,7 +128,8 @@ export class CartRepository {
       .leftJoin(colors, eq(products.colorId, colors.id))
       .leftJoin(fabrics, eq(products.fabricId, fabrics.id))
       .leftJoin(productVariants, eq(cart.variantId, productVariants.id))
-      .where(eq(cart.userId, userId));
+      .where(eq(cart.userId, userId))
+      .orderBy(asc(cart.createdAt));
 
     const { activeSales, mappings } = await productRepo.loadSaleData();
 

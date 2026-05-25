@@ -34,7 +34,9 @@ export interface RealtimeEvent {
     | "product_returned"
     | "product_exchanged"
     | "exchange_status_updated"
-    | "refund_status_updated";
+    | "refund_status_updated"
+    | "offer_event"
+    | "coupon_event";
   target?: {
     userId?: string;
     role?: string;
