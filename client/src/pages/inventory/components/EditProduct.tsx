@@ -13,6 +13,21 @@ import { FiltersData, ProductFormData, StoreAllocation } from "./Types";
 import { validateVariantStockConsistency, validateSimpleStockConsistency, calculateStockTotals } from "./stockCalculations";
 import { DistributionChannel } from "../utils/enums";
 
+// Size ordering: predefined sizes in logical sequence
+const SIZE_ORDER = ["XS", "S", "M", "L", "XL", "2XL", "3XL"];
+
+const sortVariantsBySize = (variants: any[]): any[] => {
+  if (!variants || !variants.length) return variants;
+  return [...variants].sort((a, b) => {
+    const indexA = SIZE_ORDER.indexOf(a.size);
+    const indexB = SIZE_ORDER.indexOf(b.size);
+    if (indexA !== -1 && indexB !== -1) return indexA - indexB;
+    if (indexA !== -1) return -1;
+    if (indexB !== -1) return 1;
+    return a.size.localeCompare(b.size);
+  });
+};
+
 export default function EditProduct() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
@@ -156,7 +171,7 @@ export default function EditProduct() {
 
         hasVariants: !!product?.variants?.length,
 
-        variants: product.variants,
+        variants: sortVariantsBySize(product.variants || []),
         // SEO fields
         seoTitle: product.seoTitle || "",
         seoDescription: product.seoDescription || "",

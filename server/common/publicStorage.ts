@@ -17,6 +17,21 @@ import {
 import { eq, and, sql } from "drizzle-orm";
 import { db } from "server/db";
 
+// Size ordering: predefined sizes in logical sequence
+const SIZE_ORDER = ["XS", "S", "M", "L", "XL", "2XL", "3XL"];
+
+function sortSizes(sizes: string[] | null): string[] {
+  if (!sizes || !sizes.length) return sizes || [];
+  return [...sizes].sort((a, b) => {
+    const indexA = SIZE_ORDER.indexOf(a);
+    const indexB = SIZE_ORDER.indexOf(b);
+    if (indexA !== -1 && indexB !== -1) return indexA - indexB;
+    if (indexA !== -1) return -1;
+    if (indexB !== -1) return 1;
+    return a.localeCompare(b);
+  });
+}
+
 export interface PublicStorage {
   // Categories
   getCategories(): Promise<Category[]>;
@@ -63,7 +78,8 @@ export class PublicRepository implements PublicStorage {
   
   // Categories
   async getCategories(): Promise<Category[]> {
-    return db.select().from(categories).where(eq(categories.isActive, true));
+    const result = await db.select().from(categories).where(eq(categories.isActive, true));
+    return result.map(cat => ({ ...cat, sizes: sortSizes(cat.sizes) }));
   }
 
   async getCategoriesWithSubcategories(): Promise<(Category & { subcategories: Subcategory[] })[]> {
@@ -72,6 +88,7 @@ export class PublicRepository implements PublicStorage {
     
     return allCategories.map(category => ({
       ...category,
+      sizes: sortSizes(category.sizes),
       subcategories: allSubcategories.filter(sub => sub.categoryId === category.id)
     }));
   }

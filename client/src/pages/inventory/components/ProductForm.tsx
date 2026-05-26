@@ -26,6 +26,20 @@ import { ProductFormData, ProductVariant, StoreAllocation } from "./Types";
 import { calculateStockTotals, validateVariantStockConsistency, validateSimpleStockConsistency } from "./stockCalculations";
 import { DistributionChannel } from "../utils/enums";
 
+// Size ordering: predefined sizes in logical sequence
+const SIZE_ORDER = ["XS", "S", "M", "L", "XL", "2XL", "3XL"];
+
+const sortVariantsBySize = (variants: ProductVariant[]): ProductVariant[] => {
+  return [...variants].sort((a, b) => {
+    const indexA = SIZE_ORDER.indexOf(a.size);
+    const indexB = SIZE_ORDER.indexOf(b.size);
+    if (indexA !== -1 && indexB !== -1) return indexA - indexB;
+    if (indexA !== -1) return -1;
+    if (indexB !== -1) return 1;
+    return a.size.localeCompare(b.size);
+  });
+};
+
 const DEFAULT_CARE_INSTRUCTIONS = [
   { id: "dry-clean", text: "Dry clean only", category: "Washing" },
   { id: "hand-wash", text: "Hand wash in cold water", category: "Washing" },
@@ -631,7 +645,7 @@ export const ProductForm = ({
     if (!existingVariant) {
       setFormData((prev) => ({
         ...prev,
-        variants: [
+        variants: sortVariantsBySize([
           ...prev.variants,
           {
             sku: "", // Backend will generate
@@ -644,7 +658,7 @@ export const ProductForm = ({
             })),
             isActive: true,
           },
-        ],
+        ]),
       }));
     }
   };

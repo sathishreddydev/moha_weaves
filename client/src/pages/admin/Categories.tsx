@@ -439,20 +439,41 @@ export default function AdminCategories() {
   };
 
   const handleSizeToggle = (size: string) => {
-    setFormData(prev => ({
-      ...prev,
-      sizes: prev.sizes.includes(size)
+    setFormData(prev => {
+      const newSizes = prev.sizes.includes(size)
         ? prev.sizes.filter(s => s !== size)
-        : [...prev.sizes, size]
-    }));
+        : [...prev.sizes, size];
+      // Sort sizes to maintain predefined order (XS, S, M, L, XL, 2XL, 3XL), custom sizes go at the end
+      const sorted = newSizes.sort((a, b) => {
+        const indexA = PREDEFINED_SIZES.indexOf(a);
+        const indexB = PREDEFINED_SIZES.indexOf(b);
+        // If both are predefined, sort by predefined order
+        if (indexA !== -1 && indexB !== -1) return indexA - indexB;
+        // Predefined sizes come before custom sizes
+        if (indexA !== -1) return -1;
+        if (indexB !== -1) return 1;
+        // Custom sizes maintain alphabetical order
+        return a.localeCompare(b);
+      });
+      return { ...prev, sizes: sorted };
+    });
   };
 
   const handleCustomSizeAdd = (customSize: string) => {
     if (customSize.trim() && !formData.sizes.includes(customSize.trim())) {
-      setFormData(prev => ({
-        ...prev,
-        sizes: [...prev.sizes, customSize.trim()]
-      }));
+      setFormData(prev => {
+        const newSizes = [...prev.sizes, customSize.trim()];
+        // Sort sizes to maintain predefined order, custom sizes go at the end
+        const sorted = newSizes.sort((a, b) => {
+          const indexA = PREDEFINED_SIZES.indexOf(a);
+          const indexB = PREDEFINED_SIZES.indexOf(b);
+          if (indexA !== -1 && indexB !== -1) return indexA - indexB;
+          if (indexA !== -1) return -1;
+          if (indexB !== -1) return 1;
+          return a.localeCompare(b);
+        });
+        return { ...prev, sizes: sorted };
+      });
     }
   };
 
