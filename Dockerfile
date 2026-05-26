@@ -9,7 +9,7 @@ WORKDIR /app
 
 # Install dependencies based on the preferred package manager
 COPY package.json package-lock.json* ./
-RUN npm ci && npm install -g cross-env tsx
+RUN npm install && npm install -g cross-env tsx
 
 # Build stage
 FROM base AS builder
