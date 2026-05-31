@@ -57,6 +57,7 @@ interface SaleFormData {
   isActive: boolean;
   isFeatured: boolean;
   bannerImage: string;
+  bgColor: string;
 }
 
 export default function AdminSales() {
@@ -84,6 +85,7 @@ export default function AdminSales() {
     isActive: true,
     isFeatured: false,
     bannerImage: "",
+    bgColor: "",
   });
   const [conflictWarning, setConflictWarning] = useState<string>("");
 
@@ -206,6 +208,7 @@ export default function AdminSales() {
       isActive: true,
       isFeatured: false,
       bannerImage: "",
+      bgColor: "",
     });
     setDialogOpen(true);
   };
@@ -228,6 +231,7 @@ export default function AdminSales() {
       isActive: sale.isActive,
       isFeatured: sale.isFeatured,
       bannerImage: sale.bannerImage || "",
+      bgColor: sale.bgColor || "",
     });
     setDialogOpen(true);
   };
@@ -720,6 +724,39 @@ export default function AdminSales() {
                 placeholder="https://..."
                 data-testid="input-banner-image"
               />
+            </div>
+
+            <div>
+              <Label htmlFor="bgColor">Background Color</Label>
+              <div className="flex items-center gap-3">
+                <Input
+                  id="bgColor"
+                  type="color"
+                  value={formData.bgColor || "#ffffff"}
+                  onChange={(e) => setFormData({ ...formData, bgColor: e.target.value })}
+                  className="w-12 h-10 p-1 cursor-pointer"
+                  data-testid="input-bg-color"
+                />
+                <Input
+                  value={formData.bgColor}
+                  onChange={(e) => setFormData({ ...formData, bgColor: e.target.value })}
+                  placeholder="#ff0000 or red"
+                  className="flex-1"
+                />
+                {formData.bgColor && (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setFormData({ ...formData, bgColor: "" })}
+                  >
+                    Clear
+                  </Button>
+                )}
+              </div>
+              <p className="text-xs text-muted-foreground mt-1">
+                Background color for the sale badge/banner on the storefront
+              </p>
             </div>
 
             <div className="flex items-center justify-between">

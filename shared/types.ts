@@ -149,6 +149,7 @@ export type ProductWithDetails = Product & {
     offerType: string;
     discountValue: string;
     maxDiscount?: string;
+    bgColor?: string;
   } | null;
   discountedPrice?: number;
 };

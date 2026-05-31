@@ -90,6 +90,7 @@ export class productRepository {
             offerType: applicableSale.offerType,
             discountValue: applicableSale.discountValue,
             maxDiscount: applicableSale.maxDiscount ?? undefined,
+            bgColor: applicableSale.bgColor ?? undefined,
           }
         : null,
       discountedPrice,

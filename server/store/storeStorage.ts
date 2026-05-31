@@ -1444,6 +1444,7 @@ export class StoreRepository implements StoreStorage {
             offerType: applicableSale.offerType,
             discountValue: applicableSale.discountValue,
             maxDiscount: applicableSale.maxDiscount || undefined,
+            bgColor: applicableSale.bgColor || undefined,
           }
           : null,
         discountedPrice: applicableSale ? discountedPrice : undefined,

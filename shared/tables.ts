@@ -603,6 +603,7 @@ export const sales = pgTable("sales", {
   isActive: boolean("is_active").notNull().default(true),
   isFeatured: boolean("is_featured").notNull().default(false),
   bannerImage: text("banner_image"),
+  bgColor: text("bg_color"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });

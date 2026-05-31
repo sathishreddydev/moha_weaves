@@ -1000,6 +1000,7 @@ export const adminRoutes = (app: Express) => {
         isActive,
         isFeatured,
         bannerImage,
+        bgColor,
         productIds,
         targetType,
       } = req.body;
@@ -1053,6 +1054,7 @@ export const adminRoutes = (app: Express) => {
         isActive: isActive !== undefined ? isActive : true,
         isFeatured: isFeatured !== undefined ? isFeatured : false,
         bannerImage: bannerImage || null,
+        bgColor: bgColor || null,
       });
 
       // Add products if it's a product-level offer
@@ -1093,6 +1095,7 @@ export const adminRoutes = (app: Express) => {
         isActive,
         isFeatured,
         bannerImage,
+        bgColor,
         productIds,
       } = req.body;
 
@@ -1118,6 +1121,8 @@ export const adminRoutes = (app: Express) => {
       if (isFeatured !== undefined) updateData.isFeatured = isFeatured;
       if (bannerImage !== undefined)
         updateData.bannerImage = bannerImage || null;
+      if (bgColor !== undefined)
+        updateData.bgColor = bgColor || null;
 
       const sale = await salesService.updateSale(req.params.id, updateData);
       if (!sale) {
