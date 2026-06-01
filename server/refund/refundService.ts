@@ -2,6 +2,7 @@ import { orders, Refund, refunds } from "@shared/schema";
 import { and, eq } from "drizzle-orm";
 import { db } from "../db";
 import { createRefund, getRefundStatus } from "../razorpayClient";
+import { NotificationService } from "../services/notificationService";
 import { storage } from "../storage";
 import { publishRealtimeEvent } from "../../realtime/events";
 
@@ -78,6 +79,13 @@ export class RefundService {
       );
 
       console.log(`Razorpay refund initiated: ${razorpayRefund.id} for refund: ${refundId}`);
+
+      // Send refund initiated email (non-blocking)
+      if (refund.orderId) {
+        NotificationService.sendRefundInitiated(refund.orderId, refund.amount).catch(err =>
+          console.error('Failed to send refund initiated email:', err)
+        );
+      }
     } catch (error) {
       console.error("Failed to initiate Razorpay refund:", error);
       await this.updateRefundStatus(
@@ -116,6 +124,11 @@ export class RefundService {
           relatedId: refund.id,
           relatedType: "refund",
         });
+
+        // Send refund completed email (non-blocking)
+        NotificationService.sendRefundCompleted(refund.orderId, refund.amount).catch(err =>
+          console.error('Failed to send refund completed email:', err)
+        );
 
         // Push realtime update to the customer's browser
         await publishRealtimeEvent("refund_status_updated", {
@@ -239,6 +252,11 @@ export class RefundService {
         relatedId: result.id,
         relatedType: "refund",
       });
+
+      // Send refund completed email (non-blocking)
+      NotificationService.sendRefundCompleted(result.orderId, result.amount).catch(err =>
+        console.error('Failed to send refund completed email:', err)
+      );
 
       // Push realtime update to the customer's browser
       await publishRealtimeEvent("refund_status_updated", {

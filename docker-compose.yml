@@ -53,10 +53,10 @@ services:
       SMTP_HOST: smtp.gmail.com
       SMTP_PORT: 587
       SMTP_SECURE: false
-      SMTP_USER: sathishreddy.k0337@gmail.com
-      SMTP_PASS: your-gmail-app-password
+      SMTP_USER: sathishreddy.dev@gmail.com
+      SMTP_PASS: kdvwjksfcwowenwk
       EMAIL_FROM_NAME: Mohaweaves
-      EMAIL_FROM_EMAIL: sathishreddy.k0337@gmail.com
+      EMAIL_FROM_EMAIL: sathishreddy.dev@gmail.com
       DELHIVERY_CLIENT_ID: c4a98f-MOHA-do-B2C
       DELHIVERY_API_TOKEN: ea2a8b677597d3cf97b5d3522930d540c1240795
       DELHIVERY_PICKUP_WAREHOUSE: c4a98f-MOHA-do-B2C

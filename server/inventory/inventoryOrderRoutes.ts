@@ -5,6 +5,7 @@ import { publishRealtimeEvent } from "realtime/events";
 import { createAuthMiddleware } from "../authMiddleware";
 import { db } from "../db";
 import { orderService, VALID_ITEM_STATUSES } from "../order/orderStorage";
+import { NotificationService } from "../services/notificationService";
 import { storage } from "../storage";
 
 export const inventoryOrderRoutes = (app: Express) => {
@@ -88,6 +89,17 @@ export const inventoryOrderRoutes = (app: Express) => {
             relatedId: order.id,
             relatedType: "order",
           });
+        }
+
+        // Send email notifications for key status changes (non-blocking)
+        if (status === 'cancelled') {
+          NotificationService.sendOrderCancelled(req.params.id).catch(err =>
+            console.error('Failed to send cancellation email:', err)
+          );
+        } else if (status === 'delivered') {
+          NotificationService.sendDeliveryConfirmation(req.params.id).catch(err =>
+            console.error('Failed to send delivery email:', err)
+          );
         }
 
         res.json({

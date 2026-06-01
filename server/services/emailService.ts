@@ -17,6 +17,8 @@ class EmailService {
     }
 
     try {
+      console.log(`📧 Connecting to SMTP: ${process.env.SMTP_HOST}:${process.env.SMTP_PORT} as ${process.env.SMTP_USER}`);
+      
       this.transporter = nodemailer.createTransport({
         host: process.env.SMTP_HOST,
         port: parseInt(process.env.SMTP_PORT || '587'),
@@ -29,7 +31,7 @@ class EmailService {
 
       if (this.transporter) {
         await this.transporter.verify();
-        console.log('📧 Email transporter initialized successfully');
+        console.log('📧 Email transporter verified and ready to send');
       }
     } catch (error) {
       console.error('❌ Failed to initialize email transporter:', error);
@@ -39,7 +41,7 @@ class EmailService {
 
   async sendEmail(notification: EmailNotification): Promise<void> {
     if (!this.transporter) {
-      console.log('📧 Email service not available, skipping email notification');
+      console.log('📧 Email service not available (transporter is null), skipping email to:', notification.to);
       return;
     }
 
@@ -52,8 +54,9 @@ class EmailService {
         text: notification.textContent || notification.htmlContent.replace(/<[^>]*>/g, ''),
       };
 
-      await this.transporter.sendMail(mailOptions);
-      console.log(`📧 Email sent successfully to ${notification.to}`);
+      console.log(`📧 Attempting to send email to: ${notification.to} | Subject: ${notification.subject}`);
+      const info = await this.transporter.sendMail(mailOptions);
+      console.log(`📧 Email sent successfully! MessageId: ${info.messageId} | To: ${notification.to}`);
     } catch (error) {
       console.error('❌ Failed to send email:', error);
       throw error;

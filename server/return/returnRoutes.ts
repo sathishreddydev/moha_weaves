@@ -8,6 +8,7 @@ import {
 import type { Express, Request, Response } from "express";
 import { publishRealtimeEvent } from "realtime/events";
 import { createAuthMiddleware } from "../authMiddleware";
+import { NotificationService } from "../services/notificationService";
 import { returnStorage } from "./returnStorage";
 
 // Valid status transitions — mirrors the frontend flow map
@@ -102,6 +103,21 @@ export const returnRoutes = (app: Express) => {
       if (!updated) return res.status(404).json({ message: "Return request not found" });
 
       res.json(updated);
+
+      // Send email notifications for key return status changes (non-blocking)
+      if (status === 'return_approved') {
+        NotificationService.sendReturnAccepted(current.orderId, req.params.id).catch(err =>
+          console.error('Failed to send return accepted email:', err)
+        );
+      } else if (status === 'return_rejected') {
+        NotificationService.sendReturnRejected(current.orderId, req.params.id, inspectionNotes).catch(err =>
+          console.error('Failed to send return rejected email:', err)
+        );
+      } else if (status === 'return_picked_up') {
+        NotificationService.sendReturnPickedUp(current.orderId, req.params.id).catch(err =>
+          console.error('Failed to send return picked up email:', err)
+        );
+      }
 
       // Emit realtime event so inventory list and customer UI refresh automatically
       await publishRealtimeEvent("return_status_updated", {

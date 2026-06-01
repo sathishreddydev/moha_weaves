@@ -5,6 +5,7 @@ import type { Express } from "express";
 import { couponsService } from "server/coupons/couponsStorage";
 import { db } from "server/db";
 import { razorpay } from "server/razorpayClient";
+import { NotificationService } from "server/services/notificationService";
 import { createAuthMiddleware } from "../authMiddleware";
 import { cartServices } from "../cart/cartStorage";
 import { paymentInfo } from "./createOrderService";
@@ -335,6 +336,11 @@ export const orderRoutes = (app: Express) => {
       await cartServices.clearCart(userId);
 
       res.json({ orderId: order.id });
+
+      // Send order confirmation email (non-blocking)
+      NotificationService.sendOrderConfirmation(order.id).catch(err =>
+        console.error('Failed to send order confirmation email:', err)
+      );
     } catch (err) {
       console.error(err);
       res.status(500).json({ message: "Failed to place order" });
@@ -520,60 +526,15 @@ export const orderRoutes = (app: Express) => {
 
       await cartServices.clearCart(userId);
 
-      // // 6️⃣ 🚀 AUTOMATIC SHIPPING PROCESSING
-      // console.log(`🚀 Starting automatic shipping for order: ${order.id}`);
-      
-      // try {
-      //   // Send order confirmation first
-      //   await NotificationService.sendOrderConfirmation(order.id);
-        
-      //   // Process shipping automatically
-      //   const shippingResult = await AutomaticShippingService.processShippingAutomatically(order.id);
-        
-      //   if (shippingResult.success) {
-      //     // Send shipping confirmation
-      //     await NotificationService.sendShippingConfirmation(
-      //       order.id, 
-      //       shippingResult.waybill!, 
-      //       shippingResult.estimatedDelivery
-      //     );
-          
-      //     console.log(`✅ Order ${order.id} processed and shipped successfully`);
-          
-      //     res.json({
-      //       orderId: order.id,
-      //       message: "Payment successful, order created and shipped automatically",
-      //       shipping: {
-      //         waybill: shippingResult.waybill,
-      //         courier: shippingResult.courier,
-      //         estimatedDelivery: shippingResult.estimatedDelivery
-      //       }
-      //     });
-      //   } else {
-      //     // Shipping failed but order created
-      //     await AutomaticShippingService.handleShippingFailure(order.id, new Error(shippingResult.error || "Unknown shipping error"));
-          
-      //     console.log(`⚠️ Order ${order.id} created but shipping failed: ${shippingResult.error}`);
-          
-      //     res.json({
-      //       orderId: order.id,
-      //       message: "Payment successful, order created (shipping will be processed manually)",
-      //       shipping: null,
-      //       note: "Shipping failed - will be processed manually"
-      //     });
-      //   }
-      // } catch (shippingError) {
-      //   // Handle any shipping errors gracefully
-      //   console.error(`❌ Automatic shipping error for order ${order.id}:`, shippingError);
-      //   await AutomaticShippingService.handleShippingFailure(order.id, shippingError instanceof Error ? shippingError : new Error("Unknown shipping error"));
-        
-      //   res.json({
-      //     orderId: order.id,
-      //     message: "Payment successful, order created (shipping will be processed manually)",
-      //     shipping: null,
-      //     note: "Automatic shipping failed - will be processed manually"
-      //   });
-      // }
+      res.json({
+        orderId: order.id,
+        message: "Payment successful, order created",
+      });
+
+      // Send order confirmation email (non-blocking)
+      NotificationService.sendOrderConfirmation(order.id).catch(err =>
+        console.error('Failed to send order confirmation email:', err)
+      );
     } catch (err) {
       console.error(err);
       res.status(500).json({ message: "Payment verification failed" });

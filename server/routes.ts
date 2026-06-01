@@ -16,6 +16,7 @@ import { refundRoutes } from "./refund/refundRoutes";
 import { returnRoutes } from "./return/returnRoutes";
 import { reviewRoutes } from "./review/reviewRoutes";
 import { salesService } from "./sales&offer/salesStorage";
+import { emailService } from "./services/emailService";
 import { shippingRoutes } from "./shipping/shippingRoutes";
 import { webhookRoutes } from "./shipping/webhookRoutes";
 import { storage } from "./storage";
@@ -49,6 +50,35 @@ export async function registerRoutes(
   storeCartRoutes(app);
   shippingRoutes(app);
   webhookRoutes(app);
+
+  // Test email endpoint (admin only) - hit this to verify email is working
+  app.post("/api/admin/test-email", createAuthMiddleware(["admin"]), async (req, res) => {
+    try {
+      const { to } = req.body;
+      const recipient = to || process.env.EMAIL_FROM_EMAIL || 'sathishreddy.dev@gmail.com';
+
+      await emailService.sendEmail({
+        to: recipient,
+        subject: '✅ Moha Weaves - Test Email',
+        htmlContent: `
+          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+            <div style="text-align: center; padding: 20px; background: #f8f4f0; border-radius: 8px;">
+              <h1 style="color: #8B4513; margin: 0;">Moha Weaves</h1>
+            </div>
+            <h2 style="color: #059669; margin-top: 30px;">Email System Working! ✅</h2>
+            <p>This is a test email from your Moha Weaves notification system.</p>
+            <p><strong>Sent at:</strong> ${new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })}</p>
+            <p>If you received this, your email notifications are configured correctly.</p>
+          </div>
+        `,
+      });
+
+      res.json({ success: true, message: `Test email sent to ${recipient}` });
+    } catch (error: any) {
+      res.status(500).json({ success: false, message: error.message || 'Failed to send test email' });
+    }
+  });
+
   // Serve uploaded files
   app.get("/objects/:objectPath(*)", async (req, res) => {
     try {
