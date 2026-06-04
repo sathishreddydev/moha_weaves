@@ -1,5 +1,5 @@
 # Multi-stage build for Moha Weaves monolithic application
-FROM node:18-alpine AS base
+FROM node:20-alpine AS base
 
 # Install dependencies only when needed
 FROM base AS deps
@@ -9,7 +9,7 @@ WORKDIR /app
 
 # Install dependencies based on the preferred package manager
 COPY package.json package-lock.json* ./
-RUN npm install && npm install -g cross-env tsx
+RUN npm install --legacy-peer-deps && npm install -g cross-env tsx
 
 # Build stage
 FROM base AS builder
