@@ -21,7 +21,6 @@ export const refundRoutes = (app: Express) => {
       if (typeof userId === "string" && userId.length > 0) filters.userId = userId;
 
       const refunds = await refundService.getRefunds(filters);
-      console.log(refunds)
       res.json(refunds);
     } catch (error) {
       console.error("Error fetching refunds:", error);

@@ -4,6 +4,7 @@ import type { Express, Request, Response } from "express";
 import jwt from "jsonwebtoken";
 import { createAuthMiddleware } from "../authMiddleware";
 import { userService } from "./authStorage";
+import { createRateLimit } from "../middleware/rateLimit";
 
 // Security: Require JWT_SECRET environment variable
 const JWT_SECRET = process.env.JWT_SECRET;
@@ -35,6 +36,20 @@ function generateRefreshToken(): string {
 function hashRefreshToken(token: string): string {
   return crypto.createHash("sha256").update(token).digest("hex");
 }
+
+// Rate limit for login: 5 attempts per 15 minutes per IP
+const loginRateLimit = createRateLimit({
+  windowMs: 15 * 60 * 1000,
+  maxRequests: 5,
+  message: "Too many login attempts. Please try again in 15 minutes.",
+});
+
+// Rate limit for registration: 3 attempts per hour per IP
+const registerRateLimit = createRateLimit({
+  windowMs: 60 * 60 * 1000,
+  maxRequests: 3,
+  message: "Too many registration attempts. Please try again later.",
+});
 
 const authAny = createAuthMiddleware(["user", "admin", "inventory", "store"]);
 
@@ -158,7 +173,7 @@ export const authRoutes = (app: Express) => {
   });
 
   // User register
-  app.post("/api/auth/user/register", async (req, res) => {
+  app.post("/api/auth/user/register", registerRateLimit, async (req, res) => {
     try {
       const { email, password, name, phone } = req.body;
 
@@ -219,14 +234,14 @@ export const authRoutes = (app: Express) => {
     }
   };
 
-  app.post("/api/auth/user/login", (req, res) => handleLogin(req, res, "user"));
-  app.post("/api/auth/admin/login", (req, res) =>
+  app.post("/api/auth/user/login", loginRateLimit, (req, res) => handleLogin(req, res, "user"));
+  app.post("/api/auth/admin/login", loginRateLimit, (req, res) =>
     handleLogin(req, res, "admin"),
   );
-  app.post("/api/auth/inventory/login", (req, res) =>
+  app.post("/api/auth/inventory/login", loginRateLimit, (req, res) =>
     handleLogin(req, res, "inventory"),
   );
-  app.post("/api/auth/store/login", (req, res) =>
+  app.post("/api/auth/store/login", loginRateLimit, (req, res) =>
     handleLogin(req, res, "store"),
   );
 

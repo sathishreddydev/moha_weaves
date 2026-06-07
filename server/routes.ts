@@ -111,11 +111,21 @@ export async function registerRoutes(
         api_secret: process.env.CLOUDINARY_API_SECRET,
       });
 
-      const upload = multer.default({ storage: multer.default.memoryStorage() });
+      const ALLOWED_IMAGE_TYPES = ["image/jpeg", "image/png", "image/webp", "image/gif"];
+      const ALLOWED_VIDEO_TYPES = ["video/mp4", "video/webm"];
+      const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10 MB
+
+      const upload = multer.default({
+        storage: multer.default.memoryStorage(),
+        limits: { fileSize: MAX_FILE_SIZE },
+      });
       const uploadMiddleware = upload.single("file");
 
       uploadMiddleware(req, res, async (err) => {
         if (err) {
+          if ((err as any).code === "LIMIT_FILE_SIZE") {
+            return res.status(400).json({ error: "File too large. Maximum size is 10 MB." });
+          }
           return res.status(400).json({ error: "File upload failed" });
         }
 
@@ -126,6 +136,12 @@ export async function registerRoutes(
 
         const fileType = req.body.fileType || "image";
         const resourceType = fileType === "video" ? "video" : "image";
+
+        // Validate file MIME type
+        const allowedTypes = resourceType === "video" ? ALLOWED_VIDEO_TYPES : ALLOWED_IMAGE_TYPES;
+        if (!allowedTypes.includes(file.mimetype)) {
+          return res.status(400).json({ error: `Invalid file type. Allowed: ${allowedTypes.join(", ")}` });
+        }
 
         const uploadStream = cloudinary.v2.uploader.upload_stream(
           {
