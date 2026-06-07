@@ -1,7 +1,7 @@
 name: Deploy to Production (Main Branch)
 
 on:
-  workflow_dispatch:  # Only manual trigger
+  workflow_dispatch:
     inputs:
       confirm_deployment:
         description: 'Type "deploy" to confirm production deployment'
@@ -36,20 +36,18 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Load environment variables
-        run: |
-          echo "Loading production environment variables..."
-          cp .env.prod .env
-          
       - name: Run database migrations
+        # DATABASE_URL is injected directly from secrets — the env file is NOT
+        # copied here because the template file contains placeholder values.
         run: npm run db:migrate
         env:
+          NODE_ENV: production
           DATABASE_URL: ${{ secrets.PROD_DATABASE_URL }}
 
       - name: Build application
         run: npm run build
         env:
-          NODE_ENV: prod
+          NODE_ENV: production
 
       - name: Run tests
         run: npm test --if-present

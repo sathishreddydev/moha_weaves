@@ -1,7 +1,7 @@
 name: Deploy Release to Production
 
 on:
-  workflow_dispatch:  # Only manual trigger
+  workflow_dispatch:
     inputs:
       confirm_deployment:
         description: 'Type "deploy" to confirm production deployment'
@@ -16,7 +16,7 @@ jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
     permissions:
-      contents: read
+      contents: write   # needs write to push the release tag
       id-token: write
 
     steps:
@@ -44,20 +44,16 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Load environment variables
-        run: |
-          echo "Loading production environment variables for release..."
-          cp .env.prod .env
-          
       - name: Run database migrations
         run: npm run db:migrate
         env:
+          NODE_ENV: production
           DATABASE_URL: ${{ secrets.PROD_DATABASE_URL }}
 
       - name: Build application
         run: npm run build
         env:
-          NODE_ENV: prod
+          NODE_ENV: production
 
       - name: Run tests
         run: npm test --if-present

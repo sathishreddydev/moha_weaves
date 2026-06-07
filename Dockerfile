@@ -1,17 +1,17 @@
 # Multi-stage build for Moha Weaves monolithic application
 FROM node:20-alpine AS base
 
-# Install dependencies only when needed
+# ── deps stage: install dependencies ──────────────────────────────────────────
 FROM base AS deps
-# Check https://github.com/nodejs/docker-node/tree/b4117f9333da4138b03a546ec926ef50a31506c3#nodealpine to understand why libc6-compat might be needed.
+# libc6-compat needed by some native modules on Alpine
 RUN apk add --no-cache libc6-compat
 WORKDIR /app
 
-# Install dependencies based on the preferred package manager
+# Use npm ci for reproducible, locked installs
 COPY package.json package-lock.json* ./
-RUN npm install --legacy-peer-deps && npm install -g cross-env tsx
+RUN npm ci --legacy-peer-deps
 
-# Build stage
+# ── builder stage: compile the application ────────────────────────────────────
 FROM base AS builder
 WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
@@ -20,10 +20,10 @@ COPY . .
 # Build the application (both frontend and backend)
 RUN npm run build
 
-# Verify build output
+# Verify build output exists
 RUN ls -la /app/dist/
 
-# Production stage
+# ── runner stage: lean production image ───────────────────────────────────────
 FROM base AS runner
 WORKDIR /app
 
@@ -32,15 +32,12 @@ ENV NODE_ENV=production
 RUN addgroup --system --gid 1001 nodejs
 RUN adduser --system --uid 1001 nodejs
 
-# Install cross-env and tsx globally
-RUN npm install -g cross-env tsx
-
-# Copy built application
+# Copy built artifacts and locked node_modules from builder
 COPY --from=builder /app/dist ./dist
 COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/package.json ./package.json
 
-# Create uploads directory for file storage
+# Create uploads directory with correct ownership
 RUN mkdir -p /app/uploads && chown -R nodejs:nodejs /app/uploads
 
 USER nodejs
