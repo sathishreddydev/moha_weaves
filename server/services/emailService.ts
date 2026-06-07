@@ -17,7 +17,7 @@ class EmailService {
     }
 
     try {
-      console.log(`📧 Connecting to SMTP: ${process.env.SMTP_HOST}:${process.env.SMTP_PORT} as ${process.env.SMTP_USER}`);
+      console.log(`📧 Connecting to SMTP: ${process.env.SMTP_HOST}:${process.env.SMTP_PORT}`);
       
       this.transporter = nodemailer.createTransport({
         host: process.env.SMTP_HOST,
@@ -123,8 +123,12 @@ class EmailService {
         return;
     }
 
-    // Send to inventory users
-    const inventoryEmail = process.env.EMAIL_FROM_EMAIL || 'sathishreddy.dev@gmail.com';
+    // Send to inventory/admin email — require the env var, no hardcoded fallback
+    const inventoryEmail = process.env.EMAIL_FROM_EMAIL;
+    if (!inventoryEmail) {
+      console.warn("EMAIL_FROM_EMAIL not set — skipping stock request notification email");
+      return;
+    }
     await this.sendEmail({
       to: inventoryEmail,
       subject,
@@ -151,7 +155,11 @@ class EmailService {
       <p>This product is running low on stock. Please consider restocking to avoid inventory shortages.</p>
     `;
 
-    const inventoryEmail = process.env.EMAIL_FROM_EMAIL || 'sathishreddy.dev@gmail.com';
+    const inventoryEmail = process.env.EMAIL_FROM_EMAIL;
+    if (!inventoryEmail) {
+      console.warn("EMAIL_FROM_EMAIL not set — skipping low stock alert email");
+      return;
+    }
     await this.sendEmail({
       to: inventoryEmail,
       subject,

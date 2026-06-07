@@ -27,5 +27,10 @@ export const publishRealtimeEvent = async (
     type: eventType,
     ...(data && { data }),
   };
-  await pub.publish("realtime", JSON.stringify(event));
+  try {
+    await pub.publish("realtime", JSON.stringify(event));
+  } catch (err) {
+    console.error(`[publishRealtimeEvent] Failed to publish event "${eventType}":`, err);
+    // Do not rethrow — a Redis failure must not crash the HTTP request handler
+  }
 };

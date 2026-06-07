@@ -20,6 +20,10 @@ if (!process.env.DATABASE_URL) {
 
 const app = express();
 const httpServer = createServer(app);
+
+// Trust the first proxy hop (nginx, Render, Azure load balancer).
+// This makes req.ip correct and allows secure cookies behind HTTPS proxies.
+app.set("trust proxy", 1);
 declare module "http" {
   interface IncomingMessage {
     rawBody?: Buffer;

@@ -1,20 +1,18 @@
 import Redis from "ioredis"
-import { config } from "dotenv"
 
-// Load environment variables based on NODE_ENV
-const envFile = process.env.NODE_ENV === 'production' ? '.env.prod' : '.env.development'
-config({ path: envFile })
+if (!process.env.REDIS_URL) {
+  throw new Error("REDIS_URL environment variable is required. Please set it in your environment.");
+}
 
-// Use environment variable for Redis URL, fallback to Redis Cloud for development
-const redisUrl = process.env.REDIS_URL || "redis://default:2uzhKQIdCpNkBnLrOSQ2aLnb2czY0DGh@redis-11945.c52.us-east-1-4.ec2.cloud.redislabs.com:11945"
+const redisUrl = process.env.REDIS_URL;
 
 // Parse Redis URL to use individual connection parameters
 const redisUrlParts = new URL(redisUrl);
 const redisConfig = {
   host: redisUrlParts.hostname,
   port: parseInt(redisUrlParts.port) || 6379,
-  username: redisUrlParts.username,
-  password: redisUrlParts.password,
+  username: redisUrlParts.username || undefined,
+  password: redisUrlParts.password || undefined,
   retryDelayOnFailover: 100,
   maxRetriesPerRequest: 3,
   keepAlive: 30000,
@@ -29,17 +27,17 @@ export const sub = new Redis(redisConfig)
 
 // Connection event handlers
 pub.on("connect", () => {
-  console.log("✅ Redis publisher connected to Redis Cloud")
+  console.log("✅ Redis publisher connected")
 })
 
 pub.on("error", (err) => {
-  console.error("❌ Redis publisher error:", err)
+  console.error("❌ Redis publisher error:", err.message)
 })
 
 sub.on("connect", () => {
-  console.log("✅ Redis subscriber connected to Redis Cloud")
+  console.log("✅ Redis subscriber connected")
 })
 
 sub.on("error", (err) => {
-  console.error("❌ Redis subscriber error:", err)
+  console.error("❌ Redis subscriber error:", err.message)
 })

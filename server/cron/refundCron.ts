@@ -27,8 +27,11 @@ export function startRefundCron(): void {
     return;
   }
 
-  // Run once immediately on startup so we catch anything missed during downtime
-  runRefundCheck();
+  // Delay the first run so the DB connection pool has time to warm up.
+  // 30s is conservative — adjust if your DB connection is consistently faster.
+  setTimeout(() => {
+    runRefundCheck();
+  }, 30_000);
 
   cronHandle = setInterval(runRefundCheck, INTERVAL_MS);
   console.log(`[RefundCron] Started — polling every ${INTERVAL_MS / 60_000} minutes.`);

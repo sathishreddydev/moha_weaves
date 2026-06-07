@@ -13,8 +13,9 @@ export const createRateLimit = (options: RateLimitOptions) => {
   const { windowMs, maxRequests, message = "Too many requests, please try again later" } = options;
 
   return (req: Request, res: Response, next: NextFunction) => {
-    // Use IP address as identifier (in production, you might want to use user ID for authenticated users)
-    const identifier = req.ip || req.connection.remoteAddress || 'unknown';
+    // Use IP address as identifier.
+    // req.ip works correctly when app.set('trust proxy', 1) is set in index.ts.
+    const identifier = req.ip || req.socket.remoteAddress || 'unknown';
     const now = Date.now();
     
     // Get or create rate limit record for this identifier

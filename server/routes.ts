@@ -55,7 +55,10 @@ export async function registerRoutes(
   app.post("/api/admin/test-email", createAuthMiddleware(["admin"]), async (req, res) => {
     try {
       const { to } = req.body;
-      const recipient = to || process.env.EMAIL_FROM_EMAIL || 'sathishreddy.dev@gmail.com';
+      const recipient = to || process.env.EMAIL_FROM_EMAIL;
+      if (!recipient) {
+        return res.status(400).json({ success: false, message: "Provide a 'to' email address or set EMAIL_FROM_EMAIL" });
+      }
 
       await emailService.sendEmail({
         to: recipient,
@@ -271,9 +274,14 @@ export async function registerRoutes(
   // User: Mark notification as read
   app.patch("/api/user/notifications/:id/read", authAny, async (req, res) => {
     try {
+      const user = (req as any).user;
       const notification = await storage.markNotificationAsRead(req.params.id);
       if (!notification) {
         return res.status(404).json({ message: "Notification not found" });
+      }
+      // IDOR guard — only the owning user can mark their own notification as read
+      if (notification.userId !== user.id) {
+        return res.status(403).json({ message: "Access denied" });
       }
       res.json(notification);
     } catch {
@@ -317,16 +325,15 @@ export async function registerRoutes(
     let products: any[] = [];
 
     if (sale.offerType === "category" && sale.categoryId) {
-      // Get all products in this category
+      // Use "user" role — this is a public endpoint, don't expose draft/inactive products
       products = await roleBasedProductService.getProductsByRole({ 
         categoryIds: [sale.categoryId],
         sort: "onSale"
-      }, "admin"); // Admin access for sales management
+      }, "user");
     } else if (sale.offerType === "product") {
-      // Get specific products in the sale
       const productIds = sale.products.map((p: any) => p.productId).filter(Boolean);
       if (productIds.length > 0) {
-        const allProducts = await roleBasedProductService.getProductsByRole({ sort: "onSale" }, "admin");
+        const allProducts = await roleBasedProductService.getProductsByRole({ sort: "onSale" }, "user");
         products = allProducts.filter((s: any) => productIds.includes(s.id));
       }
     }

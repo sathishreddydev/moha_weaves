@@ -17,11 +17,12 @@ if (!JWT_SECRET) {
 const ACCESS_TOKEN_EXPIRY = "7d"; // 7 days like most e-commerce apps
 const REFRESH_TOKEN_EXPIRY_DAYS = 30; // Refresh token valid for 30 days
 
-// Cookie security settings
+// Cookie security settings — secure flag must be true in production (HTTPS)
+const isProd = process.env.NODE_ENV === "production";
 const cookieOptions = {
   httpOnly: true,
-  secure: false, // Disabled for HTTP (required for sameSite=none)
-  sameSite: "lax" as const, // Use lax for HTTP cross-origin
+  secure: isProd,                                                      // transmit only over HTTPS in prod
+  sameSite: (isProd ? "strict" : "lax") as "strict" | "lax" | "none", // strict CSRF protection in prod
   path: "/",
 };
 
@@ -103,7 +104,7 @@ export const authRoutes = (app: Express) => {
           .json({ message: "Session invalidated. Please login again." });
       }
 
-      const { ...safeUser } = user;
+      const { password: _pw, ...safeUser } = user;
       res.json({ user: safeUser });
     } catch (error) {
       if (error instanceof jwt.TokenExpiredError) {
@@ -148,7 +149,7 @@ export const authRoutes = (app: Express) => {
       // Issue new tokens
       await issueTokens(user, res);
 
-      const { ...safeUser } = user;
+      const { password: _pw, ...safeUser } = user;
       res.json({ user: safeUser });
     } catch (error) {
       console.error("Refresh token error:", error);
@@ -177,7 +178,7 @@ export const authRoutes = (app: Express) => {
 
       await issueTokens(user, res);
 
-      const {  ...safeUser } = user;
+      const { password: _pw, ...safeUser } = user;
       res.json({ user: safeUser });
     } catch (error) {
       console.error("Register error:", error);
@@ -210,7 +211,7 @@ export const authRoutes = (app: Express) => {
 
       await issueTokens(user, res);
 
-      const { ...safeUser } = user;
+      const { password: _pw, ...safeUser } = user;
       res.json({ user: safeUser });
     } catch (error) {
       console.error("Login error:", error);
@@ -274,39 +275,43 @@ export const authRoutes = (app: Express) => {
   // Change password - invalidates all sessions
   app.post("/api/auth/change-password", authAny, async (req, res) => {
     try {
-      const user = (req as any).user;
+      const reqUser = (req as any).user;
       const { currentPassword, newPassword } = req.body;
 
-      // Validate current password
-      const validPassword = await bcrypt.compare(
-        currentPassword,
-        user.password,
-      );
+      if (!currentPassword || !newPassword) {
+        return res.status(400).json({ message: "currentPassword and newPassword are required" });
+      }
+
+      // Re-fetch from DB — req.user does NOT contain the password hash
+      const dbUser = await userService.getUser(reqUser.id);
+      if (!dbUser) {
+        return res.status(401).json({ message: "User not found" });
+      }
+
+      // Validate current password against the stored hash
+      const validPassword = await bcrypt.compare(currentPassword, dbUser.password);
       if (!validPassword) {
-        return res
-          .status(400)
-          .json({ message: "Current password is incorrect" });
+        return res.status(400).json({ message: "Current password is incorrect" });
       }
 
       // Hash new password
       const hashedPassword = await bcrypt.hash(newPassword, 10);
 
       // Update password and increment tokenVersion to invalidate all tokens
-      await userService.updateUserPassword(user.id, hashedPassword);
+      await userService.updateUserPassword(reqUser.id, hashedPassword);
 
       // Revoke all refresh tokens
-      await userService.revokeAllUserRefreshTokens(user.id);
+      await userService.revokeAllUserRefreshTokens(reqUser.id);
 
-      // Issue new tokens
-      const updatedUser = await userService.getUser(user.id);
+      // Issue new tokens for the current session
+      const updatedUser = await userService.getUser(reqUser.id);
       if (updatedUser) {
         await issueTokens(updatedUser, res);
       }
 
       res.json({
         success: true,
-        message:
-          "Password changed successfully. You have been logged out from other devices.",
+        message: "Password changed successfully. You have been logged out from other devices.",
       });
     } catch (error) {
       console.error("Change password error:", error);
