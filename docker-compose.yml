@@ -51,8 +51,9 @@ services:
     # there is a single source of truth and no accidental override.
     env_file:
       - .env.prod
-    ports:
-      - "5000:5000"
+    # Not exposed to host — nginx proxies traffic internally
+    expose:
+      - "5000"
     volumes:
       - uploads:/app/uploads
     depends_on:
@@ -76,18 +77,19 @@ services:
       dockerfile: Dockerfile
       # Build args are passed from the env file at build time via --build-arg.
       # Secrets are NOT baked as ARGs — only public NEXT_PUBLIC_* values.
+      # NEXTAUTH_URL is runtime-only — injected via env_file, not needed at build.
       args:
         NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL}
         NEXT_PUBLIC_IMAGE_URL: ${NEXT_PUBLIC_IMAGE_URL}
         NEXT_PUBLIC_SOCKET_URL: ${NEXT_PUBLIC_SOCKET_URL}
-        NEXTAUTH_URL: ${NEXTAUTH_URL}
         NEXT_PUBLIC_RAZORPAY_KEY_ID: ${NEXT_PUBLIC_RAZORPAY_KEY_ID}
     env_file:
       - .env.prod
     container_name: moha_weaves_frontend
     restart: unless-stopped
-    ports:
-      - "3000:3000"
+    # Not exposed to host — nginx proxies traffic internally
+    expose:
+      - "3000"
     depends_on:
       postgres:
         condition: service_healthy
@@ -95,6 +97,25 @@ services:
         condition: service_healthy
       app:
         condition: service_healthy
+    networks:
+      - moha_weaves_network
+
+  # ── Nginx Reverse Proxy (SSL termination + routing) ──────────────────────────
+  nginx:
+    image: nginx:alpine
+    container_name: moha_weaves_nginx
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/ssl:/etc/nginx/ssl:ro
+    depends_on:
+      app:
+        condition: service_healthy
+      nextjs:
+        condition: service_started
     networks:
       - moha_weaves_network
 

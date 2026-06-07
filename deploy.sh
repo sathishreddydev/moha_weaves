@@ -73,9 +73,13 @@ setup_vps() {
       apt-get install -y docker-compose-plugin
     fi
 
-    # Install other utilities
+    # Install certbot (standalone mode — no host nginx needed, Docker handles it)
     apt-get update -qq
-    apt-get install -y --no-install-recommends git nginx certbot python3-certbot-nginx
+    apt-get install -y --no-install-recommends git certbot
+
+    # Stop host nginx if running — Docker nginx handles port 80/443
+    systemctl stop nginx 2>/dev/null || true
+    systemctl disable nginx 2>/dev/null || true
 
     # Create a dedicated deploy user if it doesn't exist
     if ! id deploy &>/dev/null; then
@@ -149,8 +153,9 @@ setup_ssl() {
   ssh_run bash << REMOTE
     set -euo pipefail
 
-    # Stop nginx temporarily to free port 80 for standalone certbot
-    systemctl stop nginx 2>/dev/null || true
+    # Stop Docker containers temporarily to free port 80 for standalone certbot
+    cd "$DEPLOY_PATH"
+    docker compose stop nginx 2>/dev/null || true
 
     certbot certonly --standalone \
       --email "$CERTBOT_EMAIL" \
@@ -159,15 +164,17 @@ setup_ssl() {
       -d "$DOMAIN" \
       -d "$ADMIN_DOMAIN"
 
-    # Copy certs for Docker volume access
+    # Copy certs for Docker nginx volume access
     cp /etc/letsencrypt/live/$DOMAIN/fullchain.pem /opt/moha_weaves/nginx/ssl/cert.pem
     cp /etc/letsencrypt/live/$DOMAIN/privkey.pem   /opt/moha_weaves/nginx/ssl/key.pem
     chown -R deploy:deploy /opt/moha_weaves/nginx/ssl
 
-    # Auto-renewal cron (runs twice daily as recommended by certbot)
-    (crontab -l 2>/dev/null; echo "0 0,12 * * * certbot renew --quiet --post-hook 'docker compose -f /opt/moha_weaves/docker-compose.yml restart nextjs'") | crontab -
+    # Restart nginx container with valid certs
+    docker compose up -d nginx
 
-    systemctl start nginx 2>/dev/null || true
+    # Auto-renewal cron — stops Docker nginx, renews, copies certs, restarts
+    (crontab -l 2>/dev/null | grep -v 'certbot renew' ; echo "0 0,12 * * * certbot renew --quiet --pre-hook 'docker compose -f /opt/moha_weaves/docker-compose.yml stop nginx' --post-hook 'cp /etc/letsencrypt/live/$DOMAIN/fullchain.pem /opt/moha_weaves/nginx/ssl/cert.pem && cp /etc/letsencrypt/live/$DOMAIN/privkey.pem /opt/moha_weaves/nginx/ssl/key.pem && docker compose -f /opt/moha_weaves/docker-compose.yml up -d nginx'") | crontab -
+
     echo "SSL setup complete."
 REMOTE
 
