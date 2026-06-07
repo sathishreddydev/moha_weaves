@@ -25,12 +25,22 @@ export const initSocket = (
   server: HttpServer
 ): Server => {
 
+  if (!process.env.JWT_SECRET) {
+    throw new Error("JWT_SECRET environment variable is not set. Cannot initialise Socket.IO auth.");
+  }
+
+  // Allowed Socket.IO origins come from the environment — never hardcoded.
+  // FRONTEND_URL = Next.js storefront, BACKEND_URL = admin panel.
+  const socketOrigins: string[] = [
+    "http://localhost:3000",
+    "http://localhost:5000",
+  ];
+  if (process.env.FRONTEND_URL) socketOrigins.push(process.env.FRONTEND_URL);
+  if (process.env.BACKEND_URL)  socketOrigins.push(process.env.BACKEND_URL);
+
   io = new Server(server, {
     cors: {
-      origin: [
-        "http://localhost:3000",
-        "http://103.127.146.58:3000",
-      ],
+      origin: socketOrigins,
       credentials: true,
     },
   });

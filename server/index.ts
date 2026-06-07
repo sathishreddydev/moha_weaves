@@ -10,15 +10,12 @@ import { initSubscriber } from "../realtime/subscriber";
 import { startRefundCron } from "./cron/refundCron";
 import dotenv from "dotenv";
 
-// Load environment variables
-if (process.env.NODE_ENV !== "production") {
-  dotenv.config({
-    path: ".env.development",
-  });
-} else {
-  dotenv.config({
-    path: ".env.prod",
-  });
+// Load environment variables from disk only when they are not already injected
+// (Docker Compose / CI inject them directly; dotenv is a local-dev fallback).
+if (!process.env.DATABASE_URL) {
+  const envFile =
+    process.env.NODE_ENV === "production" ? ".env" : ".env.development";
+  dotenv.config({ path: envFile });
 }
 
 const app = express();
@@ -33,11 +30,29 @@ declare module "http" {
 app.use(cookieParser());
 
 // CORS configuration for cross-origin requests
+// Origins are read from the environment so they never need to be hardcoded.
+// FRONTEND_URL  = the Next.js storefront (e.g. https://urumibymounika.com)
+// BACKEND_URL   = the admin/API domain  (e.g. https://admin.urumibymounika.com)
+// In development both localhost variants are always allowed.
+const allowedOrigins: string[] = [
+  "http://localhost:3000",
+  "http://localhost:5000",
+];
+if (process.env.FRONTEND_URL) allowedOrigins.push(process.env.FRONTEND_URL);
+if (process.env.BACKEND_URL)  allowedOrigins.push(process.env.BACKEND_URL);
+
 app.use(cors({
-  origin: ['http://103.127.146.58:3000', 'http://localhost:3000', 'http://103.127.146.58:5000', 'http://localhost:5000'],
+  origin: (origin, callback) => {
+    // Allow requests with no origin (server-to-server, curl, Postman)
+    if (!origin || allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error(`CORS: origin '${origin}' not allowed`));
+    }
+  },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'Cookie', 'Set-Cookie']
+  allowedHeaders: ['Content-Type', 'Authorization', 'Cookie', 'Set-Cookie'],
 }));
 
 // Health check endpoint for Render
