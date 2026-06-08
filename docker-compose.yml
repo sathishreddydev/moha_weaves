@@ -85,6 +85,9 @@ services:
         NEXT_PUBLIC_RAZORPAY_KEY_ID: ${NEXT_PUBLIC_RAZORPAY_KEY_ID}
     env_file:
       - .env.prod
+    environment:
+      - PORT=3000
+      - HOSTNAME=0.0.0.0
     container_name: moha_weaves_frontend
     restart: unless-stopped
     # Not exposed to host — nginx proxies traffic internally
