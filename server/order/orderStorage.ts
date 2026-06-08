@@ -16,7 +16,7 @@ import { roleBasedProductService } from "server/product/roleBasedProductService"
 import { returnStorage } from "server/return/returnStorage";
 import { storage } from "server/storage";
 import { IdGenerator } from "server/utils/idGenerator";
-import { paymentInfo } from "./createOrderService";
+import { fetchPaymentDetails } from "server/razorpayClient";
 
 export function createOrderHistoryProduct(product: any) {
   if (!product) {
@@ -561,7 +561,7 @@ export class OrderRepository implements OrderStorage {
 
     // Get payment data only when full details are requested
     const paymentData = includeDetails && order.razorpayPaymentId
-      ? await paymentInfo({ razorpayPaymentId: order.razorpayPaymentId })
+      ? await fetchPaymentDetails(order.razorpayPaymentId)
       : null;
 
     const parsedShippingAddress = parseShippingAddress(order.shippingAddress);

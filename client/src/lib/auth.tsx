@@ -8,7 +8,6 @@ interface AuthContextType {
   isLoading: boolean;
   login: (email: string, password: string, role: string) => Promise<any>;
   logout: () => Promise<void>;
-  register: (data: any) => Promise<any>;
   changePassword: (currentPassword: string, newPassword: string) => Promise<any>;
 }
 
@@ -86,17 +85,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
 
-  const register = async (data: any) => {
-    try {
-      const result = await apiRequest("POST", "/api/auth/user/register", data);
-
-      setUser(result.user);
-      return { success: true };
-    } catch {
-      return { success: false, error: "Network error" };
-    }
-  };
-
   const logout = async () => {
     try {
       await apiRequest("POST", "/api/auth/logout");
@@ -117,7 +105,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, isLoading, login, logout, register, changePassword }}>
+    <AuthContext.Provider value={{ user, isLoading, login, logout, changePassword }}>
       {children}
     </AuthContext.Provider>
   );

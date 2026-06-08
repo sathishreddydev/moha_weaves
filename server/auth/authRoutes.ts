@@ -44,14 +44,7 @@ const loginRateLimit = createRateLimit({
   message: "Too many login attempts. Please try again in 15 minutes.",
 });
 
-// Rate limit for registration: 3 attempts per hour per IP
-const registerRateLimit = createRateLimit({
-  windowMs: 60 * 60 * 1000,
-  maxRequests: 3,
-  message: "Too many registration attempts. Please try again later.",
-});
-
-const authAny = createAuthMiddleware(["user", "admin", "inventory", "store"]);
+const authAny = createAuthMiddleware(["admin", "inventory", "store"]);
 
 export const authRoutes = (app: Express) => {
   // Helper function to issue tokens
@@ -172,35 +165,6 @@ export const authRoutes = (app: Express) => {
     }
   });
 
-  // User register
-  app.post("/api/auth/user/register", registerRateLimit, async (req, res) => {
-    try {
-      const { email, password, name, phone } = req.body;
-
-      const existing = await userService.getUserByEmail(email);
-      if (existing) {
-        return res.status(400).json({ message: "Email already registered" });
-      }
-
-      const hashedPassword = await bcrypt.hash(password, 10);
-      const user = await userService.createUser({
-        email,
-        password: hashedPassword,
-        name,
-        phone,
-        role: "user",
-      });
-
-      await issueTokens(user, res);
-
-      const { password: _pw, ...safeUser } = user;
-      res.json({ user: safeUser });
-    } catch (error) {
-      console.error("Register error:", error);
-      res.status(500).json({ message: "Registration failed" });
-    }
-  });
-
   // Generic login handler
   const handleLogin = async (
     req: Request,
@@ -234,7 +198,6 @@ export const authRoutes = (app: Express) => {
     }
   };
 
-  app.post("/api/auth/user/login", loginRateLimit, (req, res) => handleLogin(req, res, "user"));
   app.post("/api/auth/admin/login", loginRateLimit, (req, res) =>
     handleLogin(req, res, "admin"),
   );

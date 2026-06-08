@@ -1,16 +1,13 @@
 import type { Express } from "express";
 import { type Server } from "http";
-import { addressRoutes } from "./address/addressRoutes";
 import { adminRoutes } from "./admin/adminRoutes";
 import { authRoutes } from "./auth/authRoutes";
 import { createAuthMiddleware } from "./authMiddleware";
-import { cartRoutes } from "./cart/cartRoutes";
 import { publicRoutes } from "./common/publicRoutes";
 import { contactRoutes } from "./contact/contactRoutes";
 import { onlineExchangeRoutes } from "./exchange/onlineExchangeRoutes";
 import { inventoryRoutes } from "./inventory/inventoryRoutes";
 import { ObjectNotFoundError, ObjectStorageService } from "./objectStorage";
-import { orderRoutes } from "./order/orderRoutes";
 import { roleBasedProductService } from "./product/roleBasedProductService";
 import { refundRoutes } from "./refund/refundRoutes";
 import { returnRoutes } from "./return/returnRoutes";
@@ -22,9 +19,8 @@ import { webhookRoutes } from "./shipping/webhookRoutes";
 import { storage } from "./storage";
 import { storeCartRoutes } from "./store/StoreCartRoutes";
 import { storeRoutes } from "./store/storeRoutes";
-import { userRoutes } from "./user/userRoutes";
 
-const authAny = createAuthMiddleware(["user", "admin", "inventory", "store"]);
+const authAny = createAuthMiddleware(["admin", "inventory", "store"]);
 
 export async function registerRoutes(
   httpServer: Server,
@@ -36,12 +32,8 @@ export async function registerRoutes(
   // Auth routes (public)
   authRoutes(app);
   adminRoutes(app);
-  cartRoutes(app);
-  orderRoutes(app);
-  addressRoutes(app);
   inventoryRoutes(app);
   storeRoutes(app);
-  userRoutes(app);
   reviewRoutes(app);
   refundRoutes(app);
   returnRoutes(app);
