@@ -1,15 +1,8 @@
 import { DataTable } from "@/components/DataTable/DataTable";
+import { AdaptiveModal } from "@/components/common/AdaptiveModal";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { itemStatusConfig } from "@/constants/itemStatusConfig";
@@ -663,28 +656,48 @@ export default function InventoryReturns() {
       />
 
       {/* Status update dialog */}
-      <Dialog
+      <AdaptiveModal
         open={updateDialog.open}
         onOpenChange={(open) => setUpdateDialog((d) => ({ ...d, open }))}
+        title={updateDialog.status === ReturnStatus.RETURN_REJECTED
+          ? "Reject Return Request"
+          : updateDialog.status === ReturnStatus.RETURN_CANCELLED
+            ? "Cancel Return Request"
+            : "Update Return Request"}
+        description={updateDialog.status === ReturnStatus.RETURN_REJECTED
+          ? "Provide a reason for rejection — this will be shared with the customer."
+          : updateDialog.status === ReturnStatus.RETURN_CANCELLED
+            ? "Provide a reason for cancellation — this will be shared with the customer."
+            : `Change status to "${itemStatusConfig[updateDialog.status]?.label ?? updateDialog.status}". Add notes if needed.`}
+        footer={
+          <>
+            <Button
+              variant="outline"
+              onClick={() =>
+                setUpdateDialog({ open: false, request: null, status: "" })
+              }
+            >
+              Cancel
+            </Button>
+            <Button
+              variant={
+                updateDialog.status === ReturnStatus.RETURN_REJECTED ||
+                updateDialog.status === ReturnStatus.RETURN_CANCELLED
+                  ? "destructive"
+                  : "default"
+              }
+              onClick={handleConfirmUpdate}
+              disabled={updateStatusMutation.isPending}
+            >
+              {updateDialog.status === ReturnStatus.RETURN_REJECTED
+                ? "Confirm Rejection"
+                : updateDialog.status === ReturnStatus.RETURN_CANCELLED
+                  ? "Confirm Cancellation"
+                  : "Update Status"}
+            </Button>
+          </>
+        }
       >
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>
-              {updateDialog.status === ReturnStatus.RETURN_REJECTED
-                ? "Reject Return Request"
-                : updateDialog.status === ReturnStatus.RETURN_CANCELLED
-                  ? "Cancel Return Request"
-                  : "Update Return Request"}
-            </DialogTitle>
-            <DialogDescription>
-              {updateDialog.status === ReturnStatus.RETURN_REJECTED
-                ? "Provide a reason for rejection — this will be shared with the customer."
-                : updateDialog.status === ReturnStatus.RETURN_CANCELLED
-                  ? "Provide a reason for cancellation — this will be shared with the customer."
-                  : `Change status to "${itemStatusConfig[updateDialog.status]?.label ?? updateDialog.status}". Add notes if needed.`}
-            </DialogDescription>
-          </DialogHeader>
-
           {updateDialog.request && (
             <div className="py-2 border-b space-y-2">
               <div className="flex items-center gap-3">
@@ -741,35 +754,7 @@ export default function InventoryReturns() {
               className="mt-2"
             />
           </div>
-
-          <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() =>
-                setUpdateDialog({ open: false, request: null, status: "" })
-              }
-            >
-              Cancel
-            </Button>
-            <Button
-              variant={
-                updateDialog.status === ReturnStatus.RETURN_REJECTED ||
-                updateDialog.status === ReturnStatus.RETURN_CANCELLED
-                  ? "destructive"
-                  : "default"
-              }
-              onClick={handleConfirmUpdate}
-              disabled={updateStatusMutation.isPending}
-            >
-              {updateDialog.status === ReturnStatus.RETURN_REJECTED
-                ? "Confirm Rejection"
-                : updateDialog.status === ReturnStatus.RETURN_CANCELLED
-                  ? "Confirm Cancellation"
-                  : "Update Status"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      </AdaptiveModal>
     </div>
   );
 }

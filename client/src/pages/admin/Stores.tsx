@@ -8,17 +8,10 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { AdaptiveModal } from "@/components/common/AdaptiveModal";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -269,19 +262,38 @@ export default function AdminStores() {
         </Card>
       </div>
 
-      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>
-              {editingStore ? "Edit Store" : "Add Store"}
-            </DialogTitle>
-            <DialogDescription>
-              {editingStore
-                ? "Update store details"
-                : "Create a new physical store outlet"}
-            </DialogDescription>
-          </DialogHeader>
-          <form onSubmit={handleSubmit} className="space-y-4">
+      <AdaptiveModal
+        open={dialogOpen}
+        onOpenChange={setDialogOpen}
+        title={editingStore ? "Edit Store" : "Add Store"}
+        description={editingStore
+          ? "Update store details"
+          : "Create a new physical store outlet"}
+        footer={
+          <>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={handleCloseDialog}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="submit"
+              form="store-form"
+              disabled={createMutation.isPending || updateMutation.isPending}
+              data-testid="button-submit"
+            >
+              {createMutation.isPending || updateMutation.isPending
+                ? "Saving..."
+                : editingStore
+                ? "Save Changes"
+                : "Create"}
+            </Button>
+          </>
+        }
+      >
+          <form id="store-form" onSubmit={handleSubmit} className="space-y-4">
             <div>
               <Label htmlFor="name">Store Name</Label>
               <Input
@@ -329,29 +341,8 @@ export default function AdminStores() {
               />
               <Label htmlFor="isActive">Active</Label>
             </div>
-            <DialogFooter>
-              <Button
-                type="button"
-                variant="outline"
-                onClick={handleCloseDialog}
-              >
-                Cancel
-              </Button>
-              <Button
-                type="submit"
-                disabled={createMutation.isPending || updateMutation.isPending}
-                data-testid="button-submit"
-              >
-                {createMutation.isPending || updateMutation.isPending
-                  ? "Saving..."
-                  : editingStore
-                  ? "Save Changes"
-                  : "Create"}
-              </Button>
-            </DialogFooter>
           </form>
-        </DialogContent>
-      </Dialog>
+      </AdaptiveModal>
 
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
         <AlertDialogContent>

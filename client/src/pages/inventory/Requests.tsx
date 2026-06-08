@@ -1,14 +1,7 @@
+import { AdaptiveModal } from "@/components/common/AdaptiveModal";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import {
   Select,
@@ -334,27 +327,13 @@ export default function InventoryRequests() {
       </Card>
 
       {/* Rejection Reason Dialog */}
-      <Dialog open={rejectDialogOpen} onOpenChange={setRejectDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Reject Stock Request</DialogTitle>
-            <DialogDescription>
-              Please provide a reason for rejecting this stock request.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4">
-            <div>
-              <Label htmlFor="rejectionReason">Rejection Reason</Label>
-              <Textarea
-                id="rejectionReason"
-                value={rejectionReason}
-                onChange={(e) => setRejectionReason(e.target.value)}
-                placeholder="Enter the reason for rejection..."
-                className="min-h-[100px]"
-              />
-            </div>
-          </div>
-          <DialogFooter>
+      <AdaptiveModal
+        open={rejectDialogOpen}
+        onOpenChange={setRejectDialogOpen}
+        title="Reject Stock Request"
+        description="Please provide a reason for rejecting this stock request."
+        footer={
+          <>
             <Button
               type="button"
               variant="outline"
@@ -374,9 +353,22 @@ export default function InventoryRequests() {
             >
               {updateStatusMutation.isPending ? "Rejecting..." : "Reject Request"}
             </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+          </>
+        }
+      >
+          <div className="space-y-4">
+            <div>
+              <Label htmlFor="rejectionReason">Rejection Reason</Label>
+              <Textarea
+                id="rejectionReason"
+                value={rejectionReason}
+                onChange={(e) => setRejectionReason(e.target.value)}
+                placeholder="Enter the reason for rejection..."
+                className="min-h-[100px]"
+              />
+            </div>
+          </div>
+      </AdaptiveModal>
     </div>
   );
 }

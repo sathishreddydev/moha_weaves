@@ -8,17 +8,10 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { AdaptiveModal } from "@/components/common/AdaptiveModal";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -244,17 +237,36 @@ export default function AdminFabrics() {
         </Card>
       </div>
 
-      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>
-              {editingFabric ? "Edit Fabric" : "Add Fabric"}
-            </DialogTitle>
-            <DialogDescription>
-              {editingFabric ? "Update fabric details" : "Create a new fabric type"}
-            </DialogDescription>
-          </DialogHeader>
-          <form onSubmit={handleSubmit} className="space-y-4">
+      <AdaptiveModal
+        open={dialogOpen}
+        onOpenChange={setDialogOpen}
+        title={editingFabric ? "Edit Fabric" : "Add Fabric"}
+        description={editingFabric ? "Update fabric details" : "Create a new fabric type"}
+        footer={
+          <>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={handleCloseDialog}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="submit"
+              form="fabric-form"
+              disabled={createMutation.isPending || updateMutation.isPending}
+              data-testid="button-submit"
+            >
+              {createMutation.isPending || updateMutation.isPending
+                ? "Saving..."
+                : editingFabric
+                ? "Update"
+                : "Create"}
+            </Button>
+          </>
+        }
+      >
+          <form id="fabric-form" onSubmit={handleSubmit} className="space-y-4">
             <div>
               <Label htmlFor="name">Name</Label>
               <Input
@@ -289,29 +301,8 @@ export default function AdminFabrics() {
               />
               <Label htmlFor="isActive">Active</Label>
             </div>
-            <DialogFooter>
-              <Button
-                type="button"
-                variant="outline"
-                onClick={handleCloseDialog}
-              >
-                Cancel
-              </Button>
-              <Button
-                type="submit"
-                disabled={createMutation.isPending || updateMutation.isPending}
-                data-testid="button-submit"
-              >
-                {createMutation.isPending || updateMutation.isPending
-                  ? "Saving..."
-                  : editingFabric
-                  ? "Update"
-                  : "Create"}
-              </Button>
-            </DialogFooter>
           </form>
-        </DialogContent>
-      </Dialog>
+      </AdaptiveModal>
 
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
         <AlertDialogContent>

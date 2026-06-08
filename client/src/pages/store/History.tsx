@@ -1,13 +1,7 @@
 import { DataTable } from "@/components/DataTable/DataTable";
+import { AdaptiveModal } from "@/components/common/AdaptiveModal";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
 import { useDataTable } from "@/hooks/use-data-table";
 import {
   Tooltip,
@@ -369,18 +363,17 @@ export default function StoreHistory() {
         />
       </div>
 
-      <Dialog open={!!selectedSale} onOpenChange={() => setSelectedSale(null)}>
-        <DialogContent className="max-w-lg">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <Receipt className="h-5 w-5" />
-              Sale Details
-            </DialogTitle>
-            <DialogDescription>
-              #{selectedSale?.id} -{" "}
-              {selectedSale && formatDate(selectedSale.createdAt)}
-            </DialogDescription>
-          </DialogHeader>
+      <AdaptiveModal
+        open={!!selectedSale}
+        onOpenChange={() => setSelectedSale(null)}
+        title={
+          <span className="flex items-center gap-2">
+            <Receipt className="h-5 w-5" />
+            Sale Details
+          </span>
+        }
+        description={selectedSale ? `#${selectedSale.id} - ${formatDate(selectedSale.createdAt)}` : undefined}
+      >
           {selectedSale && (
             <div className="space-y-4">
               {(selectedSale.customerName || selectedSale.customerPhone) && (
@@ -509,8 +502,7 @@ export default function StoreHistory() {
               </Button>
             </div>
           )}
-        </DialogContent>
-      </Dialog>
+      </AdaptiveModal>
     </div>
   );
 }

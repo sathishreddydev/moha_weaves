@@ -1,15 +1,8 @@
 import { DataTable } from "@/components/DataTable/DataTable";
+import { AdaptiveModal } from "@/components/common/AdaptiveModal";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
 import { useDataTable } from "@/hooks/use-data-table";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
@@ -739,16 +732,13 @@ export default function InventoryProducts() {
         />
       </div>
 
-      <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Delete product</DialogTitle>
-            <DialogDescription>
-              Are you sure you want to delete this product? This action cannot
-              be undone.
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
+      <AdaptiveModal
+        open={deleteDialogOpen}
+        onOpenChange={setDeleteDialogOpen}
+        title="Delete product"
+        description="Are you sure you want to delete this product? This action cannot be undone."
+        footer={
+          <>
             <Button
               variant="outline"
               onClick={() => setDeleteDialogOpen(false)}
@@ -765,23 +755,19 @@ export default function InventoryProducts() {
             >
               {deleteMutation.isPending ? "Deleting..." : "Delete"}
             </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+          </>
+        }
+      >
+        <p className="text-sm text-muted-foreground">This will permanently remove the product from inventory.</p>
+      </AdaptiveModal>
 
-      <Dialog
+      <AdaptiveModal
         open={bulkDeleteDialogOpen}
         onOpenChange={setBulkDeleteDialogOpen}
-      >
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Delete Multiple products</DialogTitle>
-            <DialogDescription>
-              Are you sure you want to delete {selectedRows.size} product(s)?
-              This action cannot be undone.
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
+        title="Delete Multiple products"
+        description={`Are you sure you want to delete ${selectedRows.size} product(s)? This action cannot be undone.`}
+        footer={
+          <>
             <Button
               variant="outline"
               onClick={() => setBulkDeleteDialogOpen(false)}
@@ -796,24 +782,19 @@ export default function InventoryProducts() {
             >
               {deleteMutation.isPending ? "Deleting..." : "Delete All"}
             </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+          </>
+        }
+      >
+        <p className="text-sm text-muted-foreground">This will permanently remove all selected products.</p>
+      </AdaptiveModal>
 
-      <Dialog open={printDialogOpen} onOpenChange={setPrintDialogOpen}>
-        <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>Print Product Details with Barcode</DialogTitle>
-          </DialogHeader>
-          <ProductPrintDetails
-            products={products}
-            selectedRows={
-              printingProduct ? new Set([printingProduct.id]) : selectedRows
-            }
-            printRef={printRef}
-          />
-
-          <DialogFooter>
+      <AdaptiveModal
+        open={printDialogOpen}
+        onOpenChange={setPrintDialogOpen}
+        title="Print Product Details with Barcode"
+        size="xl"
+        footer={
+          <>
             <Button variant="outline" onClick={() => setPrintDialogOpen(false)}>
               Cancel
             </Button>
@@ -821,9 +802,17 @@ export default function InventoryProducts() {
               <Printer className="h-4 w-4 mr-2" />
               Print
             </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+          </>
+        }
+      >
+          <ProductPrintDetails
+            products={products}
+            selectedRows={
+              printingProduct ? new Set([printingProduct.id]) : selectedRows
+            }
+            printRef={printRef}
+          />
+      </AdaptiveModal>
     </div>
   );
 }

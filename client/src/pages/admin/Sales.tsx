@@ -1,17 +1,10 @@
 
 import { useFilterStore } from "@/components/Store/useFilterStore";
+import { AdaptiveModal } from "@/components/common/AdaptiveModal";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -462,15 +455,27 @@ export default function AdminSales() {
         </Card>
       </div>
 
-      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>{editingSale ? "Edit Sale" : "Add Sale"}</DialogTitle>
-            <DialogDescription>
-              {editingSale ? "Update sale details" : "Create a new sale offer"}
-            </DialogDescription>
-          </DialogHeader>
-          
+      <AdaptiveModal
+        open={dialogOpen}
+        onOpenChange={setDialogOpen}
+        title={editingSale ? "Edit Sale" : "Add Sale"}
+        description={editingSale ? "Update sale details" : "Create a new sale offer"}
+        size="lg"
+        footer={
+          <>
+            <Button variant="outline" onClick={handleCloseDialog}>
+              Cancel
+            </Button>
+            <Button
+              onClick={handleSubmit}
+              disabled={createMutation.isPending || updateMutation.isPending}
+              data-testid="button-submit"
+            >
+              {editingSale ? "Save Changes" : "Create Sale"}
+            </Button>
+          </>
+        }
+      >
           {conflictWarning && (
             <div className="bg-yellow-50 border border-yellow-200 rounded-md p-3 mb-4">
               <p className="text-sm text-yellow-800 whitespace-pre-line">
@@ -479,7 +484,7 @@ export default function AdminSales() {
             </div>
           )}
           
-          <div className="space-y-4 py-4">
+          <div className="space-y-4">
             <div>
               <Label htmlFor="name">Sale Name *</Label>
               <Input
@@ -779,30 +784,15 @@ export default function AdminSales() {
               />
             </div>
           </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={handleCloseDialog}>
-              Cancel
-            </Button>
-            <Button
-              onClick={handleSubmit}
-              disabled={createMutation.isPending || updateMutation.isPending}
-              data-testid="button-submit"
-            >
-              {editingSale ? "Save Changes" : "Create Sale"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      </AdaptiveModal>
 
-      <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Delete Sale</DialogTitle>
-            <DialogDescription>
-              Are you sure you want to delete this sale? This action cannot be undone.
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
+      <AdaptiveModal
+        open={deleteDialogOpen}
+        onOpenChange={setDeleteDialogOpen}
+        title="Delete Sale"
+        description="Are you sure you want to delete this sale? This action cannot be undone."
+        footer={
+          <>
             <Button variant="outline" onClick={() => setDeleteDialogOpen(false)}>
               Cancel
             </Button>
@@ -814,9 +804,13 @@ export default function AdminSales() {
             >
               Delete
             </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+          </>
+        }
+      >
+        <p className="text-sm text-muted-foreground">
+          This will permanently remove the sale and its associated product mappings.
+        </p>
+      </AdaptiveModal>
     </div>
   );
 }

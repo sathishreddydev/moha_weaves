@@ -8,16 +8,9 @@ import {
   AlertDialogHeader,
   AlertDialogTitle
 } from "@/components/ui/alert-dialog";
+import { AdaptiveModal } from "@/components/common/AdaptiveModal";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
@@ -737,19 +730,38 @@ export default function AdminCategories() {
         />
       </div>
 
-      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>
-              {editingCategory ? "Edit Category" : "Add Category"}
-            </DialogTitle>
-            <DialogDescription>
-              {editingCategory
-                ? "Update category details"
-                : "Create a new category"}
-            </DialogDescription>
-          </DialogHeader>
-          <form onSubmit={handleSubmit} className="space-y-4">
+      <AdaptiveModal
+        open={dialogOpen}
+        onOpenChange={setDialogOpen}
+        title={editingCategory ? "Edit Category" : "Add Category"}
+        description={editingCategory
+          ? "Update category details"
+          : "Create a new category"}
+        footer={
+          <>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={handleCloseDialog}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="submit"
+              form="category-form"
+              disabled={createMutation.isPending || updateMutation.isPending}
+              data-testid="button-submit"
+            >
+              {createMutation.isPending || updateMutation.isPending
+                ? "Saving..."
+                : editingCategory
+                ? "Update"
+                : "Create"}
+            </Button>
+          </>
+        }
+      >
+          <form id="category-form" onSubmit={handleSubmit} className="space-y-4">
             <div>
               <Label htmlFor="name">Name</Label>
               <Input
@@ -914,29 +926,8 @@ export default function AdminCategories() {
                 </div>
               )}
             </div>
-            <DialogFooter>
-              <Button
-                type="button"
-                variant="outline"
-                onClick={handleCloseDialog}
-              >
-                Cancel
-              </Button>
-              <Button
-                type="submit"
-                disabled={createMutation.isPending || updateMutation.isPending}
-                data-testid="button-submit"
-              >
-                {createMutation.isPending || updateMutation.isPending
-                  ? "Saving..."
-                  : editingCategory
-                  ? "Update"
-                  : "Create"}
-              </Button>
-            </DialogFooter>
           </form>
-        </DialogContent>
-      </Dialog>
+      </AdaptiveModal>
 
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
         <AlertDialogContent>
@@ -980,27 +971,50 @@ export default function AdminCategories() {
       </AlertDialog>
 
       {/* Subcategory Modal */}
-      <Dialog open={subcategoryModalOpen} onOpenChange={setSubcategoryModalOpen}>
-        <DialogContent className="max-w-2xl">
-          <DialogHeader>
-            <DialogTitle>
-              {editingSubcategory ? "Edit Subcategory" : "Add Subcategory"}
-              {selectedCategory && (
-                <span className="text-sm font-normal text-muted-foreground ml-2">
-                  for {selectedCategory.name}
-                </span>
-              )}
-            </DialogTitle>
-            <DialogDescription>
-              {editingSubcategory 
-                ? "Update subcategory details" 
-                : selectedCategory 
-                  ? `Create a new subcategory for ${selectedCategory.name}`
-                  : "Create a new subcategory"
-              }
-            </DialogDescription>
-          </DialogHeader>
-          <form onSubmit={handleSubcategorySubmit} className="space-y-4">
+      <AdaptiveModal
+        open={subcategoryModalOpen}
+        onOpenChange={setSubcategoryModalOpen}
+        title={
+          <>
+            {editingSubcategory ? "Edit Subcategory" : "Add Subcategory"}
+            {selectedCategory && (
+              <span className="text-sm font-normal text-muted-foreground ml-2">
+                for {selectedCategory.name}
+              </span>
+            )}
+          </>
+        }
+        description={editingSubcategory 
+          ? "Update subcategory details" 
+          : selectedCategory 
+            ? `Create a new subcategory for ${selectedCategory.name}`
+            : "Create a new subcategory"
+        }
+        size="lg"
+        footer={
+          <>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={handleCloseSubcategoryModal}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="submit"
+              form="subcategory-form"
+              disabled={createSubcategoryMutation.isPending || updateSubcategoryMutation.isPending}
+            >
+              {createSubcategoryMutation.isPending || updateSubcategoryMutation.isPending
+                ? "Saving..."
+                : editingSubcategory
+                ? "Update"
+                : "Create"}
+            </Button>
+          </>
+        }
+      >
+          <form id="subcategory-form" onSubmit={handleSubcategorySubmit} className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <Label htmlFor="subcategory-name">Name *</Label>
@@ -1087,29 +1101,8 @@ export default function AdminCategories() {
               />
               <Label htmlFor="subcategory-active">Active</Label>
             </div>
-
-            <DialogFooter>
-              <Button
-                type="button"
-                variant="outline"
-                onClick={handleCloseSubcategoryModal}
-              >
-                Cancel
-              </Button>
-              <Button
-                type="submit"
-                disabled={createSubcategoryMutation.isPending || updateSubcategoryMutation.isPending}
-              >
-                {createSubcategoryMutation.isPending || updateSubcategoryMutation.isPending
-                  ? "Saving..."
-                  : editingSubcategory
-                  ? "Update"
-                  : "Create"}
-              </Button>
-            </DialogFooter>
           </form>
-        </DialogContent>
-      </Dialog>
+      </AdaptiveModal>
     </div>
   );
 }
