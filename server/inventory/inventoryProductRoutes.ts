@@ -959,6 +959,17 @@ export const inventoryProductRoutes = (app: Express) => {
     }
 
     try {
+      // Fetch all image/video URLs before deleting so we can clean Cloudinary
+      const productsToDelete = await db
+        .select({
+          id: products.id,
+          imageUrl: products.imageUrl,
+          images: products.images,
+          videoUrl: products.videoUrl,
+        })
+        .from(products)
+        .where(inArray(products.id, ids));
+
       await db.transaction(async (tx) => {
         // 1. Collect all variant IDs for these products
         const variants = await tx
@@ -1001,6 +1012,51 @@ export const inventoryProductRoutes = (app: Express) => {
           .set({ isActive: false, updatedAt: new Date() })
           .where(inArray(products.id, ids));
       });
+
+      // 8. Delete Cloudinary assets after DB transaction succeeds (fire and forget)
+      // Collect all Cloudinary URLs across all deleted products
+      const cloudinaryUrls: string[] = [];
+      for (const p of productsToDelete) {
+        if (p.imageUrl?.includes("res.cloudinary.com")) cloudinaryUrls.push(p.imageUrl);
+        if (p.videoUrl?.includes("res.cloudinary.com")) cloudinaryUrls.push(p.videoUrl);
+        if (Array.isArray(p.images)) {
+          p.images.forEach((img) => {
+            if (img?.includes("res.cloudinary.com")) cloudinaryUrls.push(img);
+          });
+        }
+      }
+
+      if (cloudinaryUrls.length > 0) {
+        const cloudinary = await import("cloudinary");
+        cloudinary.v2.config({
+          cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+          api_key: process.env.CLOUDINARY_API_KEY,
+          api_secret: process.env.CLOUDINARY_API_SECRET,
+        });
+
+        // Delete all assets in parallel — non-blocking, failures are logged not thrown
+        Promise.allSettled(
+          cloudinaryUrls.map(async (url) => {
+            const urlParts = url.split("/");
+            const uploadIndex = urlParts.indexOf("upload");
+            if (uploadIndex === -1) return;
+
+            let afterUpload = urlParts.slice(uploadIndex + 1);
+            if (afterUpload[0] && /^v\d+$/.test(afterUpload[0])) {
+              afterUpload = afterUpload.slice(1);
+            }
+            const publicIdWithExt = afterUpload.join("/");
+            if (!publicIdWithExt) return;
+            const publicId = publicIdWithExt.substring(0, publicIdWithExt.lastIndexOf("."));
+            const resourceType = url.includes("/video/") ? "video" : "image";
+
+            const result = await cloudinary.v2.uploader.destroy(publicId, { resource_type: resourceType });
+            if (result.result !== "ok") {
+              console.warn(`Cloudinary delete skipped for ${publicId}: ${result.result}`);
+            }
+          })
+        ).catch((err) => console.error("Cloudinary bulk delete error:", err));
+      }
 
       res.json({ success: true, ids });
       await publishRealtimeEvent("product_event");

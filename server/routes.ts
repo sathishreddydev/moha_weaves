@@ -182,20 +182,36 @@ export async function registerRoutes(
       });
 
       // Extract public_id from Cloudinary URL
-      // Format: https://res.cloudinary.com/{cloud_name}/image/upload/{public_id}.{extension}
+      // Format: https://res.cloudinary.com/{cloud_name}/image/upload/v1234567890/folder/public_id.ext
+      // Version segment (v followed by digits) must be skipped to get the correct public_id
       const urlParts = url.split("/");
       const uploadIndex = urlParts.indexOf("upload");
       if (uploadIndex === -1) {
         return res.status(400).json({ error: "Invalid Cloudinary URL" });
       }
 
-      const publicIdWithExt = urlParts.slice(uploadIndex + 1).join("/");
+      // Skip optional version segment (e.g. "v1718000000")
+      let afterUpload = urlParts.slice(uploadIndex + 1);
+      if (afterUpload[0] && /^v\d+$/.test(afterUpload[0])) {
+        afterUpload = afterUpload.slice(1);
+      }
+
+      const publicIdWithExt = afterUpload.join("/");
+      if (!publicIdWithExt) {
+        return res.status(400).json({ error: "Could not extract public_id from URL" });
+      }
       const publicId = publicIdWithExt.substring(0, publicIdWithExt.lastIndexOf("."));
 
       // Determine resource type from URL
       const resourceType = url.includes("/video/") ? "video" : "image";
 
-      await cloudinary.v2.uploader.destroy(publicId, { resource_type: resourceType });
+      const result = await cloudinary.v2.uploader.destroy(publicId, { resource_type: resourceType });
+
+      // Cloudinary returns { result: 'not found' } without throwing when public_id is wrong
+      if (result.result !== "ok") {
+        console.error("Cloudinary delete failed:", result);
+        return res.status(404).json({ error: `Cloudinary could not delete the file: ${result.result}` });
+      }
 
       res.json({ success: true, message: "File deleted successfully" });
     } catch (error) {
