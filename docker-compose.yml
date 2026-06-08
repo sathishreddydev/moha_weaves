@@ -64,11 +64,11 @@ services:
     networks:
       - moha_weaves_network
     healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://localhost:5000/api/health || exit 1"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 30s
+      test: ["CMD-SHELL", "wget -qO- http://localhost:5000/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 40s
 
   # ── Next.js Frontend ─────────────────────────────────────────────────────────
   nextjs:
