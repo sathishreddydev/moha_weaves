@@ -14,7 +14,7 @@ import {
   products,
   sales
 } from "@shared/schema";
-import { eq, and, sql } from "drizzle-orm";
+import { eq, and, asc, sql } from "drizzle-orm";
 import { db } from "server/db";
 
 // Size ordering: predefined sizes in logical sequence
@@ -94,8 +94,8 @@ export class PublicRepository implements PublicStorage {
   }
 
   async getAllCategoriesWithSubcategories(): Promise<(Category & { subcategories: Subcategory[] })[]> {
-    const allCategories = await db.select().from(categories);
-    const allSubcategories = await db.select().from(subcategories);
+    const allCategories = await db.select().from(categories).orderBy(asc(categories.name));
+    const allSubcategories = await db.select().from(subcategories).orderBy(asc(subcategories.name));
     
     return allCategories.map(category => ({
       ...category,
@@ -105,7 +105,7 @@ export class PublicRepository implements PublicStorage {
   }
 
   async getAllCategories(): Promise<Category[]> {
-    const result = await db.select().from(categories);
+    const result = await db.select().from(categories).orderBy(asc(categories.name));
     return result.map(cat => ({ ...cat, sizes: sortSizes(cat.sizes) }));
   }
 
@@ -201,7 +201,7 @@ export class PublicRepository implements PublicStorage {
   }
 
   async getAllColors(): Promise<Color[]> {
-    return db.select().from(colors);
+    return db.select().from(colors).orderBy(asc(colors.name));
   }
 
   async getColor(id: string): Promise<Color | undefined> {
@@ -241,7 +241,7 @@ export class PublicRepository implements PublicStorage {
   }
 
   async getAllFabrics(): Promise<Fabric[]> {
-    return db.select().from(fabrics);
+    return db.select().from(fabrics).orderBy(asc(fabrics.name));
   }
 
   async getFabric(id: string): Promise<Fabric | undefined> {
