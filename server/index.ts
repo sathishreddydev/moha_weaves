@@ -8,15 +8,6 @@ import { emailService } from "./services/emailService";
 import { initSocket } from "../realtime/socket";
 import { initSubscriber } from "../realtime/subscriber";
 import { startRefundCron } from "./cron/refundCron";
-import dotenv from "dotenv";
-
-// Load environment variables from disk only when they are not already injected
-// (Docker Compose / CI inject them directly; dotenv is a local-dev fallback).
-if (!process.env.DATABASE_URL) {
-  const envFile =
-    process.env.NODE_ENV === "production" ? ".env" : ".env.development";
-  dotenv.config({ path: envFile });
-}
 
 const app = express();
 const httpServer = createServer(app);
