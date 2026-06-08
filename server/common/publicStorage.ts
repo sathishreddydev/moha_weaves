@@ -112,7 +112,7 @@ export class PublicRepository implements PublicStorage {
 
   async deleteCategory(id: string): Promise<boolean> {
     try {
-      // First check if category exists
+      // First check if category exists and grab its imageUrl
       const [category] = await db
         .select()
         .from(categories)
@@ -124,33 +124,20 @@ export class PublicRepository implements PublicStorage {
 
       // Check for dependencies before deletion
       const [productCount, salesCount, subcategoryCount] = await Promise.all([
-        // Check for active products in this category
         db
           .select({ count: sql<number>`count(*)` })
           .from(products)
-          .where(and(
-            eq(products.categoryId, id),
-            eq(products.isActive, true)
-          )),
-        // Check for active sales in this category
+          .where(and(eq(products.categoryId, id), eq(products.isActive, true))),
         db
           .select({ count: sql<number>`count(*)` })
           .from(sales)
-          .where(and(
-            eq(sales.categoryId, id),
-            eq(sales.isActive, true)
-          )),
-        // Check for active subcategories in this category
+          .where(and(eq(sales.categoryId, id), eq(sales.isActive, true))),
         db
           .select({ count: sql<number>`count(*)` })
           .from(subcategories)
-          .where(and(
-            eq(subcategories.categoryId, id),
-            eq(subcategories.isActive, true)
-          ))
+          .where(and(eq(subcategories.categoryId, id), eq(subcategories.isActive, true)))
       ]);
 
-      // If there are dependencies, prevent deletion
       if (productCount[0]?.count > 0) {
         throw new Error('Cannot delete category: It is referenced by active products. Please remove or reassign these products first.');
       }
@@ -159,29 +146,35 @@ export class PublicRepository implements PublicStorage {
         throw new Error('Cannot delete category: It is referenced by active sales. Please remove or reassign these sales first.');
       }
 
-      // If there are subcategories, delete them first
+      // Fetch subcategory imageUrls before deletion for Cloudinary cleanup
+      const subcategoryRows = await db
+        .select({ imageUrl: subcategories.imageUrl })
+        .from(subcategories)
+        .where(eq(subcategories.categoryId, id));
+
       if (subcategoryCount[0]?.count > 0) {
-        // Permanently delete all subcategories in this category
-        await db
-          .delete(subcategories)
-          .where(eq(subcategories.categoryId, id));
+        await db.delete(subcategories).where(eq(subcategories.categoryId, id));
       }
 
-      // Permanently delete the category since no dependencies exist
-      const result = await db
-        .delete(categories)
-        .where(eq(categories.id, id));
+      const result = await db.delete(categories).where(eq(categories.id, id));
+
+      // Clean up Cloudinary images after DB deletion (fire and forget)
+      const cloudinaryUrls: string[] = [];
+      if (category.imageUrl?.includes("res.cloudinary.com")) cloudinaryUrls.push(category.imageUrl);
+      subcategoryRows.forEach((s) => {
+        if (s.imageUrl?.includes("res.cloudinary.com")) cloudinaryUrls.push(s.imageUrl);
+      });
+      if (cloudinaryUrls.length > 0) {
+        this._deleteCloudinaryUrls(cloudinaryUrls);
+      }
 
       return (result.rowCount ?? 0) > 0;
     } catch (error) {
       console.error('Error deleting category:', error);
       const errorMessage = error instanceof Error ? error.message : String(error);
-      
-      // Re-throw specific errors for API handling
       if (errorMessage.includes('Cannot delete category') || errorMessage.includes('Category not found')) {
         throw error;
       }
-      
       throw new Error('Failed to delete category');
     }
   }
@@ -291,22 +284,58 @@ export class PublicRepository implements PublicStorage {
 
   async deleteSubcategory(id: string): Promise<boolean> {
     try {
-      // Permanently delete subcategory
+      // Fetch imageUrl before deletion for Cloudinary cleanup
+      const [sub] = await db
+        .select({ imageUrl: subcategories.imageUrl })
+        .from(subcategories)
+        .where(eq(subcategories.id, id));
+
       const result = await db
         .delete(subcategories)
         .where(eq(subcategories.id, id));
-      
+
+      // Clean Cloudinary image after DB deletion (fire and forget)
+      if (sub?.imageUrl?.includes("res.cloudinary.com")) {
+        this._deleteCloudinaryUrls([sub.imageUrl]);
+      }
+
       return (result.rowCount ?? 0) > 0;
     } catch (error) {
       console.error('Error deleting subcategory:', error);
-      // If there are foreign key constraints from products,
-      // we need to handle them
       const errorMessage = error instanceof Error ? error.message : String(error);
       if (errorMessage.includes('violates foreign key constraint')) {
         throw new Error('Cannot delete subcategory: It is referenced by products. Please remove or reassign these references first.');
       }
       throw error;
     }
+  }
+
+  /** Shared helper — deletes Cloudinary assets fire-and-forget */
+  private _deleteCloudinaryUrls(urls: string[]): void {
+    import("cloudinary").then((cloudinary) => {
+      cloudinary.v2.config({
+        cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+        api_key: process.env.CLOUDINARY_API_KEY,
+        api_secret: process.env.CLOUDINARY_API_SECRET,
+      });
+      Promise.allSettled(
+        urls.map(async (url) => {
+          const parts = url.split("/");
+          const uploadIdx = parts.indexOf("upload");
+          if (uploadIdx === -1) return;
+          let after = parts.slice(uploadIdx + 1);
+          if (after[0] && /^v\d+$/.test(after[0])) after = after.slice(1);
+          const publicIdWithExt = after.join("/");
+          if (!publicIdWithExt) return;
+          const publicId = publicIdWithExt.substring(0, publicIdWithExt.lastIndexOf("."));
+          const resourceType = url.includes("/video/") ? "video" : "image";
+          const result = await cloudinary.v2.uploader.destroy(publicId, { resource_type: resourceType });
+          if (result.result !== "ok") {
+            console.warn(`Cloudinary delete skipped for ${publicId}: ${result.result}`);
+          }
+        })
+      ).catch((err) => console.error("Cloudinary bulk delete error:", err));
+    }).catch((err) => console.error("Failed to import cloudinary:", err));
   }
 }
 

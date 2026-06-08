@@ -251,6 +251,12 @@ export default function AdminCategories() {
 
   const handleImageUpload = (urls: string[]) => {
     if (urls.length > 0) {
+      // Delete old image from Cloudinary before replacing
+      if (formData.imageUrl?.includes("res.cloudinary.com")) {
+        apiRequest("DELETE", "/api/uploads/cloudinary", { url: formData.imageUrl }).catch(
+          (err) => console.error("Failed to delete old category image:", err)
+        );
+      }
       setFormData({ ...formData, imageUrl: urls[0] });
     }
   };
@@ -782,7 +788,14 @@ export default function AdminCategories() {
                       variant="destructive"
                       size="icon"
                       className="absolute -top-2 -right-2 h-6 w-6"
-                      onClick={() => setFormData({ ...formData, imageUrl: "" })}
+                      onClick={() => {
+                        if (formData.imageUrl?.includes("res.cloudinary.com")) {
+                          apiRequest("DELETE", "/api/uploads/cloudinary", { url: formData.imageUrl }).catch(
+                            (err) => console.error("Failed to delete category image:", err)
+                          );
+                        }
+                        setFormData({ ...formData, imageUrl: "" });
+                      }}
                     >
                       <Trash2 className="h-3 w-3" />
                     </Button>
@@ -1030,7 +1043,14 @@ export default function AdminCategories() {
                       variant="destructive"
                       size="icon"
                       className="absolute -top-2 -right-2 h-6 w-6"
-                      onClick={() => setSubcategoryFormData({ ...subcategoryFormData, imageUrl: "" })}
+                      onClick={() => {
+                        if (subcategoryFormData.imageUrl?.includes("res.cloudinary.com")) {
+                          apiRequest("DELETE", "/api/uploads/cloudinary", { url: subcategoryFormData.imageUrl }).catch(
+                            (err) => console.error("Failed to delete subcategory image:", err)
+                          );
+                        }
+                        setSubcategoryFormData({ ...subcategoryFormData, imageUrl: "" });
+                      }}
                     >
                       <Trash2 className="h-3 w-3" />
                     </Button>
@@ -1040,6 +1060,12 @@ export default function AdminCategories() {
                   maxNumberOfFiles={1}
                   onComplete={(urls) => {
                     if (urls.length > 0) {
+                      // Delete old subcategory image from Cloudinary before replacing
+                      if (subcategoryFormData.imageUrl?.includes("res.cloudinary.com")) {
+                        apiRequest("DELETE", "/api/uploads/cloudinary", { url: subcategoryFormData.imageUrl }).catch(
+                          (err) => console.error("Failed to delete old subcategory image:", err)
+                        );
+                      }
                       setSubcategoryFormData({ ...subcategoryFormData, imageUrl: urls[0] });
                     }
                   }}

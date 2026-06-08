@@ -34,7 +34,7 @@ import {
   Search,
   Trash2,
 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import {
   damageReasons,
@@ -107,6 +107,26 @@ function StoreExchange() {
     }
   }, [saleData]);
 
+  // Keep a ref to returnItems so the unmount cleanup always sees the latest value
+  const returnItemsRef = useRef(returnItems);
+  useEffect(() => {
+    returnItemsRef.current = returnItems;
+  }, [returnItems]);
+
+  // Cleanup staged damage images from Cloudinary if user navigates away without submitting
+  useEffect(() => {
+    return () => {
+      const allDamageImages = returnItemsRef.current.flatMap((item) => item.damageImages);
+      allDamageImages.forEach((url) => {
+        if (url?.includes("res.cloudinary.com")) {
+          apiRequest("DELETE", "/api/uploads/cloudinary", { url }).catch(
+            (err) => console.error("Failed to cleanup staged exchange damage photo:", err)
+          );
+        }
+      });
+    };
+  }, []);
+
   const createExchangeMutation = useMutation({
     mutationFn: async (data: {
       originalSaleId: string;
@@ -140,6 +160,8 @@ function StoreExchange() {
       return response;
     },
     onSuccess: async (data) => {
+      // Clear the ref so unmount cleanup doesn't delete images already submitted
+      returnItemsRef.current = [];
       queryClient.invalidateQueries({
         predicate: (query) =>
           typeof query.queryKey[0] === "string" &&
@@ -357,6 +379,13 @@ function StoreExchange() {
     setReturnItems((prev) =>
       prev.map((item) => {
         if (item.saleItemId === saleItemId) {
+          const urlToDelete = item.damageImages[imageIndex];
+          // Delete from Cloudinary
+          if (urlToDelete?.includes("res.cloudinary.com")) {
+            apiRequest("DELETE", "/api/uploads/cloudinary", { url: urlToDelete }).catch(
+              (err) => console.error("Failed to delete damage photo:", err)
+            );
+          }
           const updatedImages = item.damageImages.filter(
             (_, i) => i !== imageIndex,
           );
@@ -376,6 +405,14 @@ function StoreExchange() {
     setReturnItems((prev) =>
       prev.map((item) => {
         if (item.saleItemId === saleItemId) {
+          // Delete all damage photos from Cloudinary
+          item.damageImages.forEach((url) => {
+            if (url?.includes("res.cloudinary.com")) {
+              apiRequest("DELETE", "/api/uploads/cloudinary", { url }).catch(
+                (err) => console.error("Failed to delete damage photo:", err)
+              );
+            }
+          });
           toast({
             title: "All Photos Cleared",
             description: "All damage photos have been removed",

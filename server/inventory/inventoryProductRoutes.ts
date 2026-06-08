@@ -757,18 +757,86 @@ export const inventoryProductRoutes = (app: Express) => {
       } = validation.data;
       const allocations = storeAllocations || [];
 
+      // ── Cloudinary cleanup: diff old vs new images before updating ──────────
+      // Fetch current product to find images being replaced/removed
+      const [currentProductRow] = await db
+        .select({
+          imageUrl: products.imageUrl,
+          images: products.images,
+          videoUrl: products.videoUrl,
+          name: products.name,
+          colorId: products.colorId,
+        })
+        .from(products)
+        .where(eq(products.id, req.params.id))
+        .limit(1);
+
+      if (currentProductRow) {
+        const urlsToDelete: string[] = [];
+
+        // imageUrl replaced
+        if (
+          productData.imageUrl !== undefined &&
+          productData.imageUrl !== currentProductRow.imageUrl &&
+          currentProductRow.imageUrl?.includes("res.cloudinary.com")
+        ) {
+          urlsToDelete.push(currentProductRow.imageUrl);
+        }
+
+        // videoUrl replaced or cleared
+        if (
+          productData.videoUrl !== undefined &&
+          productData.videoUrl !== currentProductRow.videoUrl &&
+          currentProductRow.videoUrl?.includes("res.cloudinary.com")
+        ) {
+          urlsToDelete.push(currentProductRow.videoUrl);
+        }
+
+        // images[] — find URLs that existed before but are absent in the new list
+        if (productData.images !== undefined && Array.isArray(currentProductRow.images)) {
+          const newSet = new Set(productData.images ?? []);
+          for (const oldImg of currentProductRow.images) {
+            if (oldImg?.includes("res.cloudinary.com") && !newSet.has(oldImg)) {
+              urlsToDelete.push(oldImg);
+            }
+          }
+        }
+
+        if (urlsToDelete.length > 0) {
+          const cloudinary = await import("cloudinary");
+          cloudinary.v2.config({
+            cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+            api_key: process.env.CLOUDINARY_API_KEY,
+            api_secret: process.env.CLOUDINARY_API_SECRET,
+          });
+          // Fire and forget — don't block the update response
+          Promise.allSettled(
+            urlsToDelete.map(async (url) => {
+              const parts = url.split("/");
+              const uploadIdx = parts.indexOf("upload");
+              if (uploadIdx === -1) return;
+              let after = parts.slice(uploadIdx + 1);
+              if (after[0] && /^v\d+$/.test(after[0])) after = after.slice(1);
+              const publicIdWithExt = after.join("/");
+              if (!publicIdWithExt) return;
+              const publicId = publicIdWithExt.substring(0, publicIdWithExt.lastIndexOf("."));
+              const resourceType = url.includes("/video/") ? "video" : "image";
+              const result = await cloudinary.v2.uploader.destroy(publicId, { resource_type: resourceType });
+              if (result.result !== "ok") {
+                console.warn(`Cloudinary delete skipped for ${publicId}: ${result.result}`);
+              }
+            })
+          ).catch((err) => console.error("Cloudinary cleanup on product update error:", err));
+        }
+      }
+      // ────────────────────────────────────────────────────────────────────────
+
       // Check for duplicate product (same name + color) - exclude current product
       if (productData.name || productData.colorId) {
-        const currentProduct = await db
-          .select()
-          .from(products)
-          .where(eq(products.id, req.params.id))
-          .limit(1);
-
-        if (currentProduct.length > 0) {
-          const nameToCheck = productData.name || currentProduct[0].name;
+        if (currentProductRow) {
+          const nameToCheck = productData.name || currentProductRow.name;
           const colorIdToCheck =
-            productData.colorId || currentProduct[0].colorId || "";
+            productData.colorId || currentProductRow.colorId || "";
 
           const existingProduct = await db
             .select()

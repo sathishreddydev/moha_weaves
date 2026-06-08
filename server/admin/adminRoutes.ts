@@ -19,6 +19,10 @@ import { storage } from "../storage";
 import { AdminServices } from "./adminStorage";
 import { stockAuditService } from "../inventory/stockAuditService";
 import { orderService } from "../order/orderStorage";
+import { db } from "../db";
+import { products } from "@shared/schema";
+import { eq } from "drizzle-orm";
+import { deleteCloudinaryUrls, deleteRemovedImages } from "../utils/cloudinaryUtils";
 
 // Validation schemas
 const createUserSchema = z.object({
@@ -396,6 +400,22 @@ export const adminRoutes = (app: Express) => {
           });
         }
 
+        // ── Cloudinary cleanup: diff old vs new images before updating ────────
+        const [currentProductRow] = await db
+          .select({
+            imageUrl: products.imageUrl,
+            images: products.images,
+            videoUrl: products.videoUrl,
+          })
+          .from(products)
+          .where(eq(products.id, req.params.id))
+          .limit(1);
+
+        if (currentProductRow) {
+          deleteRemovedImages(currentProductRow, validatedData.data as any);
+        }
+        // ──────────────────────────────────────────────────────────────────────
+
         const product = await productService.updateProduct(
           req.params.id,
           validatedData.data,
@@ -429,10 +449,50 @@ export const adminRoutes = (app: Express) => {
     sensitiveRateLimit,
     async (req, res) => {
       try {
+        // Fetch image URLs before deleting so we can clean Cloudinary
+        const product = await roleBasedProductService.getProductByRole(req.params.id, "admin");
+
         const deleted = await productService.deleteProducts([req.params.id]);
         if (!deleted) {
           return res.status(404).json({ message: "Product not found" });
         }
+
+        // Clean up Cloudinary assets after DB update (fire and forget)
+        if (product) {
+          const urlsToDelete: string[] = [];
+          if (product.imageUrl?.includes("res.cloudinary.com")) urlsToDelete.push(product.imageUrl);
+          if (product.videoUrl?.includes("res.cloudinary.com")) urlsToDelete.push(product.videoUrl as string);
+          if (Array.isArray(product.images)) {
+            product.images.forEach((img: string) => {
+              if (img?.includes("res.cloudinary.com")) urlsToDelete.push(img);
+            });
+          }
+
+          if (urlsToDelete.length > 0) {
+            import("cloudinary").then((cloudinary) => {
+              cloudinary.v2.config({
+                cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+                api_key: process.env.CLOUDINARY_API_KEY,
+                api_secret: process.env.CLOUDINARY_API_SECRET,
+              });
+              Promise.allSettled(
+                urlsToDelete.map(async (url) => {
+                  const parts = url.split("/");
+                  const uploadIdx = parts.indexOf("upload");
+                  if (uploadIdx === -1) return;
+                  let after = parts.slice(uploadIdx + 1);
+                  if (after[0] && /^v\d+$/.test(after[0])) after = after.slice(1);
+                  const publicIdWithExt = after.join("/");
+                  if (!publicIdWithExt) return;
+                  const publicId = publicIdWithExt.substring(0, publicIdWithExt.lastIndexOf("."));
+                  const resourceType = url.includes("/video/") ? "video" : "image";
+                  await cloudinary.v2.uploader.destroy(publicId, { resource_type: resourceType });
+                })
+              ).catch((err) => console.error("Cloudinary cleanup error:", err));
+            });
+          }
+        }
+
         res.json({ success: true });
       } catch (error) {
         console.error("Error deleting admin product:", error);
