@@ -328,6 +328,8 @@ export default function InventoryProducts() {
       });
 
       setBulkDeleteDialogOpen(false);
+      setDeleteDialogOpen(false);
+      setDeletingproductId(null);
       setSelectedRows(new Set());
     },
     onError: () => {

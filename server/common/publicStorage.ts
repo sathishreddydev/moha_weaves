@@ -93,6 +93,22 @@ export class PublicRepository implements PublicStorage {
     }));
   }
 
+  async getAllCategoriesWithSubcategories(): Promise<(Category & { subcategories: Subcategory[] })[]> {
+    const allCategories = await db.select().from(categories);
+    const allSubcategories = await db.select().from(subcategories);
+    
+    return allCategories.map(category => ({
+      ...category,
+      sizes: sortSizes(category.sizes),
+      subcategories: allSubcategories.filter(sub => sub.categoryId === category.id)
+    }));
+  }
+
+  async getAllCategories(): Promise<Category[]> {
+    const result = await db.select().from(categories);
+    return result.map(cat => ({ ...cat, sizes: sortSizes(cat.sizes) }));
+  }
+
   async createCategory(category: InsertCategory): Promise<Category> {
     const [result] = await db.insert(categories).values(category).returning();
     return result;
@@ -184,6 +200,10 @@ export class PublicRepository implements PublicStorage {
     return db.select().from(colors).where(eq(colors.isActive, true));
   }
 
+  async getAllColors(): Promise<Color[]> {
+    return db.select().from(colors);
+  }
+
   async getColor(id: string): Promise<Color | undefined> {
     const [color] = await db.select().from(colors).where(eq(colors.id, id));
     return color || undefined;
@@ -218,6 +238,10 @@ export class PublicRepository implements PublicStorage {
   // Fabrics
   async getFabrics(): Promise<Fabric[]> {
     return db.select().from(fabrics).where(eq(fabrics.isActive, true));
+  }
+
+  async getAllFabrics(): Promise<Fabric[]> {
+    return db.select().from(fabrics);
   }
 
   async getFabric(id: string): Promise<Fabric | undefined> {

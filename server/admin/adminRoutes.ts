@@ -304,12 +304,19 @@ export const adminRoutes = (app: Express) => {
       };
 
       // MIGRATED: Use role-based service for admin users (full access)
+      // Get total count without limit/offset for proper pagination
+      const countFilters: ProductFilters = { ...filters, limit: undefined, offset: undefined };
+      const allProducts = await roleBasedProductService.getProductsByRole(
+        countFilters,
+        "admin",
+      );
+      const total = allProducts.length;
+
       const products = await roleBasedProductService.getProductsByRole(
         filters,
         "admin",
       );
 
-      const total = products.length;
       const totalPages = Math.ceil(total / params.pageSize);
 
       return res.json({
@@ -513,10 +520,10 @@ export const adminRoutes = (app: Express) => {
 
       if (includeSubcategories === "true") {
         const categoriesWithSubs =
-          await publicStorage.getCategoriesWithSubcategories();
+          await publicStorage.getAllCategoriesWithSubcategories();
         res.json(categoriesWithSubs);
       } else {
-        const categories = await publicStorage.getCategories();
+        const categories = await publicStorage.getAllCategories();
         res.json(categories);
       }
     } catch {
@@ -551,15 +558,29 @@ export const adminRoutes = (app: Express) => {
 
   app.patch("/api/admin/categories/:id", authAdmin, async (req, res) => {
     try {
+      const validatedData = createCategorySchema.safeParse(req.body);
+      if (!validatedData.success) {
+        return res.status(400).json({
+          message: "Invalid input data",
+          errors: validatedData.error.errors,
+        });
+      }
+
       const category = await publicStorage.updateCategory(
         req.params.id,
-        req.body,
+        validatedData.data,
       );
 
       await publishRealtimeEvent("filter_event");
       res.json(category);
-    } catch {
-      res.status(500).json({ message: "Failed to update category" });
+    } catch (error) {
+      console.error("Error updating category:", error);
+      const message =
+        error instanceof Error ? error.message : "Unknown error occurred";
+      res.status(500).json({
+        message: "Failed to update category",
+        error: process.env.NODE_ENV === "development" ? message : undefined,
+      });
     }
   });
 
@@ -698,6 +719,15 @@ export const adminRoutes = (app: Express) => {
   });
 
   // Admin color management
+  app.get("/api/admin/colors", authAdmin, async (req, res) => {
+    try {
+      const colors = await publicStorage.getAllColors();
+      res.json(colors);
+    } catch {
+      res.status(500).json({ message: "Failed to fetch colors" });
+    }
+  });
+
   app.post("/api/admin/colors", authAdmin, async (req, res) => {
     try {
       const color = await publicStorage.createColor(req.body);
@@ -732,6 +762,15 @@ export const adminRoutes = (app: Express) => {
   });
 
   // Admin fabric management
+  app.get("/api/admin/fabrics", authAdmin, async (req, res) => {
+    try {
+      const fabrics = await publicStorage.getAllFabrics();
+      res.json(fabrics);
+    } catch {
+      res.status(500).json({ message: "Failed to fetch fabrics" });
+    }
+  });
+
   app.post("/api/admin/fabrics", authAdmin, async (req, res) => {
     try {
       const fabric = await publicStorage.createFabric(req.body);
@@ -1117,9 +1156,8 @@ export const adminRoutes = (app: Express) => {
         bgColor: bgColor || null,
       });
 
-      // Add products if it's a product-level offer
+      // Add products if specific products are targeted
       if (
-        offerType === "product" &&
         productIds &&
         Array.isArray(productIds) &&
         productIds.length > 0

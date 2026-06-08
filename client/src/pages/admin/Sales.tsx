@@ -235,7 +235,7 @@ export default function AdminSales() {
     setConflictWarning("");
   };
 
-  // Check conflicts when relevant fields change
+  // Check conflicts when relevant fields change (debounced)
   useEffect(() => {
     if (!dialogOpen || editingSale) return;
 
@@ -269,10 +269,11 @@ export default function AdminSales() {
       }
     };
 
-    runCheck();
+    const debounceTimer = setTimeout(runCheck, 500);
 
     return () => {
       cancelled = true;
+      clearTimeout(debounceTimer);
     };
   }, [dialogOpen, editingSale, formData.offerType, formData.targetType, formData.categoryId, formData.productIds]);
 

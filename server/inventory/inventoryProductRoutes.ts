@@ -426,12 +426,19 @@ export const inventoryProductRoutes = (app: Express) => {
       };
 
       // MIGRATED: Use role-based service for inventory users (full access)
+      // Get total count without limit/offset for proper pagination
+      const countFilters: ProductFilters = { ...filters, limit: undefined, offset: undefined };
+      const allProducts = await roleBasedProductService.getProductsByRole(
+        countFilters,
+        "inventory",
+      );
+      const total = allProducts.length;
+
       const products = await roleBasedProductService.getProductsByRole(
         filters,
         "inventory",
       );
 
-      const total = products.length;
       const totalPages = Math.ceil(total / params.pageSize);
 
       return res.json({

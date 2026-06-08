@@ -57,13 +57,8 @@ export default function AdminColors() {
     isActive: true,
   });
 
-  const { data: colors, isLoading } = useQuery<{
-    categories: any[];
-    colors: any[];
-    fabrics: any[];
-  }, any, any[]>({
-    queryKey: ["/api/filters"],
-    select: (data) => data.colors,
+  const { data: colors, isLoading } = useQuery<Color[]>({
+    queryKey: ["/api/admin/colors"],
   });
 
   const createMutation = useMutation({
@@ -72,7 +67,7 @@ export default function AdminColors() {
       return response;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/filters"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/colors"] });
       toast({ title: "Success", description: "Color created successfully" });
       handleCloseDialog();
     },
@@ -91,7 +86,7 @@ export default function AdminColors() {
       return response;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/filters"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/colors"] });
       toast({ title: "Success", description: "Color updated successfully" });
       handleCloseDialog();
     },
@@ -110,7 +105,7 @@ export default function AdminColors() {
       return response;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/filters"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/colors"] });
       toast({ title: "Success", description: "Color deleted successfully" });
       setDeleteDialogOpen(false);
       setColorToDelete(null);

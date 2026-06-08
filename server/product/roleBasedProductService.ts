@@ -327,7 +327,12 @@ export class RoleBasedProductService {
     filters: ProductFilters = {},
     role: UserRole = "user",
   ): Promise<ProductWithDetails[]> {
-    const conditions: any[] = [eq(products.isActive, true)];
+    const conditions: any[] = [];
+
+    // Only restrict to active products for public-facing "user" role
+    if (role === "user") {
+      conditions.push(eq(products.isActive, true));
+    }
 
     if (filters.ids?.length)
       conditions.push(inArray(products.id, filters.ids));
