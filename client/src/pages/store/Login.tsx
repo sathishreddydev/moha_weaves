@@ -1,13 +1,5 @@
 import { Button } from "@/components/ui/button";
 import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import {
   Form,
   FormControl,
   FormField,
@@ -18,19 +10,21 @@ import {
 import { TextField } from "@/components/ui/TextField";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/lib/auth";
-import { BRAND_STORE, BRAND_DOMAIN } from "@/lib/brand";
+import { BRAND_DOMAIN } from "@/lib/brand";
+import { LoginLayout } from "@/components/auth/LoginLayout";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Eye, EyeOff, Lock, Mail, Store } from "lucide-react";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
-import { Link, Navigate, useNavigate } from "react-router-dom";
+import { Navigate, useNavigate } from "react-router-dom";
 import { z } from "zod";
-import { LoginFormValues } from "./Utils/types";
 
 const loginSchema = z.object({
   email: z.string().email("Please enter a valid email"),
   password: z.string().min(6, "Password must be at least 6 characters"),
 });
+
+type LoginFormValues = z.infer<typeof loginSchema>;
 
 export default function StoreLogin() {
   const navigate = useNavigate();
@@ -41,10 +35,7 @@ export default function StoreLogin() {
 
   const form = useForm<LoginFormValues>({
     resolver: zodResolver(loginSchema),
-    defaultValues: {
-      email: "",
-      password: "",
-    },
+    defaultValues: { email: "", password: "" },
   });
 
   if (!authLoading && user?.role === "store") {
@@ -56,17 +47,10 @@ export default function StoreLogin() {
     try {
       const result = await login(values.email, values.password, "store");
       if (result.success) {
-        toast({
-          title: "Welcome!",
-          description: "You have successfully logged in.",
-        });
+        toast({ title: "Welcome!", description: "Signed in successfully." });
         navigate("/store/dashboard");
       } else {
-        toast({
-          title: "Login failed",
-          description: result.error,
-          variant: "destructive",
-        });
+        toast({ title: "Login failed", description: result.error, variant: "destructive" });
       }
     } finally {
       setIsSubmitting(false);
@@ -74,106 +58,91 @@ export default function StoreLogin() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center px-4 py-12 bg-muted/30">
-      <div className="w-full max-w-md">
-        <div className="text-center mb-8">
-          <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-4">
-            <Store className="h-8 w-8 text-primary" />
-          </div>
-          <h1 className="font-serif text-2xl font-semibold">{BRAND_STORE}</h1>
-          <p className="text-muted-foreground mt-2">Store Management Portal</p>
-        </div>
+    <LoginLayout
+      icon={Store}
+      title="Store Portal"
+      subtitle="Run your store operations seamlessly."
+      features={[
+        "Point of sale & billing",
+        "In-store inventory view",
+        "Stock requests from warehouse",
+        "Exchange & return processing",
+        "Sales history & invoices",
+      ]}
+    >
+      <div>
+        <h2 className="text-lg font-medium mb-1" data-testid="text-page-title">
+          Sign in
+        </h2>
+        <p className="text-sm text-muted-foreground mb-6">
+          Enter your store credentials
+        </p>
 
-        <Card>
-          <CardHeader>
-            <CardTitle data-testid="text-page-title">Store Login</CardTitle>
-            <CardDescription>
-              Enter your credentials to access your store
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Form {...form}>
-              <form
-                onSubmit={form.handleSubmit(onSubmit)}
-                className="space-y-4"
-              >
-                <FormField
-                  control={form.control}
-                  name="email"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Email</FormLabel>
-                      <FormControl>
-                        <TextField
-                          type="email"
-                          placeholder={`store@${BRAND_DOMAIN}`}
-                          startAdornment={
-                            <Mail className="h-4 w-4 text-muted-foreground" />
-                          }
-                          data-testid="input-email"
-                          {...field}
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+        <Form {...form}>
+          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+            <FormField
+              control={form.control}
+              name="email"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Email</FormLabel>
+                  <FormControl>
+                    <TextField
+                      type="email"
+                      placeholder={`store@${BRAND_DOMAIN}`}
+                      startAdornment={<Mail className="h-4 w-4 text-muted-foreground" />}
+                      data-testid="input-email"
+                      {...field}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
 
-                <FormField
-                  control={form.control}
-                  name="password"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Password</FormLabel>
-                      <FormControl>
-                        <TextField
-                          type={showPassword ? "text" : "password"}
-                          placeholder="Password"
-                          startAdornment={
-                            <Lock className="h-4 w-4 text-gray-500" />
-                          }
-                          endAdornment={
-                            showPassword ? (
-                              <EyeOff
-                                className="h-4 w-4 text-gray-500 cursor-pointer"
-                                onClick={() => setShowPassword(false)}
-                              />
-                            ) : (
-                              <Eye
-                                className="h-4 w-4 text-gray-500 cursor-pointer"
-                                onClick={() => setShowPassword(true)}
-                              />
-                            )
-                          }
-                          {...field}
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+            <FormField
+              control={form.control}
+              name="password"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Password</FormLabel>
+                  <FormControl>
+                    <TextField
+                      type={showPassword ? "text" : "password"}
+                      placeholder="Password"
+                      startAdornment={<Lock className="h-4 w-4 text-muted-foreground" />}
+                      endAdornment={
+                        showPassword ? (
+                          <EyeOff
+                            className="h-4 w-4 text-muted-foreground cursor-pointer"
+                            onClick={() => setShowPassword(false)}
+                          />
+                        ) : (
+                          <Eye
+                            className="h-4 w-4 text-muted-foreground cursor-pointer"
+                            onClick={() => setShowPassword(true)}
+                          />
+                        )
+                      }
+                      {...field}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
 
-                <Button
-                  type="submit"
-                  className="w-full"
-                  disabled={isSubmitting}
-                  data-testid="button-submit"
-                >
-                  {isSubmitting ? "Signing in..." : "Sign In"}
-                </Button>
-              </form>
-            </Form>
-          </CardContent>
-          <CardFooter className="justify-center">
-            <Link
-              to="/"
-              className="text-sm text-muted-foreground hover:text-primary"
+            <Button
+              type="submit"
+              className="w-full"
+              disabled={isSubmitting}
+              data-testid="button-submit"
             >
-              Back to Store
-            </Link>
-          </CardFooter>
-        </Card>
+              {isSubmitting ? "Signing in..." : "Sign In"}
+            </Button>
+          </form>
+        </Form>
       </div>
-    </div>
+    </LoginLayout>
   );
 }

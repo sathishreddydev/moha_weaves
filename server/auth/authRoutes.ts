@@ -37,10 +37,10 @@ function hashRefreshToken(token: string): string {
   return crypto.createHash("sha256").update(token).digest("hex");
 }
 
-// Rate limit for login: 5 attempts per 15 minutes per IP
+// Rate limit for login: 20 attempts per 15 minutes per IP
 const loginRateLimit = createRateLimit({
   windowMs: 15 * 60 * 1000,
-  maxRequests: 5,
+  maxRequests: 20,
   message: "Too many login attempts. Please try again in 15 minutes.",
 });
 

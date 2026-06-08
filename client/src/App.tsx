@@ -14,6 +14,7 @@ import ProtectedRoute from "./ProtectedRoute";
 import Unauthorized from "./Unauthorized";
 
 const NotFound = lazy(() => import("@/pages/not-found"));
+const Portal = lazy(() => import("@/pages/Portal"));
 
 const AdminLogin = lazy(() => import("@/pages/admin/Login"));
 const AdminDashboard = lazy(() => import("@/pages/admin/Dashboard"));
@@ -107,8 +108,8 @@ function Router() {
       <Routes>
         <Route path="unauthorized" element={<Unauthorized />} />
 
-        {/* Redirect root to admin login */}
-        <Route path="/" element={<Navigate to="/admin/login" replace />} />
+        {/* Portal landing page */}
+        <Route path="/" element={<Portal />} />
 
         <Route path="admin">
           <Route path="login" element={<AdminLogin />} />
