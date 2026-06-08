@@ -18,6 +18,7 @@ import {
 import { TextField } from "@/components/ui/TextField";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/lib/auth";
+import { BRAND_NAME } from "@/lib/brand";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Eye, EyeOff, Lock, Mail } from "lucide-react";
 import { useState } from "react";
@@ -81,7 +82,7 @@ export default function UserLogin() {
             to="/"
             className="font-serif text-xl font-semibold text-primary"
           >
-            Moha
+            {BRAND_NAME}
           </Link>
           <p className="text-muted-foreground mt-2">
             Welcome back to your product journey

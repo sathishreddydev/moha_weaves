@@ -4,6 +4,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "
 import { TextField } from "@/components/ui/TextField";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/lib/auth";
+import { BRAND_INVENTORY, BRAND_DOMAIN } from "@/lib/brand";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Eye, EyeOff, Lock, Mail, Warehouse } from "lucide-react";
 import { useState } from "react";
@@ -60,7 +61,7 @@ export default function InventoryLogin() {
           <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-4">
             <Warehouse className="h-8 w-8 text-primary" />
           </div>
-          <h1 className="font-serif text-2xl font-semibold">Moha Inventory</h1>
+          <h1 className="font-serif text-2xl font-semibold">{BRAND_INVENTORY}</h1>
           <p className="text-muted-foreground mt-2">Inventory Management Portal</p>
         </div>
 
@@ -82,7 +83,7 @@ export default function InventoryLogin() {
                         
                          <TextField
                           type="email"
-                          placeholder="inventory@moha.com"
+                          placeholder={`inventory@${BRAND_DOMAIN}`}
                           startAdornment={<Mail className="h-4 w-4 text-muted-foreground" />}
                           data-testid="input-email"
                           {...field}

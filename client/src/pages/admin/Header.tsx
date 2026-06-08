@@ -12,6 +12,7 @@ import {
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useAuth } from "@/lib/auth";
+import { BRAND_ADMIN } from "@/lib/brand";
 import { LogOut, Menu, User } from "lucide-react";
 import { useState } from "react";
 import { AdminSidebar } from "./SideBar";
@@ -38,7 +39,7 @@ export default function AdminHeader() {
         </Sheet>
         {
           <h1 className="font-serif text-lg font-semibold text-primary">
-            Moha Admin
+            {BRAND_ADMIN}
           </h1>
         }
       </div>

@@ -30,7 +30,7 @@ export class NotificationService {
       if (params.type === 'email' && params.recipient) {
         await emailService.sendEmail({
           to: params.recipient,
-          subject: params.subject || 'Moha Weaves Notification',
+          subject: params.subject || 'Urumi Weaves Notification',
           htmlContent: params.message,
         });
       } else if (params.type === 'sms') {
@@ -462,7 +462,7 @@ export class NotificationService {
         await this.sendNotification({
           type: 'sms',
           recipient: data.phone,
-          message: `Your order ${data.orderId} has been successfully delivered! Thank you for shopping with Moha Weaves.`
+          message: `Your order ${data.orderId} has been successfully delivered! Thank you for shopping with Urumi Weaves.`
         });
       }
     } catch (error) {
@@ -553,7 +553,7 @@ export class NotificationService {
       let message = '';
       switch (type) {
         case 'order_confirmation':
-          message = `Dear ${data.customerName}, your order #${data.orderId} has been confirmed. Thank you for shopping with Moha Weaves!`;
+          message = `Dear ${data.customerName}, your order #${data.orderId} has been confirmed. Thank you for shopping with Urumi Weaves!`;
           break;
         case 'shipping_confirmation':
           message = `Dear ${data.customerName}, your order #${data.orderId} has been shipped! Waybill: ${data.waybill}. Track: https://delhivery.com/track/#/${data.waybill}`;
@@ -613,7 +613,7 @@ export class NotificationService {
     return `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
         <div style="text-align: center; padding: 20px; background: #f8f4f0; border-radius: 8px;">
-          <h1 style="color: #8B4513; margin: 0;">Moha Weaves</h1>
+          <h1 style="color: #8B4513; margin: 0;">Urumi Weaves</h1>
         </div>
         <h2 style="color: #333; margin-top: 30px;">Order Confirmed! 🎉</h2>
         <p>Dear ${data.customerName},</p>
@@ -624,8 +624,8 @@ export class NotificationService {
         </div>
         <p>You'll receive another notification once your order ships.</p>
         <br>
-        <p>Thank you for choosing Moha Weaves!</p>
-        <p style="color: #666;">Team Moha Weaves</p>
+        <p>Thank you for choosing Urumi Weaves!</p>
+        <p style="color: #666;">Team Urumi Weaves</p>
       </div>
     `;
   }
@@ -634,7 +634,7 @@ export class NotificationService {
     return `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
         <div style="text-align: center; padding: 20px; background: #f8f4f0; border-radius: 8px;">
-          <h1 style="color: #8B4513; margin: 0;">Moha Weaves</h1>
+          <h1 style="color: #8B4513; margin: 0;">Urumi Weaves</h1>
         </div>
         <h2 style="color: #dc2626; margin-top: 30px;">Order Cancelled</h2>
         <p>Dear ${data.customerName},</p>
@@ -645,8 +645,8 @@ export class NotificationService {
           <p><strong>Status:</strong> Cancelled</p>
           <p>If payment was made, your refund will be processed within 5-7 business days.</p>
         </div>
-        <p>If you have any questions, please contact us at support@mohaweaves.com</p>
-        <p style="color: #666;">Team Moha Weaves</p>
+        <p>If you have any questions, please contact us at support@urumiweaves.com</p>
+        <p style="color: #666;">Team Urumi Weaves</p>
       </div>
     `;
   }
@@ -655,7 +655,7 @@ export class NotificationService {
     return `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
         <div style="text-align: center; padding: 20px; background: #f8f4f0; border-radius: 8px;">
-          <h1 style="color: #8B4513; margin: 0;">Moha Weaves</h1>
+          <h1 style="color: #8B4513; margin: 0;">Urumi Weaves</h1>
         </div>
         <h2 style="color: #059669; margin-top: 30px;">Return Request Approved ✅</h2>
         <p>Dear ${data.customerName},</p>
@@ -666,7 +666,7 @@ export class NotificationService {
           <p><strong>Next Step:</strong> Pickup will be scheduled soon</p>
         </div>
         <p>Our courier partner will contact you to schedule a pickup. Please keep the item packed and ready.</p>
-        <p style="color: #666;">Team Moha Weaves</p>
+        <p style="color: #666;">Team Urumi Weaves</p>
       </div>
     `;
   }
@@ -675,14 +675,14 @@ export class NotificationService {
     return `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
         <div style="text-align: center; padding: 20px; background: #f8f4f0; border-radius: 8px;">
-          <h1 style="color: #8B4513; margin: 0;">Moha Weaves</h1>
+          <h1 style="color: #8B4513; margin: 0;">Urumi Weaves</h1>
         </div>
         <h2 style="color: #dc2626; margin-top: 30px;">Return Request Update</h2>
         <p>Dear ${data.customerName},</p>
         <p>We're sorry, but your return request for order <strong>#${data.orderId}</strong> could not be approved.</p>
         ${reason ? `<div style="background: #fef2f2; padding: 20px; border-radius: 8px; margin: 20px 0;"><p><strong>Reason:</strong> ${reason}</p></div>` : ''}
-        <p>If you have questions, please contact us at support@mohaweaves.com</p>
-        <p style="color: #666;">Team Moha Weaves</p>
+        <p>If you have questions, please contact us at support@urumiweaves.com</p>
+        <p style="color: #666;">Team Urumi Weaves</p>
       </div>
     `;
   }
@@ -691,7 +691,7 @@ export class NotificationService {
     return `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
         <div style="text-align: center; padding: 20px; background: #f8f4f0; border-radius: 8px;">
-          <h1 style="color: #8B4513; margin: 0;">Moha Weaves</h1>
+          <h1 style="color: #8B4513; margin: 0;">Urumi Weaves</h1>
         </div>
         <h2 style="color: #2563eb; margin-top: 30px;">Return Item Picked Up 📦</h2>
         <p>Dear ${data.customerName},</p>
@@ -701,7 +701,7 @@ export class NotificationService {
           <p><strong>Status:</strong> In Transit to Warehouse</p>
         </div>
         <p>Once we receive and inspect the item, your refund/exchange will be processed.</p>
-        <p style="color: #666;">Team Moha Weaves</p>
+        <p style="color: #666;">Team Urumi Weaves</p>
       </div>
     `;
   }
@@ -710,7 +710,7 @@ export class NotificationService {
     return `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
         <div style="text-align: center; padding: 20px; background: #f8f4f0; border-radius: 8px;">
-          <h1 style="color: #8B4513; margin: 0;">Moha Weaves</h1>
+          <h1 style="color: #8B4513; margin: 0;">Urumi Weaves</h1>
         </div>
         <h2 style="color: #7c3aed; margin-top: 30px;">Refund Initiated 💰</h2>
         <p>Dear ${data.customerName},</p>
@@ -721,7 +721,7 @@ export class NotificationService {
           <p><strong>Expected Timeline:</strong> 5-7 business days</p>
         </div>
         <p>The refund will be credited to your original payment method.</p>
-        <p style="color: #666;">Team Moha Weaves</p>
+        <p style="color: #666;">Team Urumi Weaves</p>
       </div>
     `;
   }
@@ -730,7 +730,7 @@ export class NotificationService {
     return `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
         <div style="text-align: center; padding: 20px; background: #f8f4f0; border-radius: 8px;">
-          <h1 style="color: #8B4513; margin: 0;">Moha Weaves</h1>
+          <h1 style="color: #8B4513; margin: 0;">Urumi Weaves</h1>
         </div>
         <h2 style="color: #059669; margin-top: 30px;">Refund Completed ✅</h2>
         <p>Dear ${data.customerName},</p>
@@ -741,7 +741,7 @@ export class NotificationService {
           <p><strong>Status:</strong> Completed</p>
         </div>
         <p>If you don't see the amount in your account within 2-3 business days, please contact your bank.</p>
-        <p style="color: #666;">Team Moha Weaves</p>
+        <p style="color: #666;">Team Urumi Weaves</p>
       </div>
     `;
   }
@@ -750,7 +750,7 @@ export class NotificationService {
     return `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
         <div style="text-align: center; padding: 20px; background: #f8f4f0; border-radius: 8px;">
-          <h1 style="color: #8B4513; margin: 0;">Moha Weaves</h1>
+          <h1 style="color: #8B4513; margin: 0;">Urumi Weaves</h1>
         </div>
         <h2 style="color: #2563eb; margin-top: 30px;">Your Order Has Been Dispatched! 🚚</h2>
         <p>Dear ${data.customerName},</p>
@@ -761,7 +761,7 @@ export class NotificationService {
           <p><strong>Expected Delivery:</strong> ${data.estimatedDelivery || '3-5 business days'}</p>
         </div>
         <p>Track your order: <a href="https://www.delhivery.com/track/package/${data.waybill}">Click here</a></p>
-        <p style="color: #666;">Team Moha Weaves</p>
+        <p style="color: #666;">Team Urumi Weaves</p>
       </div>
     `;
   }
@@ -770,7 +770,7 @@ export class NotificationService {
     return `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
         <div style="text-align: center; padding: 20px; background: #f8f4f0; border-radius: 8px;">
-          <h1 style="color: #8B4513; margin: 0;">Moha Weaves</h1>
+          <h1 style="color: #8B4513; margin: 0;">Urumi Weaves</h1>
         </div>
         <h2 style="color: #059669; margin-top: 30px;">Your Order is In Transit! 📦</h2>
         <p>Dear ${data.customerName},</p>
@@ -781,7 +781,7 @@ export class NotificationService {
           <p><strong>Status:</strong> In Transit</p>
         </div>
         <p>Your beautiful handcrafted saree will reach you soon!</p>
-        <p style="color: #666;">Team Moha Weaves</p>
+        <p style="color: #666;">Team Urumi Weaves</p>
       </div>
     `;
   }
@@ -790,7 +790,7 @@ export class NotificationService {
     return `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
         <div style="text-align: center; padding: 20px; background: #f8f4f0; border-radius: 8px;">
-          <h1 style="color: #8B4513; margin: 0;">Moha Weaves</h1>
+          <h1 style="color: #8B4513; margin: 0;">Urumi Weaves</h1>
         </div>
         <h2 style="color: #7c3aed; margin-top: 30px;">Your Order is Out for Delivery! 🏠</h2>
         <p>Dear ${data.customerName},</p>
@@ -801,7 +801,7 @@ export class NotificationService {
           <p><strong>Status:</strong> Out for Delivery</p>
         </div>
         <p>Please ensure someone is available to receive the package.</p>
-        <p style="color: #666;">Team Moha Weaves</p>
+        <p style="color: #666;">Team Urumi Weaves</p>
       </div>
     `;
   }
@@ -810,7 +810,7 @@ export class NotificationService {
     return `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
         <div style="text-align: center; padding: 20px; background: #f8f4f0; border-radius: 8px;">
-          <h1 style="color: #8B4513; margin: 0;">Moha Weaves</h1>
+          <h1 style="color: #8B4513; margin: 0;">Urumi Weaves</h1>
         </div>
         <h2 style="color: #059669; margin-top: 30px;">Your Order Has Been Delivered! 🎉</h2>
         <p>Dear ${data.customerName},</p>
@@ -819,9 +819,9 @@ export class NotificationService {
           <p><strong>Order ID:</strong> ${data.orderId}</p>
           <p><strong>Status:</strong> Delivered</p>
         </div>
-        <p>Thank you for choosing Moha Weaves! Feel free to share your experience with us.</p>
-        <p>Need help? Contact us at support@mohaweaves.com</p>
-        <p style="color: #666;">Team Moha Weaves</p>
+        <p>Thank you for choosing Urumi Weaves! Feel free to share your experience with us.</p>
+        <p>Need help? Contact us at support@urumiweaves.com</p>
+        <p style="color: #666;">Team Urumi Weaves</p>
       </div>
     `;
   }
@@ -830,7 +830,7 @@ export class NotificationService {
     return `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
         <div style="text-align: center; padding: 20px; background: #f8f4f0; border-radius: 8px;">
-          <h1 style="color: #8B4513; margin: 0;">Moha Weaves</h1>
+          <h1 style="color: #8B4513; margin: 0;">Urumi Weaves</h1>
         </div>
         <h2 style="color: #2563eb; margin-top: 30px;">Order Shipped! 📦</h2>
         <p>Dear ${data.customerName},</p>
@@ -840,7 +840,7 @@ export class NotificationService {
           <p><strong>Expected Delivery:</strong> ${data.estimatedDelivery || '3-4 days'}</p>
         </div>
         <p>Track your package: <a href="https://www.delhivery.com/track/package/${data.waybill}">Click here</a></p>
-        <p style="color: #666;">Team Moha Weaves</p>
+        <p style="color: #666;">Team Urumi Weaves</p>
       </div>
     `;
   }
@@ -849,13 +849,13 @@ export class NotificationService {
     return `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
         <div style="text-align: center; padding: 20px; background: #f8f4f0; border-radius: 8px;">
-          <h1 style="color: #8B4513; margin: 0;">Moha Weaves</h1>
+          <h1 style="color: #8B4513; margin: 0;">Urumi Weaves</h1>
         </div>
         <h2 style="color: #059669; margin-top: 30px;">Order Delivered! ✅</h2>
         <p>Dear ${data.customerName},</p>
         <p>Your order <strong>#${data.orderId}</strong> has been successfully delivered.</p>
         <p>We hope you love your purchase! Please take a moment to share your experience.</p>
-        <p style="color: #666;">Team Moha Weaves</p>
+        <p style="color: #666;">Team Urumi Weaves</p>
       </div>
     `;
   }
@@ -864,7 +864,7 @@ export class NotificationService {
     return `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
         <div style="text-align: center; padding: 20px; background: #f8f4f0; border-radius: 8px;">
-          <h1 style="color: #8B4513; margin: 0;">Moha Weaves</h1>
+          <h1 style="color: #8B4513; margin: 0;">Urumi Weaves</h1>
         </div>
         <h2 style="color: #ea580c; margin-top: 30px;">Update on Your Order - Return to Origin</h2>
         <p>Dear ${data.customerName},</p>
@@ -875,8 +875,8 @@ export class NotificationService {
           <p><strong>Status:</strong> Return to Origin</p>
         </div>
         <p>Our team will contact you shortly to arrange for redelivery.</p>
-        <p>Contact us at support@mohaweaves.com</p>
-        <p style="color: #666;">Team Moha Weaves</p>
+        <p>Contact us at support@urumiweaves.com</p>
+        <p style="color: #666;">Team Urumi Weaves</p>
       </div>
     `;
   }
@@ -885,7 +885,7 @@ export class NotificationService {
     return `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
         <div style="text-align: center; padding: 20px; background: #f8f4f0; border-radius: 8px;">
-          <h1 style="color: #8B4513; margin: 0;">Moha Weaves</h1>
+          <h1 style="color: #8B4513; margin: 0;">Urumi Weaves</h1>
         </div>
         <h2 style="color: #ca8a04; margin-top: 30px;">Action Required - Delivery Attempted</h2>
         <p>Dear ${data.customerName},</p>
@@ -897,8 +897,8 @@ export class NotificationService {
           ${remarks ? `<p><strong>Remarks:</strong> ${remarks}</p>` : ''}
         </div>
         <p>Please ensure your address is correct and someone is available for redelivery.</p>
-        <p>Contact us at support@mohaweaves.com</p>
-        <p style="color: #666;">Team Moha Weaves</p>
+        <p>Contact us at support@urumiweaves.com</p>
+        <p style="color: #666;">Team Urumi Weaves</p>
       </div>
     `;
   }
@@ -907,7 +907,7 @@ export class NotificationService {
     return `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
         <div style="text-align: center; padding: 20px; background: #f8f4f0; border-radius: 8px;">
-          <h1 style="color: #8B4513; margin: 0;">Moha Weaves</h1>
+          <h1 style="color: #8B4513; margin: 0;">Urumi Weaves</h1>
         </div>
         <h2 style="color: #0ea5e9; margin-top: 30px;">Pickup Scheduled! 📦</h2>
         <p>Dear ${data.customerName},</p>
@@ -918,7 +918,7 @@ export class NotificationService {
           <p><strong>Status:</strong> Pickup Scheduled</p>
         </div>
         <p>Our courier partner will collect the package soon.</p>
-        <p style="color: #666;">Team Moha Weaves</p>
+        <p style="color: #666;">Team Urumi Weaves</p>
       </div>
     `;
   }

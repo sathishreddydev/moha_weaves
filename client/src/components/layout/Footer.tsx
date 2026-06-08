@@ -1,10 +1,12 @@
+import { BRAND_NAME, BRAND_SUPPORT_EMAIL } from "@/lib/brand";
+
 export function Footer() {
   return (
     <footer className="sticky bg-primary border-t rounded-b-lg">
       <div className="max-w-7xl mx-auto px-5">
         <div className="py-4 grid gap-6 md:grid-cols-2 items-start">
           <div className="max-w-md text-center md:text-left">
-            <div className="text-lg font-semibold text-white">Moha</div>
+            <div className="text-lg font-semibold text-white">{BRAND_NAME}</div>
             <p className="mt-1 text-xs text-white/90">
               Discover the finest collection of handcrafted products, celebrating
               the rich textile heritage of India.
@@ -21,7 +23,7 @@ export function Footer() {
 
         <div className="flex flex-col md:flex-row md:justify-end py-2">
           <p className="text-[10px] text-gray-400">
-            © {new Date().getFullYear()} Moha. All rights reserved.
+            © {new Date().getFullYear()} {BRAND_NAME}. All rights reserved.
           </p>
         </div>
       </div>

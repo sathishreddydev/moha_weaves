@@ -12,6 +12,7 @@ import {
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { useAuth } from "@/lib/auth";
+import { BRAND_INVENTORY } from "@/lib/brand";
 import { LogOut, Menu, User } from "lucide-react";
 import { useState } from "react";
 import { InventorySidebar } from "./SideBar";
@@ -39,7 +40,7 @@ export default function InventoryHeader() {
           </SheetContent>
         </Sheet>{" "}
         <h1 className="font-serif text-lg font-semibold text-primary">
-          Moha Inventory
+          {BRAND_INVENTORY}
         </h1>
       </div>
 

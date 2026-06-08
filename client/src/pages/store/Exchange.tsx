@@ -16,6 +16,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/lib/auth";
+import { BRAND_NAME } from "@/lib/brand";
 import { apiRequest } from "@/lib/queryClient";
 import type { StoreSaleWithItems } from "@shared/schema";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -35,10 +36,18 @@ import {
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { damageReasons, exchangeTypes, normalExchangeReasons } from "./Utils/exchangeReasons";
-import { NewCartItem, ReturnItem, SaleItemWithAvailable, ShopProduct } from "./Utils/types";
+import {
+  damageReasons,
+  exchangeTypes,
+  normalExchangeReasons,
+} from "./Utils/exchangeReasons";
+import {
+  NewCartItem,
+  ReturnItem,
+  SaleItemWithAvailable,
+  ShopProduct,
+} from "./Utils/types";
 import { ExchangeType } from "./Utils/enums";
-
 
 const getSpecificReasons = (exchangeType: string) => {
   if (exchangeType === ExchangeType.DAMAGE) {
@@ -163,8 +172,7 @@ function StoreExchange() {
 
   const handleLookupSale = async () => {
     if (saleIdInput.trim()) {
-      // Check if the input looks like a sale ID (starts with MOHA)
-      if (saleIdInput.trim().toUpperCase().startsWith("MOHA")) {
+      if (saleIdInput.trim().toUpperCase().startsWith(BRAND_NAME.toUpperCase()) || saleIdInput.trim().toUpperCase().startsWith("MOHA")) {
         setSelectedSaleId(saleIdInput.trim());
         setReturnItems([]);
         setNewItems([]);
@@ -312,33 +320,35 @@ function StoreExchange() {
     setReturnItems((prev) =>
       prev.map((item) =>
         item.saleItemId === saleItemId
-          ? { 
-              ...item, 
-              exchangeType, 
+          ? {
+              ...item,
+              exchangeType,
               specificReason: "", // Reset specific reason when type changes
-              damageImages: exchangeType === "damage" ? item.damageImages : [] // Clear images if switching to normal
+              damageImages: exchangeType === "damage" ? item.damageImages : [], // Clear images if switching to normal
             }
           : item,
       ),
     );
   };
 
-  const updateItemSpecificReason = (saleItemId: string, specificReason: string) => {
+  const updateItemSpecificReason = (
+    saleItemId: string,
+    specificReason: string,
+  ) => {
     setReturnItems((prev) =>
       prev.map((item) =>
-        item.saleItemId === saleItemId
-          ? { ...item, specificReason }
-          : item,
+        item.saleItemId === saleItemId ? { ...item, specificReason } : item,
       ),
     );
   };
 
-  const updateItemDamageImages = (saleItemId: string, damageImages: string[]) => {
+  const updateItemDamageImages = (
+    saleItemId: string,
+    damageImages: string[],
+  ) => {
     setReturnItems((prev) =>
       prev.map((item) =>
-        item.saleItemId === saleItemId
-          ? { ...item, damageImages }
-          : item,
+        item.saleItemId === saleItemId ? { ...item, damageImages } : item,
       ),
     );
   };
@@ -347,7 +357,9 @@ function StoreExchange() {
     setReturnItems((prev) =>
       prev.map((item) => {
         if (item.saleItemId === saleItemId) {
-          const updatedImages = item.damageImages.filter((_, i) => i !== imageIndex);
+          const updatedImages = item.damageImages.filter(
+            (_, i) => i !== imageIndex,
+          );
           toast({
             title: "Photo Removed",
             description: "Damage photo has been removed",
@@ -365,7 +377,7 @@ function StoreExchange() {
       prev.map((item) => {
         if (item.saleItemId === saleItemId) {
           toast({
-            title: "All Photos Cleared", 
+            title: "All Photos Cleared",
             description: "All damage photos have been removed",
             duration: 2000,
           });
@@ -603,7 +615,7 @@ function StoreExchange() {
         });
         return;
       }
-      
+
       // Validate exchange type and specific reason
       if (!returnItem.exchangeType || !returnItem.specificReason) {
         toast({
@@ -613,9 +625,12 @@ function StoreExchange() {
         });
         return;
       }
-      
+
       // Validate damage images for damage exchanges
-      if (returnItem.exchangeType === "damage" && (!returnItem.damageImages || returnItem.damageImages.length === 0)) {
+      if (
+        returnItem.exchangeType === "damage" &&
+        (!returnItem.damageImages || returnItem.damageImages.length === 0)
+      ) {
         toast({
           title: "Damage Photos Required",
           description: `Please upload at least one damage photo for ${returnItem.product.name}`,
@@ -786,9 +801,14 @@ function StoreExchange() {
             </p>
           </div>
           <div>
-            <Button variant={'outline'} onClick={()=>{
-              navigate("/store/exchange")
-            }}>New Exchange</Button>
+            <Button
+              variant={"outline"}
+              onClick={() => {
+                navigate("/store/exchange");
+              }}
+            >
+              New Exchange
+            </Button>
           </div>
         </div>
       </div>
@@ -796,7 +816,9 @@ function StoreExchange() {
       {!selectedSaleId ? (
         <Card className="max-w-2xl mx-auto">
           <CardHeader>
-            <CardTitle className="text-lg font-medium">Find Original Sale</CardTitle>
+            <CardTitle className="text-lg font-medium">
+              Find Original Sale
+            </CardTitle>
             <p className="text-xs text-muted-foreground">
               Search by Sale ID, customer name, or phone number
             </p>
@@ -1152,7 +1174,10 @@ function StoreExchange() {
                                 </SelectTrigger>
                                 <SelectContent>
                                   {exchangeTypes.map((type) => (
-                                    <SelectItem key={type.value} value={type.value}>
+                                    <SelectItem
+                                      key={type.value}
+                                      value={type.value}
+                                    >
                                       {type.label}
                                     </SelectItem>
                                   ))}
@@ -1161,30 +1186,43 @@ function StoreExchange() {
                               <Select
                                 value={item.specificReason}
                                 onValueChange={(value) =>
-                                  updateItemSpecificReason(item.saleItemId, value)
+                                  updateItemSpecificReason(
+                                    item.saleItemId,
+                                    value,
+                                  )
                                 }
                               >
                                 <SelectTrigger className="h-6 text-xs">
                                   <SelectValue placeholder="Reason" />
                                 </SelectTrigger>
                                 <SelectContent>
-                                  {getSpecificReasons(item.exchangeType).map((reason) => (
-                                    <SelectItem key={reason.value} value={reason.value}>
-                                      {reason.label}
-                                    </SelectItem>
-                                  ))}
+                                  {getSpecificReasons(item.exchangeType).map(
+                                    (reason) => (
+                                      <SelectItem
+                                        key={reason.value}
+                                        value={reason.value}
+                                      >
+                                        {reason.label}
+                                      </SelectItem>
+                                    ),
+                                  )}
                                 </SelectContent>
                               </Select>
                             </div>
                             {item.exchangeType === "damage" && (
                               <div className="mt-2">
-                                <p className="text-xs font-medium mb-1">Damage Photos:</p>
+                                <p className="text-xs font-medium mb-1">
+                                  Damage Photos:
+                                </p>
                                 <CloudinaryUploader
                                   maxNumberOfFiles={3}
                                   maxFileSize={5 * 1024 * 1024}
                                   fileType="image"
                                   onComplete={(urls) =>
-                                    updateItemDamageImages(item.saleItemId, urls)
+                                    updateItemDamageImages(
+                                      item.saleItemId,
+                                      urls,
+                                    )
                                   }
                                   buttonVariant="outline"
                                   buttonClassName="h-6 text-xs px-2"
@@ -1195,13 +1233,17 @@ function StoreExchange() {
                                 {item.damageImages.length > 0 && (
                                   <div className="mt-1">
                                     <div className="flex items-center justify-between mb-1">
-                                      <p className="text-xs font-medium">Damage Photos:</p>
+                                      <p className="text-xs font-medium">
+                                        Damage Photos:
+                                      </p>
                                       {item.damageImages.length > 1 && (
                                         <button
                                           type="button"
                                           onClick={(e) => {
                                             e.stopPropagation();
-                                            clearAllDamageImages(item.saleItemId);
+                                            clearAllDamageImages(
+                                              item.saleItemId,
+                                            );
                                           }}
                                           className="text-xs text-red-600 hover:text-red-700"
                                         >
@@ -1221,7 +1263,10 @@ function StoreExchange() {
                                             type="button"
                                             onClick={(e) => {
                                               e.stopPropagation();
-                                              removeDamageImage(item.saleItemId, index);
+                                              removeDamageImage(
+                                                item.saleItemId,
+                                                index,
+                                              );
                                             }}
                                             title="Remove damage photo"
                                             className="absolute -top-1 -right-1 bg-red-500 text-white rounded-full w-3 h-3 flex items-center justify-center text-xs hover:bg-red-600 transition-colors"
@@ -1601,7 +1646,10 @@ function StoreExchange() {
                     id="customerPhone"
                     value={customerPhone}
                     onChange={(e) => setCustomerPhone(e.target.value)}
-                    placeholder={import.meta.env.NEXT_PUBLIC_PHONE_PLACEHOLDER || "+91 XXXXX XXXXX"}
+                    placeholder={
+                      import.meta.env.NEXT_PUBLIC_PHONE_PLACEHOLDER ||
+                      "+91 XXXXX XXXXX"
+                    }
                     readOnly
                   />
                 </div>

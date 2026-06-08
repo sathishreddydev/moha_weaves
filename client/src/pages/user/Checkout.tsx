@@ -13,7 +13,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/lib/auth";
 import { apiRequest } from "@/lib/queryClient";
-import type { Coupon } from "@shared/schema";
+import { BRAND_FULL } from "@/lib/brand";import type { Coupon } from "@shared/schema";
 import { useMutation, useQueryClient, useQuery } from "@tanstack/react-query";
 import {
   ArrowLeft,
@@ -325,7 +325,7 @@ export default function Checkout() {
       key: "rzp_test_UxXBzl98ySixq7",
       amount: amount,
       currency: currency,
-      name: "Moha Weaves",
+      name: BRAND_FULL,
       description: "Order Payment",
       order_id: razorpayOrderId,
 

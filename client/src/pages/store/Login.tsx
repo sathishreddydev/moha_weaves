@@ -18,6 +18,7 @@ import {
 import { TextField } from "@/components/ui/TextField";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/lib/auth";
+import { BRAND_STORE, BRAND_DOMAIN } from "@/lib/brand";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Eye, EyeOff, Lock, Mail, Store } from "lucide-react";
 import { useState } from "react";
@@ -79,7 +80,7 @@ export default function StoreLogin() {
           <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-4">
             <Store className="h-8 w-8 text-primary" />
           </div>
-          <h1 className="font-serif text-2xl font-semibold">Moha Store</h1>
+          <h1 className="font-serif text-2xl font-semibold">{BRAND_STORE}</h1>
           <p className="text-muted-foreground mt-2">Store Management Portal</p>
         </div>
 
@@ -105,7 +106,7 @@ export default function StoreLogin() {
                       <FormControl>
                         <TextField
                           type="email"
-                          placeholder="store@moha.com"
+                          placeholder={`store@${BRAND_DOMAIN}`}
                           startAdornment={
                             <Mail className="h-4 w-4 text-muted-foreground" />
                           }

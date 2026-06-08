@@ -116,7 +116,7 @@ export const orderRoutes = (app: Express) => {
       };
 
       // Header
-      doc.fontSize(20).text("MOHA", { align: "left" });
+      doc.fontSize(20).text("URUMI", { align: "left" });
       doc.fontSize(10).fillColor("#555").text("INVOICE", { align: "left" });
       doc.moveDown(0.5);
       doc.fillColor("#000");

@@ -36,15 +36,15 @@ async function validateStore(storeId: string) {
 }
 
 /**
- * Generates a unique store sale ID in format: MOHA + store name + sequential number
- * Example: MOHAstore01, MOHAstore02
+ * Generates a unique store sale ID in format: URUMI + store name + sequential number
+ * Example: URUMIstore01, URUMIstore02
  */
 export async function generateStoreSaleId(storeId: string): Promise<string> {
   const store = await validateStore(storeId);
   const cleanName = cleanStoreName(store.name);
   const nextNumber = await getNextSequenceNumber(storeSales, storeId);
   
-  return `MOHA${cleanName}${nextNumber.toString().padStart(2, "0")}`;
+  return `URUMI${cleanName}${nextNumber.toString().padStart(2, "0")}`;
 }
 
 /**

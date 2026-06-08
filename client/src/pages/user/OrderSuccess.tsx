@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { CheckCircle } from "lucide-react";
 import React from "react";
 import { Link } from "react-router-dom";
+import { BRAND_NAME } from "@/lib/brand";
 
 interface OrderSuccessProps {
   orderId: string;
@@ -17,7 +18,7 @@ const OrderSuccess: React.FC<OrderSuccessProps> = ({ orderId }) => {
       <h2 className="text-2xl font-semibold mb-2" data-testid="text-order-success">
         Order Placed Successfully!
       </h2>
-      <p className="text-muted-foreground mb-2">Thank you for shopping with Moha.</p>
+      <p className="text-muted-foreground mb-2">Thank you for shopping with {BRAND_NAME}.</p>
       <p className="text-sm text-muted-foreground mb-6">
         Order ID:{" "}
         <span className="font-medium" data-testid="text-order-id">

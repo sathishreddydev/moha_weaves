@@ -2,6 +2,7 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { CreditCard, HelpCircle, Package, Search, Shield, Truck } from "lucide-react";
+import { BRAND_FULL, BRAND_SUPPORT_EMAIL } from "@/lib/brand";
 import { useState } from "react";
 
 const faqData = [
@@ -10,8 +11,8 @@ const faqData = [
     icon: HelpCircle,
     questions: [
       {
-        question: "What is Moha Weaves?",
-        answer: "Moha Weaves is a premium online store specializing in handcrafted products and traditional Indian textiles. We work directly with skilled artisans to bring you authentic, high-quality products that celebrate India's rich textile heritage."
+        question: `What is ${BRAND_FULL}?`,
+        answer: `${BRAND_FULL} is a premium online store specializing in handcrafted products and traditional Indian textiles. We work directly with skilled artisans to bring you authentic, high-quality products that celebrate India's rich textile heritage.`
       },
       {
         question: "Where are your products sourced from?",
@@ -210,7 +211,7 @@ export default function FAQ() {
                     Contact Support
                   </button>
                 </a>
-                <a href="mailto:support@mohaweaves.com">
+                <a href={`mailto:${BRAND_SUPPORT_EMAIL}`}>
                   <button className="px-6 py-2 border border-gray-300 rounded-md hover:bg-gray-50 transition-colors">
                     Email Us
                   </button>

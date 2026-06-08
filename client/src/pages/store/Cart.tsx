@@ -4,7 +4,7 @@ import { Input } from "@/components/ui/input";
 import { toast } from "@/hooks/use-toast";
 import { useAuth } from "@/lib/auth";
 import { apiRequest } from "@/lib/queryClient";
-import {
+import { BRAND_FULL } from "@/lib/brand";import {
   calculateCartTotals,
   getAvailableStock,
   getStockDisplayText,
@@ -203,7 +203,7 @@ export default function Cart() {
         key: "rzp_test_UxXBzl98ySixq7",
         amount: razorpayOrder.amount,
         currency: razorpayOrder.currency,
-        name: "Moha Weaves",
+        name: BRAND_FULL,
         description: "Store Order Payment",
         order_id: razorpayOrder.razorpayOrderId,
 

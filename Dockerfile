@@ -1,4 +1,4 @@
-# Multi-stage build for Moha Weaves monolithic application
+# Multi-stage build for Urumi Weaves monolithic application
 FROM node:20-alpine AS base
 
 # ── deps stage: install dependencies ──────────────────────────────────────────

@@ -47,7 +47,7 @@ class EmailService {
 
     try {
       const mailOptions = {
-        from: `"${process.env.EMAIL_FROM_NAME || 'Mohaweaves'}" <${process.env.EMAIL_FROM_EMAIL || process.env.SMTP_USER}>`,
+        from: `"${process.env.EMAIL_FROM_NAME || 'Urumiweaves'}" <${process.env.EMAIL_FROM_EMAIL || process.env.SMTP_USER}>`,
         to: notification.to,
         subject: notification.subject,
         html: notification.htmlContent,

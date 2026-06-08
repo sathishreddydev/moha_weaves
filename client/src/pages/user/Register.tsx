@@ -19,6 +19,7 @@ import { Input } from "@/components/ui/input";
 import { TextField } from "@/components/ui/TextField";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/lib/auth";
+import { BRAND_NAME } from "@/lib/brand";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Eye, EyeOff, Lock, Mail, Phone, User } from "lucide-react";
 import { useState } from "react";
@@ -70,7 +71,7 @@ export default function UserRegister() {
       });
       if (result.success) {
         toast({
-          title: "Welcome to Moha!",
+          title: `Welcome to ${BRAND_NAME}!`,
           description: "Your account has been created successfully.",
         });
         navigate("/");
@@ -94,7 +95,7 @@ export default function UserRegister() {
             to="/"
             className="font-serif text-xl font-semibold text-primary"
           >
-            Moha
+            {BRAND_NAME}
           </Link>
           <p className="text-muted-foreground mt-2">
             Begin your product journey with us
@@ -105,7 +106,7 @@ export default function UserRegister() {
           <CardHeader>
             <CardTitle data-testid="text-page-title">Create Account</CardTitle>
             <CardDescription>
-              Join Moha for exclusive access to our collection
+              Join {BRAND_NAME} for exclusive access to our collection
             </CardDescription>
           </CardHeader>
           <CardContent>

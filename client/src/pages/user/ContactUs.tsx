@@ -6,6 +6,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { Clock, Loader2, Mail, MapPin, Phone } from "lucide-react";
+import { BRAND_SUPPORT_EMAIL } from "@/lib/brand";
 import { useState } from "react";
 import type { ChangeEvent, FormEvent } from "react";
 
@@ -83,7 +84,7 @@ export default function ContactUs() {
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <p className="text-gray-600">support@mohaweaves.com</p>
+                <p className="text-gray-600">{BRAND_SUPPORT_EMAIL}</p>
                 <p className="text-sm text-gray-500 mt-2">We&apos;ll respond within 24 hours</p>
               </CardContent>
             </Card>

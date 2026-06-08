@@ -1,5 +1,5 @@
 #!/bin/bash
-# Moha Weaves VPS Deployment Script
+# Urumi Weaves VPS Deployment Script
 # Usage: ./deploy.sh
 # Pre-requisites:
 #   - SSH key set up for VPS_USER@VPS_HOST on port VPS_PORT
@@ -204,7 +204,7 @@ health_check() {
 
 # ── Main ───────────────────────────────────────────────────────────────────────
 main() {
-  log_info "Starting Moha Weaves VPS deployment..."
+  log_info "Starting Urumi Weaves VPS deployment..."
 
   # Safety check — refuse to deploy if .env.vps still has placeholder values
   if grep -q 'REPLACE_WITH' .env.vps; then

@@ -62,14 +62,14 @@ export async function registerRoutes(
 
       await emailService.sendEmail({
         to: recipient,
-        subject: '✅ Moha Weaves - Test Email',
+        subject: '✅ Urumi Weaves - Test Email',
         htmlContent: `
           <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
             <div style="text-align: center; padding: 20px; background: #f8f4f0; border-radius: 8px;">
-              <h1 style="color: #8B4513; margin: 0;">Moha Weaves</h1>
+              <h1 style="color: #8B4513; margin: 0;">Urumi Weaves</h1>
             </div>
             <h2 style="color: #059669; margin-top: 30px;">Email System Working! ✅</h2>
-            <p>This is a test email from your Moha Weaves notification system.</p>
+            <p>This is a test email from your Urumi Weaves notification system.</p>
             <p><strong>Sent at:</strong> ${new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })}</p>
             <p>If you received this, your email notifications are configured correctly.</p>
           </div>
@@ -146,7 +146,7 @@ export async function registerRoutes(
         const uploadStream = cloudinary.v2.uploader.upload_stream(
           {
             resource_type: resourceType,
-            folder: `mohaweaves/${fileType}s`,
+            folder: `urumi/${fileType}s`,
           },
           (error, result) => {
             if (error) {

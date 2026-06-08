@@ -31,6 +31,7 @@ import type {
 } from "@shared/schema";
 import { getItemStatusConfig } from "@/constants/itemStatusConfig";
 import { formatDate, formatPrice } from "@/lib/utils";
+import { BRAND_FULL } from "@/lib/brand";
 
 /** Normalise shippingAddress — it can be a JSON string, a plain object, or a legacy string. */
 export function parseShippingAddress(
@@ -804,7 +805,7 @@ export default function InventoryOrderDetail() {
         <div ref={printRootRef}>
           <div className="row">
             <div className="col">
-              <div className="h1">MOHA WEAVES</div>
+              <div className="h1">{BRAND_FULL.toUpperCase()}</div>
               <div className="muted">Courier Dispatch Slip</div>
             </div>
             <div className="col right">

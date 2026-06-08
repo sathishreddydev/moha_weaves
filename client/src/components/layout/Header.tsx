@@ -1,4 +1,5 @@
 import { Button } from "@/components/ui/button";
+import { BRAND_NAME } from "@/lib/brand";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -101,7 +102,7 @@ export function Header() {
                     to="/"
                     className="font-serif text-2xl font-semibold text-primary"
                   >
-                    Moha
+                    {BRAND_NAME}
                   </Link>
                   <nav className="flex flex-col gap-4">
                     {navLinks.map((link) => (
@@ -122,7 +123,7 @@ export function Header() {
             <h1
               className="text-2xl font-serif tracking-tighter transition-colors duration-500 text-primary"
             >
-              <Link to="/">Moha</Link>
+              <Link to="/">{BRAND_NAME}</Link>
             </h1>
           </div>
 
