@@ -6,7 +6,6 @@ import { RefundWebhookService } from "./refundWebhook";
 
 export const refundRoutes = (app: Express) => {
   const authInventory = createAuthMiddleware(["inventory", "admin"]);
-  const authUser = createAuthMiddleware(["user"]);
 
   app.post("/api/webhooks/razorpay/refund", async (req: Request, res: Response) => {
     await RefundWebhookService.handleWebhook(req, res);
@@ -105,37 +104,6 @@ export const refundRoutes = (app: Express) => {
     } catch (error) {
       console.error("Error fetching refund stats:", error);
       res.status(500).json({ message: "Failed to fetch refund statistics" });
-    }
-  });
-
-  // User: Get their refunds
-  app.get("/api/user/refunds", authUser, async (req, res) => {
-    try {
-      const userId = (req as any).user?.id;
-
-      const refunds = await refundService.getRefunds({ userId });
-      res.json(refunds);
-    } catch (error) {
-      console.error("Error fetching user refunds:", error);
-      res.status(500).json({ message: "Failed to fetch refunds" });
-    }
-  });
-
-  // User: Sync a refund status from Razorpay (useful if webhook failed)
-  app.post("/api/user/refunds/:id/check-status", authUser, async (req, res) => {
-    try {
-      const userId = (req as any).user?.id;
-      const refund = await storage.getRefund(req.params.id);
-      if (!refund || refund.userId !== userId) {
-        return res.status(404).json({ message: "Refund not found" });
-      }
-
-      await refundService.checkRefundStatus(req.params.id);
-      const updated = await storage.getRefund(req.params.id);
-      res.json(updated);
-    } catch (error) {
-      console.error("Error checking refund status (user):", error);
-      res.status(500).json({ message: "Failed to check refund status" });
     }
   });
 

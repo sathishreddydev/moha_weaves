@@ -1,8 +1,4 @@
 import {
-  InsertReturnItem,
-  InsertReturnRequest,
-  returnReasonEnum,
-  returnResolutionEnum,
   returnStatusEnum
 } from "@shared/schema";
 import type { Express, Request, Response } from "express";
@@ -27,7 +23,6 @@ const RETURN_TRANSITIONS: Record<string, string[]> = {
 
 export const returnRoutes = (app: Express) => {
   const authInventory = createAuthMiddleware(["inventory", "admin"]);
-  const authUser = createAuthMiddleware(["user"]);
 
   // ======================
   // Admin Routes
@@ -181,136 +176,6 @@ export const returnRoutes = (app: Express) => {
     } catch (error) {
       console.error("Error fetching return stats:", error);
       res.status(500).json({ message: "Failed to fetch return statistics" });
-    }
-  });
-
-
-  app.get("/api/user/returns", authUser, async (req: Request, res: Response) => {
-    try {
-      const userId = (req as any).user?.id;
-      const returns = await returnStorage.getUserReturnRequests(userId);
-      res.json(returns);
-    } catch (error) {
-      console.error("Error fetching user returns:", error);
-      res.status(500).json({ message: "Failed to fetch return requests" });
-    }
-  });
-
-  // Create a new return request
-  app.post("/api/user/returns", authUser, async (req: Request, res: Response) => {
-    try {
-      const userId = (req as any).user?.id;
-      const { orderId, reason, reasonDetails, resolution, items } = req.body;
-
-      if (!orderId || !reason || !resolution || !items || !Array.isArray(items)) {
-        return res.status(400).json({ message: "Missing required fields" });
-      }
-
-      if (!Object.values(returnReasonEnum.enumValues).includes(reason)) {
-        return res.status(400).json({ message: "Invalid return reason" });
-      }
-
-      if (!Object.values(returnResolutionEnum.enumValues).includes(resolution)) {
-        return res.status(400).json({ message: "Invalid return resolution" });
-      }
-
-      const returnData: InsertReturnRequest = {
-        orderId,
-        userId,
-        status: "return_requested",
-        reason,
-        reasonDetails,
-        resolution,
-      };
-
-      const returnItemsData: Omit<InsertReturnItem, 'returnRequestId'>[] = items.map((item: any) => ({
-        orderItemId: item.orderItemId,
-        quantity: item.quantity,
-        exchangeproductId: item.exchangeproductId,
-        condition: item.condition,
-        isRestockable: item.isRestockable,
-      }));
-
-      const newReturn = await returnStorage.createReturnRequest(returnData, returnItemsData);
-      const returnWithDetails = await returnStorage.getReturnRequest(newReturn.id);
-
-      res.status(201).json(returnWithDetails);
-
-      // Notify inventory team of new return in real time
-      await publishRealtimeEvent("product_returned", {
-        orderId,
-        itemId: items[0]?.orderItemId ?? null,
-        userId,
-        status: "return_requested",
-      });
-    } catch (error) {
-      console.error("Error creating return request:", error);
-      res.status(500).json({ message: "Failed to create return request" });
-    }
-  });
-
-  // Get a specific return request for user
-  app.get("/api/user/returns/:id", authUser, async (req: Request, res: Response) => {
-    try {
-      const userId = (req as any).user?.id;
-      const returnRequest = await returnStorage.getReturnRequest(req.params.id);
-
-      if (!returnRequest || returnRequest.userId !== userId) {
-        return res.status(404).json({ message: "Return request not found" });
-      }
-
-      res.json(returnRequest);
-    } catch (error) {
-      console.error("Error fetching return request:", error);
-      res.status(500).json({ message: "Failed to fetch return request" });
-    }
-  });
-
-  // Check return eligibility for an order
-  app.get("/api/user/orders/:orderId/return-eligibility", authUser, async (req: Request, res: Response) => {
-    try {
-      const userId = (req as any).user?.id;
-      const { orderId } = req.params;
-
-      const order = await returnStorage.getOrder(orderId);
-      if (!order || order.userId !== userId) {
-        return res.status(404).json({ message: "Order not found" });
-      }
-
-      const eligibility = await returnStorage.checkOrderReturnEligibility(orderId);
-      res.json(eligibility);
-    } catch (error) {
-      console.error("Error checking return eligibility:", error);
-      res.status(500).json({ message: "Failed to check return eligibility" });
-    }
-  });
-
-  // Cancel return request (only if requested)
-  app.patch("/api/user/returns/:id/cancel", authUser, async (req: Request, res: Response) => {
-    try {
-      const userId = (req as any).user?.id;
-      const returnRequest = await returnStorage.getReturnRequest(req.params.id);
-
-      if (!returnRequest || returnRequest.userId !== userId) {
-        return res.status(404).json({ message: "Return request not found" });
-      }
-
-      if (returnRequest.status !== "return_requested") {
-        return res.status(400).json({ message: "Cannot cancel return request in current status" });
-      }
-
-      const updated = await returnStorage.updateReturnRequestStatus(req.params.id, "return_cancelled");
-      res.json(updated);
-
-      // Notify inventory/admin that the return was cancelled by the user
-      await publishRealtimeEvent("return_status_updated", {
-        returnId: req.params.id,
-        userId,
-        status: "return_cancelled",
-      });
-    } catch (error) {
-      console.error("Error cancelling return request:", error);
-      res.status(500).json({ message: "Failed to cancel return request" });
     }
   });
 };

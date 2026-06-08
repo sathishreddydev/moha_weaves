@@ -4,7 +4,7 @@ import { delhiveryService, type PincodeServiceabilityResult } from "./delhiveryS
 import { AddressValidationService } from "./addressValidationService";
 
 export const shippingRoutes = (app: Express) => {
-  const authUser = createAuthMiddleware(["user", "admin"]);
+  const authAny = createAuthMiddleware(["admin", "inventory"]);
 
   /**
    * Check if a single pincode is serviceable
@@ -40,7 +40,7 @@ export const shippingRoutes = (app: Express) => {
    * Check multiple pincodes at once
    * POST /api/shipping/pincodes/check
    */
-  app.post("/api/shipping/pincodes/check", authUser, async (req, res) => {
+  app.post("/api/shipping/pincodes/check", authAny, async (req, res) => {
     try {
       const { pincodes } = req.body;
       
@@ -101,7 +101,7 @@ export const shippingRoutes = (app: Express) => {
    * Validate shipping address (including pincode serviceability)
    * POST /api/shipping/validate-address
    */
-  app.post("/api/shipping/validate-address", authUser, async (req, res) => {
+  app.post("/api/shipping/validate-address", authAny, async (req, res) => {
     try {
       const { pincode, city, state, address } = req.body;
       
@@ -163,7 +163,7 @@ export const shippingRoutes = (app: Express) => {
    * 🆕 Validate and fix address automatically
    * POST /api/shipping/validate-address
    */
-  app.post("/api/shipping/validate-address", authUser, async (req, res) => {
+  app.post("/api/shipping/validate-address", authAny, async (req, res) => {
     try {
       const address = req.body;
       
@@ -193,7 +193,7 @@ export const shippingRoutes = (app: Express) => {
    * 🆕 Get shipping estimate for address
    * POST /api/shipping/estimate
    */
-  app.post("/api/shipping/estimate", authUser, async (req, res) => {
+  app.post("/api/shipping/estimate", authAny, async (req, res) => {
     try {
       const { address, method = "delhivery", weight = 0.5 } = req.body;
       
@@ -223,7 +223,7 @@ export const shippingRoutes = (app: Express) => {
    * 🆕 Check if address is serviceable
    * POST /api/shipping/check-serviceability
    */
-  app.post("/api/shipping/check-serviceability", authUser, async (req, res) => {
+  app.post("/api/shipping/check-serviceability", authAny, async (req, res) => {
     try {
       const { address } = req.body;
       
