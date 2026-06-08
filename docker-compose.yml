@@ -64,7 +64,7 @@ services:
     networks:
       - moha_weaves_network
     healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://localhost:5000/health || exit 1"]
+      test: ["CMD-SHELL", "node -e \"fetch('http://localhost:5000/health').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))\""]
       interval: 10s
       timeout: 5s
       retries: 10
