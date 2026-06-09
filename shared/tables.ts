@@ -15,10 +15,10 @@ export const users = pgTable("users", {
   id: varchar("id")
     .primaryKey()
     .default(sql`gen_random_uuid()`),
-  email: text("email").notNull().unique(),
-  password: text("password").notNull(),
+  email: text("email").unique(),
+  password: text("password"),
   name: text("name").notNull(),
-  phone: text("phone"),
+  phone: text("phone").unique(),
   role: enums.userRoleEnum("role").notNull().default("user"),
   storeId: varchar("store_id"),
   isActive: boolean("is_active").notNull().default(true),
@@ -549,15 +549,31 @@ export const productReviews = pgTable("product_reviews", {
     .references(() => users.id)
     .notNull(),
   orderId: varchar("order_id").references(() => orders.id),
+  orderItemId: varchar("order_item_id").references(() => orderItems.id),
   rating: integer("rating").notNull(),
   title: text("title"),
   comment: text("comment"),
   images: text("images").array(),
   isVerifiedPurchase: boolean("is_verified_purchase").default(false),
-  isApproved: boolean("is_approved").default(true),
   helpfulCount: integer("helpful_count").default(0),
+  unhelpfulCount: integer("unhelpful_count").default(0),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
+// Review votes (per-user dedup for helpful/unhelpful)
+export const reviewVotes = pgTable("review_votes", {
+  id: varchar("id")
+    .primaryKey()
+    .default(sql`gen_random_uuid()`),
+  reviewId: varchar("review_id")
+    .references(() => productReviews.id)
+    .notNull(),
+  userId: varchar("user_id")
+    .references(() => users.id)
+    .notNull(),
+  voteType: text("vote_type").notNull(), // 'helpful' | 'unhelpful'
+  createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
 // Coupons
