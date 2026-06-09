@@ -16,9 +16,10 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
+import { useDataTable } from "@/hooks/use-data-table";
 import { apiRequest } from "@/lib/queryClient";
 import type { Category, Subcategory } from "@shared/schema";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { ColumnDef } from "@tanstack/react-table";
 import {
   Edit,
@@ -28,8 +29,23 @@ import {
   Upload
 } from "lucide-react";
 import React, { useState } from 'react';
+import { FilterItem } from "@/components/Type/type";
 
 const PREDEFINED_SIZES = ["XS", "S", "M", "L", "XL", "2XL", "3XL"];
+
+const PAGE_KEY = "adminCategories";
+
+const statusFilter: FilterItem[] = [
+  {
+    key: "status",
+    label: "Status",
+    placeholder: "Filter by status",
+    tree: [
+      { id: "active", label: "Active" },
+      { id: "inactive", label: "Inactive" },
+    ],
+  },
+];
 
 
 export default function AdminCategories() {
@@ -62,8 +78,18 @@ export default function AdminCategories() {
   const [newSubcategories, setNewSubcategories] = useState<Record<string, Partial<Subcategory>>>({});
   const [editingSubcategories, setEditingSubcategories] = useState<Record<string, Partial<Subcategory>>>({});
 
-  const { data: categories, isLoading } = useQuery<(Category & { subcategories?: Subcategory[] })[]>({
-    queryKey: ["/api/admin/categories?includeSubcategories=true"],
+  const {
+    data: categories,
+    totalCount,
+    pageIndex,
+    pageSize,
+    isLoading,
+    handlePaginationChange,
+    refetch,
+  } = useDataTable<Category & { subcategories?: Subcategory[] }>({
+    queryKey: "/api/admin/getCategories",
+    initialPageSize: 10,
+    pageKey: PAGE_KEY,
   });
 
   const [subcategories, setSubcategories] = useState<Partial<Subcategory>[]>([]);

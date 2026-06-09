@@ -1,4 +1,3 @@
-import React from 'react'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -9,9 +8,9 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { DataTable } from "@/components/DataTable/DataTable";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
 import {
   Dialog,
   DialogContent,
@@ -22,31 +21,33 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Skeleton } from "@/components/ui/skeleton";
 import { Switch } from "@/components/ui/switch";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
+import { useDataTable } from "@/hooks/use-data-table";
 import type { Color } from "@shared/schema";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import {
-  Edit,
-  Plus,
-  Trash2
-} from "lucide-react";
-import { useState } from "react";
+import { useMutation } from "@tanstack/react-query";
+import { ColumnDef } from "@tanstack/react-table";
+import { Edit, Plus, Trash2 } from "lucide-react";
+import React, { useState } from "react";
+import { FilterItem } from "@/components/Type/type";
 
+const PAGE_KEY = "adminColors";
+
+const statusFilter: FilterItem[] = [
+  {
+    key: "status",
+    label: "Status",
+    placeholder: "Filter by status",
+    tree: [
+      { id: "active", label: "Active" },
+      { id: "inactive", label: "Inactive" },
+    ],
+  },
+];
 
 export default function AdminColors() {
   const { toast } = useToast();
-  const queryClient = useQueryClient();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [colorToDelete, setColorToDelete] = useState<Color | null>(null);
@@ -57,68 +58,62 @@ export default function AdminColors() {
     isActive: true,
   });
 
-  const { data: colors, isLoading } = useQuery<Color[]>({
-    queryKey: ["/api/admin/colors"],
+  const {
+    data: colors,
+    totalCount,
+    pageIndex,
+    pageSize,
+    isLoading,
+    handlePaginationChange,
+    refetch,
+  } = useDataTable<Color>({
+    queryKey: "/api/admin/getColors",
+    initialPageSize: 10,
+    pageKey: PAGE_KEY,
   });
 
   const createMutation = useMutation({
     mutationFn: async (data: typeof formData) => {
-      const response = await apiRequest("POST", "/api/admin/colors", data);
-      return response;
+      return await apiRequest("POST", "/api/admin/colors", data);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/admin/colors"] });
+      refetch();
       toast({ title: "Success", description: "Color created successfully" });
       handleCloseDialog();
     },
     onError: () => {
-      toast({
-        title: "Error",
-        description: "Failed to create color",
-        variant: "destructive",
-      });
+      toast({ title: "Error", description: "Failed to create color", variant: "destructive" });
     },
   });
 
   const updateMutation = useMutation({
     mutationFn: async ({ id, data }: { id: string; data: typeof formData }) => {
-      const response = await apiRequest("PATCH", `/api/admin/colors/${id}`, data);
-      return response;
+      return await apiRequest("PATCH", `/api/admin/colors/${id}`, data);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/admin/colors"] });
+      refetch();
       toast({ title: "Success", description: "Color updated successfully" });
       handleCloseDialog();
     },
     onError: () => {
-      toast({
-        title: "Error",
-        description: "Failed to update color",
-        variant: "destructive",
-      });
+      toast({ title: "Error", description: "Failed to update color", variant: "destructive" });
     },
   });
 
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
-      const response = await apiRequest("DELETE", `/api/admin/colors/${id}`);
-      return response;
+      return await apiRequest("DELETE", `/api/admin/colors/${id}`);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/admin/colors"] });
+      refetch();
       toast({ title: "Success", description: "Color deleted successfully" });
       setDeleteDialogOpen(false);
       setColorToDelete(null);
     },
     onError: () => {
-      toast({
-        title: "Error",
-        description: "Failed to delete color",
-        variant: "destructive",
-      });
+      toast({ title: "Error", description: "Failed to delete color", variant: "destructive" });
     },
   });
-
 
   const handleOpenCreate = () => {
     setEditingColor(null);
@@ -128,11 +123,7 @@ export default function AdminColors() {
 
   const handleOpenEdit = (color: Color) => {
     setEditingColor(color);
-    setFormData({
-      name: color.name,
-      hexCode: color.hexCode,
-      isActive: color.isActive,
-    });
+    setFormData({ name: color.name, hexCode: color.hexCode, isActive: color.isActive });
     setDialogOpen(true);
   };
 
@@ -142,9 +133,7 @@ export default function AdminColors() {
   };
 
   const handleConfirmDelete = () => {
-    if (colorToDelete) {
-      deleteMutation.mutate(colorToDelete.id);
-    }
+    if (colorToDelete) deleteMutation.mutate(colorToDelete.id);
   };
 
   const handleCloseDialog = () => {
@@ -161,17 +150,60 @@ export default function AdminColors() {
     }
   };
 
+  const columns: ColumnDef<Color>[] = [
+    {
+      accessorKey: "hexCode",
+      header: "Color",
+      cell: ({ row }) => (
+        <div
+          className="w-8 h-8 rounded-full border"
+          style={{ backgroundColor: row.original.hexCode }}
+        />
+      ),
+    },
+    {
+      accessorKey: "name",
+      header: "Name",
+      cell: ({ row }) => <span className="font-medium">{row.original.name}</span>,
+    },
+    {
+      id: "hex",
+      header: "Hex Code",
+      cell: ({ row }) => (
+        <span className="text-muted-foreground font-mono">{row.original.hexCode}</span>
+      ),
+    },
+    {
+      accessorKey: "isActive",
+      header: "Status",
+      cell: ({ row }) => (
+        <Badge variant={row.original.isActive ? "default" : "secondary"}>
+          {row.original.isActive ? "Active" : "Inactive"}
+        </Badge>
+      ),
+    },
+    {
+      id: "actions",
+      header: "Actions",
+      cell: ({ row }) => (
+        <div className="flex items-center gap-1">
+          <Button variant="ghost" size="icon" onClick={() => handleOpenEdit(row.original)}>
+            <Edit className="h-4 w-4" />
+          </Button>
+          <Button variant="ghost" size="icon" onClick={() => handleOpenDelete(row.original)}>
+            <Trash2 className="h-4 w-4 text-destructive" />
+          </Button>
+        </div>
+      ),
+    },
+  ];
+
   return (
     <div>
       <div className="max-w-4xl mx-auto">
         <div className="flex items-center justify-between mb-8">
           <div>
-            <h1
-              className="text-2xl font-semibold"
-              data-testid="text-page-title"
-            >
-              Colors
-            </h1>
+            <h1 className="text-2xl font-semibold" data-testid="text-page-title">Colors</h1>
             <p className="text-muted-foreground">Manage product colors</p>
           </div>
           <Button onClick={handleOpenCreate} data-testid="button-add-color">
@@ -180,83 +212,25 @@ export default function AdminColors() {
           </Button>
         </div>
 
-        <Card>
-          <CardContent className="p-4">
-            {isLoading ? (
-              <div className="space-y-3">
-                {[...Array(3)].map((_, i) => (
-                  <Skeleton key={i} className="h-12" />
-                ))}
-              </div>
-            ) : (
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Color</TableHead>
-                    <TableHead>Name</TableHead>
-                    <TableHead>Hex Code</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead className="text-right">Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {colors?.map((color) => (
-                    <TableRow
-                      key={color.id}
-                      data-testid={`row-color-${color.id}`}
-                    >
-                      <TableCell>
-                        <div
-                          className="w-8 h-8 rounded-full border"
-                          style={{ backgroundColor: color.hexCode }}
-                        />
-                      </TableCell>
-                      <TableCell className="font-medium">
-                        {color.name}
-                      </TableCell>
-                      <TableCell className="text-muted-foreground font-mono">
-                        {color.hexCode}
-                      </TableCell>
-                      <TableCell>
-                        <Badge
-                          variant={color.isActive ? "default" : "secondary"}
-                        >
-                          {color.isActive ? "Active" : "Inactive"}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => handleOpenEdit(color)}
-                          data-testid={`button-edit-${color.id}`}
-                        >
-                          <Edit className="h-4 w-4" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => handleOpenDelete(color)}
-                          data-testid={`button-delete-${color.id}`}
-                        >
-                          <Trash2 className="h-4 w-4 text-destructive" />
-                        </Button>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            )}
-          </CardContent>
-        </Card>
+        <DataTable
+          pageKey={PAGE_KEY}
+          columns={columns}
+          data={colors || []}
+          totalCount={totalCount}
+          pageSize={pageSize}
+          pageIndex={pageIndex}
+          onPaginationChange={handlePaginationChange}
+          isLoading={isLoading}
+          searchPlaceholder="Search colors..."
+          emptyMessage="No colors found"
+          filters={statusFilter}
+        />
       </div>
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>
-              {editingColor ? "Edit Color" : "Add Color"}
-            </DialogTitle>
+            <DialogTitle>{editingColor ? "Edit Color" : "Add Color"}</DialogTitle>
             <DialogDescription>
               {editingColor ? "Update color details" : "Create a new color option"}
             </DialogDescription>
@@ -267,9 +241,7 @@ export default function AdminColors() {
               <Input
                 id="name"
                 value={formData.name}
-                onChange={(e) =>
-                  setFormData({ ...formData, name: e.target.value })
-                }
+                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                 required
                 data-testid="input-name"
               />
@@ -281,17 +253,13 @@ export default function AdminColors() {
                   id="hexCode"
                   type="color"
                   value={formData.hexCode}
-                  onChange={(e) =>
-                    setFormData({ ...formData, hexCode: e.target.value })
-                  }
+                  onChange={(e) => setFormData({ ...formData, hexCode: e.target.value })}
                   className="w-16 h-10 p-1"
                   data-testid="input-hex-color"
                 />
                 <Input
                   value={formData.hexCode}
-                  onChange={(e) =>
-                    setFormData({ ...formData, hexCode: e.target.value })
-                  }
+                  onChange={(e) => setFormData({ ...formData, hexCode: e.target.value })}
                   placeholder="#000000"
                   className="flex-1 font-mono"
                   data-testid="input-hex-text"
@@ -302,21 +270,13 @@ export default function AdminColors() {
               <Switch
                 id="isActive"
                 checked={formData.isActive}
-                onCheckedChange={(checked) =>
-                  setFormData({ ...formData, isActive: checked })
-                }
+                onCheckedChange={(checked) => setFormData({ ...formData, isActive: checked })}
                 data-testid="switch-active"
               />
               <Label htmlFor="isActive">Active</Label>
             </div>
             <DialogFooter>
-              <Button
-                type="button"
-                variant="outline"
-                onClick={handleCloseDialog}
-              >
-                Cancel
-              </Button>
+              <Button type="button" variant="outline" onClick={handleCloseDialog}>Cancel</Button>
               <Button
                 type="submit"
                 disabled={createMutation.isPending || updateMutation.isPending}
@@ -324,9 +284,7 @@ export default function AdminColors() {
               >
                 {createMutation.isPending || updateMutation.isPending
                   ? "Saving..."
-                  : editingColor
-                  ? "Update"
-                  : "Create"}
+                  : editingColor ? "Update" : "Create"}
               </Button>
             </DialogFooter>
           </form>

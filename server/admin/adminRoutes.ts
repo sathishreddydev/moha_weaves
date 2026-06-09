@@ -531,6 +531,51 @@ export const adminRoutes = (app: Express) => {
     }
   });
 
+  app.post("/api/admin/getCategories", authAdmin, async (req, res) => {
+    try {
+      const { search, status } = req.body;
+      const params = parsePaginationParams(req.query);
+
+      let categories = await publicStorage.getAllCategoriesWithSubcategories();
+
+      // Apply search filter
+      if (search) {
+        const s = search.toLowerCase();
+        categories = categories.filter(
+          (c) =>
+            c.name.toLowerCase().includes(s) ||
+            (c.description || "").toLowerCase().includes(s)
+        );
+      }
+
+      // Apply status filter
+      if (status && Array.isArray(status) && status.length > 0) {
+        categories = categories.filter((c) => {
+          if (status.includes("active") && c.isActive) return true;
+          if (status.includes("inactive") && !c.isActive) return true;
+          return false;
+        });
+      }
+
+      const total = categories.length;
+      const totalPages = Math.ceil(total / params.pageSize);
+      const paginated = categories.slice(
+        (params.page - 1) * params.pageSize,
+        params.page * params.pageSize
+      );
+
+      res.json({
+        data: paginated,
+        total,
+        page: params.page,
+        pageSize: params.pageSize,
+        totalPages,
+      });
+    } catch {
+      res.status(500).json({ message: "Failed to fetch categories" });
+    }
+  });
+
   app.post("/api/admin/categories", authAdmin, async (req, res) => {
     try {
       const validatedData = createCategorySchema.safeParse(req.body);
@@ -719,10 +764,44 @@ export const adminRoutes = (app: Express) => {
   });
 
   // Admin color management
-  app.get("/api/admin/colors", authAdmin, async (req, res) => {
+  app.post("/api/admin/getColors", authAdmin, async (req, res) => {
     try {
-      const colors = await publicStorage.getAllColors();
-      res.json(colors);
+      const { search, status } = req.body;
+      const params = parsePaginationParams(req.query);
+
+      let colors = await publicStorage.getAllColors();
+
+      // Apply search filter
+      if (search) {
+        const s = search.toLowerCase();
+        colors = colors.filter(
+          (c) => c.name.toLowerCase().includes(s) || c.hexCode.toLowerCase().includes(s)
+        );
+      }
+
+      // Apply status filter
+      if (status && Array.isArray(status) && status.length > 0) {
+        colors = colors.filter((c) => {
+          if (status.includes("active") && c.isActive) return true;
+          if (status.includes("inactive") && !c.isActive) return true;
+          return false;
+        });
+      }
+
+      const total = colors.length;
+      const totalPages = Math.ceil(total / params.pageSize);
+      const paginated = colors.slice(
+        (params.page - 1) * params.pageSize,
+        params.page * params.pageSize
+      );
+
+      res.json({
+        data: paginated,
+        total,
+        page: params.page,
+        pageSize: params.pageSize,
+        totalPages,
+      });
     } catch {
       res.status(500).json({ message: "Failed to fetch colors" });
     }
@@ -762,10 +841,46 @@ export const adminRoutes = (app: Express) => {
   });
 
   // Admin fabric management
-  app.get("/api/admin/fabrics", authAdmin, async (req, res) => {
+  app.post("/api/admin/getFabrics", authAdmin, async (req, res) => {
     try {
-      const fabrics = await publicStorage.getAllFabrics();
-      res.json(fabrics);
+      const { search, status } = req.body;
+      const params = parsePaginationParams(req.query);
+
+      let fabrics = await publicStorage.getAllFabrics();
+
+      // Apply search filter
+      if (search) {
+        const s = search.toLowerCase();
+        fabrics = fabrics.filter(
+          (f) =>
+            f.name.toLowerCase().includes(s) ||
+            (f.description || "").toLowerCase().includes(s)
+        );
+      }
+
+      // Apply status filter
+      if (status && Array.isArray(status) && status.length > 0) {
+        fabrics = fabrics.filter((f) => {
+          if (status.includes("active") && f.isActive) return true;
+          if (status.includes("inactive") && !f.isActive) return true;
+          return false;
+        });
+      }
+
+      const total = fabrics.length;
+      const totalPages = Math.ceil(total / params.pageSize);
+      const paginated = fabrics.slice(
+        (params.page - 1) * params.pageSize,
+        params.page * params.pageSize
+      );
+
+      res.json({
+        data: paginated,
+        total,
+        page: params.page,
+        pageSize: params.pageSize,
+        totalPages,
+      });
     } catch {
       res.status(500).json({ message: "Failed to fetch fabrics" });
     }
