@@ -75,14 +75,21 @@ services:
     build:
       context: ../moha_weaves_nextjs
       dockerfile: Dockerfile
-      # Build args are passed from the env file at build time via --build-arg.
-      # Secrets are NOT baked as ARGs — only public NEXT_PUBLIC_* values.
-      # NEXTAUTH_URL is runtime-only — injected via env_file, not needed at build.
+      # Build args: NEXT_PUBLIC_* for client bundle + server secrets needed
+      # by NextAuth/Drizzle during `next build` (standalone output traces).
       args:
         NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL}
         NEXT_PUBLIC_IMAGE_URL: ${NEXT_PUBLIC_IMAGE_URL}
         NEXT_PUBLIC_SOCKET_URL: ${NEXT_PUBLIC_SOCKET_URL}
         NEXT_PUBLIC_RAZORPAY_KEY_ID: ${NEXT_PUBLIC_RAZORPAY_KEY_ID}
+        NEXTAUTH_SECRET: ${NEXTAUTH_SECRET}
+        NEXTAUTH_URL: ${NEXTAUTH_URL}
+        GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID}
+        GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET}
+        DATABASE_URL: ${DATABASE_URL}
+        JWT_SECRET: ${JWT_SECRET}
+        TWO_FACTOR_API_KEY: ${TWO_FACTOR_API_KEY}
+        REDIS_URL: ${REDIS_URL}
     env_file:
       - .env.prod
     environment:
