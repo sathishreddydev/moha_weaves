@@ -73,6 +73,7 @@ services:
         NEXT_PUBLIC_IMAGE_URL: ${NEXT_PUBLIC_IMAGE_URL}
         NEXT_PUBLIC_SOCKET_URL: ${NEXT_PUBLIC_SOCKET_URL}
         NEXT_PUBLIC_RAZORPAY_KEY_ID: ${NEXT_PUBLIC_RAZORPAY_KEY_ID}
+        NEXTAUTH_URL: ${NEXTAUTH_URL}
     env_file:
       - ../moha_weaves_nextjs/.env.prod
     environment:
