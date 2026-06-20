@@ -601,6 +601,20 @@ export const adminRoutes = (app: Express) => {
     }
   });
 
+  // Reorder categories
+  app.patch("/api/admin/categories/reorder", authAdmin, async (req, res) => {
+    try {
+      const { orderedIds } = req.body;
+      if (!Array.isArray(orderedIds) || orderedIds.length === 0) {
+        return res.status(400).json({ message: "orderedIds array is required" });
+      }
+      await publicStorage.reorderCategories(orderedIds);
+      res.json({ success: true });
+    } catch {
+      res.status(500).json({ message: "Failed to reorder categories" });
+    }
+  });
+
   app.patch("/api/admin/categories/:id", authAdmin, async (req, res) => {
     try {
       const validatedData = createCategorySchema.safeParse(req.body);
@@ -622,6 +636,9 @@ export const adminRoutes = (app: Express) => {
       console.error("Error updating category:", error);
       const message =
         error instanceof Error ? error.message : "Unknown error occurred";
+      if (message.includes("Cannot remove size")) {
+        return res.status(400).json({ message, error: "SIZE_IN_USE" });
+      }
       res.status(500).json({
         message: "Failed to update category",
         error: process.env.NODE_ENV === "development" ? message : undefined,
@@ -835,7 +852,12 @@ export const adminRoutes = (app: Express) => {
 
       await publishRealtimeEvent("filter_event");
       res.json({ success: true });
-    } catch {
+    } catch (error) {
+      console.error("Error deleting color:", error);
+      const message = error instanceof Error ? error.message : "Unknown error";
+      if (message.includes("Cannot delete color")) {
+        return res.status(400).json({ message, error: "PRODUCT_DEPENDENCY" });
+      }
       res.status(500).json({ message: "Failed to delete color" });
     }
   });
@@ -914,7 +936,12 @@ export const adminRoutes = (app: Express) => {
 
       await publishRealtimeEvent("filter_event");
       res.json({ success: true });
-    } catch {
+    } catch (error) {
+      console.error("Error deleting fabric:", error);
+      const message = error instanceof Error ? error.message : "Unknown error";
+      if (message.includes("Cannot delete fabric")) {
+        return res.status(400).json({ message, error: "PRODUCT_DEPENDENCY" });
+      }
       res.status(500).json({ message: "Failed to delete fabric" });
     }
   });

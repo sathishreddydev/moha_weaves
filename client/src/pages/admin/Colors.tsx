@@ -110,8 +110,8 @@ export default function AdminColors() {
       setDeleteDialogOpen(false);
       setColorToDelete(null);
     },
-    onError: () => {
-      toast({ title: "Error", description: "Failed to delete color", variant: "destructive" });
+    onError: (error: any) => {
+      toast({ title: "Error", description: error?.message || "Failed to delete color", variant: "destructive" });
     },
   });
 

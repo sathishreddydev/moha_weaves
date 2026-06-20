@@ -12,9 +12,10 @@ import {
   insertSubcategorySchema,
   subcategories,
   products,
+  productVariants,
   sales
 } from "@shared/schema";
-import { eq, and, asc, sql } from "drizzle-orm";
+import { eq, and, asc, sql, inArray } from "drizzle-orm";
 import { db } from "server/db";
 
 // Size ordering: predefined sizes in logical sequence
@@ -94,7 +95,7 @@ export class PublicRepository implements PublicStorage {
   }
 
   async getAllCategoriesWithSubcategories(): Promise<(Category & { subcategories: Subcategory[] })[]> {
-    const allCategories = await db.select().from(categories).orderBy(asc(categories.name));
+    const allCategories = await db.select().from(categories).orderBy(asc(categories.sortOrder), asc(categories.name));
     const allSubcategories = await db.select().from(subcategories).orderBy(asc(subcategories.name));
     
     return allCategories.map(category => ({
@@ -105,7 +106,7 @@ export class PublicRepository implements PublicStorage {
   }
 
   async getAllCategories(): Promise<Category[]> {
-    const result = await db.select().from(categories).orderBy(asc(categories.name));
+    const result = await db.select().from(categories).orderBy(asc(categories.sortOrder), asc(categories.name));
     return result.map(cat => ({ ...cat, sizes: sortSizes(cat.sizes) }));
   }
 
@@ -118,6 +119,43 @@ export class PublicRepository implements PublicStorage {
     id: string,
     data: Partial<InsertCategory>
   ): Promise<Category | undefined> {
+    // If sizes are being updated, check if any removed sizes are in use by product variants
+    if (data.sizes !== undefined) {
+      const currentCategory = await db.select().from(categories).where(eq(categories.id, id));
+      if (currentCategory.length > 0) {
+        const currentSizes = currentCategory[0].sizes || [];
+        const newSizes = data.sizes || [];
+        const removedSizes = currentSizes.filter(s => !newSizes.includes(s));
+
+        if (removedSizes.length > 0) {
+          // Find active products in this category
+          const categoryProducts = await db
+            .select({ id: products.id })
+            .from(products)
+            .where(and(eq(products.categoryId, id), eq(products.isActive, true)));
+
+          if (categoryProducts.length > 0) {
+            const productIds = categoryProducts.map(p => p.id);
+            // Check if any active variants use the removed sizes
+            const [variantCount] = await db
+              .select({ count: sql<number>`count(*)::int` })
+              .from(productVariants)
+              .where(
+                and(
+                  inArray(productVariants.productId, productIds),
+                  inArray(productVariants.size, removedSizes),
+                  eq(productVariants.isActive, true)
+                )
+              );
+
+            if (variantCount?.count > 0) {
+              throw new Error(`Cannot remove size(s) "${removedSizes.join(', ')}": ${variantCount.count} active product variant(s) are using them. Please update or remove those variants first.`);
+            }
+          }
+        }
+      }
+    }
+
     const [result] = await db
       .update(categories)
       .set(data)
@@ -141,15 +179,15 @@ export class PublicRepository implements PublicStorage {
       // Check for dependencies before deletion
       const [productCount, salesCount, subcategoryCount] = await Promise.all([
         db
-          .select({ count: sql<number>`count(*)` })
+          .select({ count: sql<number>`count(*)::int` })
           .from(products)
           .where(and(eq(products.categoryId, id), eq(products.isActive, true))),
         db
-          .select({ count: sql<number>`count(*)` })
+          .select({ count: sql<number>`count(*)::int` })
           .from(sales)
           .where(and(eq(sales.categoryId, id), eq(sales.isActive, true))),
         db
-          .select({ count: sql<number>`count(*)` })
+          .select({ count: sql<number>`count(*)::int` })
           .from(subcategories)
           .where(and(eq(subcategories.categoryId, id), eq(subcategories.isActive, true)))
       ]);
@@ -195,6 +233,14 @@ export class PublicRepository implements PublicStorage {
     }
   }
 
+  async reorderCategories(orderedIds: string[]): Promise<void> {
+    await Promise.all(
+      orderedIds.map((id, index) =>
+        db.update(categories).set({ sortOrder: index }).where(eq(categories.id, id))
+      )
+    );
+  }
+
   // Colors
   async getColors(): Promise<Color[]> {
     return db.select().from(colors).where(eq(colors.isActive, true));
@@ -227,6 +273,16 @@ export class PublicRepository implements PublicStorage {
   }
 
   async deleteColor(id: string): Promise<boolean> {
+    // Check if any products reference this color (active or inactive)
+    const [productCount] = await db
+      .select({ count: sql<number>`count(*)::int` })
+      .from(products)
+      .where(eq(products.colorId, id));
+
+    if (productCount?.count > 0) {
+      throw new Error(`Cannot delete color: It is referenced by ${productCount.count} product(s). Please remove or reassign these products first.`);
+    }
+
     const [result] = await db
       .update(colors)
       .set({ isActive: false })
@@ -267,6 +323,16 @@ export class PublicRepository implements PublicStorage {
   }
 
   async deleteFabric(id: string): Promise<boolean> {
+    // Check if any products reference this fabric (active or inactive)
+    const [productCount] = await db
+      .select({ count: sql<number>`count(*)::int` })
+      .from(products)
+      .where(eq(products.fabricId, id));
+
+    if (productCount?.count > 0) {
+      throw new Error(`Cannot delete fabric: It is referenced by ${productCount.count} product(s). Please remove or reassign these products first.`);
+    }
+
     const [result] = await db
       .update(fabrics)
       .set({ isActive: false })
@@ -308,6 +374,16 @@ export class PublicRepository implements PublicStorage {
 
   async deleteSubcategory(id: string): Promise<boolean> {
     try {
+      // Check if any products reference this subcategory (active or inactive)
+      const [productCount] = await db
+        .select({ count: sql<number>`count(*)::int` })
+        .from(products)
+        .where(eq(products.subcategoryId, id));
+
+      if (productCount?.count > 0) {
+        throw new Error(`Cannot delete subcategory: It is referenced by ${productCount.count} product(s). Please remove or reassign these products first.`);
+      }
+
       // Fetch imageUrl before deletion for Cloudinary cleanup
       const [sub] = await db
         .select({ imageUrl: subcategories.imageUrl })
@@ -327,6 +403,9 @@ export class PublicRepository implements PublicStorage {
     } catch (error) {
       console.error('Error deleting subcategory:', error);
       const errorMessage = error instanceof Error ? error.message : String(error);
+      if (errorMessage.includes('Cannot delete subcategory')) {
+        throw error;
+      }
       if (errorMessage.includes('violates foreign key constraint')) {
         throw new Error('Cannot delete subcategory: It is referenced by products. Please remove or reassign these references first.');
       }

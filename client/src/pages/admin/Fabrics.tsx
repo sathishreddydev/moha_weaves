@@ -104,8 +104,8 @@ export default function AdminFabrics() {
       setDeleteDialogOpen(false);
       setFabricToDelete(null);
     },
-    onError: () => {
-      toast({ title: "Error", description: "Failed to delete fabric", variant: "destructive" });
+    onError: (error: any) => {
+      toast({ title: "Error", description: error?.message || "Failed to delete fabric", variant: "destructive" });
     },
   });
 
