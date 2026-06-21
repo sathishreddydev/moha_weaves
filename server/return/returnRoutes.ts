@@ -1,17 +1,28 @@
 import {
-  InsertReturnItem,
-  InsertReturnRequest,
-  returnReasonEnum,
-  returnResolutionEnum,
   returnStatusEnum
 } from "@shared/schema";
 import type { Express, Request, Response } from "express";
+import { publishRealtimeEvent } from "realtime/events";
 import { createAuthMiddleware } from "../authMiddleware";
+import { NotificationService } from "../services/notificationService";
 import { returnStorage } from "./returnStorage";
+
+// Valid status transitions — mirrors the frontend flow map
+const RETURN_TRANSITIONS: Record<string, string[]> = {
+  return_requested:       ["return_approved", "return_rejected", "return_cancelled"],
+  return_approved:        ["return_pickup_scheduled", "return_cancelled"],
+  return_pickup_scheduled:["return_picked_up", "return_cancelled"],
+  return_picked_up:       ["return_in_transit", "return_cancelled"],
+  return_in_transit:      ["return_received", "return_cancelled"],
+  return_received:        ["return_inspected", "return_cancelled"],
+  return_inspected:       ["return_completed", "return_cancelled"],
+  return_completed:       [],
+  return_rejected:        [],
+  return_cancelled:       [],
+};
 
 export const returnRoutes = (app: Express) => {
   const authInventory = createAuthMiddleware(["inventory", "admin"]);
-  const authUser = createAuthMiddleware(["user"]);
 
   // ======================
   // Admin Routes
@@ -66,6 +77,17 @@ export const returnRoutes = (app: Express) => {
         return res.status(400).json({ message: "Invalid return status" });
       }
 
+      // Enforce transition guard
+      const current = await returnStorage.getReturnRequest(req.params.id);
+      if (!current) return res.status(404).json({ message: "Return request not found" });
+
+      const allowed = RETURN_TRANSITIONS[current.status] ?? [];
+      if (!allowed.includes(status)) {
+        return res.status(400).json({
+          message: `Cannot transition from "${current.status}" to "${status}". Allowed: ${allowed.join(", ") || "none"}`,
+        });
+      }
+
       const updated = await returnStorage.updateReturnRequestStatus(
         req.params.id,
         status,
@@ -76,6 +98,28 @@ export const returnRoutes = (app: Express) => {
       if (!updated) return res.status(404).json({ message: "Return request not found" });
 
       res.json(updated);
+
+      // Send email notifications for key return status changes (non-blocking)
+      if (status === 'return_approved') {
+        NotificationService.sendReturnAccepted(current.orderId, req.params.id).catch(err =>
+          console.error('Failed to send return accepted email:', err)
+        );
+      } else if (status === 'return_rejected') {
+        NotificationService.sendReturnRejected(current.orderId, req.params.id, inspectionNotes).catch(err =>
+          console.error('Failed to send return rejected email:', err)
+        );
+      } else if (status === 'return_picked_up') {
+        NotificationService.sendReturnPickedUp(current.orderId, req.params.id).catch(err =>
+          console.error('Failed to send return picked up email:', err)
+        );
+      }
+
+      // Emit realtime event so inventory list and customer UI refresh automatically
+      await publishRealtimeEvent("return_status_updated", {
+        returnId: req.params.id,
+        userId: current.userId,
+        status,
+      });
     } catch (error) {
       console.error("Error updating return status:", error);
       res.status(500).json({ message: "Failed to update return status" });
@@ -132,121 +176,6 @@ export const returnRoutes = (app: Express) => {
     } catch (error) {
       console.error("Error fetching return stats:", error);
       res.status(500).json({ message: "Failed to fetch return statistics" });
-    }
-  });
-
-
-  app.get("/api/user/returns", authUser, async (req: Request, res: Response) => {
-    try {
-      const userId = (req as any).user?.id;
-      const returns = await returnStorage.getUserReturnRequests(userId);
-      res.json(returns);
-    } catch (error) {
-      console.error("Error fetching user returns:", error);
-      res.status(500).json({ message: "Failed to fetch return requests" });
-    }
-  });
-
-  // Create a new return request
-  app.post("/api/user/returns", authUser, async (req: Request, res: Response) => {
-    try {
-      const userId = (req as any).user?.id;
-      const { orderId, reason, reasonDetails, resolution, items } = req.body;
-
-      if (!orderId || !reason || !resolution || !items || !Array.isArray(items)) {
-        return res.status(400).json({ message: "Missing required fields" });
-      }
-
-      if (!Object.values(returnReasonEnum.enumValues).includes(reason)) {
-        return res.status(400).json({ message: "Invalid return reason" });
-      }
-
-      if (!Object.values(returnResolutionEnum.enumValues).includes(resolution)) {
-        return res.status(400).json({ message: "Invalid return resolution" });
-      }
-
-      const returnData: InsertReturnRequest = {
-        orderId,
-        userId,
-        status: "return_requested",
-        reason,
-        reasonDetails,
-        resolution,
-      };
-
-      const returnItemsData: Omit<InsertReturnItem, 'returnRequestId'>[] = items.map((item: any) => ({
-        orderItemId: item.orderItemId,
-        quantity: item.quantity,
-        exchangeproductId: item.exchangeproductId,
-        condition: item.condition,
-        isRestockable: item.isRestockable,
-      }));
-
-      const newReturn = await returnStorage.createReturnRequest(returnData, returnItemsData);
-      const returnWithDetails = await returnStorage.getReturnRequest(newReturn.id);
-
-      res.status(201).json(returnWithDetails);
-    } catch (error) {
-      console.error("Error creating return request:", error);
-      res.status(500).json({ message: "Failed to create return request" });
-    }
-  });
-
-  // Get a specific return request for user
-  app.get("/api/user/returns/:id", authUser, async (req: Request, res: Response) => {
-    try {
-      const userId = (req as any).user?.id;
-      const returnRequest = await returnStorage.getReturnRequest(req.params.id);
-
-      if (!returnRequest || returnRequest.userId !== userId) {
-        return res.status(404).json({ message: "Return request not found" });
-      }
-
-      res.json(returnRequest);
-    } catch (error) {
-      console.error("Error fetching return request:", error);
-      res.status(500).json({ message: "Failed to fetch return request" });
-    }
-  });
-
-  // Check return eligibility for an order
-  app.get("/api/user/orders/:orderId/return-eligibility", authUser, async (req: Request, res: Response) => {
-    try {
-      const userId = (req as any).user?.id;
-      const { orderId } = req.params;
-
-      const order = await returnStorage.getOrder(orderId);
-      if (!order || order.userId !== userId) {
-        return res.status(404).json({ message: "Order not found" });
-      }
-
-      const eligibility = await returnStorage.checkOrderReturnEligibility(orderId);
-      res.json(eligibility);
-    } catch (error) {
-      console.error("Error checking return eligibility:", error);
-      res.status(500).json({ message: "Failed to check return eligibility" });
-    }
-  });
-
-  // Cancel return request (only if requested)
-  app.patch("/api/user/returns/:id/cancel", authUser, async (req: Request, res: Response) => {
-    try {
-      const userId = (req as any).user?.id;
-      const returnRequest = await returnStorage.getReturnRequest(req.params.id);
-
-      if (!returnRequest || returnRequest.userId !== userId) {
-        return res.status(404).json({ message: "Return request not found" });
-      }
-
-      if (returnRequest.status !== "return_requested") {
-        return res.status(400).json({ message: "Cannot cancel return request in current status" });
-      }
-
-      const updated = await returnStorage.updateReturnRequestStatus(req.params.id, "cancelled");
-      res.json(updated);
-    } catch (error) {
-      console.error("Error cancelling return request:", error);
-      res.status(500).json({ message: "Failed to cancel return request" });
     }
   });
 };

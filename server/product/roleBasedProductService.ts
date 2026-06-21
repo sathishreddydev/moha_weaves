@@ -164,6 +164,7 @@ export class RoleBasedProductService {
           offerType: applicableSale.offerType,
           discountValue: applicableSale.discountValue,
           maxDiscount: applicableSale.maxDiscount || undefined,
+          bgColor: applicableSale.bgColor || undefined,
         }
       : null;
   }
@@ -240,6 +241,19 @@ export class RoleBasedProductService {
   }
 
 
+  private static readonly SIZE_ORDER = ["XS", "S", "M", "L", "XL", "2XL", "3XL"];
+
+  private sortVariantsBySize(variants: any[]): any[] {
+    return variants.sort((a, b) => {
+      const indexA = RoleBasedProductService.SIZE_ORDER.indexOf(a.size);
+      const indexB = RoleBasedProductService.SIZE_ORDER.indexOf(b.size);
+      if (indexA !== -1 && indexB !== -1) return indexA - indexB;
+      if (indexA !== -1) return -1;
+      if (indexB !== -1) return 1;
+      return a.size.localeCompare(b.size);
+    });
+  }
+
   private async getVariantsForProducts(productIds: string[], userRole: UserRole = "admin") {
     if (!productIds.length) return new Map();
 
@@ -261,8 +275,7 @@ export class RoleBasedProductService {
           inArray(productVariants.productId, productIds),
           eq(productVariants.isActive, true)
         )
-      )
-      .orderBy(asc(productVariants.size));
+      );
 
     const productVariantMap = new Map<string, any[]>();
 
@@ -301,6 +314,11 @@ export class RoleBasedProductService {
       }
     }
 
+    // Sort variants by logical size order (XS, S, M, L, XL, 2XL, 3XL)
+    for (const [productId, variants] of productVariantMap) {
+      productVariantMap.set(productId, this.sortVariantsBySize(variants));
+    }
+
     return productVariantMap;
   }
 
@@ -309,7 +327,12 @@ export class RoleBasedProductService {
     filters: ProductFilters = {},
     role: UserRole = "user",
   ): Promise<ProductWithDetails[]> {
-    const conditions: any[] = [eq(products.isActive, true)];
+    const conditions: any[] = [];
+
+    // Only restrict to active products for public-facing "user" role
+    if (role === "user") {
+      conditions.push(eq(products.isActive, true));
+    }
 
     if (filters.ids?.length)
       conditions.push(inArray(products.id, filters.ids));
@@ -512,20 +535,30 @@ export class RoleBasedProductService {
 
     if (filters.inStock) {
       results = results.filter(p => {
-        const totalStock = p.variants?.reduce((sum: number, variant: any) => 
-          sum + (variant.onlineStock || 0) + 
-          variant.storeAllocations?.reduce((storeSum: number, allocation: { quantity: number }) => 
-            storeSum + (allocation.quantity || 0), 0) || 0, 0) || 0;
+        if (!p.variants?.length) return (p.onlineStock || 0) > 0;
+        const totalStock = p.variants.reduce((sum: number, variant: any) => {
+          const onlineStock = variant.onlineStock || 0;
+          const storeStock = Array.isArray(variant.storeAllocations)
+            ? variant.storeAllocations.reduce((storeSum: number, allocation: { quantity: number }) =>
+                storeSum + (allocation.quantity || 0), 0)
+            : 0;
+          return sum + onlineStock + storeStock;
+        }, 0);
         return totalStock > 0;
       });
     }
 
     if (filters.minStock !== undefined) {
       results = results.filter(p => {
-        const totalStock = p.variants?.reduce((sum: number, variant: any) => 
-          sum + (variant.onlineStock || 0) + 
-          variant.storeAllocations?.reduce((storeSum: number, allocation: { quantity: number }) => 
-            storeSum + (allocation.quantity || 0), 0) || 0, 0) || 0;
+        if (!p.variants?.length) return (p.onlineStock || 0) >= filters.minStock!;
+        const totalStock = p.variants.reduce((sum: number, variant: any) => {
+          const onlineStock = variant.onlineStock || 0;
+          const storeStock = Array.isArray(variant.storeAllocations)
+            ? variant.storeAllocations.reduce((storeSum: number, allocation: { quantity: number }) =>
+                storeSum + (allocation.quantity || 0), 0)
+            : 0;
+          return sum + onlineStock + storeStock;
+        }, 0);
         return totalStock >= filters.minStock!;
       });
     }
@@ -581,7 +614,6 @@ export class RoleBasedProductService {
         storeId: row.storeId,
         storeName: row.storeName,
         quantity: row.quantity,
-        updatedAt: row.updatedAt,
       });
     }
 

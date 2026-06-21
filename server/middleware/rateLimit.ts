@@ -13,8 +13,9 @@ export const createRateLimit = (options: RateLimitOptions) => {
   const { windowMs, maxRequests, message = "Too many requests, please try again later" } = options;
 
   return (req: Request, res: Response, next: NextFunction) => {
-    // Use IP address as identifier (in production, you might want to use user ID for authenticated users)
-    const identifier = req.ip || req.connection.remoteAddress || 'unknown';
+    // Use IP address as identifier.
+    // req.ip works correctly when app.set('trust proxy', 1) is set in index.ts.
+    const identifier = req.ip || req.socket.remoteAddress || 'unknown';
     const now = Date.now();
     
     // Get or create rate limit record for this identifier
@@ -67,7 +68,7 @@ setInterval(() => {
 // Predefined rate limiters for different use cases
 export const adminRateLimit = createRateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  maxRequests: 100, // 100 requests per 15 minutes
+  maxRequests: 500, // 500 requests per 15 minutes (admin panels are request-heavy)
   message: "Admin rate limit exceeded. Please try again later."
 });
 

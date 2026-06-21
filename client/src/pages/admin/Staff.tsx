@@ -9,17 +9,10 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { AdaptiveModal } from "@/components/common/AdaptiveModal";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -347,19 +340,38 @@ export default function AdminStaff() {
         </Card>
       </div>
 
-      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>
-              {editingStaff ? "Edit Staff Member" : "Add Staff Member"}
-            </DialogTitle>
-            <DialogDescription>
-              {editingStaff
-                ? "Update staff member details"
-                : "Create a new inventory or store staff account"}
-            </DialogDescription>
-          </DialogHeader>
-          <form onSubmit={handleSubmit} className="space-y-4">
+      <AdaptiveModal
+        open={dialogOpen}
+        onOpenChange={setDialogOpen}
+        title={editingStaff ? "Edit Staff Member" : "Add Staff Member"}
+        description={editingStaff
+          ? "Update staff member details"
+          : "Create a new inventory or store staff account"}
+        footer={
+          <>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={handleCloseDialog}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="submit"
+              form="staff-form"
+              disabled={createMutation.isPending || updateMutation.isPending}
+              data-testid="button-submit"
+            >
+              {createMutation.isPending || updateMutation.isPending
+                ? "Saving..."
+                : editingStaff
+                ? "Save Changes"
+                : "Create"}
+            </Button>
+          </>
+        }
+      >
+          <form id="staff-form" onSubmit={handleSubmit} className="space-y-4">
             <div>
               <Label htmlFor="name">Name</Label>
               <Input
@@ -474,29 +486,8 @@ export default function AdminStaff() {
                 <Label htmlFor="isActive">Active</Label>
               </div>
             )}
-            <DialogFooter>
-              <Button
-                type="button"
-                variant="outline"
-                onClick={handleCloseDialog}
-              >
-                Cancel
-              </Button>
-              <Button
-                type="submit"
-                disabled={createMutation.isPending || updateMutation.isPending}
-                data-testid="button-submit"
-              >
-                {createMutation.isPending || updateMutation.isPending
-                  ? "Saving..."
-                  : editingStaff
-                  ? "Save Changes"
-                  : "Create"}
-              </Button>
-            </DialogFooter>
           </form>
-        </DialogContent>
-      </Dialog>
+      </AdaptiveModal>
 
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
         <AlertDialogContent>

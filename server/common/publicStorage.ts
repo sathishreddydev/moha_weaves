@@ -9,10 +9,29 @@ import {
   categories,
   colors,
   fabrics,
-  subcategories
+  insertSubcategorySchema,
+  subcategories,
+  products,
+  productVariants,
+  sales
 } from "@shared/schema";
-import { eq } from "drizzle-orm";
+import { eq, and, asc, sql, inArray } from "drizzle-orm";
 import { db } from "server/db";
+
+// Size ordering: predefined sizes in logical sequence
+const SIZE_ORDER = ["XS", "S", "M", "L", "XL", "2XL", "3XL"];
+
+function sortSizes(sizes: string[] | null): string[] {
+  if (!sizes || !sizes.length) return sizes || [];
+  return [...sizes].sort((a, b) => {
+    const indexA = SIZE_ORDER.indexOf(a);
+    const indexB = SIZE_ORDER.indexOf(b);
+    if (indexA !== -1 && indexB !== -1) return indexA - indexB;
+    if (indexA !== -1) return -1;
+    if (indexB !== -1) return 1;
+    return a.localeCompare(b);
+  });
+}
 
 export interface PublicStorage {
   // Categories
@@ -44,13 +63,24 @@ export interface PublicStorage {
     data: Partial<InsertFabric>
   ): Promise<Fabric | undefined>;
   deleteFabric(id: string): Promise<boolean>;
+
+  // Subcategories
+  getSubcategories(): Promise<Subcategory[]>;
+  getSubcategoriesByCategory(categoryId: string): Promise<Subcategory[]>;
+  createSubcategory(subcategory: typeof insertSubcategorySchema._type): Promise<Subcategory>;
+  updateSubcategory(
+    id: string,
+    data: Partial<typeof insertSubcategorySchema._type>
+  ): Promise<Subcategory | undefined>;
+  deleteSubcategory(id: string): Promise<boolean>;
 }
 
 export class PublicRepository implements PublicStorage {
   
   // Categories
   async getCategories(): Promise<Category[]> {
-    return db.select().from(categories).where(eq(categories.isActive, true));
+    const result = await db.select().from(categories).where(eq(categories.isActive, true));
+    return result.map(cat => ({ ...cat, sizes: sortSizes(cat.sizes) }));
   }
 
   async getCategoriesWithSubcategories(): Promise<(Category & { subcategories: Subcategory[] })[]> {
@@ -59,8 +89,25 @@ export class PublicRepository implements PublicStorage {
     
     return allCategories.map(category => ({
       ...category,
+      sizes: sortSizes(category.sizes),
       subcategories: allSubcategories.filter(sub => sub.categoryId === category.id)
     }));
+  }
+
+  async getAllCategoriesWithSubcategories(): Promise<(Category & { subcategories: Subcategory[] })[]> {
+    const allCategories = await db.select().from(categories).orderBy(asc(categories.sortOrder), asc(categories.name));
+    const allSubcategories = await db.select().from(subcategories).orderBy(asc(subcategories.name));
+    
+    return allCategories.map(category => ({
+      ...category,
+      sizes: sortSizes(category.sizes),
+      subcategories: allSubcategories.filter(sub => sub.categoryId === category.id)
+    }));
+  }
+
+  async getAllCategories(): Promise<Category[]> {
+    const result = await db.select().from(categories).orderBy(asc(categories.sortOrder), asc(categories.name));
+    return result.map(cat => ({ ...cat, sizes: sortSizes(cat.sizes) }));
   }
 
   async createCategory(category: InsertCategory): Promise<Category> {
@@ -72,6 +119,43 @@ export class PublicRepository implements PublicStorage {
     id: string,
     data: Partial<InsertCategory>
   ): Promise<Category | undefined> {
+    // If sizes are being updated, check if any removed sizes are in use by product variants
+    if (data.sizes !== undefined) {
+      const currentCategory = await db.select().from(categories).where(eq(categories.id, id));
+      if (currentCategory.length > 0) {
+        const currentSizes = currentCategory[0].sizes || [];
+        const newSizes = data.sizes || [];
+        const removedSizes = currentSizes.filter(s => !newSizes.includes(s));
+
+        if (removedSizes.length > 0) {
+          // Find active products in this category
+          const categoryProducts = await db
+            .select({ id: products.id })
+            .from(products)
+            .where(and(eq(products.categoryId, id), eq(products.isActive, true)));
+
+          if (categoryProducts.length > 0) {
+            const productIds = categoryProducts.map(p => p.id);
+            // Check if any active variants use the removed sizes
+            const [variantCount] = await db
+              .select({ count: sql<number>`count(*)::int` })
+              .from(productVariants)
+              .where(
+                and(
+                  inArray(productVariants.productId, productIds),
+                  inArray(productVariants.size, removedSizes),
+                  eq(productVariants.isActive, true)
+                )
+              );
+
+            if (variantCount?.count > 0) {
+              throw new Error(`Cannot remove size(s) "${removedSizes.join(', ')}": ${variantCount.count} active product variant(s) are using them. Please update or remove those variants first.`);
+            }
+          }
+        }
+      }
+    }
+
     const [result] = await db
       .update(categories)
       .set(data)
@@ -81,17 +165,89 @@ export class PublicRepository implements PublicStorage {
   }
 
   async deleteCategory(id: string): Promise<boolean> {
-    const [result] = await db
-      .update(categories)
-      .set({ isActive: false })
-      .where(eq(categories.id, id))
-      .returning();
-    return !!result;
+    try {
+      // First check if category exists and grab its imageUrl
+      const [category] = await db
+        .select()
+        .from(categories)
+        .where(eq(categories.id, id));
+      
+      if (!category) {
+        throw new Error('Category not found');
+      }
+
+      // Check for dependencies before deletion
+      const [productCount, salesCount, subcategoryCount] = await Promise.all([
+        db
+          .select({ count: sql<number>`count(*)::int` })
+          .from(products)
+          .where(and(eq(products.categoryId, id), eq(products.isActive, true))),
+        db
+          .select({ count: sql<number>`count(*)::int` })
+          .from(sales)
+          .where(and(eq(sales.categoryId, id), eq(sales.isActive, true))),
+        db
+          .select({ count: sql<number>`count(*)::int` })
+          .from(subcategories)
+          .where(and(eq(subcategories.categoryId, id), eq(subcategories.isActive, true)))
+      ]);
+
+      if (productCount[0]?.count > 0) {
+        throw new Error('Cannot delete category: It is referenced by active products. Please remove or reassign these products first.');
+      }
+
+      if (salesCount[0]?.count > 0) {
+        throw new Error('Cannot delete category: It is referenced by active sales. Please remove or reassign these sales first.');
+      }
+
+      // Fetch subcategory imageUrls before deletion for Cloudinary cleanup
+      const subcategoryRows = await db
+        .select({ imageUrl: subcategories.imageUrl })
+        .from(subcategories)
+        .where(eq(subcategories.categoryId, id));
+
+      if (subcategoryCount[0]?.count > 0) {
+        await db.delete(subcategories).where(eq(subcategories.categoryId, id));
+      }
+
+      const result = await db.delete(categories).where(eq(categories.id, id));
+
+      // Clean up Cloudinary images after DB deletion (fire and forget)
+      const cloudinaryUrls: string[] = [];
+      if (category.imageUrl?.includes("res.cloudinary.com")) cloudinaryUrls.push(category.imageUrl);
+      subcategoryRows.forEach((s) => {
+        if (s.imageUrl?.includes("res.cloudinary.com")) cloudinaryUrls.push(s.imageUrl);
+      });
+      if (cloudinaryUrls.length > 0) {
+        this._deleteCloudinaryUrls(cloudinaryUrls);
+      }
+
+      return (result.rowCount ?? 0) > 0;
+    } catch (error) {
+      console.error('Error deleting category:', error);
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      if (errorMessage.includes('Cannot delete category') || errorMessage.includes('Category not found')) {
+        throw error;
+      }
+      throw new Error('Failed to delete category');
+    }
+  }
+
+  async reorderCategories(orderedIds: string[]): Promise<void> {
+    await Promise.all(
+      orderedIds.map((id, index) =>
+        db.update(categories).set({ sortOrder: index }).where(eq(categories.id, id))
+      )
+    );
   }
 
   // Colors
   async getColors(): Promise<Color[]> {
     return db.select().from(colors).where(eq(colors.isActive, true));
+  }
+
+  async getAllColors(): Promise<Color[]> {
+    return db.select().from(colors).orderBy(asc(colors.name));
   }
 
   async getColor(id: string): Promise<Color | undefined> {
@@ -117,6 +273,16 @@ export class PublicRepository implements PublicStorage {
   }
 
   async deleteColor(id: string): Promise<boolean> {
+    // Check if any products reference this color (active or inactive)
+    const [productCount] = await db
+      .select({ count: sql<number>`count(*)::int` })
+      .from(products)
+      .where(eq(products.colorId, id));
+
+    if (productCount?.count > 0) {
+      throw new Error(`Cannot delete color: It is referenced by ${productCount.count} product(s). Please remove or reassign these products first.`);
+    }
+
     const [result] = await db
       .update(colors)
       .set({ isActive: false })
@@ -128,6 +294,10 @@ export class PublicRepository implements PublicStorage {
   // Fabrics
   async getFabrics(): Promise<Fabric[]> {
     return db.select().from(fabrics).where(eq(fabrics.isActive, true));
+  }
+
+  async getAllFabrics(): Promise<Fabric[]> {
+    return db.select().from(fabrics).orderBy(asc(fabrics.name));
   }
 
   async getFabric(id: string): Promise<Fabric | undefined> {
@@ -153,12 +323,122 @@ export class PublicRepository implements PublicStorage {
   }
 
   async deleteFabric(id: string): Promise<boolean> {
+    // Check if any products reference this fabric (active or inactive)
+    const [productCount] = await db
+      .select({ count: sql<number>`count(*)::int` })
+      .from(products)
+      .where(eq(products.fabricId, id));
+
+    if (productCount?.count > 0) {
+      throw new Error(`Cannot delete fabric: It is referenced by ${productCount.count} product(s). Please remove or reassign these products first.`);
+    }
+
     const [result] = await db
       .update(fabrics)
       .set({ isActive: false })
       .where(eq(fabrics.id, id))
       .returning();
     return !!result;
+  }
+
+  // Subcategories
+  async getSubcategories(): Promise<Subcategory[]> {
+    return db.select().from(subcategories).where(eq(subcategories.isActive, true));
+  }
+
+  async getSubcategoriesByCategory(categoryId: string): Promise<Subcategory[]> {
+    return db.select().from(subcategories).where(
+      and(
+        eq(subcategories.categoryId, categoryId),
+        eq(subcategories.isActive, true)
+      )
+    );
+  }
+
+  async createSubcategory(subcategory: typeof insertSubcategorySchema._type): Promise<Subcategory> {
+    const [result] = await db.insert(subcategories).values(subcategory).returning();
+    return result;
+  }
+
+  async updateSubcategory(
+    id: string,
+    data: Partial<typeof insertSubcategorySchema._type>
+  ): Promise<Subcategory | undefined> {
+    const [result] = await db
+      .update(subcategories)
+      .set(data)
+      .where(eq(subcategories.id, id))
+      .returning();
+    return result || undefined;
+  }
+
+  async deleteSubcategory(id: string): Promise<boolean> {
+    try {
+      // Check if any products reference this subcategory (active or inactive)
+      const [productCount] = await db
+        .select({ count: sql<number>`count(*)::int` })
+        .from(products)
+        .where(eq(products.subcategoryId, id));
+
+      if (productCount?.count > 0) {
+        throw new Error(`Cannot delete subcategory: It is referenced by ${productCount.count} product(s). Please remove or reassign these products first.`);
+      }
+
+      // Fetch imageUrl before deletion for Cloudinary cleanup
+      const [sub] = await db
+        .select({ imageUrl: subcategories.imageUrl })
+        .from(subcategories)
+        .where(eq(subcategories.id, id));
+
+      const result = await db
+        .delete(subcategories)
+        .where(eq(subcategories.id, id));
+
+      // Clean Cloudinary image after DB deletion (fire and forget)
+      if (sub?.imageUrl?.includes("res.cloudinary.com")) {
+        this._deleteCloudinaryUrls([sub.imageUrl]);
+      }
+
+      return (result.rowCount ?? 0) > 0;
+    } catch (error) {
+      console.error('Error deleting subcategory:', error);
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      if (errorMessage.includes('Cannot delete subcategory')) {
+        throw error;
+      }
+      if (errorMessage.includes('violates foreign key constraint')) {
+        throw new Error('Cannot delete subcategory: It is referenced by products. Please remove or reassign these references first.');
+      }
+      throw error;
+    }
+  }
+
+  /** Shared helper — deletes Cloudinary assets fire-and-forget */
+  private _deleteCloudinaryUrls(urls: string[]): void {
+    import("cloudinary").then((cloudinary) => {
+      cloudinary.v2.config({
+        cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+        api_key: process.env.CLOUDINARY_API_KEY,
+        api_secret: process.env.CLOUDINARY_API_SECRET,
+      });
+      Promise.allSettled(
+        urls.map(async (url) => {
+          const parts = url.split("/");
+          const uploadIdx = parts.indexOf("upload");
+          if (uploadIdx === -1) return;
+          let after = parts.slice(uploadIdx + 1);
+          if (after[0] && /^v\d+$/.test(after[0])) after = after.slice(1);
+          const publicIdWithExt = after.join("/");
+          if (!publicIdWithExt) return;
+          const publicId = publicIdWithExt.substring(0, publicIdWithExt.lastIndexOf("."));
+          const resourceType = url.includes("/video/") ? "video" : "image";
+          const result = await cloudinary.v2.uploader.destroy(publicId, { resource_type: resourceType });
+          if (result.result !== "ok") {
+            console.warn(`Cloudinary delete skipped for ${publicId}: ${result.result}`);
+          }
+        })
+      ).catch((err) => console.error("Cloudinary bulk delete error:", err));
+    }).catch((err) => console.error("Failed to import cloudinary:", err));
   }
 }
 

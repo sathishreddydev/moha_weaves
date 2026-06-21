@@ -2,7 +2,9 @@ import { orders, Refund, refunds } from "@shared/schema";
 import { and, eq } from "drizzle-orm";
 import { db } from "../db";
 import { createRefund, getRefundStatus } from "../razorpayClient";
+import { NotificationService } from "../services/notificationService";
 import { storage } from "../storage";
+import { publishRealtimeEvent } from "../../realtime/events";
 
 export interface RefundProcessingOptions {
   returnRequestId: string;
@@ -77,6 +79,13 @@ export class RefundService {
       );
 
       console.log(`Razorpay refund initiated: ${razorpayRefund.id} for refund: ${refundId}`);
+
+      // Send refund initiated email (non-blocking)
+      if (refund.orderId) {
+        NotificationService.sendRefundInitiated(refund.orderId, refund.amount).catch(err =>
+          console.error('Failed to send refund initiated email:', err)
+        );
+      }
     } catch (error) {
       console.error("Failed to initiate Razorpay refund:", error);
       await this.updateRefundStatus(
@@ -115,13 +124,39 @@ export class RefundService {
           relatedId: refund.id,
           relatedType: "refund",
         });
+
+        // Send refund completed email (non-blocking)
+        NotificationService.sendRefundCompleted(refund.orderId, refund.amount).catch(err =>
+          console.error('Failed to send refund completed email:', err)
+        );
+
+        // Push realtime update to the customer's browser
+        await publishRealtimeEvent("refund_status_updated", {
+          refundId: refund.id,
+          userId: refund.userId,
+          orderId: refund.orderId,
+          status: "completed",
+          amount: refund.amount,
+          completedAt: new Date().toISOString(),
+        });
       } else if (razorpayRefund.status === "failed") {
+        const failureReason = (razorpayRefund as any).error_description || "Refund failed";
         await this.updateRefundStatus(
           refundId,
           "failed",
           undefined,
-          (razorpayRefund as any).error_description || "Refund failed"
+          failureReason
         );
+
+        // Push realtime update to the customer's browser
+        await publishRealtimeEvent("refund_status_updated", {
+          refundId: refund.id,
+          userId: refund.userId,
+          orderId: refund.orderId,
+          status: "failed",
+          amount: refund.amount,
+          failureReason,
+        });
       }
     } catch (error) {
       console.error("Failed to check refund status:", error);
@@ -216,6 +251,21 @@ export class RefundService {
         message: `Your refund of ₹${result.amount} has been processed manually.`,
         relatedId: result.id,
         relatedType: "refund",
+      });
+
+      // Send refund completed email (non-blocking)
+      NotificationService.sendRefundCompleted(result.orderId, result.amount).catch(err =>
+        console.error('Failed to send refund completed email:', err)
+      );
+
+      // Push realtime update to the customer's browser
+      await publishRealtimeEvent("refund_status_updated", {
+        refundId: result.id,
+        userId: result.userId,
+        orderId: result.orderId,
+        status: "completed",
+        amount: result.amount,
+        completedAt: new Date().toISOString(),
       });
     }
 

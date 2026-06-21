@@ -1,5 +1,11 @@
 import { CloudinaryUploader } from "@/components/CloudinaryUploader";
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -14,11 +20,46 @@ import { Textarea } from "@/components/ui/textarea";
 import { toast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { Category, Color, Fabric, Subcategory } from "@shared/types";
-import { GripVertical, ImageIcon, Video, X } from "lucide-react";
+import { Check, GripVertical, ImageIcon, ListChecks, Video, X } from "lucide-react";
 import React, { useState, useCallback, useMemo, useEffect, useRef } from "react";
 import { ProductFormData, ProductVariant, StoreAllocation } from "./Types";
 import { calculateStockTotals, validateVariantStockConsistency, validateSimpleStockConsistency } from "./stockCalculations";
 import { DistributionChannel } from "../utils/enums";
+
+// Size ordering: predefined sizes in logical sequence
+const SIZE_ORDER = ["XS", "S", "M", "L", "XL", "2XL", "3XL"];
+
+const sortVariantsBySize = (variants: ProductVariant[]): ProductVariant[] => {
+  return [...variants].sort((a, b) => {
+    const indexA = SIZE_ORDER.indexOf(a.size);
+    const indexB = SIZE_ORDER.indexOf(b.size);
+    if (indexA !== -1 && indexB !== -1) return indexA - indexB;
+    if (indexA !== -1) return -1;
+    if (indexB !== -1) return 1;
+    return a.size.localeCompare(b.size);
+  });
+};
+
+const DEFAULT_CARE_INSTRUCTIONS = [
+  { id: "dry-clean", text: "Dry clean only", category: "Washing" },
+  { id: "hand-wash", text: "Hand wash in cold water", category: "Washing" },
+  { id: "machine-wash-gentle", text: "Machine wash on gentle cycle", category: "Washing" },
+  { id: "do-not-bleach", text: "Do not bleach", category: "Washing" },
+  { id: "do-not-wring", text: "Do not wring or twist", category: "Washing" },
+  { id: "mild-detergent", text: "Use mild detergent only", category: "Washing" },
+  { id: "iron-low", text: "Iron on low heat", category: "Ironing" },
+  { id: "iron-medium", text: "Iron on medium heat", category: "Ironing" },
+  { id: "steam-iron", text: "Steam iron recommended", category: "Ironing" },
+  { id: "do-not-iron", text: "Do not iron directly on embroidery/print", category: "Ironing" },
+  { id: "dry-shade", text: "Dry in shade", category: "Drying" },
+  { id: "flat-dry", text: "Lay flat to dry", category: "Drying" },
+  { id: "do-not-tumble", text: "Do not tumble dry", category: "Drying" },
+  { id: "store-folded", text: "Store folded in a cool, dry place", category: "Storage" },
+  { id: "store-hanger", text: "Store on padded hanger", category: "Storage" },
+  { id: "avoid-sunlight", text: "Avoid direct sunlight during storage", category: "Storage" },
+  { id: "separate-colors", text: "Wash dark colors separately", category: "General" },
+  { id: "first-wash-separate", text: "First wash separately to avoid color bleeding", category: "General" },
+];
 
 interface ProductFormProps {
   formData: ProductFormData;
@@ -54,6 +95,8 @@ export const ProductForm = ({
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [careInstructionsModalOpen, setCareInstructionsModalOpen] = useState(false);
+  const [selectedCareInstructions, setSelectedCareInstructions] = useState<Set<string>>(new Set());
   
   // Refs for debouncing
   const validationTimeoutRef = useRef<NodeJS.Timeout>();
@@ -602,7 +645,7 @@ export const ProductForm = ({
     if (!existingVariant) {
       setFormData((prev) => ({
         ...prev,
-        variants: [
+        variants: sortVariantsBySize([
           ...prev.variants,
           {
             sku: "", // Backend will generate
@@ -615,7 +658,7 @@ export const ProductForm = ({
             })),
             isActive: true,
           },
-        ],
+        ]),
       }));
     }
   };
@@ -682,6 +725,7 @@ export const ProductForm = ({
   };
 
   return (
+    <>
     <form onSubmit={validateAndSubmit} className="space-y-6">
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Main Column (Left) - Content */}
@@ -723,6 +767,46 @@ export const ProductForm = ({
                   data-testid="input-description"
                   className="w-full text-sm"
                   rows={4}
+                />
+              </div>
+              <div>
+                <div className="flex items-center justify-between">
+                  <Label htmlFor="careInstructions" className="text-xs">Care Instructions</Label>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="text-xs h-7 gap-1"
+                    onClick={() => {
+                      // Pre-select items that are already in the textarea
+                      const current = formData.careInstructions || "";
+                      const preSelected = new Set<string>();
+                      DEFAULT_CARE_INSTRUCTIONS.forEach((item) => {
+                        if (current.includes(item.text)) {
+                          preSelected.add(item.id);
+                        }
+                      });
+                      setSelectedCareInstructions(preSelected);
+                      setCareInstructionsModalOpen(true);
+                    }}
+                  >
+                    <ListChecks className="h-3 w-3" />
+                    Choose Defaults
+                  </Button>
+                </div>
+                <Textarea
+                  id="careInstructions"
+                  value={formData.careInstructions}
+                  onChange={(e) =>
+                    setFormData((prev) => ({
+                      ...prev,
+                      careInstructions: e.target.value,
+                    }))
+                  }
+                  placeholder="e.g., Dry clean only. Do not bleach. Iron on low heat."
+                  data-testid="input-care-instructions"
+                  className="w-full text-sm mt-1"
+                  rows={3}
                 />
               </div>
             </div>
@@ -1328,18 +1412,9 @@ export const ProductForm = ({
 
                 {/* Uploaded Video Display */}
                 {formData.videoUrl && (
-                  <div className="space-y-2">
-                    <Label>Uploaded Video</Label>
-                    <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-md">
-                      <Video className="h-8 w-8 text-muted-foreground" />
-                      <div className="flex-1">
-                        <p className="text-sm font-medium truncate">
-                          {formData.videoUrl}
-                        </p>
-                        <p className="text-xs text-muted-foreground">
-                          Video uploaded successfully
-                        </p>
-                      </div>
+                  <div className="space-y-2 mt-3">
+                    <div className="flex items-center justify-between">
+                      <Label className="text-xs font-medium">Uploaded Video</Label>
                       <button
                         type="button"
                         onClick={async () => {
@@ -1370,11 +1445,24 @@ export const ProductForm = ({
                           }
                           setFormData((prev) => ({ ...prev, videoUrl: "" }));
                         }}
-                        className="text-destructive"
+                        className="text-xs text-destructive hover:text-destructive/80 flex items-center gap-1"
                       >
-                        <X className="h-4 w-4" />
+                        <X className="h-3 w-3" />
+                        Remove
                       </button>
                     </div>
+                    <div className="rounded-md overflow-hidden border bg-black">
+                      <video
+                        src={formData.videoUrl}
+                        controls
+                        className="w-full max-h-48 object-contain"
+                        preload="metadata"
+                      />
+                    </div>
+                    <p className="text-xs text-green-600 flex items-center gap-1">
+                      <Video className="h-3 w-3" />
+                      Video uploaded successfully
+                    </p>
                   </div>
                 )}
               </div>
@@ -1793,5 +1881,99 @@ export const ProductForm = ({
         </div>
       </div>
     </form>
+
+    {/* Care Instructions Default Selection Modal */}
+    <Dialog open={careInstructionsModalOpen} onOpenChange={setCareInstructionsModalOpen}>
+      <DialogContent className="max-w-lg max-h-[80vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle>Select Care Instructions</DialogTitle>
+        </DialogHeader>
+        <div className="space-y-4 mt-2">
+          {Object.entries(
+            DEFAULT_CARE_INSTRUCTIONS.reduce((acc, item) => {
+              if (!acc[item.category]) acc[item.category] = [];
+              acc[item.category].push(item);
+              return acc;
+            }, {} as Record<string, typeof DEFAULT_CARE_INSTRUCTIONS>)
+          ).map(([category, items]) => (
+            <div key={category}>
+              <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">
+                {category}
+              </h4>
+              <div className="space-y-1">
+                {items.map((item) => {
+                  const isSelected = selectedCareInstructions.has(item.id);
+                  return (
+                    <button
+                      key={item.id}
+                      type="button"
+                      onClick={() => {
+                        setSelectedCareInstructions((prev) => {
+                          const next = new Set(prev);
+                          if (next.has(item.id)) {
+                            next.delete(item.id);
+                          } else {
+                            next.add(item.id);
+                          }
+                          return next;
+                        });
+                      }}
+                      className={`w-full flex items-center gap-3 px-3 py-2 rounded-md text-sm text-left transition-colors ${
+                        isSelected
+                          ? "bg-primary/10 border border-primary/30"
+                          : "hover:bg-muted border border-transparent"
+                      }`}
+                    >
+                      <div
+                        className={`flex-shrink-0 w-5 h-5 rounded border-2 flex items-center justify-center transition-colors ${
+                          isSelected
+                            ? "bg-primary border-primary text-white"
+                            : "border-gray-300"
+                        }`}
+                      >
+                        {isSelected && <Check className="h-3 w-3" />}
+                      </div>
+                      <span>{item.text}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          ))}
+        </div>
+        <div className="flex justify-between items-center pt-4 border-t mt-4">
+          <span className="text-xs text-muted-foreground">
+            {selectedCareInstructions.size} selected
+          </span>
+          <div className="flex gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => setCareInstructionsModalOpen(false)}
+            >
+              Cancel
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              onClick={() => {
+                const selectedTexts = DEFAULT_CARE_INSTRUCTIONS
+                  .filter((item) => selectedCareInstructions.has(item.id))
+                  .map((item) => item.text);
+                setFormData((prev) => ({
+                  ...prev,
+                  careInstructions: selectedTexts.join(". ") + (selectedTexts.length > 0 ? "." : ""),
+                }));
+                setCareInstructionsModalOpen(false);
+              }}
+            >
+              Apply Selected
+            </Button>
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
+    </>
   );
 };

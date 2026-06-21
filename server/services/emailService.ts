@@ -17,6 +17,8 @@ class EmailService {
     }
 
     try {
+      console.log(`📧 Connecting to SMTP: ${process.env.SMTP_HOST}:${process.env.SMTP_PORT}`);
+      
       this.transporter = nodemailer.createTransport({
         host: process.env.SMTP_HOST,
         port: parseInt(process.env.SMTP_PORT || '587'),
@@ -29,7 +31,7 @@ class EmailService {
 
       if (this.transporter) {
         await this.transporter.verify();
-        console.log('📧 Email transporter initialized successfully');
+        console.log('📧 Email transporter verified and ready to send');
       }
     } catch (error) {
       console.error('❌ Failed to initialize email transporter:', error);
@@ -39,21 +41,22 @@ class EmailService {
 
   async sendEmail(notification: EmailNotification): Promise<void> {
     if (!this.transporter) {
-      console.log('📧 Email service not available, skipping email notification');
+      console.log('📧 Email service not available (transporter is null), skipping email to:', notification.to);
       return;
     }
 
     try {
       const mailOptions = {
-        from: `"${process.env.EMAIL_FROM_NAME || 'Mohaweaves'}" <${process.env.EMAIL_FROM_EMAIL || process.env.SMTP_USER}>`,
+        from: `"${process.env.EMAIL_FROM_NAME || 'Urumiweaves'}" <${process.env.EMAIL_FROM_EMAIL || process.env.SMTP_USER}>`,
         to: notification.to,
         subject: notification.subject,
         html: notification.htmlContent,
         text: notification.textContent || notification.htmlContent.replace(/<[^>]*>/g, ''),
       };
 
-      await this.transporter.sendMail(mailOptions);
-      console.log(`📧 Email sent successfully to ${notification.to}`);
+      console.log(`📧 Attempting to send email to: ${notification.to} | Subject: ${notification.subject}`);
+      const info = await this.transporter.sendMail(mailOptions);
+      console.log(`📧 Email sent successfully! MessageId: ${info.messageId} | To: ${notification.to}`);
     } catch (error) {
       console.error('❌ Failed to send email:', error);
       throw error;
@@ -120,8 +123,12 @@ class EmailService {
         return;
     }
 
-    // Send to inventory users
-    const inventoryEmail = process.env.EMAIL_FROM_EMAIL || 'sathishreddy.dev@gmail.com';
+    // Send to inventory/admin email — require the env var, no hardcoded fallback
+    const inventoryEmail = process.env.EMAIL_FROM_EMAIL;
+    if (!inventoryEmail) {
+      console.warn("EMAIL_FROM_EMAIL not set — skipping stock request notification email");
+      return;
+    }
     await this.sendEmail({
       to: inventoryEmail,
       subject,
@@ -148,7 +155,11 @@ class EmailService {
       <p>This product is running low on stock. Please consider restocking to avoid inventory shortages.</p>
     `;
 
-    const inventoryEmail = process.env.EMAIL_FROM_EMAIL || 'sathishreddy.dev@gmail.com';
+    const inventoryEmail = process.env.EMAIL_FROM_EMAIL;
+    if (!inventoryEmail) {
+      console.warn("EMAIL_FROM_EMAIL not set — skipping low stock alert email");
+      return;
+    }
     await this.sendEmail({
       to: inventoryEmail,
       subject,

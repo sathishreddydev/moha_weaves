@@ -5,16 +5,28 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { CloudinaryUploader } from "@/components/CloudinaryUploader";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "@/hooks/use-toast";
 import { useAuth } from "@/lib/auth";
 import { apiRequest } from "@/lib/queryClient";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { AlertTriangle, Loader2, Package, Camera, X, Upload, Image as ImageIcon } from "lucide-react";
-import React,{ useEffect, useState } from "react";
+import { AlertTriangle, Camera, Loader2, Package, X } from "lucide-react";
+import { useState, type FormEvent } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { DamageSource, DamageCategory, DamageSeverity, AllocationType, UserRole } from "./utils/enums";
+import {
+  AllocationType,
+  DamageCategory,
+  DamageSeverity,
+  DamageSource,
+  UserRole,
+} from "./utils/enums";
 
 const damageSources = [
   { value: DamageSource.STORE, label: "In-Store" },
@@ -52,7 +64,6 @@ export default function DamageReport() {
   const queryClient = useQueryClient();
 
   const [formData, setFormData] = useState({
-    productId: "",
     variantId: "",
     source: "",
     damageCategory: "",
@@ -67,7 +78,6 @@ export default function DamageReport() {
   });
 
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
-  const [selectedVariant, setSelectedVariant] = useState<any>(null);
   const [imageUrls, setImageUrls] = useState<string[]>([]);
 
   // Validation functions
@@ -79,19 +89,31 @@ export default function DamageReport() {
     return "";
   };
 
-  const validateStockReduction = (allocationId: string, quantity: string, maxStock: number) => {
+  const validateStockReduction = (
+    allocationId: string,
+    quantity: string,
+    maxStock: number,
+  ) => {
     const qty = parseInt(quantity) || 0;
     if (qty < 0) return "Quantity cannot be negative";
-    if (qty > maxStock) return `Cannot reduce ${qty} units. Available: ${maxStock} units`;
+    if (qty > maxStock)
+      return `Cannot reduce ${qty} units. Available: ${maxStock} units`;
     return "";
   };
 
-  const validateAllocationType = (allocationType: string, stockReductions: StockReductions) => {
+  const validateAllocationType = (
+    allocationType: string,
+    stockReductions: StockReductions,
+  ) => {
     if (!allocationType) return "Please select an allocation type";
-    
-    const totalReductions = Object.values(stockReductions).reduce((sum, qty) => sum + (parseInt(qty) || 0), 0);
-    if (totalReductions === 0) return "Please enter damage quantity for at least one allocation";
-    
+
+    const totalReductions = Object.values(stockReductions).reduce(
+      (sum, qty) => sum + (parseInt(qty) || 0),
+      0,
+    );
+    if (totalReductions === 0)
+      return "Please enter damage quantity for at least one allocation";
+
     return "";
   };
 
@@ -107,65 +129,30 @@ export default function DamageReport() {
   // });
 
   // Get specific product by SKU when SKU is provided
-  const { data: productBySku, isLoading: productBySkuLoading, error: productBySkuError } = useQuery({
+  const { data: productBySku, isLoading: productBySkuLoading } = useQuery({
     queryKey: ["/api/inventory/product-by-sku", sku],
     queryFn: async () => {
       if (!sku) return null;
-      const response = await apiRequest("GET", `/api/inventory/product-by-sku/${sku}`);
+      const response = await apiRequest(
+        "GET",
+        `/api/inventory/product-by-sku/${sku}`,
+      );
       return response;
     },
-    enabled: !!user && (user.role === UserRole.INVENTORY || user.role === UserRole.ADMIN) && !!sku,
+    enabled:
+      !!user &&
+      (user.role === UserRole.INVENTORY || user.role === UserRole.ADMIN) &&
+      !!sku,
     retry: 2,
   });
 
-  // Auto-select product when SKU is provided
-  useEffect(() => {
-    if (sku && productBySku) {
-      setFormData({
-        productId: productBySku.id,
-        variantId: "",
-        source: "",
-        damageCategory: "",
-        damageSeverity: "",
-        reason: "",
-        costValue: "",
-        recoveryValue: "",
-        disposalMethod: "",
-        notes: "",
-        allocationType: "",
-        stockReductions: {} as StockReductions,
-      });
-    }
-  }, [sku, productBySku]);
+  // productId is derived from the URL SKU — never stored in state
+  const productId = productBySku?.id ?? "";
 
-
-  // Update selected variant when form data changes
-  useEffect(() => {
-    if (productBySku && formData.variantId) {
-      const variant = productBySku.variants?.find((v: any) => v.id === formData.variantId);
-      setSelectedVariant(variant);
-    } else {
-      setSelectedVariant(null);
-    }
-  }, [formData.variantId, productBySku]);
-
-  // Reset variant when product changes
-  useEffect(() => {
-    setSelectedVariant(null);
-    setFormData(prev => ({ 
-      ...prev, 
-      variantId: "", 
-      allocationType: "", 
-      stockReductions: {} as StockReductions 
-    }));
-    // Clear allocation type validation errors
-    setFormErrors(prev => {
-      const newErrors = { ...prev };
-      delete newErrors.allocationType;
-      delete newErrors.stockReductions;
-      return newErrors;
-    });
-  }, [formData.productId]);
+  // Derived — recomputes whenever productBySku or variantId changes
+  const selectedVariant =
+    productBySku?.variants?.find((v: any) => v.id === formData.variantId) ??
+    null;
 
   // Report damage mutation
   const reportDamageMutation = useMutation({
@@ -178,21 +165,30 @@ export default function DamageReport() {
         title: "Success",
         description: "Damage reported successfully",
       });
-      
+
       // Invalidate relevant queries to refresh data
-      queryClient.invalidateQueries({ queryKey: ["/api/inventory/getDamages"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/inventory/damage-analytics"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/inventory/getProducts"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/inventory/product-by-sku"] });
-      
+      queryClient.invalidateQueries({
+        queryKey: ["/api/inventory/getDamages"],
+      });
+      queryClient.invalidateQueries({
+        queryKey: ["/api/inventory/damage-analytics"],
+      });
+      queryClient.invalidateQueries({
+        queryKey: ["/api/inventory/getProducts"],
+      });
+      queryClient.invalidateQueries({
+        queryKey: ["/api/inventory/product-by-sku"],
+      });
+
       // Also invalidate general inventory queries that might be affected
       queryClient.invalidateQueries({ queryKey: ["/api/inventory/overview"] });
       queryClient.invalidateQueries({ queryKey: ["/api/inventory/low-stock"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/inventory/stock-distribution"] });
-      
+      queryClient.invalidateQueries({
+        queryKey: ["/api/inventory/stock-distribution"],
+      });
+
       // Reset form after successful submission
       setFormData({
-        productId: sku ? productBySku?.id || "" : "",
         variantId: "",
         source: "",
         damageCategory: "",
@@ -205,25 +201,41 @@ export default function DamageReport() {
         allocationType: "",
         stockReductions: {} as StockReductions,
       });
-      setSelectedVariant(null);
       setFormErrors({});
       setImageUrls([]); // Clear uploaded images
-      
+
       // Navigate to damage history page
       navigate("/inventory/damage-history");
     },
     onError: (error: any) => {
       console.error("Damage report error:", error);
 
+      // Clean up staged images from Cloudinary since submission failed
+      if (imageUrls.length > 0) {
+        imageUrls.forEach((url) => {
+          if (url?.includes("res.cloudinary.com")) {
+            apiRequest("DELETE", "/api/uploads/cloudinary", { url }).catch(
+              (err) =>
+                console.error("Failed to cleanup staged damage photo:", err),
+            );
+          }
+        });
+        setImageUrls([]);
+      }
+
       // Parse detailed error messages from backend
       let errorMessage = "Failed to report damage";
 
       if (error.message) {
         if (error.message.includes("Stock reduction failed for allocations")) {
-          // Extract individual allocation errors
-          const allocationErrors = error.message.split("Stock reduction failed for allocations:")[1];
+          const allocationErrors = error.message.split(
+            "Stock reduction failed for allocations:",
+          )[1];
           if (allocationErrors) {
-            const errors = allocationErrors.split(";").map((e: string) => e.trim()).filter((e: string) => e);
+            const errors = allocationErrors
+              .split(";")
+              .map((e: string) => e.trim())
+              .filter((e: string) => e);
             errorMessage = "Stock reduction issues:\n" + errors.join("\n");
           }
         } else if (error.message.includes("Insufficient")) {
@@ -241,15 +253,21 @@ export default function DamageReport() {
     },
   });
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = (e: FormEvent) => {
     e.preventDefault();
 
     // Clear previous errors
     setFormErrors({});
 
     // Basic form validation
-    if (!formData.productId || !formData.source ||
-      !formData.damageCategory || !formData.damageSeverity || !formData.reason || !formData.allocationType) {
+    if (
+      !productId ||
+      !formData.source ||
+      !formData.damageCategory ||
+      !formData.damageSeverity ||
+      !formData.reason ||
+      !formData.allocationType
+    ) {
       toast({
         title: "Validation Error",
         description: "Please fill all required fields",
@@ -269,9 +287,12 @@ export default function DamageReport() {
     }
 
     // Validate allocation type and stock reductions
-    const allocationError = validateAllocationType(formData.allocationType, formData.stockReductions);
+    const allocationError = validateAllocationType(
+      formData.allocationType,
+      formData.stockReductions,
+    );
     if (allocationError) {
-      setFormErrors(prev => ({ ...prev, allocationType: allocationError }));
+      setFormErrors((prev) => ({ ...prev, allocationType: allocationError }));
       toast({
         title: "Validation Error",
         description: allocationError,
@@ -282,13 +303,16 @@ export default function DamageReport() {
 
     // Validate numeric fields
     const costError = validateNumericInput(formData.costValue, "Cost value");
-    const recoveryError = validateNumericInput(formData.recoveryValue, "Recovery value");
-    
+    const recoveryError = validateNumericInput(
+      formData.recoveryValue,
+      "Recovery value",
+    );
+
     if (costError || recoveryError) {
-      setFormErrors(prev => ({
+      setFormErrors((prev) => ({
         ...prev,
         ...(costError && { costValue: costError }),
-        ...(recoveryError && { recoveryValue: recoveryError })
+        ...(recoveryError && { recoveryValue: recoveryError }),
       }));
       toast({
         title: "Validation Error",
@@ -308,13 +332,19 @@ export default function DamageReport() {
       let stockType = "";
 
       if (allocationId === AllocationType.ONLINE) {
-        maxStock = selectedVariant ? (selectedVariant.onlineStock || 0) : (productBySku.onlineStock || 0);
+        maxStock = selectedVariant
+          ? selectedVariant.onlineStock || 0
+          : productBySku.onlineStock || 0;
         stockType = AllocationType.ONLINE;
       } else {
-        const storeAllocation = selectedVariant 
-          ? selectedVariant.storeAllocations?.find((s: any) => s.storeId === allocationId)
-          : productBySku.storeAllocations?.find((s: any) => s.storeId === allocationId);
-        
+        const storeAllocation = selectedVariant
+          ? selectedVariant.storeAllocations?.find(
+              (s: any) => s.storeId === allocationId,
+            )
+          : productBySku.storeAllocations?.find(
+              (s: any) => s.storeId === allocationId,
+            );
+
         if (!storeAllocation) {
           toast({
             title: "Error",
@@ -338,13 +368,18 @@ export default function DamageReport() {
     }
 
     // Convert stockReductions from strings to numbers for API
-    const stockReductionsForApi = Object.entries(formData.stockReductions).reduce((acc, [key, value]) => {
-      const numValue = parseInt(value) || 0;
-      if (numValue > 0) {
-        acc[key] = numValue;
-      }
-      return acc;
-    }, {} as { [key: string]: number });
+    const stockReductionsForApi = Object.entries(
+      formData.stockReductions,
+    ).reduce(
+      (acc, [key, value]) => {
+        const numValue = parseInt(value) || 0;
+        if (numValue > 0) {
+          acc[key] = numValue;
+        }
+        return acc;
+      },
+      {} as { [key: string]: number },
+    );
 
     // Validate that at least one stock reduction is specified
     if (Object.keys(stockReductionsForApi).length === 0) {
@@ -357,7 +392,7 @@ export default function DamageReport() {
     }
 
     const damageData = {
-      productId: formData.productId,
+      productId: productId,
       variantId: formData.variantId || undefined,
       source: formData.source,
       stockReductions: stockReductionsForApi,
@@ -387,9 +422,8 @@ export default function DamageReport() {
         </p>
       </div>
 
-
       {/* Loading State */}
-      {(productBySkuLoading) ? (
+      {productBySkuLoading ? (
         <Card>
           <CardContent className="p-6">
             <div className="flex items-center justify-center py-8">
@@ -403,7 +437,9 @@ export default function DamageReport() {
           <CardContent className="p-6">
             <div className="text-center py-8">
               <Package className="h-12 w-12 mx-auto text-gray-400 mb-4" />
-              <h3 className="text-lg font-medium mb-2">No Products Available</h3>
+              <h3 className="text-lg font-medium mb-2">
+                No Products Available
+              </h3>
               <p className="text-muted-foreground">
                 There are no products in the inventory to report damage for.
               </p>
@@ -457,19 +493,36 @@ export default function DamageReport() {
                   <Label htmlFor="variantId">Product Variant *</Label>
                   <Select
                     value={formData.variantId}
-                    onValueChange={(value) => setFormData({ ...formData, variantId: value, allocationType: "", stockReductions: {} as StockReductions })}
-                    disabled={!formData.productId}
+                    onValueChange={(value) =>
+                      setFormData({
+                        ...formData,
+                        variantId: value,
+                        allocationType: "",
+                        stockReductions: {} as StockReductions,
+                      })
+                    }
+                    disabled={!productId}
                   >
                     <SelectTrigger>
-                      <SelectValue placeholder={formData.productId ? "Select variant" : "Select product first"} />
+                      <SelectValue
+                        placeholder={
+                          productId
+                            ? "Select variant"
+                            : "Select product first"
+                        }
+                      />
                     </SelectTrigger>
                     <SelectContent>
                       {productBySku.variants.map((variant: any) => (
                         <SelectItem key={variant.id} value={variant.id}>
                           <div className="flex items-center gap-2">
                             <span>Size: {variant.size}</span>
-                            <Badge variant="outline">Online: {variant.onlineStock || 0}</Badge>
-                            <Badge variant="outline">Total: {variant.stockQuantity || 0}</Badge>
+                            <Badge variant="outline">
+                              Online: {variant.onlineStock || 0}
+                            </Badge>
+                            <Badge variant="outline">
+                              Total: {variant.stockQuantity || 0}
+                            </Badge>
                           </div>
                         </SelectItem>
                       ))}
@@ -484,11 +537,19 @@ export default function DamageReport() {
                   <Label htmlFor="source">Damage Source *</Label>
                   <Select
                     value={formData.source}
-                    onValueChange={(value) => setFormData({ ...formData, source: value })}
-                    disabled={!formData.productId}
+                    onValueChange={(value) =>
+                      setFormData({ ...formData, source: value })
+                    }
+                    disabled={!productId}
                   >
                     <SelectTrigger>
-                      <SelectValue placeholder={formData.productId ? "Select source" : "Select product first"} />
+                      <SelectValue
+                        placeholder={
+                          productId
+                            ? "Select source"
+                            : "Select product first"
+                        }
+                      />
                     </SelectTrigger>
                     <SelectContent>
                       {damageSources.map((source) => (
@@ -504,11 +565,19 @@ export default function DamageReport() {
                   <Label htmlFor="damageCategory">Damage Category *</Label>
                   <Select
                     value={formData.damageCategory}
-                    onValueChange={(value) => setFormData({ ...formData, damageCategory: value })}
-                    disabled={!formData.productId}
+                    onValueChange={(value) =>
+                      setFormData({ ...formData, damageCategory: value })
+                    }
+                    disabled={!productId}
                   >
                     <SelectTrigger>
-                      <SelectValue placeholder={formData.productId ? "Select category" : "Select product first"} />
+                      <SelectValue
+                        placeholder={
+                          productId
+                            ? "Select category"
+                            : "Select product first"
+                        }
+                      />
                     </SelectTrigger>
                     <SelectContent>
                       {damageCategories.map((category) => (
@@ -524,11 +593,19 @@ export default function DamageReport() {
                   <Label htmlFor="damageSeverity">Severity *</Label>
                   <Select
                     value={formData.damageSeverity}
-                    onValueChange={(value) => setFormData({ ...formData, damageSeverity: value })}
-                    disabled={!formData.productId}
+                    onValueChange={(value) =>
+                      setFormData({ ...formData, damageSeverity: value })
+                    }
+                    disabled={!productId}
                   >
                     <SelectTrigger>
-                      <SelectValue placeholder={formData.productId ? "Select severity" : "Select product first"} />
+                      <SelectValue
+                        placeholder={
+                          productId
+                            ? "Select severity"
+                            : "Select product first"
+                        }
+                      />
                     </SelectTrigger>
                     <SelectContent>
                       {damageSeverities.map((severity) => (
@@ -549,38 +626,59 @@ export default function DamageReport() {
                   <Select
                     value={formData.allocationType}
                     onValueChange={(value) => {
-                      setFormData({ ...formData, allocationType: value, stockReductions: {} as StockReductions });
+                      setFormData({
+                        ...formData,
+                        allocationType: value,
+                        stockReductions: {} as StockReductions,
+                      });
                       // Clear allocation type errors when changed
-                      setFormErrors(prev => {
+                      setFormErrors((prev) => {
                         const newErrors = { ...prev };
                         delete newErrors.allocationType;
                         delete newErrors.stockReductions;
                         return newErrors;
                       });
                     }}
-                    disabled={!formData.productId}
+                    disabled={!productId}
                   >
                     <SelectTrigger>
-                      <SelectValue placeholder={formData.productId ? "Select allocation type" : "Select product first"} />
+                      <SelectValue
+                        placeholder={
+                          productId
+                            ? "Select allocation type"
+                            : "Select product first"
+                        }
+                      />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value={AllocationType.ONLINE}>Online Stock Only</SelectItem>
-                      <SelectItem value={AllocationType.STORE}>Store Stock Only</SelectItem>
-                      <SelectItem value={AllocationType.BOTH}>Online + Store Stock</SelectItem>
+                      <SelectItem value={AllocationType.ONLINE}>
+                        Online Stock Only
+                      </SelectItem>
+                      <SelectItem value={AllocationType.STORE}>
+                        Store Stock Only
+                      </SelectItem>
+                      <SelectItem value={AllocationType.BOTH}>
+                        Online + Store Stock
+                      </SelectItem>
                     </SelectContent>
                   </Select>
                   {formErrors.allocationType && (
-                    <p className="text-sm text-red-500">{formErrors.allocationType}</p>
+                    <p className="text-sm text-red-500">
+                      {formErrors.allocationType}
+                    </p>
                   )}
                 </div>
 
                 {/* Dynamic Stock Input Fields */}
                 {productBySku && formData.allocationType && (
                   <div className="space-y-4">
-                    <h4 className="text-md font-medium">Enter Damage Quantities</h4>
+                    <h4 className="text-md font-medium">
+                      Enter Damage Quantities
+                    </h4>
 
                     {/* Online Stock Input */}
-                    {(formData.allocationType === AllocationType.ONLINE || formData.allocationType === AllocationType.BOTH) && (
+                    {(formData.allocationType === AllocationType.ONLINE ||
+                      formData.allocationType === AllocationType.BOTH) && (
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div className="space-y-2">
                           <Label htmlFor="onlineStock">Online Stock</Label>
@@ -592,18 +690,24 @@ export default function DamageReport() {
                             value={formData.stockReductions?.online || ""}
                             onChange={(e) => {
                               const value = e.target.value;
-                              const maxStock = selectedVariant ? (selectedVariant.onlineStock || 0) : (productBySku.onlineStock || 0);
-                              const error = validateStockReduction(AllocationType.ONLINE, value, maxStock);
-                              
+                              const maxStock = selectedVariant
+                                ? selectedVariant.onlineStock || 0
+                                : productBySku.onlineStock || 0;
+                              const error = validateStockReduction(
+                                AllocationType.ONLINE,
+                                value,
+                                maxStock,
+                              );
+
                               setFormData({
                                 ...formData,
                                 stockReductions: {
                                   ...formData.stockReductions,
-                                  online: value
-                                } as StockReductions
+                                  online: value,
+                                } as StockReductions,
                               });
-                              
-                              setFormErrors(prev => {
+
+                              setFormErrors((prev) => {
                                 const newErrors = { ...prev };
                                 if (error) {
                                   newErrors[`stockReductions_online`] = error;
@@ -613,13 +717,20 @@ export default function DamageReport() {
                                 return newErrors;
                               });
                             }}
-                            disabled={!formData.productId}
+                            disabled={!productId}
                             className={
-                              (formErrors[`stockReductions_online`] || (() => {
-                                const qty = parseInt(formData.stockReductions?.online) || 0;
-                                const maxStock = selectedVariant ? (selectedVariant.onlineStock || 0) : (productBySku.onlineStock || 0);
+                              formErrors[`stockReductions_online`] ||
+                              (() => {
+                                const qty =
+                                  parseInt(formData.stockReductions?.online) ||
+                                  0;
+                                const maxStock = selectedVariant
+                                  ? selectedVariant.onlineStock || 0
+                                  : productBySku.onlineStock || 0;
                                 return qty > maxStock;
-                              })()) ? "border-red-500 focus:border-red-500" : ""
+                              })()
+                                ? "border-red-500 focus:border-red-500"
+                                : ""
                             }
                           />
                         </div>
@@ -627,63 +738,100 @@ export default function DamageReport() {
                           <Label>Available Online Stock</Label>
                           <div className="p-2 bg-gray-50 rounded border">
                             <p className="text-sm font-medium">
-                              {selectedVariant ? (selectedVariant.onlineStock || 0) : (productBySku.onlineStock || 0)} units
-                              {selectedVariant && <span className="text-xs text-gray-500 ml-2">(Variant: {selectedVariant.size})</span>}
+                              {selectedVariant
+                                ? selectedVariant.onlineStock || 0
+                                : productBySku.onlineStock || 0}{" "}
+                              units
+                              {selectedVariant && (
+                                <span className="text-xs text-gray-500 ml-2">
+                                  (Variant: {selectedVariant.size})
+                                </span>
+                              )}
                             </p>
                           </div>
                           {formErrors[`stockReductions_online`] && (
-                            <p className="text-sm text-red-500">{formErrors[`stockReductions_online`]}</p>
+                            <p className="text-sm text-red-500">
+                              {formErrors[`stockReductions_online`]}
+                            </p>
                           )}
                         </div>
                       </div>
                     )}
 
                     {/* Store Stock Inputs */}
-                    {(formData.allocationType === "store" || formData.allocationType === "both") &&
+                    {(formData.allocationType === "store" ||
+                      formData.allocationType === "both") &&
                       productBySku.storeAllocations?.map((store: any) => (
-                        <div key={store.storeId} className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div
+                          key={store.storeId}
+                          className="grid grid-cols-1 md:grid-cols-2 gap-4"
+                        >
                           <div className="space-y-2">
-                            <Label htmlFor={store.storeId}>{store.storeName}</Label>
+                            <Label htmlFor={store.storeId}>
+                              {store.storeName}
+                            </Label>
                             <Input
                               id={store.storeId}
                               type="number"
                               min="0"
                               placeholder="0"
-                              value={formData.stockReductions?.[store.storeId] || ""}
+                              value={
+                                formData.stockReductions?.[store.storeId] || ""
+                              }
                               onChange={(e) => {
                                 const value = e.target.value;
-                                const maxStock = selectedVariant 
-                                  ? (selectedVariant.storeAllocations?.find((s: any) => s.storeId === store.storeId)?.quantity || 0)
-                                  : (store.quantity || 0);
-                                const error = validateStockReduction(store.storeId, value, maxStock);
-                                
+                                const maxStock = selectedVariant
+                                  ? selectedVariant.storeAllocations?.find(
+                                      (s: any) => s.storeId === store.storeId,
+                                    )?.quantity || 0
+                                  : store.quantity || 0;
+                                const error = validateStockReduction(
+                                  store.storeId,
+                                  value,
+                                  maxStock,
+                                );
+
                                 setFormData({
                                   ...formData,
                                   stockReductions: {
                                     ...formData.stockReductions,
-                                    [store.storeId]: value
-                                  } as StockReductions
+                                    [store.storeId]: value,
+                                  } as StockReductions,
                                 });
-                                
-                                setFormErrors(prev => {
+
+                                setFormErrors((prev) => {
                                   const newErrors = { ...prev };
                                   if (error) {
-                                    newErrors[`stockReductions_${store.storeId}`] = error;
+                                    newErrors[
+                                      `stockReductions_${store.storeId}`
+                                    ] = error;
                                   } else {
-                                    delete newErrors[`stockReductions_${store.storeId}`];
+                                    delete newErrors[
+                                      `stockReductions_${store.storeId}`
+                                    ];
                                   }
                                   return newErrors;
                                 });
                               }}
-                              disabled={!formData.productId}
+                              disabled={!productId}
                               className={
-                                (formErrors[`stockReductions_${store.storeId}`] || (() => {
-                                  const qty = parseInt(formData.stockReductions?.[store.storeId]) || 0;
-                                  const maxStock = selectedVariant 
-                                    ? (selectedVariant.storeAllocations?.find((s: any) => s.storeId === store.storeId)?.quantity || 0)
-                                    : (store.quantity || 0);
+                                formErrors[
+                                  `stockReductions_${store.storeId}`
+                                ] ||
+                                (() => {
+                                  const qty =
+                                    parseInt(
+                                      formData.stockReductions?.[store.storeId],
+                                    ) || 0;
+                                  const maxStock = selectedVariant
+                                    ? selectedVariant.storeAllocations?.find(
+                                        (s: any) => s.storeId === store.storeId,
+                                      )?.quantity || 0
+                                    : store.quantity || 0;
                                   return qty > maxStock;
-                                })()) ? "border-red-500 focus:border-red-500" : ""
+                                })()
+                                  ? "border-red-500 focus:border-red-500"
+                                  : ""
                               }
                             />
                           </div>
@@ -691,48 +839,71 @@ export default function DamageReport() {
                             <Label>Available Stock</Label>
                             <div className="p-2 bg-gray-50 rounded border">
                               <p className="text-sm font-medium">
-                                {selectedVariant 
-                                  ? (selectedVariant.storeAllocations?.find((s: any) => s.storeId === store.storeId)?.quantity || 0)
-                                  : (store.quantity || 0)} units
-                                {selectedVariant && <span className="text-xs text-gray-500 ml-2">(Variant: {selectedVariant.size})</span>}
+                                {selectedVariant
+                                  ? selectedVariant.storeAllocations?.find(
+                                      (s: any) => s.storeId === store.storeId,
+                                    )?.quantity || 0
+                                  : store.quantity || 0}{" "}
+                                units
+                                {selectedVariant && (
+                                  <span className="text-xs text-gray-500 ml-2">
+                                    (Variant: {selectedVariant.size})
+                                  </span>
+                                )}
                               </p>
                             </div>
                             {formErrors[`stockReductions_${store.storeId}`] && (
-                              <p className="text-sm text-red-500">{formErrors[`stockReductions_${store.storeId}`]}</p>
+                              <p className="text-sm text-red-500">
+                                {formErrors[`stockReductions_${store.storeId}`]}
+                              </p>
                             )}
                           </div>
                         </div>
-                      ))
-                    }
+                      ))}
 
                     {/* Validation Alerts */}
                     {(() => {
                       const alerts = [];
 
                       // Online stock validation
-                      if ((formData.allocationType === AllocationType.ONLINE || formData.allocationType === AllocationType.BOTH) && formData.stockReductions?.online) {
-                        const qty = parseInt(formData.stockReductions.online) || 0;
-                        const maxStock = selectedVariant ? (selectedVariant.onlineStock || 0) : (productBySku.onlineStock || 0);
+                      if (
+                        (formData.allocationType === AllocationType.ONLINE ||
+                          formData.allocationType === AllocationType.BOTH) &&
+                        formData.stockReductions?.online
+                      ) {
+                        const qty =
+                          parseInt(formData.stockReductions.online) || 0;
+                        const maxStock = selectedVariant
+                          ? selectedVariant.onlineStock || 0
+                          : productBySku.onlineStock || 0;
                         if (qty > maxStock) {
                           alerts.push({
                             type: AllocationType.ONLINE,
-                            message: `Online stock: Cannot reduce ${qty} units. Available: ${maxStock} units.`
+                            message: `Online stock: Cannot reduce ${qty} units. Available: ${maxStock} units.`,
                           });
                         }
                       }
 
                       // Store stock validation
-                      if (formData.allocationType === AllocationType.STORE || formData.allocationType === AllocationType.BOTH) {
+                      if (
+                        formData.allocationType === AllocationType.STORE ||
+                        formData.allocationType === AllocationType.BOTH
+                      ) {
                         const stockSource = selectedVariant || productBySku;
-                        const allocations = selectedVariant ? selectedVariant.storeAllocations : productBySku.storeAllocations;
-                        
+                        const allocations = selectedVariant
+                          ? selectedVariant.storeAllocations
+                          : productBySku.storeAllocations;
+
                         allocations?.forEach((store: any) => {
-                          const qty = parseInt(formData.stockReductions?.[store.storeId]) || 0;
+                          const qty =
+                            parseInt(
+                              formData.stockReductions?.[store.storeId],
+                            ) || 0;
                           const maxStock = store.quantity || 0;
                           if (qty > maxStock) {
                             alerts.push({
                               type: AllocationType.STORE,
-                              message: `${store.storeName}: Cannot reduce ${qty} units. Available: ${maxStock} units.`
+                              message: `${store.storeName}: Cannot reduce ${qty} units. Available: ${maxStock} units.`,
                             });
                           }
                         });
@@ -756,16 +927,20 @@ export default function DamageReport() {
                   id="reason"
                   placeholder="Describe what caused the damage..."
                   value={formData.reason}
-                  onChange={(e) => setFormData({ ...formData, reason: e.target.value })}
-                  disabled={!formData.productId}
+                  onChange={(e) =>
+                    setFormData({ ...formData, reason: e.target.value })
+                  }
+                  disabled={!productId}
                   required
                 />
               </div>
 
               {/* Damage Evidence Photos */}
               <div className="space-y-4">
-                <h3 className="text-lg font-medium">Damage Evidence Photos (Optional)</h3>
-                
+                <h3 className="text-lg font-medium">
+                  Damage Evidence Photos (Optional)
+                </h3>
+
                 <CloudinaryUploader
                   maxNumberOfFiles={5}
                   maxFileSize={5 * 1024 * 1024} // 5MB
@@ -780,7 +955,9 @@ export default function DamageReport() {
                 {/* Uploaded Images Display */}
                 {imageUrls.length > 0 && (
                   <div className="space-y-2">
-                    <h4 className="text-sm font-medium">Uploaded Evidence ({imageUrls.length})</h4>
+                    <h4 className="text-sm font-medium">
+                      Uploaded Evidence ({imageUrls.length})
+                    </h4>
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                       {imageUrls.map((url, index) => (
                         <div key={index} className="relative group">
@@ -797,7 +974,23 @@ export default function DamageReport() {
                             size="sm"
                             className="absolute top-2 right-2 h-6 w-6 p-0 opacity-0 group-hover:opacity-100 transition-opacity"
                             onClick={() => {
-                              setImageUrls(prev => prev.filter((_, i) => i !== index));
+                              const urlToDelete = imageUrls[index];
+                              setImageUrls((prev) =>
+                                prev.filter((_, i) => i !== index),
+                              );
+                              // Delete from Cloudinary
+                              if (urlToDelete?.includes("res.cloudinary.com")) {
+                                apiRequest(
+                                  "DELETE",
+                                  "/api/uploads/cloudinary",
+                                  { url: urlToDelete },
+                                ).catch((err) =>
+                                  console.error(
+                                    "Failed to delete damage photo:",
+                                    err,
+                                  ),
+                                );
+                              }
                               toast({
                                 title: "Image Removed",
                                 description: "Evidence photo has been removed",
@@ -815,7 +1008,9 @@ export default function DamageReport() {
 
               {/* Financial Information */}
               <div className="space-y-4">
-                <h3 className="text-lg font-medium">Financial Information (Optional)</h3>
+                <h3 className="text-lg font-medium">
+                  Financial Information (Optional)
+                </h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label htmlFor="costValue">Cost Value (₹)</Label>
@@ -829,14 +1024,23 @@ export default function DamageReport() {
                       onChange={(e) => {
                         const value = e.target.value;
                         const error = validateNumericInput(value, "Cost value");
-                        setFormErrors(prev => ({ ...prev, costValue: error }));
+                        setFormErrors((prev) => ({
+                          ...prev,
+                          costValue: error,
+                        }));
                         setFormData({ ...formData, costValue: value });
                       }}
-                      disabled={!formData.productId}
-                      className={formErrors.costValue ? "border-red-500 focus:border-red-500" : ""}
+                      disabled={!productId}
+                      className={
+                        formErrors.costValue
+                          ? "border-red-500 focus:border-red-500"
+                          : ""
+                      }
                     />
                     {formErrors.costValue && (
-                      <p className="text-sm text-red-500">{formErrors.costValue}</p>
+                      <p className="text-sm text-red-500">
+                        {formErrors.costValue}
+                      </p>
                     )}
                   </div>
 
@@ -851,15 +1055,27 @@ export default function DamageReport() {
                       value={formData.recoveryValue}
                       onChange={(e) => {
                         const value = e.target.value;
-                        const error = validateNumericInput(value, "Recovery value");
-                        setFormErrors(prev => ({ ...prev, recoveryValue: error }));
+                        const error = validateNumericInput(
+                          value,
+                          "Recovery value",
+                        );
+                        setFormErrors((prev) => ({
+                          ...prev,
+                          recoveryValue: error,
+                        }));
                         setFormData({ ...formData, recoveryValue: value });
                       }}
-                      disabled={!formData.productId}
-                      className={formErrors.recoveryValue ? "border-red-500 focus:border-red-500" : ""}
+                      disabled={!productId}
+                      className={
+                        formErrors.recoveryValue
+                          ? "border-red-500 focus:border-red-500"
+                          : ""
+                      }
                     />
                     {formErrors.recoveryValue && (
-                      <p className="text-sm text-red-500">{formErrors.recoveryValue}</p>
+                      <p className="text-sm text-red-500">
+                        {formErrors.recoveryValue}
+                      </p>
                     )}
                   </div>
                 </div>
@@ -870,8 +1086,13 @@ export default function DamageReport() {
                     id="disposalMethod"
                     placeholder="e.g., Recycle, Dispose, Return to supplier"
                     value={formData.disposalMethod}
-                    onChange={(e) => setFormData({ ...formData, disposalMethod: e.target.value })}
-                    disabled={!formData.productId}
+                    onChange={(e) =>
+                      setFormData({
+                        ...formData,
+                        disposalMethod: e.target.value,
+                      })
+                    }
+                    disabled={!productId}
                   />
                 </div>
               </div>
@@ -883,8 +1104,10 @@ export default function DamageReport() {
                   id="notes"
                   placeholder="Any additional information about the damage..."
                   value={formData.notes}
-                  onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
-                  disabled={!formData.productId}
+                  onChange={(e) =>
+                    setFormData({ ...formData, notes: e.target.value })
+                  }
+                  disabled={!productId}
                 />
               </div>
 
@@ -899,7 +1122,9 @@ export default function DamageReport() {
                 </Button>
                 <Button
                   type="submit"
-                  disabled={reportDamageMutation.isPending || !formData.productId}
+                  disabled={
+                    reportDamageMutation.isPending || !productId
+                  }
                 >
                   {reportDamageMutation.isPending ? (
                     <>

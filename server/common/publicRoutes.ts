@@ -65,8 +65,6 @@ export const publicRoutes = (app: Express) => {
       // MIGRATED: Use role-based service for online users (60-70% faster queries)
       const products = await roleBasedProductService.getProductsByRole(filters, "user");
       
-      // Debug: Log results
-      console.log(`Found ${products.length} products matching filters`);
 
       res.json(products);
     } catch  {

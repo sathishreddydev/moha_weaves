@@ -7,7 +7,7 @@ import {
   sales,
   subcategories
 } from "@shared/schema";
-import { and, desc, eq, gte, lte, sql } from "drizzle-orm";
+import { and, desc, eq, gte, inArray, lte, sql } from "drizzle-orm";
 import { db } from "server/db";
 
 export interface SalesStorage {
@@ -87,6 +87,7 @@ export class SalesRepository implements SalesStorage {
         isActive: sales.isActive,
         isFeatured: sales.isFeatured,
         bannerImage: sales.bannerImage,
+        bgColor: sales.bgColor,
         createdAt: sales.createdAt,
         updatedAt: sales.updatedAt,
         category: categories,
@@ -135,6 +136,7 @@ export class SalesRepository implements SalesStorage {
         isActive: sales.isActive,
         isFeatured: sales.isFeatured,
         bannerImage: sales.bannerImage,
+        bgColor: sales.bgColor,
         createdAt: sales.createdAt,
         updatedAt: sales.updatedAt,
         category: categories,
@@ -278,10 +280,8 @@ async deleteSale(id: string): Promise<void> {
         });
       }
       result.push(...categorySalesWithProducts);
-    } else {
-      // If no category is provided, return an empty array
-      return [];
     }
+    // If no categoryId, we still return any product-specific sales found above
 
     return result;
   }
@@ -361,14 +361,20 @@ async deleteSale(id: string): Promise<void> {
         })
         .from(sales)
         .innerJoin(saleProducts, eq(sales.id, saleProducts.saleId))
-        .where(and(...conditions, eq(saleProducts.productId, productIds[0])));
+        .where(and(...conditions, inArray(saleProducts.productId, productIds)));
 
-      // Check for each product (simplified - checking first product as representative)
-      const hasConflict = conflictingSales.length > 0;
+      // Deduplicate sales (same sale may appear multiple times for different products)
+      const uniqueSales = new Map<string, typeof conflictingSales[0]>();
+      for (const sale of conflictingSales) {
+        uniqueSales.set(sale.id, sale);
+      }
+
+      const dedupedSales = Array.from(uniqueSales.values());
+      const hasConflict = dedupedSales.length > 0;
 
       return {
         hasConflict,
-        conflictingSales: conflictingSales.map(sale => ({
+        conflictingSales: dedupedSales.map(sale => ({
           ...sale,
           targetType: "products",
         })),

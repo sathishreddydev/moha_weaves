@@ -37,6 +37,8 @@ export interface ProductFormData {
     distributionChannel: DistributionChannel;
     isFeatured: boolean;
     isActive: boolean;
+    // Care instructions
+    careInstructions: string;
     // New variant fields
     hasVariants: boolean;
     variants: ProductVariant[];

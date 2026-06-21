@@ -1,13 +1,5 @@
 import { Button } from "@/components/ui/button";
 import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import {
   Form,
   FormControl,
   FormField,
@@ -18,11 +10,13 @@ import {
 import { TextField } from "@/components/ui/TextField";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/lib/auth";
+import { BRAND_DOMAIN } from "@/lib/brand";
+import { LoginLayout } from "@/components/auth/LoginLayout";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Eye, EyeOff, Lock, Mail, Shield } from "lucide-react";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
-import { Link, Navigate, useNavigate } from "react-router-dom";
+import { Navigate, useNavigate } from "react-router-dom";
 import { z } from "zod";
 
 const loginSchema = z.object({
@@ -41,10 +35,7 @@ export default function AdminLogin() {
 
   const form = useForm<LoginFormValues>({
     resolver: zodResolver(loginSchema),
-    defaultValues: {
-      email: "",
-      password: "",
-    },
+    defaultValues: { email: "", password: "" },
   });
 
   if (!authLoading && user?.role === "admin") {
@@ -56,17 +47,10 @@ export default function AdminLogin() {
     try {
       const result = await login(values.email, values.password, "admin");
       if (result.success) {
-        toast({
-          title: "Welcome!",
-          description: "You have successfully logged in.",
-        });
+        toast({ title: "Welcome!", description: "Signed in successfully." });
         navigate("/admin/dashboard");
       } else {
-        toast({
-          title: "Login failed",
-          description: result.error,
-          variant: "destructive",
-        });
+        toast({ title: "Login failed", description: result.error, variant: "destructive" });
       }
     } finally {
       setIsSubmitting(false);
@@ -74,107 +58,91 @@ export default function AdminLogin() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center px-4 py-12 bg-muted/30">
-      <div className="w-full max-w-md">
-        <div className="text-center mb-8">
-          <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-4">
-            <Shield className="h-8 w-8 text-primary" />
-          </div>
-          <h1 className="font-serif text-2xl font-semibold">Moha Admin</h1>
-          <p className="text-muted-foreground mt-2">Admin Portal Access</p>
-        </div>
+    <LoginLayout
+      icon={Shield}
+      title="Admin Portal"
+      subtitle="Manage your entire business from one place."
+      features={[
+        "Product & category management",
+        "Order tracking & fulfillment",
+        "User & staff management",
+        "Sales, coupons & promotions",
+        "Analytics & reporting",
+      ]}
+    >
+      <div>
+        <h2 className="text-lg font-medium mb-1" data-testid="text-page-title">
+          Sign in
+        </h2>
+        <p className="text-sm text-muted-foreground mb-6">
+          Enter your admin credentials
+        </p>
 
-        <Card>
-          <CardHeader>
-            <CardTitle data-testid="text-page-title">Admin Login</CardTitle>
-            <CardDescription>
-              Enter your admin credentials to continue
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Form {...form}>
-              <form
-                onSubmit={form.handleSubmit(onSubmit)}
-                className="space-y-4"
-              >
-                <FormField
-                  control={form.control}
-                  name="email"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Email</FormLabel>
-                      <FormControl>
-                        <TextField
-                          type="email"
-                          placeholder="admin@moha.com"
-                          startAdornment={
-                            <Mail className="h-4 w-4 text-muted-foreground" />
-                          }
-                          data-testid="input-email"
-                          {...field}
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+        <Form {...form}>
+          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+            <FormField
+              control={form.control}
+              name="email"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Email</FormLabel>
+                  <FormControl>
+                    <TextField
+                      type="email"
+                      placeholder={`admin@${BRAND_DOMAIN}`}
+                      startAdornment={<Mail className="h-4 w-4 text-muted-foreground" />}
+                      data-testid="input-email"
+                      {...field}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
 
-                <FormField
-                  control={form.control}
-                  name="password"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Password</FormLabel>
-                      <FormControl>
-                         <TextField
-                            type={showPassword ? "text" : "password"}
-                          placeholder="Password"
-                          startAdornment={
-                            <Lock className="h-4 w-4 text-gray-500" />
-                          }
-                          endAdornment={
-                            showPassword ? (
-                              <EyeOff
-                                className="h-4 w-4 text-gray-500 cursor-pointer"
-                                onClick={() => setShowPassword(false)}
-                              />
-                            ) : (
-                              <Eye
-                                className="h-4 w-4 text-gray-500 cursor-pointer"
-                                onClick={() => setShowPassword(true)}
-                              />
-                            )
-                          }
-                                                    {...field}
+            <FormField
+              control={form.control}
+              name="password"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Password</FormLabel>
+                  <FormControl>
+                    <TextField
+                      type={showPassword ? "text" : "password"}
+                      placeholder="Password"
+                      startAdornment={<Lock className="h-4 w-4 text-muted-foreground" />}
+                      endAdornment={
+                        showPassword ? (
+                          <EyeOff
+                            className="h-4 w-4 text-muted-foreground cursor-pointer"
+                            onClick={() => setShowPassword(false)}
+                          />
+                        ) : (
+                          <Eye
+                            className="h-4 w-4 text-muted-foreground cursor-pointer"
+                            onClick={() => setShowPassword(true)}
+                          />
+                        )
+                      }
+                      {...field}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
 
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <Button
-                  type="submit"
-                  className="w-full"
-                  disabled={isSubmitting}
-                  data-testid="button-submit"
-                >
-                  {isSubmitting ? "Signing in..." : "Sign In"}
-                </Button>
-              </form>
-            </Form>
-          </CardContent>
-          <CardFooter className="justify-center">
-            <Link
-              to="/"
-              className="text-sm text-muted-foreground hover:text-primary"
+            <Button
+              type="submit"
+              className="w-full"
+              disabled={isSubmitting}
+              data-testid="button-submit"
             >
-              Back to Store
-            </Link>
-          </CardFooter>
-        </Card>
+              {isSubmitting ? "Signing in..." : "Sign In"}
+            </Button>
+          </form>
+        </Form>
       </div>
-    </div>
+    </LoginLayout>
   );
 }

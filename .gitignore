@@ -5,7 +5,17 @@ server/public
 vite.config.ts.*
 *.tar.gz
 
-# Environment files (keep templates, ignore actual .env)
+# Environment files — ignore ALL env files with real secrets
 .env
 .env.local
 .env.*.local
+.env.development
+.env.prod
+.env.stage
+.env.beta
+.env.vps
+client/.env.local
+client/.env.production
+
+# SSL certificates
+nginx/ssl/

@@ -1,17 +1,10 @@
 
 import { useFilterStore } from "@/components/Store/useFilterStore";
+import { AdaptiveModal } from "@/components/common/AdaptiveModal";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -57,6 +50,7 @@ interface SaleFormData {
   isActive: boolean;
   isFeatured: boolean;
   bannerImage: string;
+  bgColor: string;
 }
 
 export default function AdminSales() {
@@ -84,6 +78,7 @@ export default function AdminSales() {
     isActive: true,
     isFeatured: false,
     bannerImage: "",
+    bgColor: "",
   });
   const [conflictWarning, setConflictWarning] = useState<string>("");
 
@@ -206,6 +201,7 @@ export default function AdminSales() {
       isActive: true,
       isFeatured: false,
       bannerImage: "",
+      bgColor: "",
     });
     setDialogOpen(true);
   };
@@ -219,7 +215,7 @@ export default function AdminSales() {
       discountValue: sale.discountValue,
       targetType: sale.categoryId ? "category" : sale.products?.length ? "products" : "all",
       categoryId: sale.categoryId || "",
-      subcategoryId: "all", // Will need to add this to backend schema
+      subcategoryId: sale.subcategoryId || "all",
       productIds: sale.products?.map(p => p.productId) || [],
       minOrderAmount: sale.minOrderAmount || "",
       maxDiscount: sale.maxDiscount || "",
@@ -228,6 +224,7 @@ export default function AdminSales() {
       isActive: sale.isActive,
       isFeatured: sale.isFeatured,
       bannerImage: sale.bannerImage || "",
+      bgColor: sale.bgColor || "",
     });
     setDialogOpen(true);
   };
@@ -238,37 +235,47 @@ export default function AdminSales() {
     setConflictWarning("");
   };
 
-  const checkConflicts = async () => {
-    if (!formData.offerType || !formData.targetType) return;
-    
-    try {
-      const response = await apiRequest("POST", "/api/admin/sales/check-conflicts", {
-        offerType: formData.offerType,
-        targetType: formData.targetType,
-        categoryId: formData.categoryId,
-        productIds: formData.productIds
-      });
-      
-      if (response.hasConflict) {
-        const conflictList = response.conflictingSales.map((sale: any) => 
-          `• "${sale.name}" (${sale.offerType})`
-        ).join('\n');
-        setConflictWarning(`Warning: This will conflict with existing sales:\n${conflictList}`);
-      } else {
-        setConflictWarning("");
-      }
-    } catch {
-      // Don't show error for conflict check failures
-      setConflictWarning("");
-    }
-  };
-
-  // Check conflicts when relevant fields change
+  // Check conflicts when relevant fields change (debounced)
   useEffect(() => {
-    if (dialogOpen && !editingSale) {
-      checkConflicts();
-    }
-  }, [formData.offerType, formData.targetType, formData.categoryId, formData.productIds]);
+    if (!dialogOpen || editingSale) return;
+
+    let cancelled = false;
+
+    const runCheck = async () => {
+      if (!formData.offerType || !formData.targetType) return;
+
+      try {
+        const response = await apiRequest("POST", "/api/admin/sales/check-conflicts", {
+          offerType: formData.offerType,
+          targetType: formData.targetType,
+          categoryId: formData.categoryId,
+          productIds: formData.productIds,
+        });
+
+        if (cancelled) return;
+
+        if (response.hasConflict) {
+          const conflictList = response.conflictingSales
+            .map((sale: any) => `• "${sale.name}" (${sale.offerType})`)
+            .join("\n");
+          setConflictWarning(
+            `Warning: This will conflict with existing sales:\n${conflictList}`
+          );
+        } else {
+          setConflictWarning("");
+        }
+      } catch {
+        if (!cancelled) setConflictWarning("");
+      }
+    };
+
+    const debounceTimer = setTimeout(runCheck, 500);
+
+    return () => {
+      cancelled = true;
+      clearTimeout(debounceTimer);
+    };
+  }, [dialogOpen, editingSale, formData.offerType, formData.targetType, formData.categoryId, formData.productIds]);
 
   const handleSubmit = () => {
     if (!formData.name.trim() || !formData.discountValue || !formData.startDate || !formData.endDate) {
@@ -449,15 +456,27 @@ export default function AdminSales() {
         </Card>
       </div>
 
-      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>{editingSale ? "Edit Sale" : "Add Sale"}</DialogTitle>
-            <DialogDescription>
-              {editingSale ? "Update sale details" : "Create a new sale offer"}
-            </DialogDescription>
-          </DialogHeader>
-          
+      <AdaptiveModal
+        open={dialogOpen}
+        onOpenChange={setDialogOpen}
+        title={editingSale ? "Edit Sale" : "Add Sale"}
+        description={editingSale ? "Update sale details" : "Create a new sale offer"}
+        size="lg"
+        footer={
+          <>
+            <Button variant="outline" onClick={handleCloseDialog}>
+              Cancel
+            </Button>
+            <Button
+              onClick={handleSubmit}
+              disabled={createMutation.isPending || updateMutation.isPending}
+              data-testid="button-submit"
+            >
+              {editingSale ? "Save Changes" : "Create Sale"}
+            </Button>
+          </>
+        }
+      >
           {conflictWarning && (
             <div className="bg-yellow-50 border border-yellow-200 rounded-md p-3 mb-4">
               <p className="text-sm text-yellow-800 whitespace-pre-line">
@@ -466,7 +485,7 @@ export default function AdminSales() {
             </div>
           )}
           
-          <div className="space-y-4 py-4">
+          <div className="space-y-4">
             <div>
               <Label htmlFor="name">Sale Name *</Label>
               <Input
@@ -713,6 +732,39 @@ export default function AdminSales() {
               />
             </div>
 
+            <div>
+              <Label htmlFor="bgColor">Background Color</Label>
+              <div className="flex items-center gap-3">
+                <Input
+                  id="bgColor"
+                  type="color"
+                  value={formData.bgColor || "#ffffff"}
+                  onChange={(e) => setFormData({ ...formData, bgColor: e.target.value })}
+                  className="w-12 h-10 p-1 cursor-pointer"
+                  data-testid="input-bg-color"
+                />
+                <Input
+                  value={formData.bgColor}
+                  onChange={(e) => setFormData({ ...formData, bgColor: e.target.value })}
+                  placeholder="#ff0000 or red"
+                  className="flex-1"
+                />
+                {formData.bgColor && (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setFormData({ ...formData, bgColor: "" })}
+                  >
+                    Clear
+                  </Button>
+                )}
+              </div>
+              <p className="text-xs text-muted-foreground mt-1">
+                Background color for the sale badge/banner on the storefront
+              </p>
+            </div>
+
             <div className="flex items-center justify-between">
               <Label htmlFor="isActive">Active</Label>
               <Switch
@@ -733,30 +785,15 @@ export default function AdminSales() {
               />
             </div>
           </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={handleCloseDialog}>
-              Cancel
-            </Button>
-            <Button
-              onClick={handleSubmit}
-              disabled={createMutation.isPending || updateMutation.isPending}
-              data-testid="button-submit"
-            >
-              {editingSale ? "Save Changes" : "Create Sale"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      </AdaptiveModal>
 
-      <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Delete Sale</DialogTitle>
-            <DialogDescription>
-              Are you sure you want to delete this sale? This action cannot be undone.
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter>
+      <AdaptiveModal
+        open={deleteDialogOpen}
+        onOpenChange={setDeleteDialogOpen}
+        title="Delete Sale"
+        description="Are you sure you want to delete this sale? This action cannot be undone."
+        footer={
+          <>
             <Button variant="outline" onClick={() => setDeleteDialogOpen(false)}>
               Cancel
             </Button>
@@ -768,9 +805,13 @@ export default function AdminSales() {
             >
               Delete
             </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+          </>
+        }
+      >
+        <p className="text-sm text-muted-foreground">
+          This will permanently remove the sale and its associated product mappings.
+        </p>
+      </AdaptiveModal>
     </div>
   );
 }

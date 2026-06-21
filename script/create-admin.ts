@@ -4,7 +4,7 @@ import { users } from "../shared/schema";
 import bcrypt from "bcryptjs";
 
 async function createAdmin() {
-  const email = process.argv[2] || "admin@moha.com";
+  const email = process.argv[2] || "admin@urumi.com";
   const password = process.argv[3] || "admin123";
   const name = process.argv[4] || "Admin User";
 

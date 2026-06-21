@@ -1,336 +1,232 @@
 #!/bin/bash
+# Urumi Weaves VPS Deployment Script
+# Usage: ./deploy.sh
+# Pre-requisites:
+#   - SSH key set up for VPS_USER@VPS_HOST on port VPS_PORT
+#   - .env.vps populated with real values (never committed to git)
 
-# Moha Weaves Deployment Script for HostItSmart VPS
-# This script automates the deployment process
+set -euo pipefail
 
-set -e  # Exit on any error
+# ── Configuration ──────────────────────────────────────────────────────────────
+VPS_HOST="103.127.146.58"
+VPS_PORT="7576"
+VPS_USER="deploy"           # Use a dedicated non-root deploy user
+PROJECT_NAME="moha_weaves"
+DEPLOY_PATH="/opt/$PROJECT_NAME"
+DOMAIN="urumibymounika.com"
+ADMIN_DOMAIN="admin.urumibymounika.com"
+CERTBOT_EMAIL="sathishreddy.k0337@gmail.com"
 
-# Colors for output
+# ── Colors ─────────────────────────────────────────────────────────────────────
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
-NC='\033[0m' # No Color
+NC='\033[0m'
 
-# Configuration
-APP_NAME="moha-weaves"
-APP_DIR="/opt/$APP_NAME"
-BACKUP_DIR="/opt/backups"
-LOG_FILE="/var/log/$APP_NAME-deploy.log"
+log_info()  { echo -e "${GREEN}[INFO]${NC}  $1"; }
+log_warn()  { echo -e "${YELLOW}[WARN]${NC}  $1"; }
+log_error() { echo -e "${RED}[ERROR]${NC} $1"; }
 
-# Logging function
-log() {
-    echo "$(date '+%Y-%m-%d %H:%M:%S') - $1" | tee -a "$LOG_FILE"
+# ── Cleanup trap ───────────────────────────────────────────────────────────────
+ARCHIVE="moha_weaves_deploy.tar.gz"
+cleanup() {
+  if [[ -f "$ARCHIVE" ]]; then
+    rm -f "$ARCHIVE"
+    log_info "Cleaned up local archive."
+  fi
+}
+trap cleanup EXIT
+
+# ── SSH helper ─────────────────────────────────────────────────────────────────
+ssh_run() {
+  ssh -p "$VPS_PORT" -o StrictHostKeyChecking=accept-new "$VPS_USER@$VPS_HOST" "$@"
 }
 
-# Print colored output
-print_status() {
-    echo -e "${GREEN}[INFO]${NC} $1"
+# ── 1. Check SSH connection ────────────────────────────────────────────────────
+check_ssh_connection() {
+  log_info "Checking SSH connection to VPS..."
+  if ssh_run "echo 'SSH OK'" > /dev/null 2>&1; then
+    log_info "SSH connection successful."
+  else
+    log_error "SSH connection failed. Check your key / host / port."
+    exit 1
+  fi
 }
 
-print_warning() {
-    echo -e "${YELLOW}[WARNING]${NC} $1"
-}
+# ── 2. Setup VPS (idempotent) ──────────────────────────────────────────────────
+setup_vps() {
+  log_info "Setting up VPS environment (idempotent)..."
 
-print_error() {
-    echo -e "${RED}[ERROR]${NC} $1"
-}
+  ssh_run bash << 'REMOTE'
+    set -euo pipefail
 
-# Check if running as root
-check_root() {
-    if [[ $EUID -ne 0 ]]; then
-        print_error "This script must be run as root or with sudo"
-        exit 1
-    fi
-}
-
-# Check system requirements
-check_requirements() {
-    print_status "Checking system requirements..."
-    
-    # Check if Docker is installed
+    # Install Docker if missing
     if ! command -v docker &> /dev/null; then
-        print_error "Docker is not installed"
-        install_docker
-    else
-        print_status "Docker is already installed"
+      apt-get update -qq
+      curl -fsSL https://get.docker.com | sh
+      systemctl enable --now docker
     fi
-    
-    # Check if Docker Compose is installed
-    if ! command -v docker-compose &> /dev/null; then
-        print_error "Docker Compose is not installed"
-        install_docker_compose
-    else
-        print_status "Docker Compose is already installed"
+
+    # Install Docker Compose plugin if missing
+    if ! docker compose version &> /dev/null; then
+      apt-get update -qq
+      apt-get install -y docker-compose-plugin
     fi
-    
-    # Check if Git is installed
-    if ! command -v git &> /dev/null; then
-        print_error "Git is not installed"
-        apt-get update && apt-get install -y git
-    else
-        print_status "Git is already installed"
+
+    # Install certbot (standalone mode — no host nginx needed, Docker handles it)
+    apt-get update -qq
+    apt-get install -y --no-install-recommends git certbot
+
+    # Stop host nginx if running — Docker nginx handles port 80/443
+    systemctl stop nginx 2>/dev/null || true
+    systemctl disable nginx 2>/dev/null || true
+
+    # Create a dedicated deploy user if it doesn't exist
+    if ! id deploy &>/dev/null; then
+      useradd -m -s /bin/bash deploy
+      usermod -aG docker deploy
     fi
-}
 
-# Install Docker
-install_docker() {
-    print_status "Installing Docker..."
-    
-    # Remove old versions
-    apt-get remove -y docker docker-engine docker.io containerd runc || true
-    
-    # Install dependencies
-    apt-get update
-    apt-get install -y \
-        ca-certificates \
-        curl \
-        gnupg \
-        lsb-release
-    
-    # Add Docker's official GPG key
-    curl -fsSL https://download.docker.com/linux/ubuntu/gpg | gpg --dearmor -o /usr/share/keyrings/docker-archive-keyring.gpg
-    
-    # Set up the repository
-    echo \
-        "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/docker-archive-keyring.gpg] https://download.docker.com/linux/ubuntu \
-        $(lsb_release -cs) stable" | tee /etc/apt/sources.list.d/docker.list > /dev/null
-    
-    # Install Docker Engine
-    apt-get update
-    apt-get install -y docker-ce docker-ce-cli containerd.io docker-compose-plugin
-    
-    # Start and enable Docker
-    systemctl start docker
-    systemctl enable docker
-    
-    print_status "Docker installed successfully"
-}
+    # Create project directory owned by deploy user
+    mkdir -p /opt/moha_weaves/nginx/ssl
+    chown -R deploy:deploy /opt/moha_weaves
 
-# Install Docker Compose
-install_docker_compose() {
-    print_status "Installing Docker Compose..."
-    
-    # Download Docker Compose
-    curl -L "https://github.com/docker/compose/releases/latest/download/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
-    
-    # Apply executable permissions
-    chmod +x /usr/local/bin/docker-compose
-    
-    # Create symbolic link
-    ln -sf /usr/local/bin/docker-compose /usr/bin/docker-compose
-    
-    print_status "Docker Compose installed successfully"
-}
-
-# Create application directory
-create_app_directory() {
-    print_status "Creating application directory..."
-    
-    mkdir -p "$APP_DIR"
-    mkdir -p "$BACKUP_DIR"
-    mkdir -p "$APP_DIR/uploads"
-    mkdir -p "$APP_DIR/nginx/ssl"
-    
-    # Set proper permissions
-    chown -R root:root "$APP_DIR"
-    chmod -R 755 "$APP_DIR"
-    
-    print_status "Application directory created"
-}
-
-# Clone or update repository
-setup_repository() {
-    print_status "Setting up repository..."
-    
-    cd "$APP_DIR"
-    
-    # If repository exists, pull latest changes
-    if [ -d ".git" ]; then
-        print_status "Pulling latest changes..."
-        git pull origin main
-    else
-        print_status "Cloning repository..."
-        # You'll need to replace this with your actual repository URL
-        git clone https://github.com/yourusername/moha-weaves.git .
-    fi
-    
-    print_status "Repository setup complete"
-}
-
-# Setup environment variables
-setup_environment() {
-    print_status "Setting up environment variables..."
-    
-    # Create production environment file
-    if [ ! -f "$APP_DIR/.env.prod" ]; then
-        print_warning "Environment file not found. Please create .env.prod file with your production variables."
-        print_status "Template .env.prod file created. Please update it with your values."
-        
-        cat > "$APP_DIR/.env.prod" << EOF
-# Database Configuration
-POSTGRES_DB=moha_weaves
-POSTGRES_USER=postgres
-POSTGRES_PASSWORD=your_secure_password_here
-
-# Redis Configuration
-REDIS_PASSWORD=your_redis_password_here
-
-# Application Secrets
-SESSION_SECRET=your_session_secret_here
-JWT_SECRET=your_jwt_secret_here
-
-# Cloudinary Configuration
-CLOUDINARY_CLOUD_NAME=your_cloudinary_cloud_name
-CLOUDINARY_API_KEY=your_cloudinary_api_key
-CLOUDINARY_API_SECRET=your_cloudinary_api_secret
-
-# Razorpay Configuration
-RAZORPAY_KEY_ID=your_razorpay_key_id
-RAZORPAY_KEY_SECRET=your_razorpay_key_secret
-RAZORPAY_WEBHOOK_SECRET=your_razorpay_webhook_secret
-
-# Email Configuration
-SMTP_HOST=your_smtp_host
-SMTP_USER=your_smtp_user
-SMTP_PASS=your_smtp_password
-EMAIL_FROM_EMAIL=your_email@example.com
-
-# Delhivery Configuration
-DELHIVERY_CLIENT_ID=your_delhivery_client_id
-DELHIVERY_API_TOKEN=your_delhivery_api_token
-DELHIVERY_PICKUP_WAREHOUSE=your_warehouse_code
-EOF
-        
-        print_warning "Please edit $APP_DIR/.env.prod with your actual values before continuing!"
-        read -p "Press Enter after updating the environment file..."
-    fi
-    
-    print_status "Environment variables configured"
-}
-
-# Setup SSL certificates (Let's Encrypt)
-setup_ssl() {
-    print_status "Setting up SSL certificates..."
-    
-    # Install Certbot
-    if ! command -v certbot &> /dev/null; then
-        apt-get update
-        apt-get install -y certbot python3-certbot-nginx
-    fi
-    
-    # Get SSL certificate (replace with your domain)
-    read -p "Enter your domain name: " DOMAIN
-    
-    if [ -n "$DOMAIN" ]; then
-        certbot --nginx -d "$DOMAIN" --non-interactive --agree-tos --email admin@"$DOMAIN" || {
-            print_warning "SSL certificate setup failed. Using self-signed certificate for now."
-            # Generate self-signed certificate
-            openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
-                -keyout "$APP_DIR/nginx/ssl/key.pem" \
-                -out "$APP_DIR/nginx/ssl/cert.pem" \
-                -subj "/C=US/ST=State/L=City/O=Organization/CN=$DOMAIN"
-        }
-    else
-        print_warning "No domain provided. Skipping SSL setup."
-    fi
-    
-    print_status "SSL setup complete"
-}
-
-# Deploy application
-deploy_application() {
-    print_status "Deploying application..."
-    
-    cd "$APP_DIR"
-    
-    # Stop existing services
-    docker-compose -f docker-compose.prod.yml down || true
-    
-    # Build and start services
-    docker-compose -f docker-compose.prod.yml build --no-cache
-    docker-compose -f docker-compose.prod.yml up -d
-    
-    # Wait for services to be ready
-    print_status "Waiting for services to start..."
-    sleep 30
-    
-    # Check service health
-    if docker-compose -f docker-compose.prod.yml ps | grep -q "Up"; then
-        print_status "Application deployed successfully!"
-    else
-        print_error "Application deployment failed!"
-        docker-compose -f docker-compose.prod.yml logs
-        exit 1
-    fi
-}
-
-# Setup firewall
-setup_firewall() {
-    print_status "Setting up firewall..."
-    
-    # Allow SSH, HTTP, HTTPS
-    ufw allow ssh
-    ufw allow 80
-    ufw allow 443
-    
-    # Enable firewall
+    # Minimal firewall rules
+    ufw allow "$SSH_PORT"/tcp 2>/dev/null || true
+    ufw allow 80/tcp
+    ufw allow 443/tcp
     ufw --force enable
-    
-    print_status "Firewall configured"
+
+    echo "VPS setup completed."
+REMOTE
 }
 
-# Setup automatic backups
-setup_backups() {
-    print_status "Setting up automatic backups..."
-    
-    # Create backup script
-    cat > /usr/local/bin/backup-moha-weaves.sh << 'EOF'
-#!/bin/bash
+# ── 3. Deploy application ──────────────────────────────────────────────────────
+deploy_application() {
+  log_info "Packaging application..."
 
-APP_NAME="moha-weaves"
-APP_DIR="/opt/$APP_NAME"
-BACKUP_DIR="/opt/backups"
-DATE=$(date +%Y%m%d_%H%M%S)
+  tar -czf "$ARCHIVE" \
+    --exclude=node_modules \
+    --exclude=dist \
+    --exclude=.git \
+    --exclude=uploads \
+    --exclude='nginx/ssl' \
+    --exclude='.env*' \
+    .
 
-# Create database backup
-docker exec moha_weaves_postgres pg_dump -U postgres moha_weaves > "$BACKUP_DIR/db_backup_$DATE.sql"
+  log_info "Copying archive to VPS..."
+  scp -P "$VPS_PORT" "$ARCHIVE" "$VPS_USER@$VPS_HOST:$DEPLOY_PATH/"
 
-# Create application backup
-tar -czf "$BACKUP_DIR/app_backup_$DATE.tar.gz" -C "$APP_DIR" uploads .env.prod
+  log_info "Copying populated .env.vps as .env.prod on VPS..."
+  scp -P "$VPS_PORT" .env.vps "$VPS_USER@$VPS_HOST:$DEPLOY_PATH/.env.prod"
 
-# Keep only last 7 days of backups
-find "$BACKUP_DIR" -name "*.sql" -mtime +7 -delete
-find "$BACKUP_DIR" -name "*.tar.gz" -mtime +7 -delete
+  log_info "Building and starting containers on VPS..."
+  ssh_run bash << REMOTE
+    set -euo pipefail
+    cd "$DEPLOY_PATH"
+    tar -xzf "$ARCHIVE"
+    rm "$ARCHIVE"
 
-echo "Backup completed: $DATE"
-EOF
-    
-    chmod +x /usr/local/bin/backup-moha-weaves.sh
-    
-    # Add to crontab (daily at 2 AM)
-    (crontab -l 2>/dev/null; echo "0 2 * * * /usr/local/bin/backup-moha-weaves.sh") | crontab -
-    
-    print_status "Automatic backups configured"
+    # Pull latest images for base layers
+    docker compose pull --ignore-pull-failures || true
+
+    # Build and restart
+    docker compose down --remove-orphans
+    docker compose build --no-cache
+    docker compose up -d
+
+    # Run database migrations once containers are healthy
+    echo "Waiting for DB to be healthy..."
+    sleep 15
+    docker compose exec -T app npm run db:migrate || true
+
+    docker compose ps
+REMOTE
+
+  log_info "Application deployed successfully."
 }
 
-# Main deployment function
+# ── 4. Setup SSL ───────────────────────────────────────────────────────────────
+setup_ssl() {
+  log_info "Setting up SSL certificates for $DOMAIN and $ADMIN_DOMAIN..."
+
+  ssh_run bash << REMOTE
+    set -euo pipefail
+
+    # Stop Docker containers temporarily to free port 80 for standalone certbot
+    cd "$DEPLOY_PATH"
+    docker compose stop nginx 2>/dev/null || true
+
+    certbot certonly --standalone \
+      --email "$CERTBOT_EMAIL" \
+      --agree-tos \
+      --no-eff-email \
+      -d "$DOMAIN" \
+      -d "$ADMIN_DOMAIN"
+
+    # Copy certs for Docker nginx volume access
+    cp /etc/letsencrypt/live/$DOMAIN/fullchain.pem /opt/moha_weaves/nginx/ssl/cert.pem
+    cp /etc/letsencrypt/live/$DOMAIN/privkey.pem   /opt/moha_weaves/nginx/ssl/key.pem
+    chown -R deploy:deploy /opt/moha_weaves/nginx/ssl
+
+    # Restart nginx container with valid certs
+    docker compose up -d nginx
+
+    # Auto-renewal cron — stops Docker nginx, renews, copies certs, restarts
+    (crontab -l 2>/dev/null | grep -v 'certbot renew' ; echo "0 0,12 * * * certbot renew --quiet --pre-hook 'docker compose -f /opt/moha_weaves/docker-compose.yml stop nginx' --post-hook 'cp /etc/letsencrypt/live/$DOMAIN/fullchain.pem /opt/moha_weaves/nginx/ssl/cert.pem && cp /etc/letsencrypt/live/$DOMAIN/privkey.pem /opt/moha_weaves/nginx/ssl/key.pem && docker compose -f /opt/moha_weaves/docker-compose.yml up -d nginx'") | crontab -
+
+    echo "SSL setup complete."
+REMOTE
+
+  log_info "SSL certificates configured."
+}
+
+# ── 5. Health check ────────────────────────────────────────────────────────────
+health_check() {
+  log_info "Waiting 60s for services to settle..."
+  sleep 60
+
+  log_info "Running health checks..."
+
+  # Verify TLS cert — do NOT use -k (insecure flag defeats the purpose)
+  if curl --fail --silent --max-time 10 "https://$ADMIN_DOMAIN/api/health" > /dev/null; then
+    log_info "✅ Backend health check passed (https://$ADMIN_DOMAIN/api/health)"
+  else
+    log_warn "⚠️  Backend health check failed — check container logs"
+  fi
+
+  if curl --fail --silent --max-time 10 "https://$DOMAIN" > /dev/null; then
+    log_info "✅ Frontend health check passed (https://$DOMAIN)"
+  else
+    log_warn "⚠️  Frontend health check failed — check container logs"
+  fi
+}
+
+# ── Main ───────────────────────────────────────────────────────────────────────
 main() {
-    print_status "Starting Moha Weaves deployment..."
-    
-    check_root
-    check_requirements
-    create_app_directory
-    setup_repository
-    setup_environment
-    setup_ssl
-    deploy_application
-    setup_firewall
-    setup_backups
-    
-    print_status "Deployment completed successfully!"
-    print_status "Your application should be accessible at: http://your-server-ip"
-    print_status "Check logs with: docker-compose -f $APP_DIR/docker-compose.prod.yml logs -f"
+  log_info "Starting Urumi Weaves VPS deployment..."
+
+  # Safety check — refuse to deploy if .env.vps still has placeholder values
+  if grep -q 'REPLACE_WITH' .env.vps; then
+    log_error ".env.vps still contains REPLACE_WITH placeholder values."
+    log_error "Fill in all real credentials before deploying."
+    exit 1
+  fi
+
+  check_ssh_connection
+  setup_vps
+  deploy_application
+  setup_ssl
+  health_check
+
+  log_info "🎉 Deployment completed successfully!"
+  log_info "  Frontend : https://$DOMAIN"
+  log_info "  Admin    : https://$ADMIN_DOMAIN"
+  echo ""
+  echo "Useful commands:"
+  echo "  Logs    : ssh -p $VPS_PORT $VPS_USER@$VPS_HOST 'cd $DEPLOY_PATH && docker compose logs -f'"
+  echo "  Restart : ssh -p $VPS_PORT $VPS_USER@$VPS_HOST 'cd $DEPLOY_PATH && docker compose restart'"
+  echo "  Status  : ssh -p $VPS_PORT $VPS_USER@$VPS_HOST 'cd $DEPLOY_PATH && docker compose ps'"
 }
 
-# Run main function
-main "$@"
+main

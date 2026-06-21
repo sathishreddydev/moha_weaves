@@ -2,6 +2,7 @@ import { Button } from "@/components/ui/button";
 import { toast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { formatDate, formatPrice } from "@/lib/utils";
+import { BRAND_NAME, BRAND_FULL, BRAND_STORE } from "@/lib/brand";
 import { ArrowLeftRight, FileText, Printer } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
@@ -145,7 +146,7 @@ export default function Invoice() {
           <div className="p-4 border-b border-slate-200">
             <div className="flex justify-between items-start">
               <div>
-                <p className="text-base font-bold text-slate-800">MOHA STORE</p>
+                <p className="text-base font-bold text-slate-800">{BRAND_STORE.toUpperCase()}</p>
                 <p className="text-slate-600 text-xs">
                   Fashion & Traditional Wear
                 </p>
@@ -192,7 +193,7 @@ export default function Invoice() {
                   STORE DETAILS:
                 </h4>
                 <p className="text-xs text-slate-600">
-                  {invoiceData.store?.name || "MOHA Store"}
+                  {invoiceData.store?.name || BRAND_STORE}
                 </p>
                 <p className="text-xs text-slate-600">
                   Store ID: {invoiceData.store?.id}
@@ -517,7 +518,7 @@ export default function Invoice() {
                 </div>
                 <div className="w-48 border-b border-slate-300 mb-2"></div>
                 <p className="text-xs text-slate-400 uppercase tracking-widest font-bold">
-                  For MOHA Store
+                  For {BRAND_STORE}
                 </p>
               </div>
             </div>
@@ -538,7 +539,7 @@ export default function Invoice() {
           </div>
 
           <div className="bg-slate-50 p-4 text-center text-[10px] text-slate-400 border-t border-slate-100">
-            Thank you for shopping at MOHA. Visit us again! | This is a
+            Thank you for shopping at {BRAND_NAME}. Visit us again! | This is a
             computer-generated invoice.
           </div>
         </div>

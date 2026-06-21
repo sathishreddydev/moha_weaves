@@ -16,7 +16,7 @@ declare module "express-serve-static-core" {
     };
   }
 }
-const JWT_SECRET = process.env.SESSION_SECRET;
+const JWT_SECRET = process.env.JWT_SECRET;
 
 interface AccessTokenPayload extends jwt.JwtPayload {
   userId: string;

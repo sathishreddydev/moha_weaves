@@ -15,10 +15,10 @@ export const users = pgTable("users", {
   id: varchar("id")
     .primaryKey()
     .default(sql`gen_random_uuid()`),
-  email: text("email").notNull().unique(),
-  password: text("password").notNull(),
+  email: text("email").unique(),
+  password: text("password"),
   name: text("name").notNull(),
-  phone: text("phone"),
+  phone: text("phone").unique(),
   role: enums.userRoleEnum("role").notNull().default("user"),
   storeId: varchar("store_id"),
   isActive: boolean("is_active").notNull().default(true),
@@ -50,6 +50,7 @@ export const categories = pgTable("categories", {
   imageUrl: text("image_url"),
   isActive: boolean("is_active").notNull().default(true),
   sizes: text("sizes").array().default([]),
+  sortOrder: integer("sort_order").notNull().default(0),
 });
 
 // Subcategories for products
@@ -122,6 +123,7 @@ export const products = pgTable("products", {
     .default("both"),
   isActive: boolean("is_active").notNull().default(false),
   isFeatured: boolean("is_featured").notNull().default(false),
+  careInstructions: text("care_instructions"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });
@@ -253,6 +255,9 @@ export const orders = pgTable("orders", {
   estimatedDelivery: timestamp("estimated_delivery"),
   deliveredAt: timestamp("delivered_at"),
   couponId: varchar("coupon_id"),
+  couponCode: varchar("coupon_code"),
+  couponType: varchar("coupon_type"),
+  couponValue: varchar("coupon_value"),
   notes: text("notes"),
   returnEligibleUntil: timestamp("return_eligible_until"),
   // Delhivery integration fields
@@ -373,8 +378,10 @@ export const userAddresses = pgTable("user_addresses", {
     .notNull(),
   name: text("name").notNull(),
   phone: text("phone").notNull(),
+  addressLine1: text("address_line1").notNull().default(""),
   locality: text("locality").notNull(),
   city: text("city").notNull(),
+  state: text("state").notNull().default(""),
   pincode: text("pincode").notNull(),
   addressType: enums.addressTypeEnum("address_type").notNull().default("home"),
   isDefault: boolean("is_default").notNull().default(false),
@@ -498,6 +505,7 @@ export const onlineExchangeItems = pgTable("online_exchange_items", {
     .notNull(),
   quantity: integer("quantity").notNull(),
   exchangeproductId: varchar("exchange_product_id").references(() => products.id),
+  exchangeVariantId: varchar("exchange_variant_id").references(() => productVariants.id),
   condition: text("condition"),
   isRestockable: boolean("is_restockable").default(true),
 });
@@ -542,15 +550,31 @@ export const productReviews = pgTable("product_reviews", {
     .references(() => users.id)
     .notNull(),
   orderId: varchar("order_id").references(() => orders.id),
+  orderItemId: varchar("order_item_id").references(() => orderItems.id),
   rating: integer("rating").notNull(),
   title: text("title"),
   comment: text("comment"),
   images: text("images").array(),
   isVerifiedPurchase: boolean("is_verified_purchase").default(false),
-  isApproved: boolean("is_approved").default(true),
   helpfulCount: integer("helpful_count").default(0),
+  unhelpfulCount: integer("unhelpful_count").default(0),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
+});
+
+// Review votes (per-user dedup for helpful/unhelpful)
+export const reviewVotes = pgTable("review_votes", {
+  id: varchar("id")
+    .primaryKey()
+    .default(sql`gen_random_uuid()`),
+  reviewId: varchar("review_id")
+    .references(() => productReviews.id)
+    .notNull(),
+  userId: varchar("user_id")
+    .references(() => users.id)
+    .notNull(),
+  voteType: text("vote_type").notNull(), // 'helpful' | 'unhelpful'
+  createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
 // Coupons
@@ -596,6 +620,7 @@ export const sales = pgTable("sales", {
   isActive: boolean("is_active").notNull().default(true),
   isFeatured: boolean("is_featured").notNull().default(false),
   bannerImage: text("banner_image"),
+  bgColor: text("bg_color"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });

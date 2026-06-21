@@ -7,6 +7,12 @@ export const userRoleEnum = pgEnum("user_role", [
   "store",
 ]);
 
+export const addressTypeEnum = pgEnum("address_type", [
+  "home",
+  "work",
+  "other",
+]);
+
 export const orderStatusEnum = pgEnum("order_status", [
   "created",
   "processing",
@@ -25,8 +31,30 @@ export const itemStatusEnum = pgEnum("item_status", [
   "delivered",
   "rto_initiated",     // 🆕 Return to Origin
   "ndr_pending",       // 🆕 Non-Delivery Report
-  'return_requested',
-  'exchange_requested',
+  // Return sub-statuses
+  "return_requested",
+  "return_approved",
+  "return_pickup_scheduled",
+  "return_picked_up",
+  "return_in_transit",
+  "return_received",
+  "return_inspected",
+  "return_completed",
+  "return_rejected",
+  "return_cancelled",
+  // Exchange sub-statuses
+  "exchange_requested",
+  "exchange_approved",
+  "exchange_processing",
+  "exchange_pickup_scheduled",
+  "exchange_picked_up",
+  "exchange_in_transit",
+  "exchange_received",
+  "exchange_inspected",
+  "exchange_shipped",
+  "exchange_delivered",
+  "exchange_completed",
+  "exchange_cancelled",
   "cancelled",
 ]);
 
@@ -77,27 +105,6 @@ export const paymentStatusEnum = pgEnum("payment_status", [
 
 export const paymentMethodEnum = pgEnum("payment_method", [
   "razorpay",
-]);
-
-// 🆕 Shipping and Delhivery enums
-export const shippingMethodEnum = pgEnum("shipping_method", [
-  "manual",
-  "delhivery",
-]);
-
-export const shipmentStatusEnum = pgEnum("shipment_status", [
-  "pending",
-  "processing",
-  "dispatched",
-  "in_transit",
-  "out_for_delivery",
-  "delivered",
-  "cancelled",
-]);
-
-export const shipmentTypeEnum = pgEnum("shipment_type", [
-  "complete",
-  "split",
 ]);
 
 // Store and distribution enums
@@ -233,8 +240,22 @@ export const damageSourceEnum = pgEnum("damage_source", [
   "shipping",        // Shipping damage
   "manufacturing",   // Manufacturing defect
 ]);
-export const addressTypeEnum = pgEnum("address_type", [
-  "home",
-  "work",
-  "other",
+export const shippingMethodEnum = pgEnum("shipping_method", [
+  "manual",
+  "delhivery",
+]);
+
+export const shipmentStatusEnum = pgEnum("shipment_status", [
+  "pending",
+  "processing",
+  "dispatched",
+  "in_transit",
+  "out_for_delivery",
+  "delivered",
+  "cancelled",
+]);
+
+export const shipmentTypeEnum = pgEnum("shipment_type", [
+  "complete",
+  "split",
 ]);

@@ -1,8 +1,6 @@
-import { InsertProduct, Product, productActualPrices, products, productVariants, storeInventory, stores, variantStoreInventory } from "@shared/schema";
-import { and, eq } from "drizzle-orm";
+import { InsertProduct, Product, cart, productActualPrices, products, productVariants, storeInventory, stores, variantStoreInventory, wishlist } from "@shared/schema";
+import { eq, inArray } from "drizzle-orm";
 import { db } from "server/db";
-import { productService } from "server/product/productStorage";
-import { storeService } from "server/store/storeStorage";
 import { createOrUpdateProductSEO } from "../product/productSeoService";
 
 interface IStorage {
@@ -159,15 +157,17 @@ export class InventoryRepository implements IStorage {
             .delete(variantStoreInventory)
             .where(eq(variantStoreInventory.variantId, variant.id));
 
-          // Then create new allocations
+          // Then create new allocations (skip zero-quantity entries)
           if (variant.storeAllocations && variant.storeAllocations.length > 0) {
             for (const allocation of variant.storeAllocations) {
-              await tx.insert(variantStoreInventory).values({
-                variantId: variant.id,
-                storeId: allocation.storeId,
-                quantity: allocation.quantity,
-                updatedAt: new Date(),
-              });
+              if (allocation.quantity > 0) {
+                await tx.insert(variantStoreInventory).values({
+                  variantId: variant.id,
+                  storeId: allocation.storeId,
+                  quantity: allocation.quantity,
+                  updatedAt: new Date(),
+                });
+              }
             }
           }
         } else {
@@ -191,15 +191,17 @@ export class InventoryRepository implements IStorage {
           updatedVariants.push(createdVariant);
           incomingVariantIds.add(createdVariant.id);
 
-          // Create variant store allocations
+          // Create variant store allocations (skip zero-quantity entries)
           if (variant.storeAllocations && variant.storeAllocations.length > 0) {
             for (const allocation of variant.storeAllocations) {
-              await tx.insert(variantStoreInventory).values({
-                variantId: createdVariant.id,
-                storeId: allocation.storeId,
-                quantity: allocation.quantity,
-                updatedAt: new Date(),
-              });
+              if (allocation.quantity > 0) {
+                await tx.insert(variantStoreInventory).values({
+                  variantId: createdVariant.id,
+                  storeId: allocation.storeId,
+                  quantity: allocation.quantity,
+                  updatedAt: new Date(),
+                });
+              }
             }
           }
         }
@@ -225,14 +227,16 @@ export class InventoryRepository implements IStorage {
         .delete(storeInventory)
         .where(eq(storeInventory.productId, id));
 
-      // Then create new allocations
+      // Then create new allocations (skip zero-quantity entries)
       for (const allocation of storeAllocations) {
-        await tx.insert(storeInventory).values({
-          storeId: allocation.storeId,
-          productId: updatedProduct.id,
-          quantity: allocation.quantity,
-          updatedAt: new Date(),
-        });
+        if (allocation.quantity > 0) {
+          await tx.insert(storeInventory).values({
+            storeId: allocation.storeId,
+            productId: updatedProduct.id,
+            quantity: allocation.quantity,
+            updatedAt: new Date(),
+          });
+        }
       }
 
       // Handle SEO data if provided
@@ -240,7 +244,7 @@ export class InventoryRepository implements IStorage {
         await createOrUpdateProductSEO({
           productId: updatedProduct.id,
           ...seoData
-        });
+        }, tx);
       }
 
       return updatedProduct;
@@ -261,26 +265,31 @@ export class InventoryRepository implements IStorage {
     }
   ): Promise<Product> {
     return await db.transaction(async (tx) => {
-      // Create the main product
-      const createdProduct = await productService.createProduct(product);
+      // Generate SKU if not provided
+      let productData = product;
+      if (!product.sku) {
+        const dateStr = new Date().toISOString().slice(0, 10).replace(/-/g, "");
+        const randomSuffix = Math.random().toString(36).substring(2, 7).toUpperCase();
+        productData = { ...product, sku: `MH-${dateStr}-${randomSuffix}` };
+      }
 
-      // Save actual price and total actual stock if provided
+      // Create the main product inside the transaction so it rolls back on failure
+      const [createdProduct] = await tx.insert(products).values(productData).returning();
+
+      // Save actual price if provided
       if (actualPrice) {
         await tx.insert(productActualPrices).values({
           productId: createdProduct.id,
-          actualPrice: actualPrice || "0",
+          actualPrice,
           totalActualStock: createdProduct.totalStock,
           createdAt: new Date(),
           updatedAt: new Date(),
         });
       }
 
-      // Create variants
-      const createdVariants = [];
+      // Create variants and their store allocations
       for (const variant of variants) {
-        // Generate SKU if not provided
-        const sku = variant.sku || `${createdProduct.sku || 'PROD'}-${variant.size}`;
-        
+        const sku = variant.sku || `${createdProduct.sku}-${variant.size}`;
         const [createdVariant] = await tx
           .insert(productVariants)
           .values({
@@ -296,38 +305,35 @@ export class InventoryRepository implements IStorage {
             updatedAt: new Date(),
           })
           .returning();
-        
-        createdVariants.push(createdVariant);
 
-        // Create variant store allocations
         if (variant.storeAllocations && variant.storeAllocations.length > 0) {
           for (const allocation of variant.storeAllocations) {
-            await tx.insert(variantStoreInventory).values({
-              variantId: createdVariant.id,
-              storeId: allocation.storeId,
-              quantity: allocation.quantity,
-              updatedAt: new Date(),
-            });
+            if (allocation.quantity > 0) {
+              await tx.insert(variantStoreInventory).values({
+                variantId: createdVariant.id,
+                storeId: allocation.storeId,
+                quantity: allocation.quantity,
+                updatedAt: new Date(),
+              });
+            }
           }
         }
       }
 
       // Create product-level store allocations (aggregated from variants)
       for (const allocation of storeAllocations) {
-        await tx.insert(storeInventory).values({
-          storeId: allocation.storeId,
-          productId: createdProduct.id,
-          quantity: allocation.quantity,
-          updatedAt: new Date(),
-        });
+        if (allocation.quantity > 0) {
+          await tx.insert(storeInventory).values({
+            storeId: allocation.storeId,
+            productId: createdProduct.id,
+            quantity: allocation.quantity,
+            updatedAt: new Date(),
+          });
+        }
       }
 
-      // Handle SEO data if provided
       if (seoData) {
-        await createOrUpdateProductSEO({
-          productId: createdProduct.id,
-          ...seoData
-        });
+        await createOrUpdateProductSEO({ productId: createdProduct.id, ...seoData }, tx);
       }
 
       return createdProduct;
@@ -347,34 +353,42 @@ export class InventoryRepository implements IStorage {
     }
   ): Promise<Product> {
     return await db.transaction(async (tx) => {
-      const createdProduct = await productService.createProduct(product);
+      // Generate SKU if not provided
+      let productData = product;
+      if (!product.sku) {
+        const dateStr = new Date().toISOString().slice(0, 10).replace(/-/g, "");
+        const randomSuffix = Math.random().toString(36).substring(2, 7).toUpperCase();
+        productData = { ...product, sku: `MH-${dateStr}-${randomSuffix}` };
+      }
 
-      // Save actual price and total actual stock if provided
+      // Create the main product inside the transaction so it rolls back on failure
+      const [createdProduct] = await tx.insert(products).values(productData).returning();
+
+      // Save actual price if provided
       if (actualPrice) {
         await tx.insert(productActualPrices).values({
           productId: createdProduct.id,
-          actualPrice: actualPrice || "0",
+          actualPrice,
           totalActualStock: createdProduct.totalStock,
           createdAt: new Date(),
           updatedAt: new Date(),
         });
       }
 
+      // Insert store allocations (skip zero-quantity entries)
       for (const allocation of storeAllocations) {
-        await tx.insert(storeInventory).values({
-          storeId: allocation.storeId,
-          productId: createdProduct.id,
-          quantity: allocation.quantity,
-          updatedAt: new Date(),
-        });
+        if (allocation.quantity > 0) {
+          await tx.insert(storeInventory).values({
+            storeId: allocation.storeId,
+            productId: createdProduct.id,
+            quantity: allocation.quantity,
+            updatedAt: new Date(),
+          });
+        }
       }
 
-      // Handle SEO data if provided
       if (seoData) {
-        await createOrUpdateProductSEO({
-          productId: createdProduct.id,
-          ...seoData
-        });
+        await createOrUpdateProductSEO({ productId: createdProduct.id, ...seoData }, tx);
       }
 
       return createdProduct;
@@ -434,22 +448,15 @@ export class InventoryRepository implements IStorage {
         }
       }
 
+      // Delete all existing store allocations for this product, then re-insert.
+      // This ensures stores that were removed or set to 0 are properly cleared.
+      await tx
+        .delete(storeInventory)
+        .where(eq(storeInventory.productId, id));
+
       for (const allocation of storeAllocations) {
-        const existing = await storeService.getStoreInventoryItem(
-          allocation.storeId,
-          id
-        );
-        if (existing) {
-          await tx
-            .update(storeInventory)
-            .set({ quantity: allocation.quantity, updatedAt: new Date() })
-            .where(
-              and(
-                eq(storeInventory.storeId, allocation.storeId),
-                eq(storeInventory.productId, id)
-              )
-            );
-        } else {
+        // Skip zero-quantity entries — no point storing them
+        if (allocation.quantity > 0) {
           await tx.insert(storeInventory).values({
             storeId: allocation.storeId,
             productId: id,
@@ -459,12 +466,29 @@ export class InventoryRepository implements IStorage {
         }
       }
 
+      // Clean up any orphaned variant rows if this product is being saved as simple.
+      // This handles the variant→simple transition correctly.
+      const existingVariants = await tx
+        .select({ id: productVariants.id })
+        .from(productVariants)
+        .where(eq(productVariants.productId, id));
+
+      if (existingVariants.length > 0) {
+        const variantIds = existingVariants.map(v => v.id);
+        await tx
+          .delete(variantStoreInventory)
+          .where(inArray(variantStoreInventory.variantId, variantIds));
+        await tx
+          .delete(productVariants)
+          .where(eq(productVariants.productId, id));
+      }
+
       // Handle SEO data if provided
       if (seoData) {
         await createOrUpdateProductSEO({
           productId: id,
           ...seoData
-        });
+        }, tx);
       }
 
       return updatedProduct;
@@ -474,29 +498,21 @@ export class InventoryRepository implements IStorage {
   async getProductAllocations(
     productId: string
   ): Promise<{ storeId: string; storeName: string; quantity: number }[]> {
-    const allocations = await db
+    const rows = await db
       .select({
         storeId: storeInventory.storeId,
+        storeName: stores.name,
         quantity: storeInventory.quantity,
       })
       .from(storeInventory)
+      .leftJoin(stores, eq(storeInventory.storeId, stores.id))
       .where(eq(storeInventory.productId, productId));
 
-    const result = await Promise.all(
-      allocations.map(async (alloc) => {
-        const [store] = await db
-          .select()
-          .from(stores)
-          .where(eq(stores.id, alloc.storeId));
-        return {
-          storeId: alloc.storeId,
-          storeName: store?.name || "Unknown",
-          quantity: alloc.quantity,
-        };
-      })
-    );
-
-    return result;
+    return rows.map(row => ({
+      storeId: row.storeId,
+      storeName: row.storeName ?? "Unknown",
+      quantity: row.quantity,
+    }));
   }
 }
 

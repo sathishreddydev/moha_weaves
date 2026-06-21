@@ -26,20 +26,18 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Load environment variables
-        run: |
-          echo "Loading stage environment variables..."
-          cp .env.stage .env
-          
       - name: Run database migrations
+        # DATABASE_URL comes directly from secrets — NOT from the template env file,
+        # because the template contains placeholder values, not real credentials.
         run: npm run db:migrate
         env:
+          NODE_ENV: stage
           DATABASE_URL: ${{ secrets.STAGE_DATABASE_URL }}
 
       - name: Build application
         run: npm run build
         env:
-          NODE_ENV: stage
+          NODE_ENV: production
 
       - name: Run tests
         run: npm test --if-present

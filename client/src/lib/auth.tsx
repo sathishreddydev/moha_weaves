@@ -1,13 +1,13 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from "react";
 import type { User } from "@shared/schema";
 import { apiRequest } from "./queryClient";
+import socketService from "./socket";
 
 interface AuthContextType {
   user: User | null;
   isLoading: boolean;
   login: (email: string, password: string, role: string) => Promise<any>;
   logout: () => Promise<void>;
-  register: (data: any) => Promise<any>;
   changePassword: (currentPassword: string, newPassword: string) => Promise<any>;
 }
 
@@ -18,6 +18,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
   const isRefreshing = useRef(false);
   const refreshPromise = useRef<Promise<boolean> | null>(null);
+
+  // Reconnect socket whenever auth state changes so it joins the correct rooms
+  const reconnectSocket = useCallback(() => {
+    socketService.disconnect();
+    // Small delay to let the cookie be set before the new handshake
+    setTimeout(() => socketService.connect(), 100);
+  }, []);
 
   const refreshAccessToken = useCallback(async (): Promise<boolean> => {
     if (isRefreshing.current && refreshPromise.current) {
@@ -59,28 +66,25 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     checkAuth();
   }, [checkAuth]);
 
+  // Reconnect socket whenever user changes (login / logout)
+  useEffect(() => {
+    if (!isLoading) {
+      reconnectSocket();
+    }
+  }, [user?.id, isLoading]);
+
   const login = async (email: string, password: string, role: string) => {
     try {
       const data = await apiRequest("POST", `/api/auth/${role}/login`, { email, password });
 
       setUser(data.user);
       return { success: true };
-    } catch {
-      return { success: false, error: "Network error" };
+    } catch (error: any) {
+      const message = error?.message || "Something went wrong. Please try again.";
+      return { success: false, error: message };
     }
   };
 
-
-  const register = async (data: any) => {
-    try {
-      const result = await apiRequest("POST", "/api/auth/user/register", data);
-
-      setUser(result.user);
-      return { success: true };
-    } catch {
-      return { success: false, error: "Network error" };
-    }
-  };
 
   const logout = async () => {
     try {
@@ -102,7 +106,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, isLoading, login, logout, register, changePassword }}>
+    <AuthContext.Provider value={{ user, isLoading, login, logout, changePassword }}>
       {children}
     </AuthContext.Provider>
   );

@@ -10,7 +10,7 @@ const DELHIVERY_API_BASE = process.env.DELHIVERY_TEST_URL
 // Force production API for testing since staging has issues
 const DELHIVERY_API_BASE_PROD = "https://track.delhivery.com/api/cmu/create.json";
 const DELHIVERY_TOKEN = process.env.DELHIVERY_API_TOKEN;
-const DELHIVERY_CLIENT_NAME = process.env.DELHIVERY_PICKUP_WAREHOUSE || "Moha Weaves";
+const DELHIVERY_CLIENT_NAME = process.env.DELHIVERY_PICKUP_WAREHOUSE || "Urumi Weaves";
 
 // Delhivery Order Creation Interface
 interface DelhiveryOrderItem {
@@ -319,7 +319,7 @@ export class DelhiveryOrderService {
   ): DelhiveryOrderRequest {
     // Seller information (from environment or config)
     const sellerInfo = {
-      name: process.env.SELLER_NAME || "Moha Weaves",
+      name: process.env.SELLER_NAME || "Urumi Weaves",
       address: process.env.SELLER_ADDRESS || "Seller Address",
       pincode: process.env.SELLER_PINCODE || "110001",
       city: process.env.SELLER_CITY || "Delhi",

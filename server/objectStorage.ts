@@ -17,7 +17,7 @@ const UPLOAD_TTL_MS = 15 * 60 * 1000;
 
 export const objectStorageClient = new Storage({
   credentials: {
-    audience: "moha",
+    audience: "urumi",
     subject_token_type: "access_token",
     token_url: `${MOHASIDECAR_ENDPOINT}/token`,
     type: "external_account",
@@ -285,7 +285,7 @@ async function signObjectURL({
   if (response.status !== 200) {
     throw new Error(
       `Failed to sign object URL, errorcode: ${response.status}, ` +
-        `make sure you're running on moha`
+        `make sure you're running on urumi`
     );
   }
   const { signed_url: signedURL } = response.data;

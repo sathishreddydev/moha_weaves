@@ -43,6 +43,11 @@ export const itemStatusConfig: Record<
     label: "Cancelled",
     color: "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-100",
   },
+  returned: {
+    icon: RotateCcw,
+    label: "Returned",
+    color: "bg-teal-100 text-teal-800 dark:bg-teal-900 dark:text-teal-100",
+  },
 
   // -------- Return flow --------
   return_requested: {
@@ -214,57 +219,60 @@ export const returnReasons = [
   { value: "not_as_described", label: "Not as described" },
   { value: "quality_issue", label: "Quality issue" },
   { value: "size_issue", label: "Size doesn't fit" },
+  { value: "color_mismatch", label: "Color mismatch" },
+  { value: "damaged_in_shipping", label: "Damaged in shipping" },
   { value: "changed_mind", label: "Changed my mind" },
   { value: "other", label: "Other reason" },
 ];
 
+// Legacy short-key config — kept for any existing consumers but keys now match DB enum values
 export const returnStatusConfig: Record<string, { icon: typeof Clock; label: string; color: string }> = {
-  requested: {
+  return_requested: {
     icon: Clock,
     label: "Pending Review",
     color: "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-100",
   },
-  approved: {
+  return_approved: {
     icon: CheckCircle,
     label: "Approved",
     color: "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-100",
   },
-  rejected: {
+  return_rejected: {
     icon: XCircle,
     label: "Rejected",
     color: "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-100",
   },
-  pickup_scheduled: {
+  return_pickup_scheduled: {
     icon: Clock,
     label: "Pickup Scheduled",
     color: "bg-indigo-100 text-indigo-800 dark:bg-indigo-900 dark:text-indigo-100",
   },
-  picked_up: {
+  return_picked_up: {
     icon: Package,
     label: "Picked Up",
     color: "bg-violet-100 text-violet-800 dark:bg-violet-900 dark:text-violet-100",
   },
-  in_transit: {
+  return_in_transit: {
     icon: Truck,
     label: "Items in Transit",
     color: "bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-100",
   },
-  received: {
+  return_received: {
     icon: Package,
     label: "Received at Warehouse",
     color: "bg-cyan-100 text-cyan-800 dark:bg-cyan-900 dark:text-cyan-100",
   },
-  inspected: {
+  return_inspected: {
     icon: Package,
     label: "Under Inspection",
     color: "bg-indigo-100 text-indigo-800 dark:bg-indigo-900 dark:text-indigo-100",
   },
-  completed: {
+  return_completed: {
     icon: CheckCircle,
     label: "Completed",
     color: "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-100",
   },
-  cancelled: {
+  return_cancelled: {
     icon: XCircle,
     label: "Cancelled",
     color: "bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-100",

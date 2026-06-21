@@ -18,42 +18,19 @@
 import { Pool } from 'pg';
 import { drizzle } from 'drizzle-orm/node-postgres';
 import * as schema from '@shared/schema';
-import * as dotenv from 'dotenv';
 
-// Load environment variables based on environment
-const env = process.env.NODE_ENV || 'development';
-
-let envFile = '.env.development'; // default
-
-switch (env) {
-  case 'production':
-    // GitHub workflows copy appropriate .env file to .env
-    dotenv.config();
-    break;
-  case 'stage':
-    envFile = '.env.stage';
-    break;
-  case 'beta':
-    envFile = '.env.beta';
-    break;
-  case 'prod':
-    envFile = '.env.prod';
-    break;
-  default:
-    envFile = '.env.development';
-    break;
-}
-
-if (env !== 'production') {
-  dotenv.config({ path: envFile });
-}
-
+// Environment variables are loaded by server/index.ts before this module is
+// imported. dotenv is NOT called here to avoid double-loading and inconsistency.
+// If DATABASE_URL is still missing, fail fast with a clear message.
 if (!process.env.DATABASE_URL) {
-  throw new Error(`DATABASE_URL must be set for environment: ${env}`);
+  throw new Error("DATABASE_URL must be set. Check your environment configuration.");
 }
 
 export const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
+  max: 20,
+  idleTimeoutMillis: 30_000,
+  connectionTimeoutMillis: 5_000,
 });
 
 export const db = drizzle(pool, { schema });

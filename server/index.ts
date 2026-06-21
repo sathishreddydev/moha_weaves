@@ -1,21 +1,20 @@
-import "dotenv/config";
 import express, { type Request, Response, NextFunction } from "express";
 import { createServer } from "http";
 import cookieParser from "cookie-parser";
+import cors from "cors";
 import { registerRoutes } from "./routes";
 import { serveStatic } from "./static";
 import { emailService } from "./services/emailService";
-
-// Load environment variables from .env.development for local development
-if (process.env.NODE_ENV !== 'production') {
-  import('dotenv').then(dotenv => {
-    dotenv.config({ path: '.env.development' });
-  });
-}
+import { initSocket } from "../realtime/socket";
+import { initSubscriber } from "../realtime/subscriber";
+import { startRefundCron } from "./cron/refundCron";
 
 const app = express();
 const httpServer = createServer(app);
 
+// Trust the first proxy hop (nginx, Render, Azure load balancer).
+// This makes req.ip correct and allows secure cookies behind HTTPS proxies.
+app.set("trust proxy", 1);
 declare module "http" {
   interface IncomingMessage {
     rawBody?: Buffer;
@@ -25,10 +24,36 @@ declare module "http" {
 
 app.use(cookieParser());
 
+// CORS configuration for cross-origin requests
+// Origins are read from the environment so they never need to be hardcoded.
+// FRONTEND_URL  = the Next.js storefront (e.g. https://urumibymounika.com)
+// BACKEND_URL   = the admin/API domain  (e.g. https://admin.urumibymounika.com)
+// In development both localhost variants are always allowed.
+const allowedOrigins: string[] = [
+  "http://localhost:3000",
+  "http://localhost:5000",
+];
+if (process.env.FRONTEND_URL) allowedOrigins.push(process.env.FRONTEND_URL);
+if (process.env.BACKEND_URL)  allowedOrigins.push(process.env.BACKEND_URL);
+
+app.use(cors({
+  origin: (origin, callback) => {
+    // Allow requests with no origin (server-to-server, curl, Postman)
+    if (!origin || allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error(`CORS: origin '${origin}' not allowed`));
+    }
+  },
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'Cookie', 'Set-Cookie'],
+}));
+
 // Health check endpoint for Render
 app.get('/health', (req, res) => {
-  res.status(200).json({ 
-    status: 'ok', 
+  res.status(200).json({
+    status: 'ok',
     timestamp: new Date().toISOString(),
     uptime: process.uptime()
   });
@@ -89,7 +114,11 @@ async function bootstrap() {
   }
 
   await registerRoutes(httpServer, app);
+  initSocket(httpServer);
+  await initSubscriber();
 
+  // Start background cron jobs
+  startRefundCron();
   app.use(
     (err: any, _req: Request, res: Response, _next: NextFunction) => {
       const status = err?.status || err?.statusCode || 500;
