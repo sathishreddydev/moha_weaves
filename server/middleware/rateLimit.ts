@@ -68,7 +68,7 @@ setInterval(() => {
 // Predefined rate limiters for different use cases
 export const adminRateLimit = createRateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  maxRequests: 100, // 100 requests per 15 minutes
+  maxRequests: 500, // 500 requests per 15 minutes (admin panels are request-heavy)
   message: "Admin rate limit exceeded. Please try again later."
 });
 
